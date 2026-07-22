@@ -91,7 +91,7 @@ const DOCX_AR_COPY: Record<string, string> = {
   "Texture Direction": "توجه الملمس", "Lighting Approach": "نهج الإضاءة", "Spatial Philosophy": "الفلسفة المكانية",
   "Target Tier Requirement": "متطلب الشريحة المستهدفة", "Quality Benchmark": "معيار الجودة", "Sustainability Mandate": "متطلب الاستدامة",
   "Total Estimated Project Area": "إجمالي مساحة المشروع التقديرية", "Cost Per Sqm Target": "التكلفة المستهدفة لكل م²",
-  "Total Budget Cap": "الحد الأعلى للميزانية", "Cost Band": "نطاق التكلفة", "Contingency Recommendation": "توصية الاحتياطي",
+  "Total Budget Cap": "الحد الأعلى للميزانية", "Cost Band": "نطاق التكلفة", "Cost Basis": "أساس التكلفة", "Contingency Recommendation": "توصية الاحتياطي",
   "Budget Flexibility Level": "مستوى مرونة الميزانية", "Lead Time Window": "نافذة المهلة الزمنية",
   Parameter: "المعيار", Value: "القيمة", Category: "الفئة", Allocation: "التخصيص", "Estimated Budget": "الميزانية التقديرية", Notes: "ملاحظات",
   "Overall Efficiency Score": "درجة الكفاءة الإجمالية", "Total Analysed Area": "إجمالي المساحة المحللة", "Room Count": "عدد الغرف",
@@ -437,6 +437,10 @@ export async function generateDesignBriefDocx(data: DesignBriefData): Promise<Bu
       ["Cost Per Sqm Target", budget.costPerSqmTarget ?? "—"],
       ["Total Budget Cap", budget.totalBudgetCap ?? "—"],
       ["Cost Band", budget.costBand ?? "—"],
+      // ADR-0009: the MQI cost basis label travels with every budget rendering.
+      ["Cost Basis", budget.mqiSummary?.costBasisLabel
+        ? `${budget.mqiSummary.costBasisLabel}${Number(budget.mqiSummary.unpricedAllocationCount) > 0 ? ` — ${budget.mqiSummary.unpricedAllocationCount} unpriced allocations` : ""}`
+        : "—"],
       ["Contingency Recommendation", budget.contingencyRecommendation ?? "—"],
       ["Budget Flexibility Level", budget.flexibilityLevel ?? "—"],
     ], rtl)

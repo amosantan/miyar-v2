@@ -110,6 +110,12 @@ describe("workflow/space/MQI report reconciliation", () => {
       min: 2600,
       mid: 4100,
       max: 5600,
+      basis: {
+        policyVersion: "material-library-provenance-v1",
+        label: "MIYAR assumption",
+        assumptionRowCount: 2,
+        observedRowCount: 0,
+      },
     });
   });
 

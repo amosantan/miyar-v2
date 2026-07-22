@@ -126,6 +126,10 @@ export interface DesignBriefData {
     isOverBudget: boolean;
     overBudgetByAed: number;
     qualityLabel: string;
+    /** ADR-0009: provenance basis label of the priced library rows ("MIYAR assumption", …). */
+    costBasisLabel?: string;
+    /** ADR-0009: allocation slices with no resolvable priced library row. */
+    unpricedAllocationCount?: number;
     roomBreakdown: { roomId: string; roomName: string; roomCostMin: number; roomCostMax: number }[];
     topMaterials: { materialName: string; totalAreaM2: number; totalCostMin: number; totalCostMax: number; pctOfTotalSurface: number }[];
     generatedAt: string;
@@ -626,6 +630,8 @@ export function generateDesignBrief(
         isOverBudget: mqiData.summary.isOverBudget,
         overBudgetByAed: mqiData.summary.overBudgetByAed,
         qualityLabel: mqiData.summary.qualityLabel,
+        costBasisLabel: mqiData.summary.costBasis?.label,
+        unpricedAllocationCount: mqiData.summary.unpricedAllocationCount,
         roomBreakdown: mqiData.rooms.map(r => ({
           roomId: r.roomId,
           roomName: r.roomName,

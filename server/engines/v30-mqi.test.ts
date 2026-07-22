@@ -328,3 +328,146 @@ describe("buildQuantityCostSummary", () => {
         expect(totalPct).toBeCloseTo(100, 0);
     });
 });
+
+// ─── ADR-0009: unpriced allocations and cost basis ──────────────────────────
+
+describe("buildQuantityCostSummary unpriced semantics and cost basis (ADR-0009)", () => {
+    const singleRoomSurface: RoomSurfaces[] = [
+        { roomId: "LVG", roomName: "Living", floorM2: 40, wallM2: 62, ceilingM2: 38 },
+    ];
+
+    it("does not invent a category-fallback price for a null materialLibraryId", () => {
+        const allocations: AllocationResult = {
+            rooms: [
+                {
+                    roomId: "LVG",
+                    floor: [{ materialLibraryId: null, materialName: "Generic Stone", percentage: 100, reasoning: "No library match" }],
+                    walls: [],
+                    ceiling: [],
+                    joinery: [],
+                },
+            ],
+            designRationale: "Test",
+            estimatedQualityLabel: "Standard",
+        };
+
+        const result = buildQuantityCostSummary(
+            singleRoomSurface,
+            allocations,
+            mockMaterialLibrary as MaterialLibrary[],
+            { fin01BudgetCap: null, ctx03Gfa: null }
+        );
+
+        const floorElement = result.rooms[0].elements.find((e) => e.element === "floor")!;
+        expect(floorElement.elementCostMin).toBe(0);
+        expect(floorElement.elementCostMax).toBe(0);
+        expect(floorElement.allocations[0].priced).toBe(false);
+        expect(floorElement.allocations[0].unitCostMin).toBe(0);
+        expect(result.summary.unpricedAllocationCount).toBe(1);
+        expect(result.summary.totalFinishCostMid).toBe(0);
+    });
+
+    it("counts an unknown or price-less library id as unpriced", () => {
+        const allocations: AllocationResult = {
+            rooms: [
+                {
+                    roomId: "LVG",
+                    floor: [{ materialLibraryId: 999, materialName: "Ghost Material", percentage: 100, reasoning: "Stale id" }],
+                    walls: [],
+                    ceiling: [],
+                    joinery: [],
+                },
+            ],
+            designRationale: "Test",
+            estimatedQualityLabel: "Standard",
+        };
+
+        const result = buildQuantityCostSummary(
+            singleRoomSurface,
+            allocations,
+            mockMaterialLibrary as MaterialLibrary[],
+            { fin01BudgetCap: null, ctx03Gfa: null }
+        );
+
+        expect(result.summary.unpricedAllocationCount).toBe(1);
+        expect(result.summary.totalFinishCostMid).toBe(0);
+    });
+
+    it("labels an all-assumption library as MIYAR assumption", () => {
+        const allocations: AllocationResult = {
+            rooms: [
+                {
+                    roomId: "LVG",
+                    floor: [{ materialLibraryId: 1, materialName: "Calacatta Marble", percentage: 100, reasoning: "Full marble" }],
+                    walls: [],
+                    ceiling: [],
+                    joinery: [],
+                },
+            ],
+            designRationale: "Test",
+            estimatedQualityLabel: "Premium",
+        };
+
+        const result = buildQuantityCostSummary(
+            singleRoomSurface,
+            allocations,
+            mockMaterialLibrary as MaterialLibrary[],
+            { fin01BudgetCap: null, ctx03Gfa: null }
+        );
+
+        expect(result.summary.unpricedAllocationCount).toBe(0);
+        expect(result.summary.costBasis).toEqual({
+            policyVersion: "material-library-provenance-v1",
+            label: "MIYAR assumption",
+            assumptionRowCount: 1,
+            observedRowCount: 0,
+        });
+    });
+
+    it("labels mixed assumption and observed rows as Mixed", () => {
+        const observedLibrary = [
+            ...mockMaterialLibrary,
+            {
+                id: 50,
+                category: "flooring",
+                tier: "premium",
+                style: "modern",
+                brand: "Observed",
+                productName: "Observed Porcelain",
+                supplierName: "Observed Supplier",
+                unitLabel: "sqm",
+                priceAedMin: "100.00",
+                priceAedMax: "140.00",
+                isActive: true,
+                sourceType: "market_observation",
+            },
+        ];
+        const allocations: AllocationResult = {
+            rooms: [
+                {
+                    roomId: "LVG",
+                    floor: [
+                        { materialLibraryId: 1, materialName: "Calacatta Marble", percentage: 50, reasoning: "Assumption row" },
+                        { materialLibraryId: 50, materialName: "Observed Porcelain", percentage: 50, reasoning: "Observed row" },
+                    ],
+                    walls: [],
+                    ceiling: [],
+                    joinery: [],
+                },
+            ],
+            designRationale: "Test",
+            estimatedQualityLabel: "Premium",
+        };
+
+        const result = buildQuantityCostSummary(
+            singleRoomSurface,
+            allocations,
+            observedLibrary as MaterialLibrary[],
+            { fin01BudgetCap: null, ctx03Gfa: null }
+        );
+
+        expect(result.summary.costBasis.label).toBe("Mixed (MIYAR assumption + observed)");
+        expect(result.summary.costBasis.assumptionRowCount).toBe(1);
+        expect(result.summary.costBasis.observedRowCount).toBe(1);
+    });
+});

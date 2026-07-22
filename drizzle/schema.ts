@@ -10,6 +10,7 @@ import {
   boolean,
   float,
   json,
+  date,
   index,
   uniqueIndex,
   foreignKey,
@@ -2125,7 +2126,34 @@ export const materialLibrary = mysqlTable("material_library", {
   priceAedMax: decimal("price_aed_max", { precision: 10, scale: 2 }),
   notes: text("notes"),
   isActive: boolean("is_active").default(true).notNull(),
-});
+  // ADR-0009 provenance: defaults label every pre-existing row an explicit
+  // MIYAR assumption; only a deliberate write may claim an observation.
+  sourceType: mysqlEnum("source_type", [
+    "miyar_assumption",
+    "supplier_quote",
+    "market_observation",
+    "manual_entry",
+  ])
+    .default("miyar_assumption")
+    .notNull(),
+  sourceLabel: varchar("source_label", { length: 255 })
+    .default("MIYAR assumption")
+    .notNull(),
+  sourceUrl: varchar("source_url", { length: 500 }),
+  priceObservedAt: date("price_observed_at"),
+  priceConfidence: mysqlEnum("price_confidence", [
+    "assumption",
+    "indicative",
+    "quoted",
+  ])
+    .default("assumption")
+    .notNull(),
+  provenancePolicyVersion: varchar("provenance_policy_version", { length: 64 })
+    .default("material-library-provenance-v1")
+    .notNull(),
+}, (table) => [
+  uniqueIndex("material_library_product_code_unique").on(table.productCode),
+]);
 
 export type MaterialLibrary = typeof materialLibrary.$inferSelect;
 export type InsertMaterialLibrary = typeof materialLibrary.$inferInsert;

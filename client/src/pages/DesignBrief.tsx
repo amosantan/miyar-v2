@@ -140,6 +140,7 @@ export default function DesignBrief() {
   const mqiSummary = mqiRaw && {
     totalFinishCostMin: numberValue(mqiRaw, "totalFinishCostMin"), totalFinishCostMid: numberValue(mqiRaw, "totalFinishCostMid"),
     totalFinishCostMax: numberValue(mqiRaw, "totalFinishCostMax"), qualityLabel: textValue(mqiRaw, "qualityLabel"),
+    costBasisLabel: textValue(mqiRaw, "costBasisLabel"), unpricedAllocationCount: numberValue(mqiRaw, "unpricedAllocationCount"),
     budgetUtilizationPct: typeof mqiRaw.budgetUtilizationPct === "number" ? mqiRaw.budgetUtilizationPct : null,
     isOverBudget: booleanValue(mqiRaw, "isOverBudget"), overBudgetByAed: numberValue(mqiRaw, "overBudgetByAed"),
     roomBreakdown: recordList(mqiRaw, "roomBreakdown").map((room) => ({
@@ -463,6 +464,18 @@ export default function DesignBrief() {
                       <Badge variant="secondary">{mqiSummary.qualityLabel}</Badge>
                     </div>
                   </div>
+                  {(mqiSummary.costBasisLabel || mqiSummary.unpricedAllocationCount > 0) && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {mqiSummary.costBasisLabel && (
+                        <Badge variant="outline" className="text-xs">Basis: {mqiSummary.costBasisLabel}</Badge>
+                      )}
+                      {mqiSummary.unpricedAllocationCount > 0 && (
+                        <span className="text-xs text-amber-600 dark:text-amber-400">
+                          {mqiSummary.unpricedAllocationCount} allocation{mqiSummary.unpricedAllocationCount === 1 ? "" : "s"} unpriced — excluded from totals
+                        </span>
+                      )}
+                    </div>
+                  )}
                   {mqiSummary.budgetUtilizationPct != null && (
                     <>
                       <Separator />

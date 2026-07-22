@@ -422,6 +422,7 @@ import {
   decimal,
   boolean,
   json,
+  date,
   index,
   uniqueIndex,
   foreignKey
@@ -2186,8 +2187,27 @@ var init_schema = __esm({
       priceAedMin: decimal("price_aed_min", { precision: 10, scale: 2 }),
       priceAedMax: decimal("price_aed_max", { precision: 10, scale: 2 }),
       notes: text("notes"),
-      isActive: boolean("is_active").default(true).notNull()
-    });
+      isActive: boolean("is_active").default(true).notNull(),
+      // ADR-0009 provenance: defaults label every pre-existing row an explicit
+      // MIYAR assumption; only a deliberate write may claim an observation.
+      sourceType: mysqlEnum("source_type", [
+        "miyar_assumption",
+        "supplier_quote",
+        "market_observation",
+        "manual_entry"
+      ]).default("miyar_assumption").notNull(),
+      sourceLabel: varchar("source_label", { length: 255 }).default("MIYAR assumption").notNull(),
+      sourceUrl: varchar("source_url", { length: 500 }),
+      priceObservedAt: date("price_observed_at"),
+      priceConfidence: mysqlEnum("price_confidence", [
+        "assumption",
+        "indicative",
+        "quoted"
+      ]).default("assumption").notNull(),
+      provenancePolicyVersion: varchar("provenance_policy_version", { length: 64 }).default("material-library-provenance-v1").notNull()
+    }, (table) => [
+      uniqueIndex("material_library_product_code_unique").on(table.productCode)
+    ]);
     finishScheduleItems = mysqlTable("finish_schedule_items", {
       id: int("id").primaryKey().autoincrement(),
       projectId: int("project_id").notNull(),
@@ -9311,13 +9331,13 @@ function formatReportNumber(value, locale, options = {}) {
   return new Intl.NumberFormat(reportIntlLocale(locale), options).format(value);
 }
 function toValidDate(value) {
-  const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
+  const date2 = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date2.getTime()) ? null : date2;
 }
 function formatReportDate(value, locale, options = { year: "numeric", month: "long", day: "numeric" }) {
-  const date = toValidDate(value);
-  if (!date) return reportCopy(locale, "notAvailable");
-  return new Intl.DateTimeFormat(reportIntlLocale(locale), options).format(date);
+  const date2 = toValidDate(value);
+  if (!date2) return reportCopy(locale, "notAvailable");
+  return new Intl.DateTimeFormat(reportIntlLocale(locale), options).format(date2);
 }
 function formatReportDateTime(value, locale) {
   return formatReportDate(value, locale, {
@@ -9878,9 +9898,9 @@ function normalizeVersion(value) {
   return value.trim();
 }
 function normalizeGeneratedAt(value) {
-  const date = value === void 0 ? /* @__PURE__ */ new Date() : new Date(value);
-  if (Number.isNaN(date.getTime())) throw new TypeError("generatedAt must be a valid date");
-  return date.toISOString();
+  const date2 = value === void 0 ? /* @__PURE__ */ new Date() : new Date(value);
+  if (Number.isNaN(date2.getTime())) throw new TypeError("generatedAt must be a valid date");
+  return date2.toISOString();
 }
 function createReportRenderContext(input) {
   if (!isReportLocale(input.locale ?? "en")) throw new TypeError("locale must be en or ar");
@@ -11451,13 +11471,12 @@ function buildRFQFromBrief(projectId, orgId, briefData, briefId, materials) {
       matchingMaterials.slice(0, 3).forEach((mat, matIdx) => {
         const rateMin = Number(mat.priceAedMin || 0);
         const rateMax = Number(mat.priceAedMax || 0);
-        const pricingSource = costParsed?.isMarketVerified ? "market-verified" : "estimated";
+        const pricingSource = "estimated";
         const totalMin = qty * rateMin;
         const totalMax = qty * rateMax;
         subtotalMin += totalMin;
         subtotalMax += totalMax;
-        if (pricingSource === "market-verified") marketVerifiedCount++;
-        else estimatedCount++;
+        estimatedCount++;
         items.push({
           projectId,
           organizationId: orgId,
@@ -11477,11 +11496,10 @@ function buildRFQFromBrief(projectId, orgId, briefData, briefId, materials) {
         });
       });
     } else if (costParsed) {
-      const pricingSource = costParsed.isMarketVerified ? "market-verified" : "estimated";
+      const pricingSource = "estimated";
       subtotalMin += costParsed.min;
       subtotalMax += costParsed.max;
-      if (pricingSource === "market-verified") marketVerifiedCount++;
-      else estimatedCount++;
+      estimatedCount++;
       items.push({
         projectId,
         organizationId: orgId,
@@ -12737,6 +12755,125 @@ var init_board_pdf = __esm({
   }
 });
 
+// server/engines/ingestion/robots-policy.ts
+import robotsParser from "robots-parser";
+async function loadRulesetForOrigin(origin, userAgent, deps, loadedAt) {
+  const fetchImpl = deps.fetchImpl ?? globalThis.fetch.bind(globalThis);
+  const timeoutMs = deps.robotsFetchTimeoutMs ?? DEFAULT_ROBOTS_FETCH_TIMEOUT_MS;
+  const ttlMs = deps.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
+  const expiresAt = loadedAt + ttlMs;
+  const robotsUrl = `${origin}/robots.txt`;
+  try {
+    const res = await fetchImpl(robotsUrl, {
+      headers: { "User-Agent": userAgent, Accept: "text/plain" },
+      signal: AbortSignal.timeout(timeoutMs)
+    });
+    if (res.status === 429 || res.status >= 500) {
+      return {
+        ruleset: null,
+        detail: `robots.txt returned HTTP ${res.status}; robots state unknown`,
+        expiresAt
+      };
+    }
+    if (!res.ok) {
+      return {
+        ruleset: robotsParser(robotsUrl, ""),
+        detail: `robots.txt HTTP ${res.status} treated as allow-all per RFC 9309`,
+        expiresAt
+      };
+    }
+    const contentType = res.headers.get("content-type");
+    if (contentType && !contentType.toLowerCase().includes("text/plain")) {
+      return {
+        ruleset: null,
+        detail: `robots.txt served unexpected content type "${contentType}"`,
+        expiresAt
+      };
+    }
+    const text5 = await res.text();
+    return {
+      ruleset: robotsParser(robotsUrl, text5),
+      detail: "robots.txt loaded",
+      expiresAt
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      ruleset: null,
+      detail: `robots.txt fetch failed: ${message}`,
+      expiresAt
+    };
+  }
+}
+async function evaluateRobotsPolicy(targetUrl, userAgent, deps = {}) {
+  let origin;
+  try {
+    origin = new URL(targetUrl).origin;
+  } catch {
+    return {
+      allowed: false,
+      code: "ROBOTS_UNAVAILABLE",
+      policyVersion: INGESTION_ROBOTS_POLICY_VERSION,
+      detail: `invalid target URL "${targetUrl}"`
+    };
+  }
+  const cache2 = deps.cache ?? defaultCache;
+  const now = deps.now ? deps.now() : Date.now();
+  let entry = cache2.get(origin);
+  if (!entry || entry.expiresAt <= now) {
+    entry = await loadRulesetForOrigin(origin, userAgent, deps, now);
+    cache2.set(origin, entry);
+  }
+  if (entry.ruleset === null) {
+    return {
+      allowed: false,
+      code: "ROBOTS_UNAVAILABLE",
+      policyVersion: INGESTION_ROBOTS_POLICY_VERSION,
+      detail: entry.detail
+    };
+  }
+  const verdict = entry.ruleset.isAllowed(targetUrl, userAgent);
+  if (verdict === true) {
+    return {
+      allowed: true,
+      code: "ROBOTS_ALLOWED",
+      policyVersion: INGESTION_ROBOTS_POLICY_VERSION,
+      detail: entry.detail
+    };
+  }
+  return {
+    allowed: false,
+    code: "ROBOTS_DENIED",
+    policyVersion: INGESTION_ROBOTS_POLICY_VERSION,
+    detail: verdict === false ? "target disallowed by robots.txt" : "robots.txt produced no explicit allow for target"
+  };
+}
+async function assertUrlAllowedByRobots(targetUrl, userAgent, deps = {}) {
+  const verdict = await evaluateRobotsPolicy(targetUrl, userAgent, deps);
+  if (!verdict.allowed) {
+    throw new RobotsPolicyError(verdict.code, targetUrl, verdict.detail);
+  }
+}
+var INGESTION_ROBOTS_POLICY_VERSION, RobotsPolicyError, DEFAULT_CACHE_TTL_MS, DEFAULT_ROBOTS_FETCH_TIMEOUT_MS, defaultCache;
+var init_robots_policy = __esm({
+  "server/engines/ingestion/robots-policy.ts"() {
+    "use strict";
+    INGESTION_ROBOTS_POLICY_VERSION = "ingestion-robots-v1";
+    RobotsPolicyError = class extends Error {
+      constructor(code, targetUrl, detail) {
+        super(`Robots policy ${code} for ${targetUrl} (${detail})`);
+        this.code = code;
+        this.targetUrl = targetUrl;
+        this.detail = detail;
+        this.name = "RobotsPolicyError";
+      }
+    };
+    DEFAULT_CACHE_TTL_MS = 15 * 6e4;
+    DEFAULT_ROBOTS_FETCH_TIMEOUT_MS = 1e4;
+    defaultCache = /* @__PURE__ */ new Map();
+  }
+});
+
 // server/engines/ingestion/confidence-policy.ts
 function isValidDate(value) {
   return Number.isFinite(value.getTime());
@@ -12904,30 +13041,8 @@ var init_confidence_policy = __esm({
 
 // server/engines/ingestion/connector.ts
 import { z as z20 } from "zod";
-import robotsParser from "robots-parser";
 function getRandomUserAgent() {
   return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
-}
-async function checkRobotsTxt(targetUrl, userAgent) {
-  try {
-    const urlObj = new URL(targetUrl);
-    const origin = urlObj.origin;
-    let robots = robotsCache.get(origin);
-    if (!robots) {
-      const robotsUrl = `${origin}/robots.txt`;
-      const res = await globalThis.fetch(robotsUrl, { headers: { "User-Agent": userAgent } });
-      if (res.ok) {
-        const text5 = await res.text();
-        robots = robotsParser(robotsUrl, text5);
-      } else {
-        robots = robotsParser(robotsUrl, "");
-      }
-      robotsCache.set(origin, robots);
-    }
-    return robots.isAllowed(targetUrl, userAgent) !== false;
-  } catch (err) {
-    return true;
-  }
 }
 async function getFirecrawlClient() {
   const apiKey = process.env.FIRECRAWL_API_KEY;
@@ -13016,10 +13131,11 @@ function isApifyAvailable() {
 function isParseHubAvailable() {
   return !!process.env.PARSEHUB_API_KEY;
 }
-var USER_AGENTS, CAPTCHA_INDICATORS, PAYWALL_INDICATORS, robotsCache, _firecrawlClient, _firecrawlInitPromise, rawSourcePayloadSchema, extractedEvidenceSchema, normalizedEvidenceInputSchema, GRADE_A_SOURCE_IDS, GRADE_B_SOURCE_IDS, GRADE_C_SOURCE_IDS, firecrawlExhaustedAt, FIRECRAWL_EXHAUST_TTL_MS, FETCH_TIMEOUT_MS, MAX_RETRIES3, BASE_BACKOFF_MS, BaseSourceConnector;
+var USER_AGENTS, CAPTCHA_INDICATORS, PAYWALL_INDICATORS, ROBOTS_CHECK_USER_AGENT, _firecrawlClient, _firecrawlInitPromise, rawSourcePayloadSchema, extractedEvidenceSchema, normalizedEvidenceInputSchema, GRADE_A_SOURCE_IDS, GRADE_B_SOURCE_IDS, GRADE_C_SOURCE_IDS, firecrawlExhaustedAt, FIRECRAWL_EXHAUST_TTL_MS, FETCH_TIMEOUT_MS, MAX_RETRIES3, BASE_BACKOFF_MS, BaseSourceConnector;
 var init_connector = __esm({
   "server/engines/ingestion/connector.ts"() {
     "use strict";
+    init_robots_policy();
     init_confidence_policy();
     init_confidence_policy();
     USER_AGENTS = [
@@ -13031,7 +13147,7 @@ var init_connector = __esm({
     ];
     CAPTCHA_INDICATORS = ["cf-browser-verification", "g-recaptcha", "px-captcha", "Please verify you are a human"];
     PAYWALL_INDICATORS = ["subscribe to read", "premium content", "paywall"];
-    robotsCache = /* @__PURE__ */ new Map();
+    ROBOTS_CHECK_USER_AGENT = USER_AGENTS[0];
     _firecrawlClient = null;
     _firecrawlInitPromise = null;
     rawSourcePayloadSchema = z20.object({
@@ -13102,11 +13218,37 @@ var init_connector = __esm({
       lastSuccessfulFetch;
       requestDelayMs;
       /**
+       * ADR-0010: strict robots gate, evaluated BEFORE any provider — proxies
+       * included. Returns a denial payload when the target may not be fetched,
+       * or null when the fetch may proceed. The per-origin cache inside
+       * robots-policy makes repeated assertions free.
+       */
+      async robotsDenial(url) {
+        const targetUrl = url || this.sourceUrl;
+        const verdict = await evaluateRobotsPolicy(targetUrl, ROBOTS_CHECK_USER_AGENT);
+        if (verdict.allowed) return null;
+        console.warn(`[Connector] Robots policy ${verdict.code} for ${targetUrl}: ${verdict.detail}`);
+        return {
+          url: targetUrl,
+          fetchedAt: /* @__PURE__ */ new Date(),
+          statusCode: 403,
+          error: `Blocked by robots policy (${verdict.code}): ${verdict.detail}`
+        };
+      }
+      /**
+       * Defensive robots gate for direct provider-helper calls (e.g. crawl loops
+       * that pass explicit URLs); throws RobotsPolicyError on denial.
+       */
+      async assertRobots(url) {
+        await assertUrlAllowedByRobots(url || this.sourceUrl, ROBOTS_CHECK_USER_AGENT);
+      }
+      /**
        * Fetch using Firecrawl's headless browser API.
        * Renders JavaScript, bypasses bot protection, returns clean markdown.
        */
       async fetchWithFirecrawl(url) {
         const targetUrl = url || this.sourceUrl;
+        await this.assertRobots(targetUrl);
         const client = await getFirecrawlClient();
         if (!client) {
           throw new Error("Firecrawl client not available");
@@ -13146,6 +13288,7 @@ var init_connector = __esm({
        */
       async fetchWithScrapingDog(url) {
         const targetUrl = url || this.sourceUrl;
+        await this.assertRobots(targetUrl);
         const apiKey = process.env.SCRAPINGDOG_API_KEY;
         if (!apiKey) {
           throw new Error("SCRAPINGDOG_API_KEY not set");
@@ -13187,6 +13330,7 @@ var init_connector = __esm({
        */
       async fetchWithScrapingAnt(url) {
         const targetUrl = url || this.sourceUrl;
+        await this.assertRobots(targetUrl);
         const apiKey = process.env.SCRAPINGANT_API_KEY;
         if (!apiKey) {
           throw new Error("SCRAPINGANT_API_KEY not set");
@@ -13231,6 +13375,7 @@ var init_connector = __esm({
        */
       async fetchWithApify(url) {
         const targetUrl = url || this.sourceUrl;
+        await this.assertRobots(targetUrl);
         const apiKey = process.env.APIFY_API_KEY;
         if (!apiKey) {
           throw new Error("APIFY_API_KEY not set");
@@ -13286,6 +13431,7 @@ var init_connector = __esm({
        */
       async fetchWithParseHub(url) {
         const targetUrl = url || this.sourceUrl;
+        await this.assertRobots(targetUrl);
         const apiKey = process.env.PARSEHUB_API_KEY;
         const projectToken = process.env.PARSEHUB_PROJECT_TOKEN;
         if (!apiKey) {
@@ -13358,10 +13504,8 @@ var init_connector = __esm({
         const targetUrl = url || this.sourceUrl;
         let lastError;
         const userAgent = getRandomUserAgent();
-        const isAllowed = await checkRobotsTxt(targetUrl, userAgent);
-        if (!isAllowed) {
-          return { url: targetUrl, fetchedAt: /* @__PURE__ */ new Date(), statusCode: 403, error: "Blocked by origin robots.txt" };
-        }
+        const robotsBlock = await this.robotsDenial(targetUrl);
+        if (robotsBlock) return robotsBlock;
         for (let attempt = 1; attempt <= MAX_RETRIES3; attempt++) {
           try {
             const controller = new AbortController();
@@ -13429,6 +13573,8 @@ var init_connector = __esm({
         if (this.requestDelayMs && this.requestDelayMs > 0) {
           await new Promise((r) => setTimeout(r, this.requestDelayMs));
         }
+        const robotsBlock = await this.robotsDenial();
+        if (robotsBlock) return robotsBlock;
         if (isFirecrawlAvailable() && !isFirecrawlCreditExhausted()) {
           try {
             const result = await this.fetchWithFirecrawl();
@@ -15575,15 +15721,15 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         for (const record of recentEvidence) {
           const value = record.priceMin ? parseFloat(String(record.priceMin)) : null;
           if (value === null || isNaN(value)) continue;
-          const date = record.captureDate || record.createdAt;
-          if (!date) continue;
+          const date2 = record.captureDate || record.createdAt;
+          if (!date2) continue;
           const category = record.category || "other";
           const finishLevel = record.finishLevel?.toLowerCase() || "standard";
           const metric = `${category}:${finishLevel}`;
           const grade2 = record.reliabilityGrade || "C";
           if (!categoryGroups.has(metric)) categoryGroups.set(metric, { category, points: [] });
           categoryGroups.get(metric).points.push({
-            date: new Date(date),
+            date: new Date(date2),
             value,
             grade: grade2,
             sourceId: record.sourceRegistryId ? String(record.sourceRegistryId) : "unknown",
@@ -15777,6 +15923,7 @@ PDF text content:
         let allText = "";
         for (const pdfUrl of SCAD_PDF_URLS) {
           try {
+            await this.assertRobots(pdfUrl);
             const response = await fetch(pdfUrl, {
               headers: {
                 "User-Agent": "Mozilla/5.0 (MIYAR Intelligence Platform; +https://miyar.ai)",
@@ -15809,6 +15956,7 @@ ${parsed.text}
         }
         if (allText.length < 100) {
           try {
+            await this.assertRobots(this.sourceUrl);
             const htmlResp = await fetch(this.sourceUrl, {
               headers: { "User-Agent": "Mozilla/5.0 (MIYAR Intelligence Platform)" },
               signal: AbortSignal.timeout(15e3)
@@ -16520,16 +16668,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       defaultUnit = "sqft";
       requestDelayMs = 2e3;
       // Respect rate limits
-      /**
-       * Bayut listings are JS-rendered — Firecrawl is strongly preferred.
-       * Falls back to basic fetch if Firecrawl is unavailable.
-       */
-      async fetch() {
-        if (this.requestDelayMs && this.requestDelayMs > 0) {
-          await new Promise((r) => setTimeout(r, this.requestDelayMs));
-        }
-        return this.fetchWithFirecrawl();
-      }
+      // Bayut is JS-rendered; the base fetch() chain already prefers Firecrawl
+      // and applies the ADR-0010 robots gate before any provider. No override.
       async normalize(evidence, context3) {
         const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context3);
         const llmEvidence = evidence;
@@ -16570,15 +16710,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       defaultUnit = "sqft";
       requestDelayMs = 2e3;
       // Respect rate limits
-      /**
-       * PropertyFinder is also JS-rendered — use Firecrawl.
-       */
-      async fetch() {
-        if (this.requestDelayMs && this.requestDelayMs > 0) {
-          await new Promise((r) => setTimeout(r, this.requestDelayMs));
-        }
-        return this.fetchWithFirecrawl();
-      }
+      // PropertyFinder is JS-rendered; the base fetch() chain already prefers
+      // Firecrawl and applies the ADR-0010 robots gate. No override.
       async normalize(evidence, context3) {
         const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context3);
         const llmEvidence = evidence;
@@ -18031,8 +18164,8 @@ function positiveSafeInteger(value) {
 function realIsoDate(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const [year, month, day] = value.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day ? value : null;
+  const date2 = new Date(Date.UTC(year, month - 1, day));
+  return date2.getUTCFullYear() === year && date2.getUTCMonth() === month - 1 && date2.getUTCDate() === day ? value : null;
 }
 function validateMarketEvidenceSnapshot(raw) {
   const transactionCount = positiveSafeInteger(raw.transactionCount);
@@ -20115,7 +20248,10 @@ function renderWorkflowReconciliation(reconciliation, locale) {
     priceCoverage: "\u062A\u063A\u0637\u064A\u0629 \u0627\u0644\u0623\u0633\u0639\u0627\u0631",
     unpriced: "\u063A\u064A\u0631 \u0645\u0633\u0639\u0651\u0631",
     source: "\u0627\u0644\u0645\u0635\u062F\u0631",
-    sourceTables: "\u062C\u062F\u0627\u0648\u0644 \u0627\u0644\u0645\u0635\u062F\u0631"
+    sourceTables: "\u062C\u062F\u0627\u0648\u0644 \u0627\u0644\u0645\u0635\u062F\u0631",
+    costBasis: "\u0623\u0633\u0627\u0633 \u0627\u0644\u062A\u0643\u0644\u0641\u0629",
+    assumptionNote: "\u0623\u0633\u0639\u0627\u0631 \u0645\u0631\u062C\u0639\u064A\u0629 \u062F\u0627\u062E\u0644\u064A\u0629 \u0645\u0646 MIYAR \u0648\u0644\u064A\u0633\u062A \u0645\u0644\u0627\u062D\u0638\u0627\u062A \u0633\u0648\u0642\u064A\u0629",
+    basisCounts: "\u0635\u0641\u0648\u0641 \u0627\u0644\u0645\u0648\u0627\u062F (\u0627\u0641\u062A\u0631\u0627\u0636 / \u0645\u0644\u0627\u062D\u0638\u0629)"
   } : {
     heading: "Workflow, Space & MQI Reconciliation",
     description: "Deterministic reconciliation of stored project, space-programme, material-allocation, and material-library values.",
@@ -20155,7 +20291,10 @@ function renderWorkflowReconciliation(reconciliation, locale) {
     priceCoverage: "Price coverage",
     unpriced: "unpriced",
     source: "Source",
-    sourceTables: "Source tables"
+    sourceTables: "Source tables",
+    costBasis: "Cost basis",
+    assumptionNote: "internal MIYAR reference catalogue prices, not market observations",
+    basisCounts: "material rows (assumption / observed)"
   };
   const number3 = (value) => value.toLocaleString("en-US", {
     minimumFractionDigits: 2,
@@ -20218,6 +20357,7 @@ function renderWorkflowReconciliation(reconciliation, locale) {
       <td>${reconciliation.materialCosts.pricedAllocationCount}/${reconciliation.allocations.rowCount} \xB7 ${reconciliation.materialCosts.unpricedAllocationCount} ${copy.unpriced} \xB7 ${reconciliation.materialCosts.allAllocationsPriced ? copy.pass : copy.fail}</td>
     </tr>
   </table>
+  ${reconciliation.materialCosts.basis ? `<p style="font-size:8px; color:#777;">${copy.costBasis}: ${dynamicText(reconciliation.materialCosts.basis.label)}${reconciliation.materialCosts.basis.observedRowCount === 0 ? ` \u2014 ${copy.assumptionNote}` : ""} \xB7 ${reconciliation.materialCosts.basis.assumptionRowCount} / ${reconciliation.materialCosts.basis.observedRowCount} ${copy.basisCounts} \xB7 ${dynamicText(reconciliation.materialCosts.basis.policyVersion)}</p>` : ""}
   <p style="font-size:8px; color:#777;">${copy.source}: ${dynamicText(reconciliation.materialCosts.source)} \xB7 ${copy.sourceTables}: ${dynamicText(reconciliation.sourceTables.join(", "))} \xB7 ${dynamicText(reconciliation.version)}</p>
 </div>
 `;
@@ -21286,6 +21426,8 @@ function buildQuantityCostSummary(surfaces, allocations, materialLibrary2, proje
   const materialLibraryMap = new Map(materialLibrary2.map((m) => [m.id, m]));
   const roomBreakdowns = [];
   const materialTotals = /* @__PURE__ */ new Map();
+  let unpricedAllocationCount = 0;
+  const pricedLibraryRowIds = /* @__PURE__ */ new Set();
   let totalFloorM2 = 0;
   let totalWallM2 = 0;
   let totalCeilingM2 = 0;
@@ -21316,28 +21458,22 @@ function buildQuantityCostSummary(surfaces, allocations, materialLibrary2, proje
         const actualAreaM2 = elDef.areaM2 * (slice.percentage / 100);
         let unitCostMin = 0;
         let unitCostMax = 0;
+        let priced = false;
         if (slice.materialLibraryId) {
           const libEntry = materialLibraryMap.get(slice.materialLibraryId);
-          if (libEntry) {
-            unitCostMin = Number(libEntry.priceAedMin) || 0;
-            unitCostMax = Number(libEntry.priceAedMax) || 0;
+          if (libEntry && libEntry.priceAedMin !== null && libEntry.priceAedMax !== null) {
+            const priceMin = Number(libEntry.priceAedMin);
+            const priceMax = Number(libEntry.priceAedMax);
+            if (Number.isFinite(priceMin) && Number.isFinite(priceMax)) {
+              unitCostMin = priceMin;
+              unitCostMax = priceMax;
+              priced = true;
+              pricedLibraryRowIds.add(libEntry.id);
+            }
           }
-        } else {
-          const categoryMap = {
-            floor: ["flooring"],
-            walls: ["wall_paint", "wall_tile"],
-            ceiling: ["ceiling"],
-            joinery: ["joinery"]
-          };
-          const elKey = elDef.name.toLowerCase();
-          const cats = categoryMap[elKey] || [];
-          const fallback = materialLibrary2.find(
-            (m) => cats.includes((m.category || "").toLowerCase())
-          );
-          if (fallback) {
-            unitCostMin = Number(fallback.priceAedMin) || 0;
-            unitCostMax = Number(fallback.priceAedMax) || 0;
-          }
+        }
+        if (!priced) {
+          unpricedAllocationCount += 1;
         }
         const sliceCostMin = actualAreaM2 * unitCostMin;
         const sliceCostMax = actualAreaM2 * unitCostMax;
@@ -21352,6 +21488,7 @@ function buildQuantityCostSummary(surfaces, allocations, materialLibrary2, proje
           unitCostMax,
           totalCostMin: Number(sliceCostMin.toFixed(2)),
           totalCostMax: Number(sliceCostMax.toFixed(2)),
+          priced,
           reasoning: slice.reasoning
         });
         const existing = materialTotals.get(slice.materialName) || {
@@ -21410,6 +21547,19 @@ function buildQuantityCostSummary(surfaces, allocations, materialLibrary2, proje
     totalCostMax: Number(totals.totalCostMax.toFixed(2)),
     pctOfTotalSurface: totalSurfaceM2 > 0 ? Number((totals.totalAreaM2 / totalSurfaceM2 * 100).toFixed(1)) : 0
   })).sort((a, b) => b.totalAreaM2 - a.totalAreaM2);
+  const OBSERVED_SOURCE_TYPES = /* @__PURE__ */ new Set(["market_observation", "supplier_quote"]);
+  let assumptionRowCount = 0;
+  let observedRowCount = 0;
+  for (const rowId of Array.from(pricedLibraryRowIds)) {
+    const row = materialLibraryMap.get(rowId);
+    if (!row) continue;
+    if (OBSERVED_SOURCE_TYPES.has(row.sourceType ?? "miyar_assumption")) {
+      observedRowCount += 1;
+    } else {
+      assumptionRowCount += 1;
+    }
+  }
+  const costBasisLabel = observedRowCount === 0 ? "MIYAR assumption" : assumptionRowCount === 0 ? "Observed market data" : "Mixed (MIYAR assumption + observed)";
   return {
     rooms: roomBreakdowns,
     summary: {
@@ -21425,7 +21575,14 @@ function buildQuantityCostSummary(surfaces, allocations, materialLibrary2, proje
       budgetUtilizationPct,
       isOverBudget,
       overBudgetByAed,
-      qualityLabel: allocations.estimatedQualityLabel || "Standard"
+      qualityLabel: allocations.estimatedQualityLabel || "Standard",
+      unpricedAllocationCount,
+      costBasis: {
+        policyVersion: "material-library-provenance-v1",
+        label: costBasisLabel,
+        assumptionRowCount,
+        observedRowCount
+      }
     },
     generatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
@@ -21511,21 +21668,35 @@ function buildWorkflowSpaceMqiReconciliation(input) {
   let unpricedAllocationCount = 0;
   let min = 0;
   let max2 = 0;
+  const pricedMaterialIds = /* @__PURE__ */ new Set();
   for (const allocation of input.allocations) {
     const material = allocation.materialLibraryId === null ? void 0 : libraryById.get(allocation.materialLibraryId);
     const priceMin = finiteNumber(material?.priceAedMin);
     const priceMax = finiteNumber(material?.priceAedMax);
-    if (priceMin === null || priceMax === null) {
+    if (material === void 0 || priceMin === null || priceMax === null) {
       unpricedAllocationCount += 1;
       continue;
     }
     const areaM2 = numberOrZero(allocation.surfaceAreaM2);
     pricedAllocationCount += 1;
+    pricedMaterialIds.add(material.id);
     min += areaM2 * priceMin;
     max2 += areaM2 * priceMax;
   }
   min = round2(min);
   max2 = round2(max2);
+  let assumptionRowCount = 0;
+  let observedRowCount = 0;
+  for (const materialId of Array.from(pricedMaterialIds)) {
+    const material = libraryById.get(materialId);
+    const sourceType = typeof material?.sourceType === "string" ? material.sourceType : "miyar_assumption";
+    if (sourceType === "market_observation" || sourceType === "supplier_quote") {
+      observedRowCount += 1;
+    } else {
+      assumptionRowCount += 1;
+    }
+  }
+  const basisLabel = observedRowCount === 0 ? "MIYAR assumption" : assumptionRowCount === 0 ? "Observed market data" : "Mixed (MIYAR assumption + observed)";
   return {
     version: RECONCILIATION_VERSION,
     sourceTables: [
@@ -21570,7 +21741,13 @@ function buildWorkflowSpaceMqiReconciliation(input) {
       allAllocationsPriced: input.allocations.length > 0 && unpricedAllocationCount === 0,
       min,
       mid: round2((min + max2) / 2),
-      max: max2
+      max: max2,
+      basis: {
+        policyVersion: "material-library-provenance-v1",
+        label: basisLabel,
+        assumptionRowCount,
+        observedRowCount
+      }
     }
   };
 }
@@ -22001,6 +22178,8 @@ function generateDesignBrief2(project, inputs, scoreResult, livePricing, materia
         isOverBudget: mqiData.summary.isOverBudget,
         overBudgetByAed: mqiData.summary.overBudgetByAed,
         qualityLabel: mqiData.summary.qualityLabel,
+        costBasisLabel: mqiData.summary.costBasis?.label,
+        unpricedAllocationCount: mqiData.summary.unpricedAllocationCount,
         roomBreakdown: mqiData.rooms.map((r) => ({
           roomId: r.roomId,
           roomName: r.roomName,
@@ -27376,6 +27555,7 @@ var DOCX_AR_COPY = {
   "Cost Per Sqm Target": "\u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0627\u0644\u0645\u0633\u062A\u0647\u062F\u0641\u0629 \u0644\u0643\u0644 \u0645\xB2",
   "Total Budget Cap": "\u0627\u0644\u062D\u062F \u0627\u0644\u0623\u0639\u0644\u0649 \u0644\u0644\u0645\u064A\u0632\u0627\u0646\u064A\u0629",
   "Cost Band": "\u0646\u0637\u0627\u0642 \u0627\u0644\u062A\u0643\u0644\u0641\u0629",
+  "Cost Basis": "\u0623\u0633\u0627\u0633 \u0627\u0644\u062A\u0643\u0644\u0641\u0629",
   "Contingency Recommendation": "\u062A\u0648\u0635\u064A\u0629 \u0627\u0644\u0627\u062D\u062A\u064A\u0627\u0637\u064A",
   "Budget Flexibility Level": "\u0645\u0633\u062A\u0648\u0649 \u0645\u0631\u0648\u0646\u0629 \u0627\u0644\u0645\u064A\u0632\u0627\u0646\u064A\u0629",
   "Lead Time Window": "\u0646\u0627\u0641\u0630\u0629 \u0627\u0644\u0645\u0647\u0644\u0629 \u0627\u0644\u0632\u0645\u0646\u064A\u0629",
@@ -27708,6 +27888,8 @@ async function generateDesignBriefDocx(data) {
       ["Cost Per Sqm Target", budget.costPerSqmTarget ?? "\u2014"],
       ["Total Budget Cap", budget.totalBudgetCap ?? "\u2014"],
       ["Cost Band", budget.costBand ?? "\u2014"],
+      // ADR-0009: the MQI cost basis label travels with every budget rendering.
+      ["Cost Basis", budget.mqiSummary?.costBasisLabel ? `${budget.mqiSummary.costBasisLabel}${Number(budget.mqiSummary.unpricedAllocationCount) > 0 ? ` \u2014 ${budget.mqiSummary.unpricedAllocationCount} unpriced allocations` : ""}` : "\u2014"],
       ["Contingency Recommendation", budget.contingencyRecommendation ?? "\u2014"],
       ["Budget Flexibility Level", budget.flexibilityLevel ?? "\u2014"]
     ], rtl)
@@ -35061,11 +35243,11 @@ async function runTrendAnalysis(records, input, persist) {
     const metric = record.itemName || "unknown";
     const value = record.priceMin ? parseFloat(String(record.priceMin)) : null;
     if (value === null || Number.isNaN(value)) continue;
-    const date = record.captureDate || record.createdAt;
-    if (!date) continue;
+    const date2 = record.captureDate || record.createdAt;
+    if (!date2) continue;
     if (!metricGroups.has(metric)) metricGroups.set(metric, []);
     metricGroups.get(metric).push({
-      date: new Date(date),
+      date: new Date(date2),
       value,
       grade: record.reliabilityGrade || "C",
       sourceId: record.sourceRegistryId ? String(record.sourceRegistryId) : "unknown",

@@ -69,6 +69,8 @@ export interface RoomCostBreakdown {
             unitCostMax: number;
             totalCostMin: number;
             totalCostMax: number;
+            /** False when no priced library row resolved; costs are then 0, never invented. */
+            priced: boolean;
             reasoning: string;
         }>;
         elementCostMin: number;
@@ -100,6 +102,15 @@ export interface MaterialQuantityResult {
         isOverBudget: boolean;
         overBudgetByAed: number;
         qualityLabel: string;
+        /** Allocation slices with no resolvable priced library row (ADR-0009). */
+        unpricedAllocationCount: number;
+        /** Provenance basis of the priced library rows behind the totals. */
+        costBasis: {
+            policyVersion: string;
+            label: string;
+            assumptionRowCount: number;
+            observedRowCount: number;
+        };
     };
     generatedAt: string;
 }
@@ -522,6 +533,8 @@ export function buildQuantityCostSummary(
         string,
         { totalAreaM2: number; totalCostMin: number; totalCostMax: number }
     >();
+    let unpricedAllocationCount = 0;
+    const pricedLibraryRowIds = new Set<number>();
 
     let totalFloorM2 = 0;
     let totalWallM2 = 0;
@@ -560,35 +573,31 @@ export function buildQuantityCostSummary(
             for (const slice of slices) {
                 const actualAreaM2 = elDef.areaM2 * (slice.percentage / 100);
 
-                // Look up unit costs from material library
+                // Look up unit costs from material library. ADR-0009 (F3):
+                // there is deliberately no category fallback — a slice
+                // without a resolvable priced library row is reported as
+                // unpriced (cost 0) instead of silently borrowing another
+                // material's price. This matches the report-reconciliation
+                // unpriced semantics.
                 let unitCostMin = 0;
                 let unitCostMax = 0;
+                let priced = false;
 
                 if (slice.materialLibraryId) {
                     const libEntry = materialLibraryMap.get(slice.materialLibraryId);
-                    if (libEntry) {
-                        unitCostMin = Number(libEntry.priceAedMin) || 0;
-                        unitCostMax = Number(libEntry.priceAedMax) || 0;
+                    if (libEntry && libEntry.priceAedMin !== null && libEntry.priceAedMax !== null) {
+                        const priceMin = Number(libEntry.priceAedMin);
+                        const priceMax = Number(libEntry.priceAedMax);
+                        if (Number.isFinite(priceMin) && Number.isFinite(priceMax)) {
+                            unitCostMin = priceMin;
+                            unitCostMax = priceMax;
+                            priced = true;
+                            pricedLibraryRowIds.add(libEntry.id);
+                        }
                     }
-                } else {
-                    // Gap 5a: Fallback — match by element category when Gemini
-                    // returned a generic name without a library ID.
-                    // Uses .toLowerCase() on both sides to avoid case-sensitivity misses.
-                    const categoryMap: Record<string, string[]> = {
-                        floor: ["flooring"],
-                        walls: ["wall_paint", "wall_tile"],
-                        ceiling: ["ceiling"],
-                        joinery: ["joinery"],
-                    };
-                    const elKey = elDef.name.toLowerCase();
-                    const cats = categoryMap[elKey] || [];
-                    const fallback = materialLibrary.find(
-                        (m) => cats.includes((m.category || "").toLowerCase())
-                    );
-                    if (fallback) {
-                        unitCostMin = Number(fallback.priceAedMin) || 0;
-                        unitCostMax = Number(fallback.priceAedMax) || 0;
-                    }
+                }
+                if (!priced) {
+                    unpricedAllocationCount += 1;
                 }
 
                 const sliceCostMin = actualAreaM2 * unitCostMin;
@@ -606,6 +615,7 @@ export function buildQuantityCostSummary(
                     unitCostMax,
                     totalCostMin: Number(sliceCostMin.toFixed(2)),
                     totalCostMax: Number(sliceCostMax.toFixed(2)),
+                    priced,
                     reasoning: slice.reasoning,
                 });
 
@@ -697,6 +707,29 @@ export function buildQuantityCostSummary(
         }))
         .sort((a, b) => b.totalAreaM2 - a.totalAreaM2);
 
+    // ADR-0009: classify the provenance of the priced library rows so every
+    // rendering of these totals can carry an honest cost-basis label.
+    // "Observed" covers market observations and supplier quotes; assumptions
+    // and manual entries remain assumption-class.
+    const OBSERVED_SOURCE_TYPES = new Set(["market_observation", "supplier_quote"]);
+    let assumptionRowCount = 0;
+    let observedRowCount = 0;
+    for (const rowId of Array.from(pricedLibraryRowIds)) {
+        const row = materialLibraryMap.get(rowId);
+        if (!row) continue;
+        if (OBSERVED_SOURCE_TYPES.has(row.sourceType ?? "miyar_assumption")) {
+            observedRowCount += 1;
+        } else {
+            assumptionRowCount += 1;
+        }
+    }
+    const costBasisLabel =
+        observedRowCount === 0
+            ? "MIYAR assumption"
+            : assumptionRowCount === 0
+                ? "Observed market data"
+                : "Mixed (MIYAR assumption + observed)";
+
     return {
         rooms: roomBreakdowns,
         summary: {
@@ -713,6 +746,13 @@ export function buildQuantityCostSummary(
             isOverBudget,
             overBudgetByAed,
             qualityLabel: allocations.estimatedQualityLabel || "Standard",
+            unpricedAllocationCount,
+            costBasis: {
+                policyVersion: "material-library-provenance-v1",
+                label: costBasisLabel,
+                assumptionRowCount,
+                observedRowCount,
+            },
         },
         generatedAt: new Date().toISOString(),
     };

@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "observedAt": "2026-07-22T17:08:38.975Z",
+  "observedAt": "2026-07-22T21:48:35.184Z",
   "databaseEngine": "MySQL 8.0",
   "targetClass": "disposable localhost database",
   "command": "pnpm test:authorization:mysql",
@@ -54,7 +54,7 @@
     "server/routers/autonomous.ts": "761742d4831cf1b3926bda866b1d646b39f8637f15370728e45fd491864705f6",
     "server/routers/market-intelligence.ts": "a2d47b6b4531d22e02befc1c74a93f6628826fce6a331def3f1a66d738908d35",
     "server/routers/portfolio.ts": "d14b4fe0af2daf3bcbe84b3421e824a25eb16425f442be35be4fae544c9efa2b",
-    "drizzle/schema.ts": "8b4b18c4657a5f94e6d783a8a4cf5b41876471b4d4bf271880a47e5bdeefec3b",
+    "drizzle/schema.ts": "d8ddd9b6a759dc40e04a35f03f5117a7d91298389cf7d47346a5b46b676174af",
     "drizzle/0045_steady_amazoness.sql": "9862f48fe585e31c835ea97bd5c11b3e7640e97ba2764217534f5fbcad2df48d",
     "drizzle/0046_far_blob.sql": "c213114207dd7b66e8a10b4e94c1b77ef0ddaf6b69cb1e5b212752a1dc6666cb",
     "drizzle/0047_sharp_grandmaster.sql": "7a2105fa9d80b10415483351fd7f191de3fc57c2d9f2cb27d8ae6af86c8b200d",
