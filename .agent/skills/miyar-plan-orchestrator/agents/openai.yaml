@@ -1,0 +1,4 @@
+interface:
+  display_name: "MIYAR Plan Orchestrator"
+  short_description: "Plan-first complex MIYAR work"
+  default_prompt: "Use $miyar-plan-orchestrator to plan this complex MIYAR task."
