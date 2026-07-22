@@ -242,4 +242,142 @@ describe("RegulatoryDocumentFetcher", () => {
     await fetcher.fetch(source.sourceKey);
     expect(robotsRequests).toBe(2);
   });
+
+  describe("per-host acquisition gate", () => {
+    /**
+     * Virtual clock: `sleep` advances time instead of waiting, so interval
+     * arithmetic is exercised exactly without real delays.
+     */
+    function virtualClock() {
+      let current = 0;
+      return {
+        now: () => new Date(current),
+        monotonicNow: () => current,
+        sleep: async (milliseconds: number) => { current += milliseconds; },
+        read: () => current,
+      };
+    }
+
+    it("spaces five concurrent same-host acquisitions by at least four full intervals", async () => {
+      const clock = virtualClock();
+      const documentRequests: number[] = [];
+      const allRequests: number[] = [];
+      const transport = transportFor((url) => {
+        allRequests.push(clock.read());
+        if (url.pathname === "/robots.txt") {
+          return response(200, "User-agent: *\nAllow: /", { "content-type": "text/plain" });
+        }
+        documentRequests.push(clock.read());
+        return response(200, "document", { "content-type": "application/pdf" });
+      });
+      const fetcher = testFetcher(transport, {
+        minRequestIntervalMs: 1_000,
+        operationTimeoutMs: 600_000,
+        now: clock.now,
+        monotonicNow: clock.monotonicNow,
+        sleep: clock.sleep,
+      });
+
+      const results = await Promise.all(
+        Array.from({ length: 5 }, () => fetcher.fetch(source.sourceKey)),
+      );
+
+      expect(results).toHaveLength(5);
+      expect(documentRequests).toHaveLength(5);
+      // Five concurrent acquisitions must span at least four whole intervals.
+      expect(Math.max(...documentRequests) - Math.min(...documentRequests)).toBeGreaterThanOrEqual(4_000);
+      // No two requests to the official host may be closer than one interval.
+      const ordered = [...allRequests].sort((a, b) => a - b);
+      for (let index = 1; index < ordered.length; index += 1) {
+        expect(ordered[index] - ordered[index - 1]).toBeGreaterThanOrEqual(1_000);
+      }
+    });
+
+    it("does not let one official host block acquisitions for a different approved host", async () => {
+      const clock = virtualClock();
+      const firstRequestAt = new Map<string, number>();
+      const transport = transportFor((url) => {
+        if (!firstRequestAt.has(url.hostname)) firstRequestAt.set(url.hostname, clock.read());
+        if (url.pathname === "/robots.txt") {
+          return response(200, "User-agent: *\nAllow: /", { "content-type": "text/plain" });
+        }
+        return response(200, "document", { "content-type": "application/pdf" });
+      });
+      const other: RegisteredRegulatorySource = {
+        ...source,
+        sourceKey: "dcd-fire-code",
+        canonicalUrl: "https://cdn.official.example/documents/fire.pdf",
+      };
+      const fetcher = testFetcher(transport, {
+        sources: [source, other],
+        minRequestIntervalMs: 1_000,
+        operationTimeoutMs: 600_000,
+        now: clock.now,
+        monotonicNow: clock.monotonicNow,
+        sleep: clock.sleep,
+      });
+
+      await Promise.all([fetcher.fetch(source.sourceKey), fetcher.fetch(other.sourceKey)]);
+
+      // Independent chains: neither host waits on the other's interval.
+      expect(firstRequestAt.get("official.example")).toBe(0);
+      expect(firstRequestAt.get("cdn.official.example")).toBe(0);
+    });
+
+    it("fails a queued acquisition closed instead of waiting past the operation deadline", async () => {
+      const clock = virtualClock();
+      const transport = transportFor((url) => url.pathname === "/robots.txt"
+        ? response(200, "User-agent: *\nAllow: /", { "content-type": "text/plain" })
+        : response(200, "document", { "content-type": "application/pdf" }));
+      const fetcher = testFetcher(transport, {
+        minRequestIntervalMs: 10_000,
+        operationTimeoutMs: 5_000,
+        now: clock.now,
+        monotonicNow: clock.monotonicNow,
+        sleep: clock.sleep,
+      });
+
+      const results = await Promise.allSettled(
+        Array.from({ length: 3 }, () => fetcher.fetch(source.sourceKey)),
+      );
+
+      // A reserved slot beyond the deadline must fail closed immediately rather
+      // than sleeping into a certain expiry, and must never be waited out.
+      expect(results.every(result => result.status === "rejected")).toBe(true);
+      for (const result of results) {
+        expect((result as PromiseRejectedResult).reason).toMatchObject({ code: "TIMEOUT" });
+      }
+      // Nothing slept: the gate rejected before consuming any of the interval.
+      expect(clock.read()).toBe(0);
+    });
+
+    it("releases the host gate when an acquisition fails so the next waiter still proceeds", async () => {
+      const clock = virtualClock();
+      let documentAttempts = 0;
+      const transport = transportFor((url) => {
+        if (url.pathname === "/robots.txt") {
+          return response(200, "User-agent: *\nAllow: /", { "content-type": "text/plain" });
+        }
+        documentAttempts += 1;
+        // Fail the first acquisition outright; a leaked gate would strand the rest.
+        if (documentAttempts === 1) return Promise.reject(new Error("connection reset"));
+        return response(200, "document", { "content-type": "application/pdf" });
+      });
+      const fetcher = testFetcher(transport, {
+        minRequestIntervalMs: 1_000,
+        operationTimeoutMs: 600_000,
+        maxAttempts: 1,
+        now: clock.now,
+        monotonicNow: clock.monotonicNow,
+        sleep: clock.sleep,
+      });
+
+      const results = await Promise.allSettled(
+        Array.from({ length: 3 }, () => fetcher.fetch(source.sourceKey)),
+      );
+
+      expect(results[0].status).toBe("rejected");
+      expect(results.filter(result => result.status === "fulfilled")).toHaveLength(2);
+    });
+  });
 });
