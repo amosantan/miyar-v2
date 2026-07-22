@@ -7602,6 +7602,11 @@ async function insertRfqLineItemsForOrg(data, expected) {
       eq(designBriefs.projectId, expected.projectId)
     )).limit(1).for("update");
     if (!brief[0]) return false;
+    await tx.delete(rfqLineItems).where(and(
+      eq(rfqLineItems.projectId, expected.projectId),
+      eq(rfqLineItems.briefId, expected.briefId),
+      eq(rfqLineItems.organizationId, expected.orgId)
+    ));
     if (data.length > 0) await tx.insert(rfqLineItems).values(data);
     return true;
   });
@@ -11429,12 +11434,11 @@ __export(rfq_generator_exports, {
   buildRFQPack: () => buildRFQPack
 });
 function parseCostLabel(label) {
-  const isVerified = label.includes("market-verified") || label.includes("indicative benchmark estimate");
   const cleaned = label.replace(/[^0-9.,\-—]/g, " ").trim();
   const numbers = cleaned.split(/[\-—\s]+/).map((s) => Number(s.replace(/,/g, ""))).filter((n) => !isNaN(n) && n > 0);
   if (numbers.length === 0) return null;
-  if (numbers.length === 1) return { min: numbers[0], max: numbers[0], isMarketVerified: isVerified };
-  return { min: numbers[0], max: numbers[1], isMarketVerified: isVerified };
+  if (numbers.length === 1) return { min: numbers[0], max: numbers[0] };
+  return { min: numbers[0], max: numbers[1] };
 }
 function parseBudgetCap(s) {
   const cleaned = s.replace(/[^0-9.]/g, "");
@@ -11471,12 +11475,13 @@ function buildRFQFromBrief(projectId, orgId, briefData, briefId, materials) {
       matchingMaterials.slice(0, 3).forEach((mat, matIdx) => {
         const rateMin = Number(mat.priceAedMin || 0);
         const rateMax = Number(mat.priceAedMax || 0);
-        const pricingSource = "estimated";
+        const pricingSource = mat.sourceType === "market_observation" ? "market-verified" : "estimated";
         const totalMin = qty * rateMin;
         const totalMax = qty * rateMax;
         subtotalMin += totalMin;
         subtotalMax += totalMax;
-        estimatedCount++;
+        if (pricingSource === "market-verified") marketVerifiedCount++;
+        else estimatedCount++;
         items.push({
           projectId,
           organizationId: orgId,
@@ -22105,6 +22110,7 @@ function generateDesignBrief2(project, inputs, scoreResult, livePricing, materia
       costPerSqmTarget: dynamicCostPerSqm ? `AED ${Math.round(dynamicCostPerSqm).toLocaleString()}/sqm (indicative benchmark estimate)` : budget ? `AED ${budget.toLocaleString()}/sqm` : "Not specified",
       totalBudgetCap: totalBudgetCap ? `AED ${totalBudgetCap.toLocaleString()}` : "Not specified",
       costBand,
+      costBasis: dynamicCostPerSqm !== null ? "configured_benchmarks" : budget ? "budget_cap" : "static_default",
       flexibilityLevel: flexMap[inputs.fin02Flexibility] || flexMap[3],
       contingencyRecommendation: inputs.fin03ShockTolerance <= 2 ? "Allocate 15-20% Contractor Contingency" : "Allocate 10% Contractor Contingency",
       valueEngineeringMandates: veNotes
@@ -24536,7 +24542,7 @@ var projectRouter = router({
       const { buildDMComplianceChecklist: buildDMComplianceChecklist2 } = await Promise.resolve().then(() => (init_dm_compliance(), dm_compliance_exports));
       const vocab = buildDesignVocabulary2(project);
       const { totalFitoutBudgetAed, rooms } = buildSpaceProgram2(project);
-      const materials = await getAllMaterials();
+      const materials = await getMaterialLibrary();
       const finishSchedule = buildFinishSchedule2(project, vocab, rooms, materials);
       const colorPalette = await buildColorPalette2(project, vocab);
       const complianceChecklist = buildDMComplianceChecklist2(
@@ -28305,15 +28311,16 @@ var designBriefsRouter = router({
       detailedBudget: brief.detailedBudget,
       designerInstructions: brief.designerInstructions
     };
-    const materials = await getAllMaterials();
+    const materials = await getMaterialLibrary();
     const materialList = materials.map((m) => ({
       id: m.id,
-      name: m.name || m.productName || "",
+      name: m.productName || "",
       category: m.category || "",
       tier: m.tier || "mid",
-      priceAedMin: m.typicalCostLow || m.priceAedMin || 0,
-      priceAedMax: m.typicalCostHigh || m.priceAedMax || 0,
-      supplierName: m.supplierName || "TBD"
+      priceAedMin: m.priceAedMin ?? 0,
+      priceAedMax: m.priceAedMax ?? 0,
+      supplierName: m.supplierName || "TBD",
+      sourceType: m.sourceType
     }));
     const result = buildRFQFromBrief(
       input.projectId,

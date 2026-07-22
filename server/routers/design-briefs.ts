@@ -351,16 +351,21 @@ export const designBriefsRouter = router({
           brief.designerInstructions as DesignBriefData["designerInstructions"],
       };
 
-      // 3. Fetch project materials for enrichment
-      const materials = await db.getAllMaterials();
-      const materialList = materials.map((m: any) => ({
+      // 3. Fetch authoritative material_library rows for enrichment.
+      // ADR-0009: RFQ rates come from the authoritative cost table, whose
+      // category/tier vocabulary the RFQ section mapping actually matches;
+      // materials_catalog stays scrape-fed staging (its rows carried no
+      // priceAedMin/Max, so the former mapping priced almost everything 0).
+      const materials = await db.getMaterialLibrary();
+      const materialList = materials.map((m) => ({
         id: m.id,
-        name: m.name || m.productName || "",
+        name: m.productName || "",
         category: m.category || "",
         tier: m.tier || "mid",
-        priceAedMin: m.typicalCostLow || m.priceAedMin || 0,
-        priceAedMax: m.typicalCostHigh || m.priceAedMax || 0,
+        priceAedMin: m.priceAedMin ?? 0,
+        priceAedMax: m.priceAedMax ?? 0,
         supplierName: m.supplierName || "TBD",
+        sourceType: m.sourceType,
       }));
 
       // 4. Generate RFQ from Brief
