@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `BR-06` (`NEEDS_HUMAN` for exact source-policy decisions and named professional pack approvals).
+- Next executable step: `EV-00` (user-directed cost-path truthfulness remediation, `ACTIVE`). `BR-06` remains `NEEDS_HUMAN` for exact source-policy decisions and named professional pack approvals.
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -665,6 +665,24 @@ Rules:
 - Residual risk: Shared migration 0051 and production release remain separately gated; professional GFA/fit-out rules and additional import authority remain outside DI-01.
 
 ## Phase EV — Evidence and Procurement Moat
+
+### EV-00 — Cost-path truthfulness remediation (user-directed)
+
+- Status: `ACTIVE`
+- Class / priority: Data-truthfulness/ingestion/report / P0
+- Dependencies: None. User-directed on 2026-07-23 as an explicit reprioritization; interim measures only — it does not preempt the `EV-01`–`EV-03` evidence/price model.
+- Human gate: Shared/production migration application and reseeding; cost-consultant approval for any tier-ladder value change or the proposed `libraryTiersForMkt01Tier` mapping; commit/push/merge/deploy per repository policy.
+- Evidence: The 2026-07-23 source-to-output audit (session artifact `07357419`) found `material_library` — 35 unprovenanced hard-coded rows — is the authoritative cost source for MQI, reconciliation, and issued PDFs; RFQ lines were stamped `market-verified` by string-matching an unrelated label; robots.txt was fail-open and bypassed by all five proxy providers; an LLM classified `finishLevel`, the price tier that keys benchmarks; and the `source_registry` join never matched, so freshness was never recorded.
+- Change set (six phases; decisions recorded in ADR-0009 and ADR-0010):
+  1. Decision records, deterministic `tier-policy` and strict `robots-policy` modules, interim removal of label-derived `market-verified` stamps.
+  2. Strict robots enforcement before every acquisition provider; connector bypass removal.
+  3. Additive `material_library` provenance columns; assumption labels across reconciliation, PDF, DOCX, and client MQI; MQI stops inventing category-fallback prices.
+  4. Provenance-derived RFQ `pricingSource`; RFQ replace-contract idempotency closing `KF-013`; material-shape repair for finish-schedule/RFQ call sites; truthful `pricingSource` union.
+  5. Deterministic finish/category on evidence with model output demoted to metadata; benchmark `keyPolicyVersion` re-key disposition; tier-ladder delegation to versioned policy.
+  6. Registry slug linkage repair; dead-source pruning; URL repairs; Graniti UAE connector under the strict robots gate.
+- Done when: All thirteen audit findings and `KF-013` have verified fixes; every phase passes the full gate battery; no forbidden public-claim string appears in generated artifacts.
+- Verification: Per-phase `pnpm check`, targeted vitest, `DATABASE_URL='' pnpm test`, guarded MySQL plus evidence regeneration whenever a pinned file changes, authorization and database-safety audits, build, and `pnpm certify:workflow` on TR-13 surfaces.
+- Expected artifacts: ADR-0009/ADR-0010, tier/robots policy modules, migrations 0056–0058, updated engines/routers/seeds, new behavioral test suites, closed `KF-013`.
 
 ### EV-01 — Approve the evidence and price-observation model
 

@@ -105,3 +105,5 @@ How is the decision adopted, and how can it be superseded or reversed?
 | [ADR-0006](ADR-0006-canonical-room-geometry-measurement-contract.md) | Accepted | Canonical room identity, geometry, measurement, and compatibility contract       |
 | [ADR-0007](ADR-0007-issued-design-brief-product-contract.md)         | Accepted | Ten-section issued brief lifecycle, purpose, role, and immutability contract     |
 | [ADR-0008](ADR-0008-issued-design-brief-versioning-architecture.md)  | Accepted | Tenant-safe brief revisions, workflow events, issue ledger, and migration design |
+| [ADR-0009](ADR-0009-material-cost-authority-and-provenance.md)       | Accepted | material_library stays cost authority with labelled-assumption provenance and deterministic tier policy |
+| [ADR-0010](ADR-0010-ingestion-robots-and-fetch-posture.md)           | Accepted | Strict RFC 9309 robots gate before every market-ingestion provider              |

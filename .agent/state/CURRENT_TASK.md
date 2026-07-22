@@ -1,82 +1,46 @@
 # Current Task
 
-- ID: BR-06
-- Roadmap step: `BR-06`
-- Title: Dubai regulatory sources and validated typology-pack candidates
-- Status: NEEDS_HUMAN
-- Owner: Codex
-- Started: 2026-07-21
-- Worktree: `/Users/amrosaleh/Maiyar/miyar-v2-br06-dubai-packs`
-- Branch: `codex/br-06-dubai-typology-packs`
-- Base: exact fetched canonical `origin/main` commit `beaa90b87682e7d214cffe38739629b22308290c`
-- Classification: Critical regulatory ingestion/schema/design-intelligence work
-- Risk: SSRF and terms/robots safety, regulatory provenance and temporal validity, tenant/public concealment, deterministic numerical authority, immutable release identity, and professional approval boundaries.
-- Retry budget: Three evidence-based attempts per unchanged failure class.
-- Resource budget: One isolated worktree; at most three concurrent bounded agents; no shared database writes, push, merge, deployment, or external publication.
-- Human gates: Named Dubai/UAE architecture-interiors, cost, compliance, and product approvals are required before any pack promotion. Shared schema application, Git publication, merge, deployment, and production enablement remain separately gated.
+- ID: EV-00
+- Roadmap step: `EV-00`
+- Title: Cost-path truthfulness remediation (audit F1–F13 + KF-013)
+- Status: ACTIVE
+- Owner: Claude Code
+- Started: 2026-07-23
+- Worktree: `/Users/amrosaleh/Maiyar/miyar-v2/.claude/worktrees/cost-path-audit-material-library-2bb482`
+- Branch: `claude/cost-path-audit-material-library-2bb482`
+- Base: canonical `origin/main` commit `8cd7e0a`
+- Classification: Data-truthfulness / ingestion / report remediation (P0)
+- Risk: provenance mislabelling in issued documents, benchmark keying changes, tenant-safe public-upsert invariants (KF-017 closure), pinned-hash MySQL evidence (LES-046), and preservation of the TR-09/TR-11/TR-13 contract tests.
+- Retry budget: three evidence-based attempts per failure class.
+- Human gates: shared/production migration application (0056–0058) and reseeding; cost-consultant approval for tier-ladder value changes and the proposed `libraryTiersForMkt01Tier` mapping; commit/push/merge/deploy per repository policy.
 
 ## Goal
 
-Add a fail-closed regulatory-document acquisition and provenance path for the approved Dubai source catalogue, then produce deterministic source-linked typology-pack v2 candidates without exposing or promoting unapproved regulatory meaning.
+Fix all thirteen findings of the 2026-07-23 source-to-output cost-path audit plus open `KF-013`, under the four owner decisions recorded in ADR-0009 and ADR-0010: `material_library` stays authoritative with labelled-assumption provenance; robots.txt is enforced strictly before every acquisition provider; finish/tier classification is deterministic and versioned; RFQ idempotency, registry pruning, a Graniti connector, and DOCX/client basis-label parity are in scope.
 
 ## Acceptance Criteria
 
-- [x] Regulatory retrieval is direct-host, allowlisted, robots/terms/retention aware, redirect/SSRF safe, size/MIME bounded, and never uses third-party scraping proxies.
-- [x] Additive regulatory source/version/capture/clause/relation/assertion persistence retains exact document and temporal provenance outside market/material evidence records.
-- [x] The mandatory Dubai Municipality, Dubai Civil Defence, Dubai Legislation Portal/DET, accessibility, sustainability, food-safety, and authority-scope catalogue is versioned and monitored; unsupported special jurisdictions fail closed.
-- [x] Typology-pack v2 preserves v1 compatibility while adding eight closed families, immutable variants/composition, exact per-datum source references, canonical decimal semantics, undirected adjacency, requirements/responsibilities, and platform-only release envelopes.
-- [x] Candidate packs, raw captures, clause text, storage/licensing details, and reviewer-private metadata cannot reach runtime production resolution, tenant APIs, serverless/client output, or public shares.
-- [x] Tenant overrides remain organization-scoped and cannot impersonate platform regulatory or professional authority.
-- [x] Deterministic golden fixtures and negative paths cover every family/variant, source integrity, temporal validity, mixed-use failure, promotion denial, v1 compatibility, authorization, and public-safe projection.
-- [x] Targeted tests, disposable MySQL migration/workflow tests, safe full suite, TypeScript, authorization/database audits, build/budgets, diff review, independent Sol review, and usable Claude review pass, or the exact external review blocker is recorded without claiming completion.
+- [x] Phase 1 — ADR-0009/ADR-0010 accepted and indexed; `tier-policy.ts` (v1 values verbatim) and `robots-policy.ts` (RFC 9309, fail-closed) with passing tests; label-derived `market-verified` stamping removed from `rfq-generator.ts`.
+- [ ] Phase 2 — robots asserted before every provider including proxies; Bayut/PropertyFinder/SCAD-PDF bypasses removed; regression tests prove no provider runs on denial.
+- [ ] Phase 3 — additive provenance columns on `material_library`; seed upsert keyed on unique `product_code`; MQI unpriced-allocation semantics match reconciliation; basis labels render in reconciliation output, PDF, DOCX, and client MQI card without forbidden public-claim strings.
+- [ ] Phase 4 — RFQ `pricingSource` derives from row provenance; `insertRfqLineItemsForOrg` replaces the prior batch per (project, brief, org) in one transaction with guarded-MySQL proof; finish-schedule/RFQ call sites receive material_library-shaped rows; `PricingAnalytics.pricingSource` narrowed and cost basis exposed; `KF-013` closed.
+- [ ] Phase 5 — evidence `finishLevel` set deterministically via tier-policy with model output demoted to `modelSuggestedFinishLevel`; per-item categories from static connectors; `CATEGORY_MAP` no longer pools material costs into floors; proposals stamped `benchmark-key-v2` with legacy keys served unchanged; `minEvidenceCount` aligned to the reject threshold; drifted v15 test replaced by real-function coverage.
+- [ ] Phase 6 — registry rows resolved by id or slug so `lastSuccessfulFetch`/`consecutiveFailures`/`sourceRegistryId` are truthfully recorded on both scheduled paths; dead sources deactivated; URLs repaired; Graniti UAE connector registered under the strict robots gate.
+- [ ] Final — full gate battery green; functional disposable-MySQL proof; artifact grep clean of forbidden strings; state files updated.
 
 ## Non-Goals
 
-- Approving or promoting any Dubai typology rule before the named professional gate.
-- Changing scoring, pricing, financial assumptions, BR-03 readiness policy, issued-report/share semantics, or legacy market connector authority.
-- Treating a scraper, LLM extraction, source grade, tenant admin, or source assertion as professional approval.
-- Applying migrations to a shared/production database or pushing, merging, deploying, or publishing externally.
+- Changing any tier-ladder threshold value, seed AED price, scoring weight, or financial assumption (cost-consultant gate).
+- Implementing the `EV-01` evidence/price model or merging the material tables (`EV-03`).
+- Applying migrations to shared/production databases, reseeding production, committing, pushing, merging, or deploying without explicit authorization.
+- Modifying the regulatory acquisition path.
 
 ## Baseline
 
-- Fresh worktree created from exact canonical `beaa90b`; BR-05 commit `2052b17` is an ancestor and the root checkout remains untouched.
-- `DATABASE_URL='' pnpm vitest run server/engines/typology-pack.test.ts server/engines/v2-connectors.test.ts server/engines/v2-resilience.test.ts server/engines/ingestion/confidence-policy.test.ts server/engines/ingestion/freshness-health.test.ts`: PASS, 5 files / 128 tests.
+- Fresh `pnpm install --frozen-lockfile` in this worktree (node_modules was absent; the first background `pnpm check` failed on missing `tsc` and its exit status was masked by a pipe — recorded so the false green is not trusted).
+- `pnpm check`: PASS (exit 0) at `8cd7e0a` plus Phase-1 files.
+- `DATABASE_URL='' pnpm vitest run server/engines/tier-policy.test.ts server/engines/ingestion/robots-policy.test.ts`: PASS, 51/51.
 
 ## Next Action
 
-Obtain and record the official terms, licensing and artifact-retention decisions; acquire and authenticate the exact current documents and clause locators; then obtain separate named architecture/interiors, cost, compliance, and product approvals over the exact source-linked pack fingerprints. The initial official-source review packet is recorded at `docs/artifacts/BR-06_SOURCE_REVIEW_PACKET.md`; its policy and professional fields remain pending. Until then, production source-authority and pack-release registries remain empty. Shared migration application, Git publication, merge, deployment, and production enablement require separate authorization.
-
-## Verification Evidence
-
-- Focused regulatory, pack, router, and compatibility suites: PASS, 7 files / 48 tests.
-- Database-free suite: PASS, 1,472 tests with 22 skipped across 112 passed files and one skipped file.
-- Disposable MySQL migration/workflow suite: PASS, 7 files / 41 tests; migration 0055 applied only to the disposable target and cleanup succeeded.
-- TypeScript: `pnpm check` PASS.
-- Authorization audit: 389 procedures, zero remediation findings.
-- Database-safety audit: 121 entrypoints, two exact allowlisted generated-bundle entries, zero findings.
-- Build and client bundle budgets: PASS; tracked `api/index.js` regenerated from the final source and schema.
-- Diff whitespace/scope review: PASS; no shared database, production, publication, or deployment action occurred.
-- Independent Sol review: final `PASS` after live-source, typed-assertion, child-document, multi-authority, and mixed-use production-resolution blockers were remediated.
-- Claude Opus independently reviewed the finished diff read-only and returned `PASS`.
-
-## Post-Merge Remediation (2026-07-22, branch `codex/br06-remediation` from `dd45741`)
-
-Independent read-only verification of merged `origin/main` found two defects. Both are fixed; neither
-touched an approval gate, a catalogue status, or a production registry.
-
-- Finding 1 — the per-host rate limiter was not concurrency-safe. It read the stored last-request time, awaited, then wrote it, so concurrent callers observed the same value and burst together. Replaced with a per-host acquisition gate that serializes competing requests on an independently enqueued chain, reserves the next slot inside the exclusive section, fails closed with `TIMEOUT` when a reserved slot lies beyond the operation deadline, and releases in `finally` on success, failure, timeout, and cancellation. Different approved hosts remain independent; body streaming stays outside the gate.
-- Finding 2 — `.agent/state/TR03H_MYSQL_EVIDENCE.json` held a stale hash for `scripts/run-guarded-mysql-tests.ts` after commit `d91c356`, so `pnpm audit:authorization` exited 1 with 25 findings. Hash comparison confirms BR-06 at `b570486` was consistent and the CI-timeout merge introduced the drift. Evidence was regenerated only through `pnpm test:authorization:mysql`; no hash or timestamp was hand-edited.
-
-### Remediation Verification Evidence
-
-- Focused regulatory, pack, router, and compatibility suites: PASS, 7 files / 52 tests (four new acquisition-gate tests; all thirteen pre-existing fetcher security tests pass unchanged).
-- Database-free suite: PASS, 1,476 tests with 22 skipped across 112 passed files and one skipped file.
-- Disposable MySQL migration/workflow suite: PASS, 7 files / 41 tests against a loopback-only MySQL 8.0 container; the disposable database was dropped and the container removed.
-- TypeScript: `pnpm check` PASS.
-- Authorization audit: PASS, 389 procedures and zero remediation rows, recovering from exit 1.
-- Database-safety audit: PASS, 121 entrypoints, two allowlisted entries, zero findings.
-- Build and client bundle budgets: PASS; `api/index.js` rebuilt byte-identically, confirming the acquisition path is absent from the serverless bundle.
-- Concurrency proof: five concurrent acquisitions at a 1,000 ms interval moved from offsets `1005/2005/2005/2006/2006 ms` (1,001 ms spread) to `5007/6009/7009/8010/9011 ms` (4,004 ms spread across four full intervals).
-- Diff review: `git diff --check` clean; both production registries remain `Object.freeze([])`, no catalogue source changed status, and candidate packs gained no runtime, tenant, public, or share reference.
-
-BR-06 remains `NEEDS_HUMAN`. This remediation created no approval and promoted nothing.
+Execute Phase 2 (strict robots enforcement in `connector.ts`, bypass removals, `connector-robots.test.ts`), then run the phase gate (`pnpm check`, targeted vitest, `DATABASE_URL='' pnpm test`, `pnpm audit:database-safety`, `pnpm build`).

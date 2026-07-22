@@ -18,7 +18,10 @@
  */
 
 import { z } from "zod";
-import robotsParser from "robots-parser";
+import {
+  assertUrlAllowedByRobots,
+  evaluateRobotsPolicy,
+} from "./robots-policy";
 import {
   ConfidencePolicyError,
   REGISTRY_SOURCE_GRADE_POLICY_VERSION,
@@ -51,31 +54,12 @@ function getRandomUserAgent() {
   return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
 }
 
-const robotsCache = new Map<string, ReturnType<typeof robotsParser>>();
-
-async function checkRobotsTxt(targetUrl: string, userAgent: string): Promise<boolean> {
-  try {
-    const urlObj = new URL(targetUrl);
-    const origin = urlObj.origin;
-    let robots = robotsCache.get(origin);
-
-    if (!robots) {
-      const robotsUrl = `${origin}/robots.txt`;
-      const res = await globalThis.fetch(robotsUrl, { headers: { "User-Agent": userAgent } });
-      if (res.ok) {
-        const text = await res.text();
-        robots = robotsParser(robotsUrl, text);
-      } else {
-        robots = robotsParser(robotsUrl, "");
-      }
-      robotsCache.set(origin, robots);
-    }
-
-    return robots.isAllowed(targetUrl, userAgent) !== false;
-  } catch (err) {
-    return true; // fail open
-  }
-}
+/**
+ * ADR-0010: robots verdicts are evaluated with one stable browser product
+ * token so the policy result is deterministic across the rotating request
+ * user agents. The strict evaluation itself lives in ./robots-policy.
+ */
+const ROBOTS_CHECK_USER_AGENT = USER_AGENTS[0];
 
 // ─── Firecrawl Client (lazy-loaded) ─────────────────────────────
 
@@ -357,11 +341,39 @@ export abstract class BaseSourceConnector implements SourceConnector {
   requestDelayMs?: number;
 
   /**
+   * ADR-0010: strict robots gate, evaluated BEFORE any provider — proxies
+   * included. Returns a denial payload when the target may not be fetched,
+   * or null when the fetch may proceed. The per-origin cache inside
+   * robots-policy makes repeated assertions free.
+   */
+  protected async robotsDenial(url?: string): Promise<RawSourcePayload | null> {
+    const targetUrl = url || this.sourceUrl;
+    const verdict = await evaluateRobotsPolicy(targetUrl, ROBOTS_CHECK_USER_AGENT);
+    if (verdict.allowed) return null;
+    console.warn(`[Connector] Robots policy ${verdict.code} for ${targetUrl}: ${verdict.detail}`);
+    return {
+      url: targetUrl,
+      fetchedAt: new Date(),
+      statusCode: 403,
+      error: `Blocked by robots policy (${verdict.code}): ${verdict.detail}`,
+    };
+  }
+
+  /**
+   * Defensive robots gate for direct provider-helper calls (e.g. crawl loops
+   * that pass explicit URLs); throws RobotsPolicyError on denial.
+   */
+  protected async assertRobots(url?: string): Promise<void> {
+    await assertUrlAllowedByRobots(url || this.sourceUrl, ROBOTS_CHECK_USER_AGENT);
+  }
+
+  /**
    * Fetch using Firecrawl's headless browser API.
    * Renders JavaScript, bypasses bot protection, returns clean markdown.
    */
   async fetchWithFirecrawl(url?: string): Promise<RawSourcePayload> {
     const targetUrl = url || this.sourceUrl;
+    await this.assertRobots(targetUrl);
     const client = await getFirecrawlClient();
 
     if (!client) {
@@ -410,6 +422,7 @@ export abstract class BaseSourceConnector implements SourceConnector {
    */
   async fetchWithScrapingDog(url?: string): Promise<RawSourcePayload> {
     const targetUrl = url || this.sourceUrl;
+    await this.assertRobots(targetUrl);
     const apiKey = process.env.SCRAPINGDOG_API_KEY;
 
     if (!apiKey) {
@@ -462,6 +475,7 @@ export abstract class BaseSourceConnector implements SourceConnector {
    */
   async fetchWithScrapingAnt(url?: string): Promise<RawSourcePayload> {
     const targetUrl = url || this.sourceUrl;
+    await this.assertRobots(targetUrl);
     const apiKey = process.env.SCRAPINGANT_API_KEY;
 
     if (!apiKey) {
@@ -517,6 +531,7 @@ export abstract class BaseSourceConnector implements SourceConnector {
    */
   async fetchWithApify(url?: string): Promise<RawSourcePayload> {
     const targetUrl = url || this.sourceUrl;
+    await this.assertRobots(targetUrl);
     const apiKey = process.env.APIFY_API_KEY;
 
     if (!apiKey) {
@@ -585,6 +600,7 @@ export abstract class BaseSourceConnector implements SourceConnector {
    */
   async fetchWithParseHub(url?: string): Promise<RawSourcePayload> {
     const targetUrl = url || this.sourceUrl;
+    await this.assertRobots(targetUrl);
     const apiKey = process.env.PARSEHUB_API_KEY;
     const projectToken = process.env.PARSEHUB_PROJECT_TOKEN; // optional default project
 
@@ -676,10 +692,8 @@ export abstract class BaseSourceConnector implements SourceConnector {
     let lastError: string | undefined;
     const userAgent = getRandomUserAgent();
 
-    const isAllowed = await checkRobotsTxt(targetUrl, userAgent);
-    if (!isAllowed) {
-      return { url: targetUrl, fetchedAt: new Date(), statusCode: 403, error: "Blocked by origin robots.txt" };
-    }
+    const robotsBlock = await this.robotsDenial(targetUrl);
+    if (robotsBlock) return robotsBlock;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
@@ -755,6 +769,10 @@ export abstract class BaseSourceConnector implements SourceConnector {
     if (this.requestDelayMs && this.requestDelayMs > 0) {
       await new Promise(r => setTimeout(r, this.requestDelayMs));
     }
+
+    // ADR-0010: strict robots gate before ANY provider, proxies included.
+    const robotsBlock = await this.robotsDenial();
+    if (robotsBlock) return robotsBlock;
 
     // Provider 1: Firecrawl (best quality — markdown + JS rendering)
     if (isFirecrawlAvailable() && !isFirecrawlCreditExhausted()) {

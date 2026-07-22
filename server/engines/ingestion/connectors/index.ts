@@ -794,17 +794,8 @@ export class BayutListingsConnector extends HTMLSourceConnector {
   defaultUnit = "sqft";
   requestDelayMs = 2000; // Respect rate limits
 
-  /**
-   * Bayut listings are JS-rendered — Firecrawl is strongly preferred.
-   * Falls back to basic fetch if Firecrawl is unavailable.
-   */
-  async fetch(): Promise<RawSourcePayload> {
-    if (this.requestDelayMs && this.requestDelayMs > 0) {
-      await new Promise(r => setTimeout(r, this.requestDelayMs));
-    }
-    // Always prefer Firecrawl for Bayut (JS-rendered SPA)
-    return this.fetchWithFirecrawl();
-  }
+  // Bayut is JS-rendered; the base fetch() chain already prefers Firecrawl
+  // and applies the ADR-0010 robots gate before any provider. No override.
 
   async normalize(
     evidence: ExtractedEvidence,
@@ -858,15 +849,8 @@ export class PropertyFinderListingsConnector extends HTMLSourceConnector {
   defaultUnit = "sqft";
   requestDelayMs = 2000; // Respect rate limits
 
-  /**
-   * PropertyFinder is also JS-rendered — use Firecrawl.
-   */
-  async fetch(): Promise<RawSourcePayload> {
-    if (this.requestDelayMs && this.requestDelayMs > 0) {
-      await new Promise(r => setTimeout(r, this.requestDelayMs));
-    }
-    return this.fetchWithFirecrawl();
-  }
+  // PropertyFinder is JS-rendered; the base fetch() chain already prefers
+  // Firecrawl and applies the ADR-0010 robots gate. No override.
 
   async normalize(
     evidence: ExtractedEvidence,

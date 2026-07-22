@@ -189,15 +189,18 @@ export function buildRFQFromBrief(
             matchingMaterials.slice(0, 3).forEach((mat, matIdx) => {
                 const rateMin = Number(mat.priceAedMin || 0);
                 const rateMax = Number(mat.priceAedMax || 0);
-                const pricingSource = costParsed?.isMarketVerified ? "market-verified" as const : "estimated" as const;
+                // ADR-0009 interim: a line may claim market verification only
+                // from the rate's own provenance, never from the section
+                // label's wording. Until material provenance columns exist,
+                // every generated line is an estimate.
+                const pricingSource = "estimated" as const;
 
                 const totalMin = qty * rateMin;
                 const totalMax = qty * rateMax;
                 subtotalMin += totalMin;
                 subtotalMax += totalMax;
 
-                if (pricingSource === "market-verified") marketVerifiedCount++;
-                else estimatedCount++;
+                estimatedCount++;
 
                 items.push({
                     projectId,
@@ -218,13 +221,13 @@ export function buildRFQFromBrief(
                 });
             });
         } else if (costParsed) {
-            // No specific materials — use the Brief's cost estimate as a provisional sum
-            const pricingSource = costParsed.isMarketVerified ? "market-verified" as const : "estimated" as const;
+            // No specific materials — use the Brief's cost estimate as a provisional sum.
+            // ADR-0009 interim: provisional sums are estimates by definition.
+            const pricingSource = "estimated" as const;
             subtotalMin += costParsed.min;
             subtotalMax += costParsed.max;
 
-            if (pricingSource === "market-verified") marketVerifiedCount++;
-            else estimatedCount++;
+            estimatedCount++;
 
             items.push({
                 projectId,
