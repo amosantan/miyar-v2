@@ -45447,7 +45447,14 @@ var regulatoryDiscoveredDocumentSchema = z47.object({
 var regulatoryDiscoveredDocumentReviewSchema = z47.object({
   sourceKey: regulatoryDiscoveredDocumentSchema.shape.sourceKey,
   canonicalUrl: regulatoryDiscoveredDocumentSchema.shape.canonicalUrl,
-  retentionPolicy: z47.literal("artifact_permitted"),
+  /**
+   * A reviewer may permit retrieval without permitting a complete copy.
+   * Previously only `artifact_permitted` was accepted, which forced the most
+   * permissive retention onto exact regulation documents — stricter material
+   * than the landing pages their parents point at, and the opposite of a
+   * source-policy decision taken on an analysis-rather-than-reproduction basis.
+   */
+  retentionPolicy: z47.enum(["metadata_only", "artifact_permitted"]),
   licensingStatus: z47.literal("permitted"),
   reviewedBy: z47.string().min(1).max(128),
   reviewedAt: z47.string().datetime()

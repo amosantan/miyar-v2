@@ -67,7 +67,14 @@ export type RegulatoryDiscoveredDocument = z.infer<typeof regulatoryDiscoveredDo
 export const regulatoryDiscoveredDocumentReviewSchema = z.object({
   sourceKey: regulatoryDiscoveredDocumentSchema.shape.sourceKey,
   canonicalUrl: regulatoryDiscoveredDocumentSchema.shape.canonicalUrl,
-  retentionPolicy: z.literal("artifact_permitted"),
+  /**
+   * A reviewer may permit retrieval without permitting a complete copy.
+   * Previously only `artifact_permitted` was accepted, which forced the most
+   * permissive retention onto exact regulation documents — stricter material
+   * than the landing pages their parents point at, and the opposite of a
+   * source-policy decision taken on an analysis-rather-than-reproduction basis.
+   */
+  retentionPolicy: z.enum(["metadata_only", "artifact_permitted"]),
   licensingStatus: z.literal("permitted"),
   reviewedBy: z.string().min(1).max(128),
   reviewedAt: z.string().datetime(),
