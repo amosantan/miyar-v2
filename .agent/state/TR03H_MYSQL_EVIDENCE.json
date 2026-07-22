@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "observedAt": "2026-07-22T22:12:48.034Z",
+  "observedAt": "2026-07-22T22:25:42.494Z",
   "databaseEngine": "MySQL 8.0",
   "targetClass": "disposable localhost database",
   "command": "pnpm test:authorization:mysql",
@@ -19,7 +19,7 @@
     "tests/mysql/br05-typology-packs.mysql.test.ts",
     "tests/mysql/br06-regulatory-sources.mysql.test.ts"
   ],
-  "testCount": 44,
+  "testCount": 46,
   "cleanupVerified": true,
   "fileHashes": {
     "tests/mysql/design-authorization.mysql.test.ts": "8f6ab9b2fdceff1c7e554fa48b2914818edd80172b277e06becebffdf9994698",
@@ -54,7 +54,7 @@
     "server/routers/autonomous.ts": "761742d4831cf1b3926bda866b1d646b39f8637f15370728e45fd491864705f6",
     "server/routers/market-intelligence.ts": "a2d47b6b4531d22e02befc1c74a93f6628826fce6a331def3f1a66d738908d35",
     "server/routers/portfolio.ts": "d14b4fe0af2daf3bcbe84b3421e824a25eb16425f442be35be4fae544c9efa2b",
-    "drizzle/schema.ts": "76b3e9bd3df21cadd6c2ca7b6fc1199008bb89ca395fb3976c9f14b7130a160a",
+    "drizzle/schema.ts": "e057e762ef14b38f64ac0a9d414f031ca52fd5346420b7bfe94ae5f04897e063",
     "drizzle/0045_steady_amazoness.sql": "9862f48fe585e31c835ea97bd5c11b3e7640e97ba2764217534f5fbcad2df48d",
     "drizzle/0046_far_blob.sql": "c213114207dd7b66e8a10b4e94c1b77ef0ddaf6b69cb1e5b212752a1dc6666cb",
     "drizzle/0047_sharp_grandmaster.sql": "7a2105fa9d80b10415483351fd7f191de3fc57c2d9f2cb27d8ae6af86c8b200d",

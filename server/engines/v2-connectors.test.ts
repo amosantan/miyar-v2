@@ -27,7 +27,7 @@ import {
   getAllConnectors,
   getConnectorsByIds,
   RAKCeramicsConnector,
-  DERAInteriorsConnector,
+  GranitiUAEConnector,
   DragonMartConnector,
   PorcelanosaConnector,
   EmaarConnector,
@@ -37,7 +37,6 @@ import {
   JLLConnector,
   DubaiStatisticsConnector,
   HafeleConnector,
-  GEMSConnector,
 } from "../engines/ingestion/connectors/index";
 
 // ─── 1. Connector Registry ──────────────────────────────────────
@@ -47,10 +46,12 @@ describe("V2-04: Connector Registry", () => {
     expect(Object.keys(ALL_CONNECTORS).length).toBeGreaterThanOrEqual(12);
   });
 
-  it("contains all 12 UAE source IDs", () => {
+  it("contains the core UAE source IDs (post EV-00 prune)", () => {
+    // EV-00: dera-interiors and gems-building-materials were removed with
+    // their dead domains; graniti-uae joined as the AED-price supplier.
     const expectedIds = [
       "rak-ceramics-uae",
-      "dera-interiors",
+      "graniti-uae",
       "dragon-mart-dubai",
       "porcelanosa-uae",
       "emaar-properties",
@@ -60,11 +61,12 @@ describe("V2-04: Connector Registry", () => {
       "jll-mena-research",
       "dubai-statistics-center",
       "hafele-uae",
-      "gems-building-materials",
     ];
     for (const id of expectedIds) {
       expect(ALL_CONNECTORS).toHaveProperty(id);
     }
+    expect(ALL_CONNECTORS).not.toHaveProperty("dera-interiors");
+    expect(ALL_CONNECTORS).not.toHaveProperty("gems-building-materials");
   });
 
   it("getConnectorById returns correct connector", () => {
@@ -118,12 +120,12 @@ describe("V2-04: Grade Assignment", () => {
     expect(assignGrade("rak-ceramics-uae")).toBe("B");
     expect(assignGrade("porcelanosa-uae")).toBe("B");
     expect(assignGrade("hafele-uae")).toBe("B");
-    expect(assignGrade("gems-building-materials")).toBe("B");
+    expect(assignGrade("graniti-uae")).toBe("B");
     expect(assignGrade("dragon-mart-dubai")).toBe("B");
   });
 
-  it("assigns Grade C to fit-out firms", () => {
-    expect(assignGrade("dera-interiors")).toBe("C");
+  it("defaults unknown sources to Grade C", () => {
+    expect(assignGrade("some-unregistered-source")).toBe("C");
   });
 
   it("defaults to Grade C for unknown sources", () => {
@@ -236,21 +238,21 @@ describe("V2-04: Connector Extraction", () => {
     expect(evidence[0].sourceUrl).toBe(mockPayload.url);
   }, 15_000);
 
-  it("DERA Interiors extracts fitout evidence", async () => {
-    const connector = new DERAInteriorsConnector();
+  it("Graniti UAE extracts material cost evidence", async () => {
+    const connector = new GranitiUAEConnector();
     const servicePayload: RawSourcePayload = {
       ...mockPayload,
       rawHtml: `
-        <div class="service-item">
-          <h2>Luxury Villa Fit-out</h2>
-          <p>Starting from AED 350 per sqft for premium residential fit-out.</p>
+        <div class="product-item">
+          <h2>Calacatta Marble Slab 60x120</h2>
+          <p>AED 480 per sqm — premium Italian marble for floors and walls.</p>
         </div>
       `,
     };
     const evidence = await connector.extract(servicePayload);
     expect(evidence.length).toBeGreaterThanOrEqual(1);
-    expect(evidence[0].category).toBe("fitout_rate");
-    expect(evidence[0].geography).toBe("Dubai");
+    expect(evidence[0].category).toBe("material_cost");
+    expect(evidence[0].geography).toBe("UAE");
   }, 15_000);
 
   it("Emaar extracts competitor project evidence", async () => {
@@ -430,7 +432,7 @@ describe("V2-04: Connector Normalization", () => {
 describe("V2-04: Connector Properties", () => {
   const connectorSpecs = [
     { cls: RAKCeramicsConnector, id: "rak-ceramics-uae", name: "RAK Ceramics UAE", grade: "B" },
-    { cls: DERAInteriorsConnector, id: "dera-interiors", name: "DERA Interiors", grade: "C" },
+    { cls: GranitiUAEConnector, id: "graniti-uae", name: "Graniti UAE", grade: "B" },
     { cls: DragonMartConnector, id: "dragon-mart-dubai", name: "Dragon Mart Dubai", grade: "B" },
     { cls: PorcelanosaConnector, id: "porcelanosa-uae", name: "Porcelanosa UAE", grade: "B" },
     { cls: EmaarConnector, id: "emaar-properties", name: "Emaar Properties", grade: "A" },
@@ -440,7 +442,6 @@ describe("V2-04: Connector Properties", () => {
     { cls: JLLConnector, id: "jll-mena-research", name: "JLL MENA Research", grade: "A" },
     { cls: DubaiStatisticsConnector, id: "dubai-statistics-center", name: "Dubai Statistics Center", grade: "A" },
     { cls: HafeleConnector, id: "hafele-uae", name: "Hafele UAE", grade: "B" },
-    { cls: GEMSConnector, id: "gems-building-materials", name: "GEMS Building Materials", grade: "B" },
   ];
 
   for (const spec of connectorSpecs) {

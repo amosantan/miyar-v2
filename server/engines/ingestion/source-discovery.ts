@@ -137,17 +137,10 @@ export async function discoverNewSources(options: {
 
 // ─── Known High-Value UAE Sources Not Yet In Registry ────────────
 // These are pre-vetted and can be added directly via admin UI or seed script.
+// EV-00 (2026-07-23): entries duplicating now-registered sources were pruned;
+// this list holds only genuinely missing suggestions.
 
 export const KNOWN_MISSING_SOURCES: DiscoveredSource[] = [
-    {
-        name: "Porcelanosa UAE",
-        url: "https://www.porcelanosa.com/ae/",
-        category: "material_supplier",
-        dataTypes: ["tiles", "sanitary", "kitchens", "countertops"],
-        estimatedReliability: "B",
-        rationale: "Major European tile/bath brand with UAE showrooms, structured product catalog with pricing tiers",
-        suggestedFrequency: "monthly",
-    },
     {
         name: "Al Murad UAE",
         url: "https://www.almurad.com/",
@@ -155,51 +148,6 @@ export const KNOWN_MISSING_SOURCES: DiscoveredSource[] = [
         dataTypes: ["tiles", "stone", "sanitary", "bathroom_fittings"],
         estimatedReliability: "B",
         rationale: "Largest UAE-based tile & stone retailer, multiple branches, competitive pricing benchmark",
-        suggestedFrequency: "biweekly",
-    },
-    {
-        name: "DERA (Dubai Economic & Regulatory Authority)",
-        url: "https://www.dubaipulse.gov.ae/",
-        category: "government",
-        dataTypes: ["building_permits", "construction_statistics", "economic_indicators"],
-        estimatedReliability: "A",
-        rationale: "Dubai government open data portal with construction activity indicators",
-        suggestedFrequency: "monthly",
-    },
-    {
-        name: "Dezeen Middle East",
-        url: "https://www.dezeen.com/tag/united-arab-emirates/",
-        category: "design_trend",
-        dataTypes: ["design_trends", "project_showcases", "material_innovations"],
-        estimatedReliability: "B",
-        rationale: "Leading global design publication with dedicated UAE/ME content section",
-        suggestedFrequency: "weekly",
-    },
-    {
-        name: "Commercial Interior Design (CID) ME",
-        url: "https://www.commercialinteriordesign.com/",
-        category: "design_trend",
-        dataTypes: ["design_trends", "project_briefs", "supplier_news", "awards"],
-        estimatedReliability: "B",
-        rationale: "Middle East's premier interiors magazine, covers luxury hospitality & residential projects",
-        suggestedFrequency: "weekly",
-    },
-    {
-        name: "Aldar Properties",
-        url: "https://www.aldar.com/en/explore-aldar/businesses/aldar-development",
-        category: "developer",
-        dataTypes: ["project_portfolios", "interior_specifications", "pricing_ranges"],
-        estimatedReliability: "A",
-        rationale: "Abu Dhabi's largest developer, complements Dubai-focused Emaar/DAMAC/Nakheel data",
-        suggestedFrequency: "biweekly",
-    },
-    {
-        name: "Nakheel Projects",
-        url: "https://www.nakheel.com/en/communities",
-        category: "developer",
-        dataTypes: ["project_portfolios", "community_specs", "pricing_ranges"],
-        estimatedReliability: "A",
-        rationale: "Major Dubai developer (Palm Jumeirah, Dragon City), interior design specs in brochures",
         suggestedFrequency: "biweekly",
     },
     {
@@ -237,14 +185,5 @@ export const KNOWN_MISSING_SOURCES: DiscoveredSource[] = [
         estimatedReliability: "B",
         rationale: "Ultra-luxury German kitchen brand, relevant price data for top-tier fitout benchmarks",
         suggestedFrequency: "monthly",
-    },
-    {
-        name: "ArchDaily Middle East",
-        url: "https://www.archdaily.com/tag/united-arab-emirates",
-        category: "design_trend",
-        dataTypes: ["architectural_trends", "project_specs", "material_innovations"],
-        estimatedReliability: "B",
-        rationale: "World's most-visited architecture portal, UAE project archives with material specs",
-        suggestedFrequency: "weekly",
     },
 ];

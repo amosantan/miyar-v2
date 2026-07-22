@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-22T22:12:50.225Z",
+  "generatedAt": "2026-07-22T22:25:44.684Z",
   "sourceRoot": "server/routers + server/_core/systemRouter.ts",
   "procedureCount": 389,
   "allowedClassifications": [

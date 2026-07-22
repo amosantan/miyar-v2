@@ -354,6 +354,12 @@ export class DynamicConnector extends BaseSourceConnector {
     }) {
         super();
         this.sourceId = String(config.id);
+        // ADR-0009/EV-00: carry the registry row id so evidence and health
+        // updates link to the exact source_registry row.
+        this.sourceRegistryId =
+            typeof config.id === "number"
+                ? config.id
+                : Number.parseInt(String(config.id), 10) || undefined;
         this.sourceName = config.name;
         this.sourceUrl = config.url;
         this.reliabilityGrade = config.reliabilityDefault;

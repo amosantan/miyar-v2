@@ -98,6 +98,12 @@ export interface SourceConnector {
   sourceId: string;
   sourceName: string;
   sourceUrl: string;
+  /**
+   * Resolved source_registry row id. Dynamic connectors set it from their
+   * registry config; for static connectors the orchestrator resolves it by
+   * slug before the run (ADR-0009/EV-00, audit F4/F5).
+   */
+  sourceRegistryId?: number;
   /** Optional: set by orchestrator before fetch to enable incremental ingestion */
   lastSuccessfulFetch?: Date;
   /** Optional: artificial delay applied before the specific request fires */
@@ -212,10 +218,12 @@ const GRADE_A_SOURCE_IDS = new Set([
 
 const GRADE_B_SOURCE_IDS = new Set([
   "rak-ceramics-uae", "porcelanosa-uae", "hafele-uae",
-  "gems-building-materials", "dragon-mart-dubai", "property-monitor-dubai",
+  "graniti-uae", "dragon-mart-dubai", "property-monitor-dubai",
 ]);
 
-const GRADE_C_SOURCE_IDS = new Set(["dera-interiors"]);
+// EV-00 registry prune: the sole Grade C static source (dera-interiors) was
+// removed with its dead domain; the set stays for future classifications.
+const GRADE_C_SOURCE_IDS = new Set<string>([]);
 
 export function assignGrade(sourceId: string): "A" | "B" | "C" {
   if (GRADE_A_SOURCE_IDS.has(sourceId)) return "A";
@@ -337,6 +345,7 @@ export abstract class BaseSourceConnector implements SourceConnector {
   abstract sourceId: string;
   abstract sourceName: string;
   abstract sourceUrl: string;
+  sourceRegistryId?: number;
   lastSuccessfulFetch?: Date;
   requestDelayMs?: number;
 

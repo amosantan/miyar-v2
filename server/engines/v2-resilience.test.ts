@@ -396,16 +396,20 @@ describe("V2-11: Grade assignment rules", () => {
   });
 
   it("assigns Grade B to all 5 B-tier sources", () => {
+    // EV-00: gems-building-materials was pruned with its dead domain;
+    // graniti-uae joined the B tier.
     const bSources = [
       "rak-ceramics-uae", "porcelanosa-uae", "hafele-uae",
-      "gems-building-materials", "dragon-mart-dubai",
+      "graniti-uae", "dragon-mart-dubai",
     ];
     for (const id of bSources) {
       expect(assignGrade(id)).toBe("B");
     }
   });
 
-  it("assigns Grade C to DERA Interiors", () => {
+  it("keeps pruned source ids at the Grade C default", () => {
+    // dera-interiors was removed from the registries (EV-00); the grade
+    // function falls back to C for any unregistered id.
     expect(assignGrade("dera-interiors")).toBe("C");
   });
 

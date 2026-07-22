@@ -407,6 +407,13 @@
       "when": 1784757965860,
       "tag": "0057_deterministic_finish_keying",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "5",
+      "when": 1784758497052,
+      "tag": "0058_source_registry_slug",
+      "breakpoints": true
     }
   ]
 }

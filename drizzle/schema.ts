@@ -1378,6 +1378,13 @@ export type InsertBenchmarkSuggestion =
 export const sourceRegistry = mysqlTable("source_registry", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
+  /**
+   * ADR-0009/EV-00 (audit F4/F5): stable connector key. Static connectors
+   * resolve their registry row by this slug (their sourceId); dynamic
+   * connectors resolve by numeric id. The former name-vs-sourceId join never
+   * matched, so freshness and evidence linkage were silently lost.
+   */
+  slug: varchar("slug", { length: 64 }),
   url: text("url").notNull(),
   sourceType: mysqlEnum("sourceType", [
     "supplier_catalog",
@@ -1432,7 +1439,9 @@ export const sourceRegistry = mysqlTable("source_registry", {
 
   addedAt: timestamp("addedAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => [
+  uniqueIndex("source_registry_slug_unique").on(table.slug),
+]);
 
 export type SourceRegistryEntry = typeof sourceRegistry.$inferSelect;
 export type InsertSourceRegistryEntry = typeof sourceRegistry.$inferInsert;

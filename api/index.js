@@ -1521,6 +1521,13 @@ var init_schema = __esm({
     sourceRegistry = mysqlTable("source_registry", {
       id: int("id").autoincrement().primaryKey(),
       name: varchar("name", { length: 255 }).notNull(),
+      /**
+       * ADR-0009/EV-00 (audit F4/F5): stable connector key. Static connectors
+       * resolve their registry row by this slug (their sourceId); dynamic
+       * connectors resolve by numeric id. The former name-vs-sourceId join never
+       * matched, so freshness and evidence linkage were silently lost.
+       */
+      slug: varchar("slug", { length: 64 }),
       url: text("url").notNull(),
       sourceType: mysqlEnum("sourceType", [
         "supplier_catalog",
@@ -1567,7 +1574,9 @@ var init_schema = __esm({
       requestDelayMs: int("requestDelayMs").default(2e3).notNull(),
       addedAt: timestamp("addedAt").defaultNow().notNull(),
       updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-    });
+    }, (table) => [
+      uniqueIndex("source_registry_slug_unique").on(table.slug)
+    ]);
     evidenceRecords = mysqlTable(
       "evidence_records",
       {
@@ -13302,17 +13311,18 @@ var init_connector = __esm({
       "rak-ceramics-uae",
       "porcelanosa-uae",
       "hafele-uae",
-      "gems-building-materials",
+      "graniti-uae",
       "dragon-mart-dubai",
       "property-monitor-dubai"
     ]);
-    GRADE_C_SOURCE_IDS = /* @__PURE__ */ new Set(["dera-interiors"]);
+    GRADE_C_SOURCE_IDS = /* @__PURE__ */ new Set([]);
     firecrawlExhaustedAt = null;
     FIRECRAWL_EXHAUST_TTL_MS = 6 * 60 * 60 * 1e3;
     FETCH_TIMEOUT_MS = 15e3;
     MAX_RETRIES3 = 3;
     BASE_BACKOFF_MS = 1e3;
     BaseSourceConnector = class {
+      sourceRegistryId;
       lastSuccessfulFetch;
       requestDelayMs;
       /**
@@ -14033,6 +14043,7 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       constructor(config) {
         super();
         this.sourceId = String(config.id);
+        this.sourceRegistryId = typeof config.id === "number" ? config.id : Number.parseInt(String(config.id), 10) || void 0;
         this.sourceName = config.name;
         this.sourceUrl = config.url;
         this.reliabilityGrade = config.reliabilityDefault;
@@ -15394,13 +15405,25 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
   const runId = `ING-${randomUUID6().substring(0, 8)}`;
   const startedAt = /* @__PURE__ */ new Date();
   const connectorResults = [];
+  const registryIdBySourceId = /* @__PURE__ */ new Map();
   try {
     const db = await getDb();
     if (db) {
       for (const connector of connectors) {
-        const rows = await db.select({ lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch }).from(sourceRegistry).where(eq8(sourceRegistry.name, connector.sourceId)).limit(1);
-        if (rows.length > 0 && rows[0].lastSuccessfulFetch) {
-          connector.lastSuccessfulFetch = rows[0].lastSuccessfulFetch;
+        const rows = await db.select({
+          id: sourceRegistry.id,
+          lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch
+        }).from(sourceRegistry).where(
+          connector.sourceRegistryId !== void 0 ? eq8(sourceRegistry.id, connector.sourceRegistryId) : eq8(sourceRegistry.slug, connector.sourceId)
+        ).limit(1);
+        if (rows.length > 0) {
+          connector.sourceRegistryId = rows[0].id;
+          registryIdBySourceId.set(String(connector.sourceId), rows[0].id);
+          if (rows[0].lastSuccessfulFetch) {
+            connector.lastSuccessfulFetch = rows[0].lastSuccessfulFetch;
+          }
+        } else {
+          console.warn(`[Ingestion] No source_registry row resolves for connector ${connector.sourceId}; health metrics will be skipped`);
         }
       }
     }
@@ -15562,7 +15585,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
           const captureDate = confidenceEvaluation.publicationDate.parsedAt || raw.fetchedAt;
           const validCategories = ["floors", "walls", "ceilings", "joinery", "lighting", "sanitary", "kitchen", "hardware", "ffe", "other"];
           const evidenceCategory = validCategories.includes(evidence.category) ? evidence.category : mapCategory(evidence.category);
-          const sourceRegistryId = typeof connector.sourceId === "number" ? connector.sourceId : parseInt(connector.sourceId) || void 0;
+          const sourceRegistryId = connector.sourceRegistryId;
           const deterministicFinishLevel = classifyFinishLevelForObservation(
             normalized.value ?? null,
             normalized.valueMax ?? null,
@@ -15685,7 +15708,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
     const db = await getDb();
     if (db) {
       for (const result of connectorResults) {
-        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures }).from(sourceRegistry).where(eq8(sourceRegistry.name, result.sourceId)).limit(1);
+        const resolvedId = registryIdBySourceId.get(String(result.sourceId));
+        if (resolvedId === void 0) continue;
+        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures }).from(sourceRegistry).where(eq8(sourceRegistry.id, resolvedId)).limit(1);
         const currentFailures = current.length > 0 ? current[0].consecutiveFailures : 0;
         const isSuccess = result.status === "success";
         const statusEnum = isSuccess ? result.evidenceExtracted > 0 ? "success" : "partial" : "failed";
@@ -15698,7 +15723,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         if (isSuccess) {
           updates.lastSuccessfulFetch = /* @__PURE__ */ new Date();
         }
-        await db.update(sourceRegistry).set(updates).where(eq8(sourceRegistry.name, result.sourceId));
+        await db.update(sourceRegistry).set(updates).where(eq8(sourceRegistry.id, resolvedId));
       }
     }
   } catch (err) {
@@ -16171,13 +16196,12 @@ __export(connectors_exports, {
   BayutListingsConnector: () => BayutListingsConnector,
   CBREResearchConnector: () => CBREResearchConnector,
   DAMACConnector: () => DAMACConnector,
-  DERAInteriorsConnector: () => DERAInteriorsConnector,
   DLDTransactionsConnector: () => DLDTransactionsConnector,
   DragonMartConnector: () => DragonMartConnector,
   DubaiPulseConnector: () => DubaiPulseConnector,
   DubaiStatisticsConnector: () => DubaiStatisticsConnector,
   EmaarConnector: () => EmaarConnector,
-  GEMSConnector: () => GEMSConnector,
+  GranitiUAEConnector: () => GranitiUAEConnector,
   HafeleConnector: () => HafeleConnector,
   JLLConnector: () => JLLConnector,
   KnightFrankConnector: () => KnightFrankConnector,
@@ -16294,7 +16318,7 @@ function getAllConnectors() {
 function getConnectorsByIds(sourceIds) {
   return sourceIds.map((id) => getConnectorById(id)).filter((c) => c !== null);
 }
-var SOURCE_URLS, LLM_EXTRACTION_SYSTEM_PROMPT2, AED_PRICE_REGEX, NUMERIC_PRICE_REGEX, SQFT_REGEX, SQM_REGEX, HTMLSourceConnector, RAKCeramicsConnector, DERAInteriorsConnector, DragonMartConnector, PorcelanosaConnector, EmaarConnector, DAMACConnector, NakheelConnector, RICSConnector, JLLConnector, DubaiStatisticsConnector, HafeleConnector, GEMSConnector, DubaiPulseConnector, SCADConnector, DLDTransactionsConnector, AldarPropertiesConnector, CBREResearchConnector, KnightFrankConnector, SavillsConnector, PropertyMonitorConnector, BayutListingsConnector, PropertyFinderListingsConnector, ALL_CONNECTORS;
+var SOURCE_URLS, LLM_EXTRACTION_SYSTEM_PROMPT2, AED_PRICE_REGEX, NUMERIC_PRICE_REGEX, SQFT_REGEX, SQM_REGEX, HTMLSourceConnector, RAKCeramicsConnector, GranitiUAEConnector, DragonMartConnector, PorcelanosaConnector, EmaarConnector, DAMACConnector, NakheelConnector, RICSConnector, JLLConnector, DubaiStatisticsConnector, HafeleConnector, DubaiPulseConnector, SCADConnector, DLDTransactionsConnector, AldarPropertiesConnector, CBREResearchConnector, KnightFrankConnector, SavillsConnector, PropertyMonitorConnector, BayutListingsConnector, PropertyFinderListingsConnector, ALL_CONNECTORS;
 var init_connectors = __esm({
   "server/engines/ingestion/connectors/index.ts"() {
     "use strict";
@@ -16302,8 +16326,11 @@ var init_connectors = __esm({
     init_llm();
     init_scad_pdf_connector();
     SOURCE_URLS = {
+      // EV-00 registry prune (2026-07-23): dera-interiors (derainteriors.ae) and
+      // gems-building-materials (gemsbuilding.com) were removed — both domains no
+      // longer resolve; their deactivated seed rows retain the history.
       "rak-ceramics-uae": "https://www.rakceramics.com/",
-      "dera-interiors": "https://derainteriors.ae/",
+      "graniti-uae": "https://www.granitiuae.com/",
       "dragon-mart-dubai": "https://www.dragonmart.ae/",
       "porcelanosa-uae": "https://www.porcelanosa.com/ae/",
       "emaar-properties": "https://www.emaar.com/en/",
@@ -16312,8 +16339,9 @@ var init_connectors = __esm({
       "rics-market-reports": "https://www.rics.org/news-insights/research-and-insights/",
       "jll-mena-research": "https://www.jll.com/en/trends-and-insights/research",
       "dubai-statistics-center": "https://www.dsc.gov.ae/en-us/Themes/Pages/default.aspx",
-      "hafele-uae": "https://www.hafele.com/",
-      "gems-building-materials": "https://gemsbuilding.com/products/",
+      // EV-00 URL repair: the former hafele.com pointed at the US-dollar
+      // storefront; the UAE storefront matches the seed row.
+      "hafele-uae": "https://www.hafele.ae/en/",
       // ─── V4: New UAE Market Sources ─────────────────────────────────
       "dubai-pulse-materials": "https://www.dubaipulse.gov.ae/data/dsc_average-construction-material-prices/dsc_average_construction_material_prices-open",
       "scad-abu-dhabi": "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx",
@@ -16458,14 +16486,16 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       defaultTags = ["ceramics", "tiles", "flooring", "manufacturer"];
       defaultUnit = "sqm";
     };
-    DERAInteriorsConnector = class extends HTMLSourceConnector {
-      sourceId = "dera-interiors";
-      sourceName = "DERA Interiors";
-      sourceUrl = SOURCE_URLS["dera-interiors"];
-      category = "fitout_rate";
-      geography = "Dubai";
-      defaultTags = ["fitout", "interior-design", "contractor"];
-      defaultUnit = "sqft";
+    GranitiUAEConnector = class extends HTMLSourceConnector {
+      sourceId = "graniti-uae";
+      sourceName = "Graniti UAE";
+      sourceUrl = SOURCE_URLS["graniti-uae"];
+      category = "material_cost";
+      geography = "UAE";
+      defaultTags = ["tiles", "marble", "granite", "sanitaryware", "supplier"];
+      defaultUnit = "sqm";
+      requestDelayMs = 3e3;
+      // Respect the supplier's site — modest pacing
     };
     DragonMartConnector = class extends HTMLSourceConnector {
       sourceId = "dragon-mart-dubai";
@@ -16592,15 +16622,6 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "UAE";
       defaultTags = ["hardware", "fittings", "joinery", "manufacturer"];
       defaultUnit = "piece";
-    };
-    GEMSConnector = class extends HTMLSourceConnector {
-      sourceId = "gems-building-materials";
-      sourceName = "GEMS Building Materials";
-      sourceUrl = SOURCE_URLS["gems-building-materials"];
-      category = "material_cost";
-      geography = "UAE";
-      defaultTags = ["building-materials", "supplier", "wholesale"];
-      defaultUnit = "unit";
     };
     DubaiPulseConnector = class extends HTMLSourceConnector {
       sourceId = "dubai-pulse-materials";
@@ -16850,7 +16871,7 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
     };
     ALL_CONNECTORS = {
       "rak-ceramics-uae": () => new RAKCeramicsConnector(),
-      "dera-interiors": () => new DERAInteriorsConnector(),
+      "graniti-uae": () => new GranitiUAEConnector(),
       "dragon-mart-dubai": () => new DragonMartConnector(),
       "porcelanosa-uae": () => new PorcelanosaConnector(),
       "emaar-properties": () => new EmaarConnector(),
@@ -16860,7 +16881,6 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       "jll-mena-research": () => new JLLConnector(),
       "dubai-statistics-center": () => new DubaiStatisticsConnector(),
       "hafele-uae": () => new HafeleConnector(),
-      "gems-building-materials": () => new GEMSConnector(),
       // V4: New UAE Market Sources
       "dubai-pulse-materials": () => new DubaiPulseConnector(),
       "scad-abu-dhabi": () => new SCADConnector(),
@@ -16973,66 +16993,12 @@ Return as JSON array:
 }]`;
     KNOWN_MISSING_SOURCES = [
       {
-        name: "Porcelanosa UAE",
-        url: "https://www.porcelanosa.com/ae/",
-        category: "material_supplier",
-        dataTypes: ["tiles", "sanitary", "kitchens", "countertops"],
-        estimatedReliability: "B",
-        rationale: "Major European tile/bath brand with UAE showrooms, structured product catalog with pricing tiers",
-        suggestedFrequency: "monthly"
-      },
-      {
         name: "Al Murad UAE",
         url: "https://www.almurad.com/",
         category: "material_supplier",
         dataTypes: ["tiles", "stone", "sanitary", "bathroom_fittings"],
         estimatedReliability: "B",
         rationale: "Largest UAE-based tile & stone retailer, multiple branches, competitive pricing benchmark",
-        suggestedFrequency: "biweekly"
-      },
-      {
-        name: "DERA (Dubai Economic & Regulatory Authority)",
-        url: "https://www.dubaipulse.gov.ae/",
-        category: "government",
-        dataTypes: ["building_permits", "construction_statistics", "economic_indicators"],
-        estimatedReliability: "A",
-        rationale: "Dubai government open data portal with construction activity indicators",
-        suggestedFrequency: "monthly"
-      },
-      {
-        name: "Dezeen Middle East",
-        url: "https://www.dezeen.com/tag/united-arab-emirates/",
-        category: "design_trend",
-        dataTypes: ["design_trends", "project_showcases", "material_innovations"],
-        estimatedReliability: "B",
-        rationale: "Leading global design publication with dedicated UAE/ME content section",
-        suggestedFrequency: "weekly"
-      },
-      {
-        name: "Commercial Interior Design (CID) ME",
-        url: "https://www.commercialinteriordesign.com/",
-        category: "design_trend",
-        dataTypes: ["design_trends", "project_briefs", "supplier_news", "awards"],
-        estimatedReliability: "B",
-        rationale: "Middle East's premier interiors magazine, covers luxury hospitality & residential projects",
-        suggestedFrequency: "weekly"
-      },
-      {
-        name: "Aldar Properties",
-        url: "https://www.aldar.com/en/explore-aldar/businesses/aldar-development",
-        category: "developer",
-        dataTypes: ["project_portfolios", "interior_specifications", "pricing_ranges"],
-        estimatedReliability: "A",
-        rationale: "Abu Dhabi's largest developer, complements Dubai-focused Emaar/DAMAC/Nakheel data",
-        suggestedFrequency: "biweekly"
-      },
-      {
-        name: "Nakheel Projects",
-        url: "https://www.nakheel.com/en/communities",
-        category: "developer",
-        dataTypes: ["project_portfolios", "community_specs", "pricing_ranges"],
-        estimatedReliability: "A",
-        rationale: "Major Dubai developer (Palm Jumeirah, Dragon City), interior design specs in brochures",
         suggestedFrequency: "biweekly"
       },
       {
@@ -17070,15 +17036,6 @@ Return as JSON array:
         estimatedReliability: "B",
         rationale: "Ultra-luxury German kitchen brand, relevant price data for top-tier fitout benchmarks",
         suggestedFrequency: "monthly"
-      },
-      {
-        name: "ArchDaily Middle East",
-        url: "https://www.archdaily.com/tag/united-arab-emirates",
-        category: "design_trend",
-        dataTypes: ["architectural_trends", "project_specs", "material_innovations"],
-        estimatedReliability: "B",
-        rationale: "World's most-visited architecture portal, UAE project archives with material specs",
-        suggestedFrequency: "weekly"
       }
     ];
   }
@@ -33198,6 +33155,7 @@ var UAE_SOURCES = [
   // ── Supplier Catalogs ─────────────────────────────────────────
   {
     name: "Graniti UAE",
+    slug: "graniti-uae",
     url: "https://www.granitiuae.com/",
     sourceType: "supplier_catalog",
     reliabilityDefault: "B",
@@ -33211,6 +33169,7 @@ var UAE_SOURCES = [
   },
   {
     name: "RAK Ceramics UAE",
+    slug: "rak-ceramics-uae",
     url: "https://www.rakceramics.com/ae/",
     sourceType: "manufacturer_catalog",
     reliabilityDefault: "B",
@@ -33223,6 +33182,7 @@ var UAE_SOURCES = [
   },
   {
     name: "Porcelanosa UAE",
+    slug: "porcelanosa-uae",
     url: "https://www.porcelanosa.com/ae/",
     sourceType: "manufacturer_catalog",
     reliabilityDefault: "B",
@@ -33235,6 +33195,7 @@ var UAE_SOURCES = [
   },
   {
     name: "Hafele UAE",
+    slug: "hafele-uae",
     url: "https://www.hafele.ae/en/",
     sourceType: "supplier_catalog",
     reliabilityDefault: "B",
@@ -33248,6 +33209,7 @@ var UAE_SOURCES = [
   },
   {
     name: "GEMS Building Materials",
+    slug: "gems-building-materials",
     url: "https://www.gems-bm.com/",
     sourceType: "supplier_catalog",
     reliabilityDefault: "B",
@@ -33255,11 +33217,13 @@ var UAE_SOURCES = [
     scrapeMethod: "html_llm",
     scrapeSchedule: "0 0 7 * * 1",
     extractionHints: "Extract building material products, prices in AED, categories (tiles, marble, granite, plumbing, electrical). Focus on unit prices per sqm/sqft/piece.",
-    notes: "UAE building materials supplier.",
-    requestDelayMs: 2e3
+    notes: "UAE building materials supplier. Deactivated 2026-07-23 (EV-00): gems-bm.com no longer resolves (NXDOMAIN in the cost-path audit probe).",
+    requestDelayMs: 2e3,
+    isActive: false
   },
   {
     name: "Dragon Mart Dubai",
+    slug: "dragon-mart-dubai",
     url: "https://www.dragonmart.ae/",
     sourceType: "retailer_listing",
     reliabilityDefault: "B",
@@ -33272,6 +33236,7 @@ var UAE_SOURCES = [
   },
   {
     name: "Danube Home",
+    slug: "danube-home",
     url: "https://www.danubehome.com/uae/",
     sourceType: "retailer_listing",
     reliabilityDefault: "B",
@@ -33285,6 +33250,7 @@ var UAE_SOURCES = [
   },
   {
     name: "IKEA UAE",
+    slug: "ikea-uae",
     url: "https://www.ikea.com/ae/en/",
     sourceType: "retailer_listing",
     reliabilityDefault: "B",
@@ -33297,6 +33263,7 @@ var UAE_SOURCES = [
   },
   {
     name: "ACE Hardware UAE",
+    slug: "ace-hardware-uae",
     url: "https://www.aceuae.com/",
     sourceType: "retailer_listing",
     reliabilityDefault: "B",
@@ -33309,6 +33276,7 @@ var UAE_SOURCES = [
   },
   {
     name: "Pan Marble Dubai",
+    slug: "pan-marble-dubai",
     url: "https://www.pansidubai.com/",
     sourceType: "supplier_catalog",
     reliabilityDefault: "B",
@@ -33317,11 +33285,13 @@ var UAE_SOURCES = [
     scrapeSchedule: "0 0 7 * * 5",
     // Friday (monthly effective)
     extractionHints: "Extract marble and natural stone products: travertine, granite, onyx, limestone. Look for AED prices per sqm/sqft, slab dimensions, stone origin. Premium material supplier.",
-    notes: "Major marble/natural stone supplier in Dubai.",
-    requestDelayMs: 3e3
+    notes: "Major marble/natural stone supplier in Dubai. Deactivated 2026-07-23 (EV-00): pansidubai.com no longer resolves (NXDOMAIN in the cost-path audit probe).",
+    requestDelayMs: 3e3,
+    isActive: false
   },
   {
     name: "Homes R Us UAE",
+    slug: "homes-r-us-uae",
     url: "https://www.homecentre.com/ae/en",
     sourceType: "retailer_listing",
     reliabilityDefault: "C",
@@ -33335,6 +33305,7 @@ var UAE_SOURCES = [
   // ── Developer Brochures (Competitor Intelligence) ─────────────
   {
     name: "Emaar Properties",
+    slug: "emaar-properties",
     url: "https://www.emaar.com/en/our-communities",
     sourceType: "developer_brochure",
     reliabilityDefault: "A",
@@ -33347,6 +33318,7 @@ var UAE_SOURCES = [
   },
   {
     name: "DAMAC Properties",
+    slug: "damac-properties",
     url: "https://www.damacproperties.com/en/properties",
     sourceType: "developer_brochure",
     reliabilityDefault: "A",
@@ -33359,6 +33331,7 @@ var UAE_SOURCES = [
   },
   {
     name: "Aldar Properties",
+    slug: "aldar-properties",
     url: "https://www.aldar.com/en/explore/businesses/aldar-development/residential",
     sourceType: "developer_brochure",
     reliabilityDefault: "A",
@@ -33371,6 +33344,7 @@ var UAE_SOURCES = [
   },
   {
     name: "Sobha Realty",
+    slug: "sobha-realty",
     url: "https://www.sobharealty.com/projects/",
     sourceType: "developer_brochure",
     reliabilityDefault: "B",
@@ -33383,6 +33357,7 @@ var UAE_SOURCES = [
   },
   {
     name: "Ellington Properties",
+    slug: "ellington-properties",
     url: "https://www.ellingtongroup.com/",
     sourceType: "developer_brochure",
     reliabilityDefault: "B",
@@ -33396,6 +33371,7 @@ var UAE_SOURCES = [
   // ── Industry Reports & Trends ─────────────────────────────────
   {
     name: "CBRE UAE Research",
+    slug: "cbre-uae-research",
     url: "https://www.cbre.ae/en/insights",
     sourceType: "industry_report",
     reliabilityDefault: "A",
@@ -33408,6 +33384,7 @@ var UAE_SOURCES = [
   },
   {
     name: "Knight Frank UAE",
+    slug: "knight-frank-uae",
     url: "https://www.knightfrank.ae/research",
     sourceType: "industry_report",
     reliabilityDefault: "A",
@@ -33420,6 +33397,7 @@ var UAE_SOURCES = [
   },
   {
     name: "JLL MENA Research",
+    slug: "jll-mena-research",
     url: "https://www.jll.ae/en/trends-and-insights",
     sourceType: "industry_report",
     reliabilityDefault: "A",
@@ -33432,6 +33410,7 @@ var UAE_SOURCES = [
   },
   {
     name: "Commercial Interior Design Magazine",
+    slug: "commercial-interior-design-mag",
     url: "https://www.commercialinteriordesign.com/",
     sourceType: "trade_publication",
     reliabilityDefault: "C",
@@ -33444,6 +33423,7 @@ var UAE_SOURCES = [
   },
   {
     name: "Dezeen UAE/Dubai",
+    slug: "dezeen-uae-dubai",
     url: "https://www.dezeen.com/tag/dubai/",
     sourceType: "trade_publication",
     reliabilityDefault: "C",
@@ -33456,6 +33436,7 @@ var UAE_SOURCES = [
   },
   {
     name: "ArchDaily UAE",
+    slug: "archdaily-uae",
     url: "https://www.archdaily.com/tag/united-arab-emirates",
     sourceType: "trade_publication",
     reliabilityDefault: "C",
@@ -33469,6 +33450,7 @@ var UAE_SOURCES = [
   // ── Live Property Listing Aggregators (V5) ───────────────────
   {
     name: "Bayut Property Listings",
+    slug: "bayut-listings",
     url: "https://www.bayut.com/for-sale/property/dubai/",
     sourceType: "aggregator",
     reliabilityDefault: "B",
@@ -33482,6 +33464,7 @@ var UAE_SOURCES = [
   },
   {
     name: "PropertyFinder Listings",
+    slug: "propertyfinder-listings",
     url: "https://www.propertyfinder.ae/en/buy/dubai/",
     sourceType: "aggregator",
     reliabilityDefault: "B",
@@ -33492,6 +33475,125 @@ var UAE_SOURCES = [
     extractionHints: "Extract property listings: project/building name, area, asking price in AED, property type, bedrooms, size sqft, agent/developer. Focus on listed prices for market intelligence and pricing trends.",
     notes: "Top UAE property search portal. JS-rendered \u2014 requires Firecrawl.",
     requestDelayMs: 3e3
+  },
+  // ── EV-00 (2026-07-23): registry rows for the static connectors that had
+  // none, so the scheduled cron path can resolve health/freshness by slug ──
+  {
+    name: "Nakheel Properties",
+    slug: "nakheel-properties",
+    url: "https://www.nakheel.com/en/",
+    sourceType: "developer_brochure",
+    reliabilityDefault: "A",
+    region: "Dubai",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1",
+    extractionHints: "Extract development/project names, finish descriptions, material brands, quality tier language from Nakheel project pages.",
+    notes: "Major Dubai master developer. Static connector: nakheel-properties.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "RICS Market Reports",
+    slug: "rics-market-reports",
+    url: "https://www.rics.org/news-insights/research-and-insights/",
+    sourceType: "industry_report",
+    reliabilityDefault: "A",
+    region: "UAE",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1",
+    extractionHints: "Extract construction cost statistics, market survey findings, and UAE/MENA indices with periods.",
+    notes: "Professional-body research. Static connector: rics-market-reports.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "Dubai Statistics Center",
+    slug: "dubai-statistics-center",
+    url: "https://www.dsc.gov.ae/en-us/Themes/Pages/default.aspx",
+    sourceType: "government_tender",
+    reliabilityDefault: "A",
+    region: "Dubai",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1",
+    extractionHints: "Extract official Dubai construction and price statistics with reporting periods.",
+    notes: "Official statistics portal. Static connector: dubai-statistics-center.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "Dubai Pulse \u2014 Material Prices",
+    slug: "dubai-pulse-materials",
+    url: "https://www.dubaipulse.gov.ae/data/dsc_average-construction-material-prices/dsc_average_construction_material_prices-open",
+    sourceType: "government_tender",
+    reliabilityDefault: "A",
+    region: "Dubai",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1",
+    extractionHints: "Extract average construction material prices in AED with material names, units, and periods from the open dataset.",
+    notes: "Official Dubai Pulse open dataset. Static connector: dubai-pulse-materials.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "SCAD Abu Dhabi Publications",
+    slug: "scad-abu-dhabi",
+    url: "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx",
+    sourceType: "government_tender",
+    reliabilityDefault: "A",
+    region: "Abu Dhabi",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1",
+    extractionHints: "Extract building material price index publications and statistics with periods.",
+    notes: "Statistics Centre Abu Dhabi publications page. Static connector: scad-abu-dhabi.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "SCAD Material Price PDFs",
+    slug: "scad-pdf-materials",
+    url: "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx",
+    sourceType: "government_tender",
+    reliabilityDefault: "A",
+    region: "Abu Dhabi",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1",
+    extractionHints: "Extract material price tables from SCAD construction cost PDFs (names, AED prices, units, indices, quarters).",
+    notes: "PDF variant of the SCAD publications source (same URL, distinct connector). Static connector: scad-pdf-materials.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "DLD Transactions (Dubai Pulse)",
+    slug: "dld-transactions",
+    url: "https://www.dubaipulse.gov.ae/data/dld_transactions/dld_transactions-open",
+    sourceType: "government_tender",
+    reliabilityDefault: "A",
+    region: "Dubai",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1",
+    extractionHints: "Extract Dubai Land Department transaction statistics with areas, values in AED, and periods from the open dataset.",
+    notes: "Official DLD open dataset. Static connector: dld-transactions.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "Savills ME Research",
+    slug: "savills-me-research",
+    url: "https://www.savills.me/insight-and-opinion/",
+    sourceType: "industry_report",
+    reliabilityDefault: "A",
+    region: "UAE",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1",
+    extractionHints: "Extract UAE market research findings, cost benchmarks, and statistics with periods.",
+    notes: "Consultancy research library. Static connector: savills-me-research.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "Property Monitor Dubai",
+    slug: "property-monitor-dubai",
+    url: "https://www.propertymonitor.ae/market-reports",
+    sourceType: "industry_report",
+    reliabilityDefault: "B",
+    region: "Dubai",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1",
+    extractionHints: "Extract Dubai market report statistics, price indices, and transaction summaries with periods.",
+    notes: "Market analytics reports. Static connector: property-monitor-dubai.",
+    requestDelayMs: 2e3
   }
 ];
 async function seedUAESources() {
@@ -33499,35 +33601,48 @@ async function seedUAESources() {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   let created = 0;
-  let skipped = 0;
+  let updated = 0;
+  const skipped = 0;
   const errors = [];
   for (const source of UAE_SOURCES) {
     try {
-      const existing = await db.select({ id: sourceRegistry.id }).from(sourceRegistry).where(eq9(sourceRegistry.url, source.url)).limit(1);
-      if (existing.length > 0) {
-        console.log(`[Seeder] Skipping "${source.name}" \u2014 already exists (id=${existing[0].id})`);
-        skipped++;
-        continue;
+      const bySlug = await db.select({ id: sourceRegistry.id }).from(sourceRegistry).where(eq9(sourceRegistry.slug, source.slug)).limit(1);
+      let targetId = bySlug[0]?.id;
+      if (targetId === void 0) {
+        const legacyByUrl = await db.select({ id: sourceRegistry.id, slug: sourceRegistry.slug }).from(sourceRegistry).where(eq9(sourceRegistry.url, source.url)).limit(1);
+        if (legacyByUrl[0] && legacyByUrl[0].slug === null) {
+          targetId = legacyByUrl[0].id;
+        }
       }
-      await db.insert(sourceRegistry).values({
+      const seedValues = {
         name: source.name,
+        slug: source.slug,
         url: source.url,
         sourceType: source.sourceType,
         reliabilityDefault: source.reliabilityDefault,
         isWhitelisted: true,
         region: source.region,
         notes: source.notes,
-        isActive: true,
+        isActive: source.isActive ?? true,
         scrapeMethod: source.scrapeMethod,
         scrapeSchedule: source.scrapeSchedule,
         extractionHints: source.extractionHints,
-        requestDelayMs: source.requestDelayMs,
-        lastScrapedStatus: "never",
-        lastRecordCount: 0,
-        consecutiveFailures: 0
-      });
-      console.log(`[Seeder] \u2705 Created source: "${source.name}"`);
-      created++;
+        requestDelayMs: source.requestDelayMs
+      };
+      if (targetId !== void 0) {
+        await db.update(sourceRegistry).set(seedValues).where(eq9(sourceRegistry.id, targetId));
+        console.log(`[Seeder] \u{1F501} Updated source "${source.name}" (id=${targetId}, slug=${source.slug})`);
+        updated++;
+      } else {
+        await db.insert(sourceRegistry).values({
+          ...seedValues,
+          lastScrapedStatus: "never",
+          lastRecordCount: 0,
+          consecutiveFailures: 0
+        });
+        console.log(`[Seeder] \u2705 Created source: "${source.name}" (slug=${source.slug})`);
+        created++;
+      }
     } catch (err) {
       const msg = `Failed to seed "${source.name}": ${err instanceof Error ? err.message : String(err)}`;
       console.error(`[Seeder] \u274C ${msg}`);
@@ -33535,8 +33650,8 @@ async function seedUAESources() {
     }
   }
   console.log(`
-[Seeder] Done: ${created} created, ${skipped} skipped, ${errors.length} errors`);
-  return { created, skipped, errors };
+[Seeder] Done: ${created} created, ${updated} updated, ${errors.length} errors`);
+  return { created, updated, skipped, errors };
 }
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("uae-sources.ts")) {
   seedUAESources().then(({ created, skipped, errors }) => {

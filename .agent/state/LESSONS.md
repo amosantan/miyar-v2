@@ -529,3 +529,25 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: The regenerated document matches the actual file hash and the audit returns 389 procedures with zero remediation rows; the disposable database was dropped and its container removed. The guard reports 73 pinned files current, exits 1 naming the exact file when a pinned file is perturbed, and returns to 0 once it is restored.
 - Reuse rule: When a check pins file hashes, the hash list is part of the change surface. Before merging, confirm whether an edited file is pinned and regenerate through the approved workflow in the same change. A cascade of unrelated findings usually has one upstream cause — fix that, not the symptoms, and give the cause its own fast check.
 - Supersedes / related: Related to `LES-045`.
+
+### LES-047 — A gate result read through a pipe is not a gate result
+
+- Date / roadmap step: 2026-07-23 / `EV-00`
+- Context: Phase gates were run as `command 2>&1 | tail -N` with the exit status echoed afterwards, in a zsh worktree shell.
+- Observed: Twice in one session a failing gate reported success: a baseline `pnpm check` "passed" while `tsc` was actually missing (`node_modules` absent), and a failing `pnpm certify:workflow` surfaced as exit 0 because `$?` captured `tail`'s status, not the command's. The false green survived until a later step contradicted it.
+- Cause: In a pipeline, `$?` reflects the last stage; truncating output with `tail` also discarded the failure text that would have contradicted the assumed pass.
+- Fix or decision: Capture each gate's own exit code before any pipe (`cmd > log 2>&1; code=$?`), keep the complete log on disk, and treat a "pass" whose full output was never persisted as unverified. Batch batteries now run through a step wrapper that records per-step exits.
+- Proof: The re-run with per-step exit capture exposed the real `certify:workflow` failure and the design-contract drift that the piped run had hidden; both were then fixed or attributed with evidence.
+- Reuse rule: Never assert a verification gate from a piped command's `$?` or a truncated tail. Persist the full log and the command's own exit status, and re-verify any earlier "pass" produced without them.
+- Supersedes / related: Extends `LES-004`.
+
+### LES-048 — Attribute a broad-gate failure at the untouched base before treating it as a regression
+
+- Date / roadmap step: 2026-07-23 / `EV-00`
+- Context: `pnpm certify:workflow` failed at the TR-13 browser journey (`spaceProgram.generate must succeed`) during the Phase 3 gate, after cost-path changes that plausibly touched adjacent surfaces.
+- Observed: The same command failed identically in a detached read-only worktree at the untouched canonical base commit, proving the failure pre-dated the change set; every stage before the browser journey passed on both trees. The harness's secret-scan design pipes and discards the journey server output, so the underlying 500 was not observable from evidence.
+- Cause: Broad end-to-end gates depend on environment and canonical-main state; without a base-commit reproduction, a pre-existing failure is indistinguishable from a regression, and an artifact-discarding harness hides the data needed to tell.
+- Fix or decision: Reproduce the failing gate at the exact base commit in a disposable worktree before diagnosing the diff; record the pre-existing failure (`KF-019`) with both reproductions and hand root-causing to a bounded follow-up; require the eventual fix to make the journey's server errors observable in evidence.
+- Proof: Base commit `8cd7e0a` and the EV-00 tree fail at the same assertion with the same passing prefix stages; `KF-019` records commands, environment, and exit criterion, and the remediation continued under the documented pre-existing-failure provision of the Definition of Done.
+- Reuse rule: When a broad certification fails after your change, run it once at the untouched base before touching the diff. If it fails there too, record it as a known failure with both reproductions instead of absorbing it into your change; never claim the gate as green either way.
+- Supersedes / related: Extends `LES-030` and `LES-047`; tracked by `KF-019`.
