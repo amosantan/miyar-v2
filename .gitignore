@@ -118,3 +118,9 @@ api-build/
 # Local business artifacts (use Git LFS or explicit force-add after review)
 docs/artifacts/**/*.docx
 docs/artifacts/**/*.xlsx
+
+# Agent harness — machine-local only.
+# Shared hooks/settings/skills under .claude/ ARE tracked; these are not.
+.claude/state/
+.claude/settings.local.json
+.claude/worktrees/

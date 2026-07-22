@@ -73,6 +73,8 @@ Never trust recorded test counts, table counts, phase status, or build status wi
 - `.agent/state/ROADMAP.md`: canonical step order, status, dependencies, gates, and next executable step.
 - `.agent/state/LESSONS.md`: append-only reusable lessons proven during execution.
 - `docs/PROJECT_STATE.md`: canonical verified repository facts.
+- `memory/`: second memory shared by Codex and Claude Code; start at `memory/README.md`.
+- `.claude/hooks/`: mechanical enforcement for Claude Code sessions.
 - `docs/archive/`: historical evidence only; never use as current authority.
 - `docs/artifacts/`: approved project briefs, reports, and business artifacts; verify sensitivity before committing.
 
@@ -175,6 +177,31 @@ Local migration generation, tests, builds, and reversible implementation work ar
 Do not duplicate changing statistics across instruction files. Update one canonical state file and link to it.
 
 Use `docs/runbooks/roadmap-execution.md` to start, close, block, or hand over roadmap steps. A completed step must update the roadmap, current task, worklog, and any proven lessons in the same verified change.
+
+## Second Memory
+
+The `memory/` tree is the git-tracked second memory shared by Codex and Claude Code. It exists for the durable context the files above never had a home for. It is context, never authority; deterministic TypeScript remains the numerical authority.
+
+Anti-drift rule: `memory/` owns only what this repository does not already own. Everything else is a pointer. Never copy a fact out of a canonical file into `memory/` — a copied fact drifts, and a drifted fact lies.
+
+| Knowledge | Canonical home |
+| --------------------------------------------- | ------------------------------ |
+| Terms, acronyms, shorthand | `memory/glossary.md` |
+| People, directives, working style | `memory/people/` |
+| UAE market and regulatory knowledge | `memory/domain/` |
+| External research provenance (sources required) | `memory/research/` |
+| Decision rationale and rejected alternatives | `memory/decisions/README.md` |
+| Session narrative | `memory/journal/` |
+
+Rules:
+
+1. Read `memory/README.md` after the Start-of-Task Protocol; it is the hot cache and index.
+2. Record a new term, directive, sourced domain fact, research finding, or decision rationale when it appears, not at the end.
+3. Before ending material work, write the session's learnings to their canonical homes. Claude Code additionally has a `SessionEnd` hook that records objective facts; Codex must perform this step deliberately.
+4. `memory/` is git-tracked. Never place secrets, credentials, production data, or confidential material in it.
+5. Obsidian recall is a read/search lens over this repository, never a second store. The vault root is the repository root, so unscoped search is invalid — always pass `pathPrefix` or `excludePaths`, and never write an Obsidian-only note that duplicates a canonical fact.
+
+Follow `docs/runbooks/memory-sync.md` so both agents use and maintain the second memory identically.
 
 ## Domain Routing
 
