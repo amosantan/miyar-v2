@@ -62,8 +62,27 @@ dedicated governed roadmap step rather than being treated as an ordinary connect
 
 ## Recorded knowledge
 
-*No verified entries yet.* Seeded structure only — entries are added as work establishes them, with
-sources. Do not backfill this file speculatively.
+| Note | Covers | Confidence | Affects |
+| --- | --- | --- | --- |
+| [[memory/domain/dld-market-data\|DLD Market Data]] | Dubai Pulse open data, DLD API Gateway, resellers | medium | `EV-05`, `EV-04` |
+| [[memory/domain/sharjah-srec\|Sharjah SREC/SRERD]] | Resolution 37/2024, escrow, progress-linked payments | medium–high | `BR-06`, typology packs |
+| [[memory/domain/uae-pdpl\|UAE PDPL]] | Data-subject rights, 30-day window, RoPA | medium–high | `SC-06` |
+| [[memory/domain/area-definitions\|Area Definitions]] | GFA vs BUA vs NFA vs FAR | **low–medium** ⚠️ | `DI-01`, MQI |
+
+**Read the confidence column before using any of this.** Everything above was seeded on 2026-07-22 from
+public sources, and most of it rests on credible *secondary* commentary rather than the regulator's own
+text. Area definitions in particular are tagged `status/unverified` and must not back a calculation until
+confirmed against Dubai Municipality's primary standard.
+
+### Still needed — first-hand knowledge no public source can supply
+
+Each note ends with an "Open questions" section. The recurring themes:
+
+1. Which DLD channel is MIYAR's **approved** source of record, and is a reseller acceptable as primary?
+2. Which area basis (GFA / BUA / NFA) is authoritative for MIYAR's quantities and costs?
+3. Is MIYAR controller, processor, or both, under PDPL?
+4. Does Sharjah need parity now — and what does SANZEN use for Sharjah benchmarks today, given no public
+   transaction feed was found?
 
 ---
 

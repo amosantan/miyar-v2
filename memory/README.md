@@ -55,7 +55,11 @@ A copied fact drifts, and a drifted fact lies.
 | [[memory/people/codex\|people/codex]] | What Codex can and cannot do here |
 | [[memory/context/obsidian-recall-discipline\|context/obsidian-recall-discipline]] | **How to search without drowning in noise** |
 | [[memory/context/mcp-toolkit\|context/mcp-toolkit]] | Relevant MCP servers, and known-stale ones |
-| [[memory/domain/README\|domain/]] | UAE market and regulatory knowledge |
+| [[memory/domain/README\|domain/]] | UAE market and regulatory knowledge — index + confidence ratings |
+| ↳ [[memory/domain/dld-market-data\|dld-market-data]] | Dubai Pulse, DLD API Gateway, reseller governance |
+| ↳ [[memory/domain/sharjah-srec\|sharjah-srec]] | Sharjah is a separate regime: escrow, progress-linked payments |
+| ↳ [[memory/domain/uae-pdpl\|uae-pdpl]] | Data-subject rights, 30-day window, RoPA |
+| ↳ [[memory/domain/area-definitions\|area-definitions]] | GFA vs BUA vs NFA ⚠️ `unverified` |
 | [[memory/research/README\|research/]] | External research provenance with sources |
 | [[memory/decisions/README\|decisions/]] | Decision index + rejected alternatives |
 | [[memory/journal/README\|journal/]] | Per-session record |
