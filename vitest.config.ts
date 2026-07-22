@@ -25,6 +25,8 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["server/**/*.test.ts", "server/**/*.spec.ts"],
+    // `scripts/**` covers database-free guards that protect the verification
+    // contract itself; disposable MySQL stays in vitest.mysql.config.ts.
+    include: ["server/**/*.test.ts", "server/**/*.spec.ts", "scripts/**/*.test.ts"],
   },
 });
