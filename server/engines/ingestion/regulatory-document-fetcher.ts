@@ -273,7 +273,8 @@ const directHttpsTransport: RegulatoryDocumentTransport = {
 
 /**
  * Direct, fail-closed acquisition for regulated documents.  It is stateful only
- * for per-host rate spacing; all successful fetch facts are returned as receipts.
+ * for the per-host acquisition gate (serialization plus reserved rate slots);
+ * all successful fetch facts are returned as receipts.
  */
 export class RegulatoryDocumentFetcher {
   private readonly sources: ReadonlyMap<string, Readonly<RegisteredRegulatorySource>>;
@@ -293,7 +294,10 @@ export class RegulatoryDocumentFetcher {
   private readonly retryDelayMs: number;
   private readonly robotsCacheTtlMs: number;
   private readonly monotonicNow: () => number;
-  private readonly lastRequestAt = new Map<string, number>();
+  /** Tail of the per-host serial chain. Keys are bounded by the registry's approved hosts. */
+  private readonly hostGates = new Map<string, Promise<void>>();
+  /** Earliest instant the next request to a host may start; reserved before any await. */
+  private readonly nextRequestAt = new Map<string, number>();
   private readonly robotsCache = new Map<string, { parser: ReturnType<typeof robotsParser>; fetchedAt: number }>();
 
   constructor(options: RegulatoryDocumentFetcherOptions) {
@@ -405,32 +409,69 @@ export class RegulatoryDocumentFetcher {
     return addresses;
   }
 
-  private async throttle(host: string, context: AcquisitionContext): Promise<void> {
+  /**
+   * Serializes competing acquisitions for one official host and reserves the
+   * next rate slot before awaiting, so concurrent callers can never observe the
+   * same "last request" value and burst together.
+   *
+   * Enqueueing is synchronous: there is no `await` between reading the chain
+   * tail and writing the new one, so on a single-threaded runtime each caller
+   * necessarily observes a distinct predecessor. Queue waiting and rate spacing
+   * both run through `withDeadline`, so a queued request fails closed with
+   * `TIMEOUT` rather than waiting past the operation deadline, and the `finally`
+   * release runs on success, failure, timeout and cancellation alike.
+   *
+   * Different hosts use independent chains and never block each other.
+   */
+  private async withHostGate<T>(host: string, context: AcquisitionContext, action: () => Promise<T>): Promise<T> {
     const key = normalizeHost(host);
-    const now = this.now().getTime();
-    const previous = this.lastRequestAt.get(key);
-    if (previous !== undefined && now - previous < this.minRequestIntervalMs) {
-      await this.withDeadline(this.sleep(this.minRequestIntervalMs - (now - previous)), context);
+    const predecessor = this.hostGates.get(key) ?? Promise.resolve();
+    let release!: () => void;
+    // `mine` only ever resolves, so the chain cannot poison a later waiter or
+    // surface an unhandled rejection.
+    const mine = new Promise<void>(resolve => { release = resolve; });
+    const composed = predecessor.then(() => mine);
+    this.hostGates.set(key, composed);
+    try {
+      await this.withDeadline(predecessor, context);
+      const now = this.now().getTime();
+      const earliest = this.nextRequestAt.get(key) ?? 0;
+      const wait = earliest - now;
+      if (wait > 0) {
+        // Fail closed immediately when the reserved slot lies beyond this
+        // acquisition's deadline, rather than sleeping into a certain expiry.
+        if (wait >= this.remaining(context)) {
+          throw new RegulatoryFetchError("TIMEOUT", `Acquisition deadline expires before the ${key} rate slot`);
+        }
+        await this.withDeadline(this.sleep(wait), context);
+      }
+      this.nextRequestAt.set(key, this.now().getTime() + this.minRequestIntervalMs);
+      return await action();
+    } finally {
+      release();
+      if (this.hostGates.get(key) === composed) this.hostGates.delete(key);
     }
-    this.lastRequestAt.set(key, this.now().getTime());
   }
 
   private async requestOnce(url: URL, context: AcquisitionContext): Promise<RegulatoryTransportResponse> {
-    const addresses = await this.resolvePublicAddress(url, context);
-    await this.throttle(url.hostname, context);
-    try {
-      return await this.withDeadline(this.transport.request({
-        url,
-        headers: { "user-agent": this.userAgent, "accept": "application/pdf,text/html,application/xhtml+xml;q=0.9" },
-        timeoutMs: Math.min(this.timeoutMs, this.remaining(context)),
-        resolvedAddresses: addresses,
-        signal: context.signal,
-      }), context);
-    } catch (error) {
-      if (error instanceof RegulatoryFetchError) throw error;
-      const code = error instanceof Error && /timeout/i.test(error.message) ? "TIMEOUT" : "TRANSPORT_FAILURE";
-      throw new RegulatoryFetchError(code, `Direct official-host retrieval failed for ${url}`, error);
-    }
+    // The gate covers address resolution and the response headers only. Body
+    // streaming stays outside it so a slow document cannot hold the host.
+    return this.withHostGate(url.hostname, context, async () => {
+      const addresses = await this.resolvePublicAddress(url, context);
+      try {
+        return await this.withDeadline(this.transport.request({
+          url,
+          headers: { "user-agent": this.userAgent, "accept": "application/pdf,text/html,application/xhtml+xml;q=0.9" },
+          timeoutMs: Math.min(this.timeoutMs, this.remaining(context)),
+          resolvedAddresses: addresses,
+          signal: context.signal,
+        }), context);
+      } catch (error) {
+        if (error instanceof RegulatoryFetchError) throw error;
+        const code = error instanceof Error && /timeout/i.test(error.message) ? "TIMEOUT" : "TRANSPORT_FAILURE";
+        throw new RegulatoryFetchError(code, `Direct official-host retrieval failed for ${url}`, error);
+      }
+    });
   }
 
   private async requestFollowingRedirects(source: RegisteredRegulatorySource, initialUrl: URL, context: AcquisitionContext, checkRedirectRobots = true): Promise<{ response: RegulatoryTransportResponse; finalUrl: URL; redirectCount: number }> {

@@ -58,3 +58,25 @@ Obtain and record the official terms, licensing and artifact-retention decisions
 - Diff whitespace/scope review: PASS; no shared database, production, publication, or deployment action occurred.
 - Independent Sol review: final `PASS` after live-source, typed-assertion, child-document, multi-authority, and mixed-use production-resolution blockers were remediated.
 - Claude Opus independently reviewed the finished diff read-only and returned `PASS`.
+
+## Post-Merge Remediation (2026-07-22, branch `codex/br06-remediation` from `dd45741`)
+
+Independent read-only verification of merged `origin/main` found two defects. Both are fixed; neither
+touched an approval gate, a catalogue status, or a production registry.
+
+- Finding 1 — the per-host rate limiter was not concurrency-safe. It read the stored last-request time, awaited, then wrote it, so concurrent callers observed the same value and burst together. Replaced with a per-host acquisition gate that serializes competing requests on an independently enqueued chain, reserves the next slot inside the exclusive section, fails closed with `TIMEOUT` when a reserved slot lies beyond the operation deadline, and releases in `finally` on success, failure, timeout, and cancellation. Different approved hosts remain independent; body streaming stays outside the gate.
+- Finding 2 — `.agent/state/TR03H_MYSQL_EVIDENCE.json` held a stale hash for `scripts/run-guarded-mysql-tests.ts` after commit `d91c356`, so `pnpm audit:authorization` exited 1 with 25 findings. Hash comparison confirms BR-06 at `b570486` was consistent and the CI-timeout merge introduced the drift. Evidence was regenerated only through `pnpm test:authorization:mysql`; no hash or timestamp was hand-edited.
+
+### Remediation Verification Evidence
+
+- Focused regulatory, pack, router, and compatibility suites: PASS, 7 files / 52 tests (four new acquisition-gate tests; all thirteen pre-existing fetcher security tests pass unchanged).
+- Database-free suite: PASS, 1,476 tests with 22 skipped across 112 passed files and one skipped file.
+- Disposable MySQL migration/workflow suite: PASS, 7 files / 41 tests against a loopback-only MySQL 8.0 container; the disposable database was dropped and the container removed.
+- TypeScript: `pnpm check` PASS.
+- Authorization audit: PASS, 389 procedures and zero remediation rows, recovering from exit 1.
+- Database-safety audit: PASS, 121 entrypoints, two allowlisted entries, zero findings.
+- Build and client bundle budgets: PASS; `api/index.js` rebuilt byte-identically, confirming the acquisition path is absent from the serverless bundle.
+- Concurrency proof: five concurrent acquisitions at a 1,000 ms interval moved from offsets `1005/2005/2005/2006/2006 ms` (1,001 ms spread) to `5007/6009/7009/8010/9011 ms` (4,004 ms spread across four full intervals).
+- Diff review: `git diff --check` clean; both production registries remain `Object.freeze([])`, no catalogue source changed status, and candidate packs gained no runtime, tenant, public, or share reference.
+
+BR-06 remains `NEEDS_HUMAN`. This remediation created no approval and promoted nothing.

@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "observedAt": "2026-07-21T18:36:53.520Z",
+  "observedAt": "2026-07-22T17:08:38.975Z",
   "databaseEngine": "MySQL 8.0",
   "targetClass": "disposable localhost database",
   "command": "pnpm test:authorization:mysql",
@@ -90,7 +90,7 @@
     "server/routers/spaceProgram-geometry.authorization.test.ts": "ff03e761fc77d6a9795b86fcfe64037c2ab12c8c72e94951aa701a56abffde42",
     "client/src/components/RoomGeometryPanel.tsx": "a8e82ddb2104bc9324fc52d19fc8624706b3db26a716c63a62c8f7b514ffa56f",
     "scripts/recreate-mysql-auth-test.ts": "915b82a13e49d2daa88cf12901e7ce5e20b2c1f639487706d478530234680e74",
-    "scripts/run-guarded-mysql-tests.ts": "07279ae62a04f7f48e6da5eb8c6bd7825803f1f8ea00ff810b75eced324a0a2d",
+    "scripts/run-guarded-mysql-tests.ts": "08bcf2762f83d5398488570d4e2a583093eb0e166c3d5dfa5584c2d11ee93ce9",
     "scripts/cleanup-mysql-auth-test.ts": "91e4d19106c4b8e02fccdf24268d433cead957152a99f8a4f9d8694241fcb3e8",
     "scripts/tr03h-mysql-evidence-contract.ts": "87283f872982b33f2213d96a2c29620e7bb371f40d18d8a0bb15a39c10c20da4",
     "drizzle.mysql-test.config.ts": "d4536835e57caa814b54fac6872760113b0726b9d9962c96aeb92bb3a9985b13",
