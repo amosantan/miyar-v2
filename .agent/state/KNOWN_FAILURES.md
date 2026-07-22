@@ -156,6 +156,16 @@ Policy-enforced human interaction gates are not repository failures and remain i
 - Owner: Report compatibility follow-up; coordinate with `BR-02` before any broader issued-artifact model change.
 - Exit criterion: Reproduce the affected legacy payload shape in a versioned fixture; render meaningful labels/evidence or an explicit legacy-unavailable state without changing stored evidence; verify current and legacy report previews, exports, document identity, tenant authorization, full report certification, and production-compatible browser rendering.
 
+## KF-019 — TR-13 browser journey fails at spaceProgram.generate on canonical main
+
+- Status: OPEN
+- Observed: 2026-07-23 in the EV-00 worktree during the Phase 3 gate.
+- Command: `TEST_DATABASE_URL="mysql://root:…@127.0.0.1:3306/miyar_test_tr13_*" pnpm certify:workflow`
+- Evidence: The `serial-node-browser-journey` stage fails with `Error: spaceProgram.generate must succeed` (the journey's tRPC POST returns non-OK) in the spec step "admin carries one UI-created project through evaluation, space, MQI, briefs, report, share, and revoke". Reproduced identically TWICE on the EV-00 tree (commits `8a91472`/`7661f78`) and ONCE on an untouched detached worktree at canonical base `8cd7e0a` — same assertion, same stage, exit 1. All stages before the browser journey pass on both trees: prepare-disposable-database, drizzle push, real-mysql-critical-workflow, runtime matrix (including the exact reconciliation totals), public-share header edge cases, render-and-inspect-matching-stored-report, and user seeding. The certification's secret-scan design pipes and discards the journey's app-server output, so the underlying 500 stack is not captured in evidence; environment note: Node v25.8.1, pnpm 10.4.1, Playwright 1.58.2, disposable MySQL on the local 3306 container.
+- Impact: `pnpm certify:workflow` cannot return PASS in this environment even for an unmodified canonical checkout, so the end-to-end certification gate degrades to "pre-existing failure reproduced without regression" until repaired.
+- Owner: Follow-up diagnosis task (out of EV-00 scope); coordinate with whoever owns the TR-13 harness before changing the journey or `spaceProgram.generate`.
+- Exit criterion: The browser journey passes from a clean canonical checkout in this environment, or the root cause (application defect vs. harness/environment drift, e.g. Node 25) is identified and fixed with the journey re-certified; the fixing change must capture the journey server error output in future failures instead of discarding it.
+
 ## Handling Protocol
 
 1. Reproduce a failure before adding it.
