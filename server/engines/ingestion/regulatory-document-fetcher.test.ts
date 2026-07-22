@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import {
+  createPinnedLookup,
   RegulatoryDocumentFetcher,
   type RegisteredRegulatorySource,
   type RegulatoryDocumentTransport,
@@ -241,6 +242,54 @@ describe("RegulatoryDocumentFetcher", () => {
     clock += 100;
     await fetcher.fetch(source.sourceKey);
     expect(robotsRequests).toBe(2);
+  });
+
+  // Regression: robots.txt was requested with the document Accept header, so a
+  // correctly-behaved server answered 406 Not Acceptable and the acquisition
+  // reported ROBOTS_UNAVAILABLE — indistinguishable from a genuine refusal.
+  it("asks for plain text when fetching robots.txt and document types otherwise", async () => {
+    const accepts = new Map<string, string>();
+    const transport: RegulatoryDocumentTransport = {
+      request: async ({ url, headers }) => {
+        accepts.set(url.pathname, headers.accept);
+        return url.pathname === "/robots.txt"
+          ? response(200, "User-agent: *\nAllow: /", { "content-type": "text/plain" })
+          : response(200, "document", { "content-type": "application/pdf" });
+      },
+    };
+    await testFetcher(transport).fetch(source.sourceKey);
+
+    expect(accepts.get("/robots.txt")).toBe("text/plain,*/*;q=0.1");
+    expect(accepts.get("/robots.txt")).toContain("text/plain");
+    expect(accepts.get("/documents/code.pdf")).toBe("application/pdf,text/html,application/xhtml+xml;q=0.9");
+  });
+
+  describe("pinned DNS hook", () => {
+    const addresses = [
+      { address: "93.184.216.34", family: 4 as const },
+      { address: "2606:4700:4700::1111", family: 6 as const },
+    ];
+
+    // Regression: Node enables autoSelectFamily by default from v20 and calls
+    // lookup with { all: true }. Returning the single-address form produced
+    // ERR_INVALID_IP_ADDRESS and no request was ever made against a real host.
+    it("answers happy-eyeballs lookups with every vetted address", () => {
+      const received: unknown[] = [];
+      createPinnedLookup(addresses)("host", { all: true }, (...args) => received.push(...args));
+      expect(received).toEqual([null, [
+        { address: "93.184.216.34", family: 4 },
+        { address: "2606:4700:4700::1111", family: 6 },
+      ]]);
+    });
+
+    it("still answers the single-address form when all is not requested", () => {
+      const received: unknown[] = [];
+      createPinnedLookup(addresses)("host", {}, (...args) => received.push(...args));
+      expect(received).toEqual([null, "93.184.216.34", 4]);
+      const undefinedOptions: unknown[] = [];
+      createPinnedLookup(addresses)("host", undefined, (...args) => undefinedOptions.push(...args));
+      expect(undefinedOptions).toEqual([null, "93.184.216.34", 4]);
+    });
   });
 
   describe("per-host acquisition gate", () => {

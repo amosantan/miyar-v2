@@ -137,6 +137,14 @@ const DEFAULT_ALLOWED_MIME_TYPES = [
   "application/xhtml+xml",
 ] as const;
 const DEFAULT_USER_AGENT = "MIYAR-Regulatory-Acquisition/1.0 (+compliance@miyar.example)";
+const DOCUMENT_ACCEPT = "application/pdf,text/html,application/xhtml+xml;q=0.9";
+/**
+ * robots.txt is plain text. Offering only document media types makes a
+ * correctly-behaved server answer 406 Not Acceptable, which the acquisition
+ * path can only report as an unestablished robots policy — indistinguishable
+ * from a genuine refusal. Ask for text/plain, tolerating anything else.
+ */
+const ROBOTS_ACCEPT = "text/plain,*/*;q=0.1";
 
 function headerValue(
   headers: RegulatoryTransportResponse["headers"],
@@ -242,6 +250,35 @@ async function* incomingBody(response: import("node:http").IncomingMessage): Asy
   }
 }
 
+/**
+ * Builds the DNS hook that pins a request to already-vetted addresses.
+ *
+ * Node enables happy-eyeballs (`autoSelectFamily`) by default from v20, which
+ * calls this hook with `{ all: true }` and requires an array result. Answering
+ * with the single-address form yields `ERR_INVALID_IP_ADDRESS` and no request is
+ * ever made, so both shapes must be handled.
+ *
+ * Every address offered here already passed the private and reserved-range
+ * check, so returning the full set keeps the SSRF guarantee while letting Node
+ * pick a reachable family.
+ *
+ * Exported for regression tests: production transports are replaced wholesale in
+ * unit tests, so this hook is otherwise only exercised against a real socket.
+ */
+export function createPinnedLookup(resolvedAddresses: readonly ResolvedAddress[]) {
+  return (
+    _hostname: string,
+    options: unknown,
+    callback: (error: null, ...rest: unknown[]) => void,
+  ): void => {
+    if ((options as { all?: boolean } | undefined)?.all) {
+      callback(null, resolvedAddresses.map(({ address, family }) => ({ address, family })));
+      return;
+    }
+    callback(null, resolvedAddresses[0].address, resolvedAddresses[0].family);
+  };
+}
+
 const directHttpsTransport: RegulatoryDocumentTransport = {
   async request({ url, headers, timeoutMs, resolvedAddresses, signal }) {
     const pinned = resolvedAddresses[0];
@@ -252,8 +289,8 @@ const directHttpsTransport: RegulatoryDocumentTransport = {
         headers,
         timeout: timeoutMs,
         agent: false,
-        // Preserve TLS/SNI and Host while making the connection to the vetted IP.
-        lookup: (_hostname, _options, callback) => callback(null, pinned.address, pinned.family),
+        // Preserve TLS/SNI and Host while connecting only to vetted addresses.
+        lookup: createPinnedLookup(resolvedAddresses) as never,
       }, (response) => {
         resolve({
           statusCode: response.statusCode ?? 0,
@@ -453,7 +490,7 @@ export class RegulatoryDocumentFetcher {
     }
   }
 
-  private async requestOnce(url: URL, context: AcquisitionContext): Promise<RegulatoryTransportResponse> {
+  private async requestOnce(url: URL, context: AcquisitionContext, accept: string = DOCUMENT_ACCEPT): Promise<RegulatoryTransportResponse> {
     // The gate covers address resolution and the response headers only. Body
     // streaming stays outside it so a slow document cannot hold the host.
     return this.withHostGate(url.hostname, context, async () => {
@@ -461,7 +498,7 @@ export class RegulatoryDocumentFetcher {
       try {
         return await this.withDeadline(this.transport.request({
           url,
-          headers: { "user-agent": this.userAgent, "accept": "application/pdf,text/html,application/xhtml+xml;q=0.9" },
+          headers: { "user-agent": this.userAgent, "accept": accept },
           timeoutMs: Math.min(this.timeoutMs, this.remaining(context)),
           resolvedAddresses: addresses,
           signal: context.signal,
@@ -474,10 +511,10 @@ export class RegulatoryDocumentFetcher {
     });
   }
 
-  private async requestFollowingRedirects(source: RegisteredRegulatorySource, initialUrl: URL, context: AcquisitionContext, checkRedirectRobots = true): Promise<{ response: RegulatoryTransportResponse; finalUrl: URL; redirectCount: number }> {
+  private async requestFollowingRedirects(source: RegisteredRegulatorySource, initialUrl: URL, context: AcquisitionContext, checkRedirectRobots = true, accept: string = DOCUMENT_ACCEPT): Promise<{ response: RegulatoryTransportResponse; finalUrl: URL; redirectCount: number }> {
     let url = initialUrl;
     for (let redirectCount = 0; redirectCount <= this.maxRedirects; redirectCount += 1) {
-      const response = await this.requestWithRetries(url, context);
+      const response = await this.requestWithRetries(url, context, accept);
       if (![301, 302, 303, 307, 308].includes(response.statusCode)) return { response, finalUrl: url, redirectCount };
       const location = headerValue(response.headers, "location");
       if (!location) throw new RegulatoryFetchError("REDIRECT_DENIED", "Official source returned a redirect without a location");
@@ -505,7 +542,7 @@ export class RegulatoryDocumentFetcher {
     if (!robots) {
       const robotsUrl = new URL("/robots.txt", origin);
       let response: RegulatoryTransportResponse;
-      try { response = await this.requestFollowingRedirects(source, robotsUrl, context, false).then(result => result.response); } catch (error) {
+      try { response = await this.requestFollowingRedirects(source, robotsUrl, context, false, ROBOTS_ACCEPT).then(result => result.response); } catch (error) {
         if (error instanceof RegulatoryFetchError && ["PRIVATE_OR_RESERVED_ADDRESS", "UNAPPROVED_HOST", "NON_HTTPS_URL", "REDIRECT_DENIED", "TIMEOUT", "RATE_LIMITED"].includes(error.code)) throw error;
         throw new RegulatoryFetchError("ROBOTS_UNAVAILABLE", `Could not establish robots policy for ${origin}`, error);
       }
@@ -542,9 +579,9 @@ export class RegulatoryDocumentFetcher {
     return Buffer.concat(chunks);
   }
 
-  private async requestWithRetries(url: URL, context: AcquisitionContext): Promise<RegulatoryTransportResponse> {
+  private async requestWithRetries(url: URL, context: AcquisitionContext, accept: string = DOCUMENT_ACCEPT): Promise<RegulatoryTransportResponse> {
     for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
-      const response = await this.requestOnce(url, context);
+      const response = await this.requestOnce(url, context, accept);
       const retryable = response.statusCode === 429 || (response.statusCode >= 500 && response.statusCode <= 599);
       if (!retryable || attempt === this.maxAttempts) {
         if (response.statusCode === 429) throw new RegulatoryFetchError("RATE_LIMITED", `Official source rate-limited after ${attempt} direct attempts`);
