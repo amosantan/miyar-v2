@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import {
+  createPinnedLookup,
   RegulatoryDocumentFetcher,
   type RegisteredRegulatorySource,
   type RegulatoryDocumentTransport,
@@ -241,6 +242,34 @@ describe("RegulatoryDocumentFetcher", () => {
     clock += 100;
     await fetcher.fetch(source.sourceKey);
     expect(robotsRequests).toBe(2);
+  });
+
+  describe("pinned DNS hook", () => {
+    const addresses = [
+      { address: "93.184.216.34", family: 4 as const },
+      { address: "2606:4700:4700::1111", family: 6 as const },
+    ];
+
+    // Regression: Node enables autoSelectFamily by default from v20 and calls
+    // lookup with { all: true }. Returning the single-address form produced
+    // ERR_INVALID_IP_ADDRESS and no request was ever made against a real host.
+    it("answers happy-eyeballs lookups with every vetted address", () => {
+      const received: unknown[] = [];
+      createPinnedLookup(addresses)("host", { all: true }, (...args) => received.push(...args));
+      expect(received).toEqual([null, [
+        { address: "93.184.216.34", family: 4 },
+        { address: "2606:4700:4700::1111", family: 6 },
+      ]]);
+    });
+
+    it("still answers the single-address form when all is not requested", () => {
+      const received: unknown[] = [];
+      createPinnedLookup(addresses)("host", {}, (...args) => received.push(...args));
+      expect(received).toEqual([null, "93.184.216.34", 4]);
+      const undefinedOptions: unknown[] = [];
+      createPinnedLookup(addresses)("host", undefined, (...args) => undefinedOptions.push(...args));
+      expect(undefinedOptions).toEqual([null, "93.184.216.34", 4]);
+    });
   });
 
   describe("per-host acquisition gate", () => {

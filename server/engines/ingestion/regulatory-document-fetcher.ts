@@ -242,6 +242,35 @@ async function* incomingBody(response: import("node:http").IncomingMessage): Asy
   }
 }
 
+/**
+ * Builds the DNS hook that pins a request to already-vetted addresses.
+ *
+ * Node enables happy-eyeballs (`autoSelectFamily`) by default from v20, which
+ * calls this hook with `{ all: true }` and requires an array result. Answering
+ * with the single-address form yields `ERR_INVALID_IP_ADDRESS` and no request is
+ * ever made, so both shapes must be handled.
+ *
+ * Every address offered here already passed the private and reserved-range
+ * check, so returning the full set keeps the SSRF guarantee while letting Node
+ * pick a reachable family.
+ *
+ * Exported for regression tests: production transports are replaced wholesale in
+ * unit tests, so this hook is otherwise only exercised against a real socket.
+ */
+export function createPinnedLookup(resolvedAddresses: readonly ResolvedAddress[]) {
+  return (
+    _hostname: string,
+    options: unknown,
+    callback: (error: null, ...rest: unknown[]) => void,
+  ): void => {
+    if ((options as { all?: boolean } | undefined)?.all) {
+      callback(null, resolvedAddresses.map(({ address, family }) => ({ address, family })));
+      return;
+    }
+    callback(null, resolvedAddresses[0].address, resolvedAddresses[0].family);
+  };
+}
+
 const directHttpsTransport: RegulatoryDocumentTransport = {
   async request({ url, headers, timeoutMs, resolvedAddresses, signal }) {
     const pinned = resolvedAddresses[0];
@@ -252,8 +281,8 @@ const directHttpsTransport: RegulatoryDocumentTransport = {
         headers,
         timeout: timeoutMs,
         agent: false,
-        // Preserve TLS/SNI and Host while making the connection to the vetted IP.
-        lookup: (_hostname, _options, callback) => callback(null, pinned.address, pinned.family),
+        // Preserve TLS/SNI and Host while connecting only to vetted addresses.
+        lookup: createPinnedLookup(resolvedAddresses) as never,
       }, (response) => {
         resolve({
           statusCode: response.statusCode ?? 0,
