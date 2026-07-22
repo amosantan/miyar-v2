@@ -125,6 +125,12 @@ Do not overwrite, discard, or reformat unrelated user changes.
 - Do not stage, commit, push, merge, deploy, or open a pull request unless the task authorizes that action.
 - Keep commits scoped and describe verified behavior, not aspirational completion.
 
+## Local Credential Convention
+
+- PlanetScale service credentials, when configured on a developer machine, live only in the Git-ignored `.env.planetscale.local` file with owner-only permissions.
+- Codex and Claude Code may source that file for approved PlanetScale operations, but must never print its values, copy them into prompts/logs/state files, commit the file, or claim the credential is available on another machine.
+- The expected variable names are `PLANETSCALE_SERVICE_TOKEN_ID` and `PLANETSCALE_SERVICE_TOKEN`.
+
 ## Verification and Definition of Done
 
 Use `docs/VERIFICATION.md`. A task is `PASS` only when:
@@ -213,6 +219,11 @@ Before specialized work, read the matching skill:
 - Ingestion and connectors: `.agent/skills/miyar-ingestion/SKILL.md`
 - Analytics: `.agent/skills/miyar-analytics/SKILL.md`
 - Sales premium and yield: `.agent/skills/miyar-sales-premium/SKILL.md`
+
+For complex cross-layer, authorization, data/schema, scoring, report, release,
+or independently investigable work, first load
+`.agent/skills/miyar-plan-orchestrator/SKILL.md`. Start in Plan Mode when the
+client supports it; otherwise follow its read-only plan gate before editing.
 
 Use `LOOP_ENGINEERING.md` for the complete lifecycle and `docs/loops/LOOP_TEMPLATE.md` for new repeatable loops.
 

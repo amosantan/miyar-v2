@@ -6,7 +6,7 @@
 
 ## Claude-Specific Behavior
 
-- Use plan mode before high-risk, cross-layer, schema, authentication, scoring, or migration changes.
+- For complex cross-layer, authorization, data/schema, scoring, report, release, or independently investigable work, load `.agent/skills/miyar-plan-orchestrator/SKILL.md` and start in Plan Mode when available. Otherwise follow its read-only plan gate before editing.
 - Use `/memory` to confirm this file and `AGENTS.md` were loaded when instructions appear inconsistent.
 - Store path-specific Claude rules in `.claude/rules/`; keep multi-step reusable work in skills or `docs/loops/`.
 - Treat Claude auto-memory as local convenience, never as repository authority.
