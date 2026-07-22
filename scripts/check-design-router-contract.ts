@@ -42,6 +42,9 @@ const APPROVED_INITIALIZER_CHANGES = new Set([
   // EV-00 / ADR-0009: RFQ rates now come from material_library with
   // provenance-derived pricingSource; operation and middleware are frozen.
   "design.generateRfqFromBrief",
+  // EV-00 / ADR-0009: the mkt01Tier→finish map moved to the versioned tier
+  // policy (identical v1 values); operation and middleware are frozen.
+  "design.generateBrief",
 ]);
 const ACCESS_PRIMITIVES = [
   "designOrgMutationProcedure",

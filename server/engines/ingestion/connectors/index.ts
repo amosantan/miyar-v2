@@ -73,7 +73,7 @@ function buildExtractionUserPrompt(
     : "";
 
   return `Extract evidence items from this ${sourceName} webpage HTML.
-Category: ${category}
+Source focus: ${category}
 Geography: ${geography}${dateFilter}
 
 Return a JSON array of objects with these exact fields:
@@ -83,10 +83,12 @@ Return a JSON array of objects with these exact fields:
 - metric: string (what is being measured, e.g. "Marble Tile 60x60 price")
 - value: number|null (numeric value in AED if found, null otherwise)
 - unit: string|null (e.g. "sqm", "sqft", "piece", "unit", null if not applicable)
+- category: string (the item's own area — one of: "floors", "walls", "ceilings", "joinery", "lighting", "sanitary", "kitchen", "hardware", "ffe", "other")
 
 Rules:
 - Extract up to 15 items maximum
 - Only extract items with real data (titles, prices, descriptions)
+- Classify each item's category by what the item IS (tiles → floors or walls, taps → sanitary, cabinet handles → hardware); use "other" when unsure
 - Do NOT invent data — if no items found, return empty array []
 - Do NOT output confidence, grade, or scoring fields
 
@@ -101,6 +103,7 @@ interface LLMExtractedItem {
   metric: string;
   value: number | null;
   unit: string | null;
+  category?: string | null;
 }
 
 /**
@@ -253,7 +256,11 @@ abstract class HTMLSourceConnector extends BaseSourceConnector {
         rawText: item.rawText || item.title,
         ...publicationDateFields(item.publishedDate, raw.fetchedAt),
         observedAt: raw.fetchedAt,
-        category: this.category,
+        // ADR-0009 (audit F11): prefer the item's own extracted category so
+        // static material evidence stops pooling into one bucket; the
+        // orchestrator validates it against the evidence enum and maps the
+        // class-level fallback to "other".
+        category: (typeof item.category === "string" && item.category) || this.category,
         geography: this.geography,
         sourceUrl: raw.url,
         // Store LLM-extracted metric/value/unit as metadata in rawText for normalize()

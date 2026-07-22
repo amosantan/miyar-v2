@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-22T22:04:05.438Z",
+  "generatedAt": "2026-07-22T22:12:50.225Z",
   "sourceRoot": "server/routers + server/_core/systemRouter.ts",
   "procedureCount": 389,
   "allowedClassifications": [
@@ -3816,7 +3816,7 @@
       "key": "design.exportBriefDocx",
       "router": "design",
       "procedure": "exportBriefDocx",
-      "source": "server/routers/design-briefs.ts:413",
+      "source": "server/routers/design-briefs.ts:410",
       "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": [
@@ -3852,7 +3852,7 @@
       "key": "design.exportInvestorPdf",
       "router": "design",
       "procedure": "exportInvestorPdf",
-      "source": "server/routers/design-briefs.ts:469",
+      "source": "server/routers/design-briefs.ts:466",
       "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": [
@@ -3961,7 +3961,7 @@
       "key": "design.generateBrief",
       "router": "design",
       "procedure": "generateBrief",
-      "source": "server/routers/design-briefs.ts:45",
+      "source": "server/routers/design-briefs.ts:46",
       "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": [
@@ -4014,7 +4014,7 @@
       "key": "design.generateRfqFromBrief",
       "router": "design",
       "procedure": "generateRfqFromBrief",
-      "source": "server/routers/design-briefs.ts:325",
+      "source": "server/routers/design-briefs.ts:322",
       "accessPrimitive": "designOrgMutationProcedure",
       "operation": "mutation",
       "inputIdentifiers": [
@@ -4303,7 +4303,7 @@
       "key": "design.getBrief",
       "router": "design",
       "procedure": "getBrief",
-      "source": "server/routers/design-briefs.ts:299",
+      "source": "server/routers/design-briefs.ts:296",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": [
@@ -4544,7 +4544,7 @@
       "key": "design.getLatestBrief",
       "router": "design",
       "procedure": "getLatestBrief",
-      "source": "server/routers/design-briefs.ts:311",
+      "source": "server/routers/design-briefs.ts:308",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": [
@@ -4800,7 +4800,7 @@
       "key": "design.listBriefs",
       "router": "design",
       "procedure": "listBriefs",
-      "source": "server/routers/design-briefs.ts:284",
+      "source": "server/routers/design-briefs.ts:281",
       "accessPrimitive": "orgProcedure",
       "operation": "query",
       "inputIdentifiers": [

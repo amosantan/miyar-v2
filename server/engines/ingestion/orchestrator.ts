@@ -27,6 +27,7 @@ import {
   upsertPublicEvidenceObservation,
 } from "../../db";
 import { generateBenchmarkProposals } from "./proposal-generator";
+import { classifyFinishLevelForObservation } from "../tier-policy";
 import { triggerAlertEngine } from "../autonomous/alert-engine";
 import { validateEvidence, type QualityResult } from "./data-quality";
 import { detectPriceChange } from "./change-detector";
@@ -121,7 +122,12 @@ async function runWithConcurrencyLimit<T>(
 
 /** Map connector evidence categories to evidence_records table enum values */
 const CATEGORY_MAP: Record<string, string> = {
-  material_cost: "floors",         // LLM now sets correct category per-item
+  // ADR-0009 (audit F11): connector-level buckets carry no per-item meaning,
+  // so they map to "other" instead of silently pooling every static
+  // connector's material evidence into the flooring benchmark. Per-item
+  // categories from extraction take precedence via validCategories below.
+  material_cost: "other",
+  property_price: "other",
   fitout_rate: "other",
   market_trend: "other",
   competitor_project: "other",
@@ -469,6 +475,16 @@ export async function runIngestion(
             ? connector.sourceId
             : (parseInt(connector.sourceId) || undefined);
 
+          // ADR-0009 (audit F6/F7): finishLevel — the price tier that keys
+          // benchmarks — is assigned only by the deterministic tier policy
+          // from the observation's price and unit. The model's suggestion is
+          // demoted to metadata and never becomes numerical authority.
+          const deterministicFinishLevel = classifyFinishLevelForObservation(
+            normalized.value ?? null,
+            normalized.valueMax ?? null,
+            normalized.unit || "unit",
+          );
+
           const candidateScore = Math.round(qualityStage.score * 100);
           const persisted = await upsertPublicEvidenceObservation({
             recordId: generateRecordId(),
@@ -492,7 +508,8 @@ export async function runIngestion(
             tags: normalized.tags,
             notes: `Auto-ingested from ${connector.sourceName} via V2 ingestion engine${qualityResult.status === "outlier_flagged" ? " [OUTLIER_FLAGGED: " + qualityResult.flags.join("; ") + "]" : ""}`,
             runId,
-            finishLevel: (normalized.finishLevel as any) ?? null,
+            finishLevel: deterministicFinishLevel,
+            modelSuggestedFinishLevel: normalized.finishLevel ?? null,
             designStyle: normalized.designStyle ?? null,
             brandsMentioned: normalized.brandsMentioned ?? null,
             materialSpec: normalized.materialSpec ?? null,

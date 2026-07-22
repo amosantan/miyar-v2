@@ -28,6 +28,13 @@ export interface ProposalGenerationResult {
  * Generate benchmark proposals from all evidence records.
  * Called after ingestion runs to update P25/P50/P75 values.
  */
+/**
+ * ADR-0009: proposals generated after deterministic finish/category keying
+ * are stamped `benchmark-key-v2`; pre-existing rows keep the schema default
+ * `legacy-v0` and remain served until an admin re-approves v2 proposals.
+ */
+export const BENCHMARK_KEY_POLICY_VERSION = "benchmark-key-v2" as const;
+
 export async function generateBenchmarkProposals(
   options: {
     category?: string;
@@ -36,7 +43,10 @@ export async function generateBenchmarkProposals(
     ingestionRunId?: string;
   } = {}
 ): Promise<ProposalGenerationResult> {
-  const { category, minEvidenceCount = 3, actorId, ingestionRunId } = options;
+  // ADR-0009: the default minimum group size matches the recommendation
+  // threshold below (< 5 → reject), so groups that could only ever produce
+  // an auto-rejected proposal are no longer persisted.
+  const { category, minEvidenceCount = 5, actorId, ingestionRunId } = options;
 
   const runId = `PROP-${randomUUID().substring(0, 8)}`;
   const startedAt = new Date();
@@ -144,6 +154,7 @@ export async function generateBenchmarkProposals(
     try {
       const result = await db.createBenchmarkProposal({
         benchmarkKey,
+        keyPolicyVersion: BENCHMARK_KEY_POLICY_VERSION,
         proposedP25: String(p25.toFixed(2)) as any,
         proposedP50: String(p50.toFixed(2)) as any,
         proposedP75: String(p75.toFixed(2)) as any,

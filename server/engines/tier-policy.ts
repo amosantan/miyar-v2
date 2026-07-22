@@ -101,6 +101,36 @@ export function classifyFinishLevel(
   return catalogTierToFinish(classifyCatalogTier(priceMin, priceMax, unit));
 }
 
+/** Shared area conversion, identical to evidence-to-materials and BR-04: 1 m² = 10.7639 ft². */
+const SQFT_TO_SQM_FACTOR = 10.7639;
+const SQFT_UNITS: ReadonlySet<string> = new Set(["sqft", "sq.ft", "sq ft"]);
+
+/**
+ * Classify a raw evidence observation, first normalizing per-square-foot
+ * prices to per-square-metre (the same conversion the catalog mapper applies
+ * before its tier ladder) so a sqft-priced observation lands in the same
+ * tier as its sqm equivalent. Returns null when the observation carries no
+ * usable price — an unpriced record must not claim a finish level.
+ */
+export function classifyFinishLevelForObservation(
+  priceMin: number | null,
+  priceMax: number | null,
+  unit: string | null | undefined,
+): FinishLevel | null {
+  if ((priceMin === null || priceMin === 0) && (priceMax === null || priceMax === 0)) {
+    return null;
+  }
+  let normalizedUnit = (unit ?? "unit").toLowerCase();
+  let min = priceMin;
+  let max = priceMax;
+  if (SQFT_UNITS.has(normalizedUnit)) {
+    if (min) min = min * SQFT_TO_SQM_FACTOR;
+    if (max) max = max * SQFT_TO_SQM_FACTOR;
+    normalizedUnit = "sqm";
+  }
+  return classifyFinishLevel(min, max, normalizedUnit);
+}
+
 // ─── 4. Project market tier → finish level (v1 map, verbatim) ───────────────
 
 const MKT01_TIER_TO_FINISH: Readonly<Record<string, FinishLevel>> = {

@@ -194,14 +194,13 @@ Return a JSON array of objects with these EXACT fields:
 - value: number|null (numeric value in AED if applicable)
 - unit: string|null (e.g. "sqft", "sqm", "percent", "index", "AED/sqm")
 - trend: string|null (one of: "rising", "stable", "falling", or null if not a trend)
-- trendConfidence: string|null (one of: "confirmed" if multiple sources agree, "emerging" if single source/early signal, "speculative" if forecast/projection)
 - publishedDate: string|null (ISO date if found — include quarter: e.g. "2025-10-01" for Q4 2025)
 - category: string (one of: "floors", "walls", "ceilings", "sanitary", "lighting", "kitchen", "hardware", "joinery", "ffe", "other")
 
 Rules:
 - Extract ALL statistics, data points, and findings — up to 50 maximum
 - Always include the TIME PERIOD in the title (Q1/Q2/Q3/Q4 and year)
-- Include forecasts and projections — mark trendConfidence as "speculative" for predictions
+- Include forecasts and projections — note "forecast" or "projection" in rawText for predictions
 - Include percentage changes and growth rates (YoY, QoQ)
 - For comparisons (e.g. "Marble prices rose 12% YoY"), extract: value=12, unit="percent", trend="rising"
 - UAE-specific metrics to look for: DLD transaction volumes, RERA rental indices, construction cost per sqft, fitout cost benchmarks by tier, building permit counts

@@ -19,6 +19,7 @@
 import type { Room } from "./space-program";
 import { invokeLLM } from "../../_core/llm";
 import type { MaterialLibrary } from "../../../drizzle/schema";
+import { libraryTiersForMkt01Tier } from "../tier-policy";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -247,12 +248,17 @@ export async function generateMaterialAllocations(
         return elements.some((el) => !lockedMap.has(`${s.roomId}:${el}`));
     });
 
-    // Pre-filter material library to matching tier + style
+    // Pre-filter material library to matching tier + style.
+    // ADR-0009: tier selection is owned by the versioned tier policy. v1
+    // deliberately preserves the legacy behavior (Mid → mid+affordable;
+    // higher tiers → mid only) until the richer mapping receives
+    // cost-consultant approval.
     const projectTier = project.mkt01Tier?.toLowerCase() || "mid";
     const projectStyle = (project.des01Style || "modern").toLowerCase();
+    const allowedTiers = libraryTiersForMkt01Tier(project.mkt01Tier);
     const filteredLibrary = materialLibrary.filter(
         (m) =>
-            (m.tier === projectTier || m.tier === adjacentTier(projectTier)) &&
+            allowedTiers.includes(m.tier as (typeof allowedTiers)[number]) &&
             (m.style === projectStyle || m.style === "all")
     );
 
@@ -498,12 +504,8 @@ RULES:
 }
 
 /** Get adjacent tier for broader material library matching */
-function adjacentTier(tier: string): string {
-    if (tier === "ultra") return "premium";
-    if (tier === "premium") return "mid";
-    if (tier === "mid") return "affordable";
-    return "mid";
-}
+// ADR-0009: the legacy adjacentTier helper moved into tier-policy's
+// libraryTiersForMkt01Tier (v1 reproduces its behavior verbatim).
 
 // ─── Function 3: buildQuantityCostSummary ─────────────────────────────────────
 

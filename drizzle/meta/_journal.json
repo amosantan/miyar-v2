@@ -400,6 +400,13 @@
       "when": 1784756290395,
       "tag": "0056_material_library_provenance",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "5",
+      "when": 1784757965860,
+      "tag": "0057_deterministic_finish_keying",
+      "breakpoints": true
     }
   ]
 }

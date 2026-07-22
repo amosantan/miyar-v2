@@ -1501,6 +1501,9 @@ export const evidenceRecords = mysqlTable(
     fileMimeType: varchar("fileMimeType", { length: 128 }),
     runId: varchar("runId", { length: 64 }), // links to intelligence_audit_log
     // V7: Design Intelligence Fields
+    // ADR-0009: finishLevel is assigned ONLY by the deterministic tier policy
+    // (price + unit); the model's suggestion is retained as metadata below
+    // and never keys a benchmark.
     finishLevel: mysqlEnum("finishLevel", [
       "basic",
       "standard",
@@ -1508,6 +1511,7 @@ export const evidenceRecords = mysqlTable(
       "luxury",
       "ultra_luxury",
     ]),
+    modelSuggestedFinishLevel: varchar("modelSuggestedFinishLevel", { length: 32 }),
     designStyle: varchar("designStyle", { length: 255 }),
     brandsMentioned: json("brandsMentioned"), // string[]
     materialSpec: text("materialSpec"),
@@ -1634,7 +1638,12 @@ export type InsertEvidenceConfidenceAssessment =
 // ─── Benchmark Proposals (Stage 1) ──────────────────────────────────────────
 export const benchmarkProposals = mysqlTable("benchmark_proposals", {
   id: int("id").autoincrement().primaryKey(),
-  benchmarkKey: varchar("benchmarkKey", { length: 255 }).notNull(), // category:tier:unit
+  benchmarkKey: varchar("benchmarkKey", { length: 255 }).notNull(), // category:finishLevel:unit
+  // ADR-0009: distinguishes key eras — "legacy-v0" rows predate deterministic
+  // finish/category keying; new proposals stamp "benchmark-key-v2".
+  keyPolicyVersion: varchar("keyPolicyVersion", { length: 64 })
+    .default("legacy-v0")
+    .notNull(),
   currentTypical: decimal("currentTypical", { precision: 12, scale: 2 }),
   currentMin: decimal("currentMin", { precision: 12, scale: 2 }),
   currentMax: decimal("currentMax", { precision: 12, scale: 2 }),

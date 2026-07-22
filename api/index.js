@@ -1641,6 +1641,9 @@ var init_schema = __esm({
         runId: varchar("runId", { length: 64 }),
         // links to intelligence_audit_log
         // V7: Design Intelligence Fields
+        // ADR-0009: finishLevel is assigned ONLY by the deterministic tier policy
+        // (price + unit); the model's suggestion is retained as metadata below
+        // and never keys a benchmark.
         finishLevel: mysqlEnum("finishLevel", [
           "basic",
           "standard",
@@ -1648,6 +1651,7 @@ var init_schema = __esm({
           "luxury",
           "ultra_luxury"
         ]),
+        modelSuggestedFinishLevel: varchar("modelSuggestedFinishLevel", { length: 32 }),
         designStyle: varchar("designStyle", { length: 255 }),
         brandsMentioned: json("brandsMentioned"),
         // string[]
@@ -1758,7 +1762,10 @@ var init_schema = __esm({
     benchmarkProposals = mysqlTable("benchmark_proposals", {
       id: int("id").autoincrement().primaryKey(),
       benchmarkKey: varchar("benchmarkKey", { length: 255 }).notNull(),
-      // category:tier:unit
+      // category:finishLevel:unit
+      // ADR-0009: distinguishes key eras — "legacy-v0" rows predate deterministic
+      // finish/category keying; new proposals stamp "benchmark-key-v2".
+      keyPolicyVersion: varchar("keyPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
       currentTypical: decimal("currentTypical", { precision: 12, scale: 2 }),
       currentMin: decimal("currentMin", { precision: 12, scale: 2 }),
       currentMax: decimal("currentMax", { precision: 12, scale: 2 }),
@@ -10291,6 +10298,92 @@ var init_llm = __esm({
   }
 });
 
+// server/engines/tier-policy.ts
+function classifyCatalogTier(priceMin, priceMax, unit) {
+  const price = priceMax || priceMin || 0;
+  if (PER_AREA_UNITS.has(unit)) {
+    if (price < 40) return "economy";
+    if (price < 150) return "mid";
+    if (price < 400) return "premium";
+    if (price < 800) return "luxury";
+    return "ultra_luxury";
+  }
+  if (price < 300) return "economy";
+  if (price < 1500) return "mid";
+  if (price < 5e3) return "premium";
+  if (price < 15e3) return "luxury";
+  return "ultra_luxury";
+}
+function catalogTierToFinish(tier) {
+  return CATALOG_TIER_TO_FINISH[tier] ?? "standard";
+}
+function classifyFinishLevel(priceMin, priceMax, unit) {
+  return catalogTierToFinish(classifyCatalogTier(priceMin, priceMax, unit));
+}
+function classifyFinishLevelForObservation(priceMin, priceMax, unit) {
+  if ((priceMin === null || priceMin === 0) && (priceMax === null || priceMax === 0)) {
+    return null;
+  }
+  let normalizedUnit = (unit ?? "unit").toLowerCase();
+  let min = priceMin;
+  let max2 = priceMax;
+  if (SQFT_UNITS.has(normalizedUnit)) {
+    if (min) min = min * SQFT_TO_SQM_FACTOR;
+    if (max2) max2 = max2 * SQFT_TO_SQM_FACTOR;
+    normalizedUnit = "sqm";
+  }
+  return classifyFinishLevel(min, max2, normalizedUnit);
+}
+function mkt01TierToFinish(mkt01Tier) {
+  return (mkt01Tier ? MKT01_TIER_TO_FINISH[mkt01Tier] : void 0) ?? "standard";
+}
+function legacyAdjacentTier(tier) {
+  if (tier === "ultra") return "premium";
+  if (tier === "premium") return "mid";
+  if (tier === "mid") return "affordable";
+  return "mid";
+}
+function libraryTiersForMkt01Tier(mkt01Tier) {
+  const normalized = (mkt01Tier ?? "").toLowerCase() || "mid";
+  const tiers = [];
+  if (LIBRARY_TIERS.has(normalized)) {
+    tiers.push(normalized);
+  }
+  const adjacent = legacyAdjacentTier(normalized);
+  if (!tiers.includes(adjacent)) {
+    tiers.push(adjacent);
+  }
+  return tiers;
+}
+var PER_AREA_UNITS, CATALOG_TIER_TO_FINISH, SQFT_TO_SQM_FACTOR, SQFT_UNITS, MKT01_TIER_TO_FINISH, LIBRARY_TIERS;
+var init_tier_policy = __esm({
+  "server/engines/tier-policy.ts"() {
+    "use strict";
+    PER_AREA_UNITS = /* @__PURE__ */ new Set(["sqm", "m\xB2", "sqft", "L"]);
+    CATALOG_TIER_TO_FINISH = {
+      economy: "basic",
+      mid: "standard",
+      premium: "premium",
+      luxury: "luxury",
+      ultra_luxury: "ultra_luxury"
+    };
+    SQFT_TO_SQM_FACTOR = 10.7639;
+    SQFT_UNITS = /* @__PURE__ */ new Set(["sqft", "sq.ft", "sq ft"]);
+    MKT01_TIER_TO_FINISH = {
+      Mid: "standard",
+      "Upper-mid": "premium",
+      Luxury: "luxury",
+      "Ultra-luxury": "ultra_luxury"
+    };
+    LIBRARY_TIERS = /* @__PURE__ */ new Set([
+      "affordable",
+      "mid",
+      "premium",
+      "ultra"
+    ]);
+  }
+});
+
 // server/engines/design/space-benchmarking.ts
 var space_benchmarking_exports = {};
 __export(space_benchmarking_exports, {
@@ -13816,14 +13909,13 @@ Return a JSON array of objects with these EXACT fields:
 - value: number|null (numeric value in AED if applicable)
 - unit: string|null (e.g. "sqft", "sqm", "percent", "index", "AED/sqm")
 - trend: string|null (one of: "rising", "stable", "falling", or null if not a trend)
-- trendConfidence: string|null (one of: "confirmed" if multiple sources agree, "emerging" if single source/early signal, "speculative" if forecast/projection)
 - publishedDate: string|null (ISO date if found \u2014 include quarter: e.g. "2025-10-01" for Q4 2025)
 - category: string (one of: "floors", "walls", "ceilings", "sanitary", "lighting", "kitchen", "hardware", "joinery", "ffe", "other")
 
 Rules:
 - Extract ALL statistics, data points, and findings \u2014 up to 50 maximum
 - Always include the TIME PERIOD in the title (Q1/Q2/Q3/Q4 and year)
-- Include forecasts and projections \u2014 mark trendConfidence as "speculative" for predictions
+- Include forecasts and projections \u2014 note "forecast" or "projection" in rawText for predictions
 - Include percentage changes and growth rates (YoY, QoQ)
 - For comparisons (e.g. "Marble prices rose 12% YoY"), extract: value=12, unit="percent", trend="rising"
 - UAE-specific metrics to look for: DLD transaction volumes, RERA rental indices, construction cost per sqft, fitout cost benchmarks by tier, building permit counts
@@ -14267,7 +14359,7 @@ var init_freshness = __esm({
 // server/engines/ingestion/proposal-generator.ts
 import { randomUUID as randomUUID5 } from "crypto";
 async function generateBenchmarkProposals(options = {}) {
-  const { category, minEvidenceCount = 3, actorId, ingestionRunId } = options;
+  const { category, minEvidenceCount = 5, actorId, ingestionRunId } = options;
   const runId = `PROP-${randomUUID5().substring(0, 8)}`;
   const startedAt = /* @__PURE__ */ new Date();
   const evidence = await listEvidenceRecords({
@@ -14345,6 +14437,7 @@ async function generateBenchmarkProposals(options = {}) {
     try {
       const result = await createBenchmarkProposal({
         benchmarkKey,
+        keyPolicyVersion: BENCHMARK_KEY_POLICY_VERSION,
         proposedP25: String(p25.toFixed(2)),
         proposedP50: String(p50.toFixed(2)),
         proposedP75: String(p75.toFixed(2)),
@@ -14392,11 +14485,13 @@ async function generateBenchmarkProposals(options = {}) {
     proposals
   };
 }
+var BENCHMARK_KEY_POLICY_VERSION;
 var init_proposal_generator = __esm({
   "server/engines/ingestion/proposal-generator.ts"() {
     "use strict";
     init_db();
     init_freshness();
+    BENCHMARK_KEY_POLICY_VERSION = "benchmark-key-v2";
   }
 });
 
@@ -15034,19 +15129,7 @@ __export(evidence_to_materials_exports, {
 });
 import { eq as eq7, desc as desc4 } from "drizzle-orm";
 function detectTier(priceMin, priceMax, unit) {
-  const price = priceMax || priceMin || 0;
-  if (unit === "sqm" || unit === "m\xB2" || unit === "sqft" || unit === "L") {
-    if (price < 40) return "economy";
-    if (price < 150) return "mid";
-    if (price < 400) return "premium";
-    if (price < 800) return "luxury";
-    return "ultra_luxury";
-  }
-  if (price < 300) return "economy";
-  if (price < 1500) return "mid";
-  if (price < 5e3) return "premium";
-  if (price < 15e3) return "luxury";
-  return "ultra_luxury";
+  return classifyCatalogTier(priceMin, priceMax, unit);
 }
 async function syncEvidenceToMaterials(runId, limit = 500) {
   const db = await getDb();
@@ -15087,7 +15170,7 @@ async function syncEvidenceToMaterials(runId, limit = 500) {
         record.priceMax ? parseFloat(String(record.priceMax)) : 0,
         record.priceTypical ? parseFloat(String(record.priceTypical)) : 0
       );
-      if (maxRawPrice > 9999999) {
+      if (maxRawPrice > 1e7) {
         skipped++;
         continue;
       }
@@ -15188,6 +15271,7 @@ var init_evidence_to_materials = __esm({
     init_db();
     init_schema();
     init_db();
+    init_tier_policy();
     EVIDENCE_TO_CATALOG_CATEGORY = {
       floors: "tile",
       // most floor evidence is tile/stone
@@ -15479,6 +15563,11 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
           const validCategories = ["floors", "walls", "ceilings", "joinery", "lighting", "sanitary", "kitchen", "hardware", "ffe", "other"];
           const evidenceCategory = validCategories.includes(evidence.category) ? evidence.category : mapCategory(evidence.category);
           const sourceRegistryId = typeof connector.sourceId === "number" ? connector.sourceId : parseInt(connector.sourceId) || void 0;
+          const deterministicFinishLevel = classifyFinishLevelForObservation(
+            normalized.value ?? null,
+            normalized.valueMax ?? null,
+            normalized.unit || "unit"
+          );
           const candidateScore = Math.round(qualityStage.score * 100);
           const persisted = await upsertPublicEvidenceObservation({
             recordId: generateRecordId(),
@@ -15502,7 +15591,8 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
             tags: normalized.tags,
             notes: `Auto-ingested from ${connector.sourceName} via V2 ingestion engine${qualityResult.status === "outlier_flagged" ? " [OUTLIER_FLAGGED: " + qualityResult.flags.join("; ") + "]" : ""}`,
             runId,
-            finishLevel: normalized.finishLevel ?? null,
+            finishLevel: deterministicFinishLevel,
+            modelSuggestedFinishLevel: normalized.finishLevel ?? null,
             designStyle: normalized.designStyle ?? null,
             brandsMentioned: normalized.brandsMentioned ?? null,
             materialSpec: normalized.materialSpec ?? null,
@@ -15852,6 +15942,7 @@ var init_orchestrator = __esm({
     init_connector();
     init_db();
     init_proposal_generator();
+    init_tier_policy();
     init_alert_engine();
     init_data_quality();
     init_change_detector();
@@ -15862,8 +15953,12 @@ var init_orchestrator = __esm({
     CONFIDENCE_MERGE_POLICY_VERSION = "evidence-confidence-merge-latest-v1";
     MAX_CONCURRENT = 3;
     CATEGORY_MAP = {
-      material_cost: "floors",
-      // LLM now sets correct category per-item
+      // ADR-0009 (audit F11): connector-level buckets carry no per-item meaning,
+      // so they map to "other" instead of silently pooling every static
+      // connector's material evidence into the flooring benchmark. Per-item
+      // categories from extraction take precedence via validCategories below.
+      material_cost: "other",
+      property_price: "other",
       fitout_rate: "other",
       market_trend: "other",
       competitor_project: "other",
@@ -16103,7 +16198,7 @@ function buildExtractionUserPrompt(sourceName, category, geography, htmlSnippet,
   const dateFilter = lastFetch ? `
 Focus on content published or updated after ${lastFetch.toISOString().split("T")[0]}.` : "";
   return `Extract evidence items from this ${sourceName} webpage HTML.
-Category: ${category}
+Source focus: ${category}
 Geography: ${geography}${dateFilter}
 
 Return a JSON array of objects with these exact fields:
@@ -16113,10 +16208,12 @@ Return a JSON array of objects with these exact fields:
 - metric: string (what is being measured, e.g. "Marble Tile 60x60 price")
 - value: number|null (numeric value in AED if found, null otherwise)
 - unit: string|null (e.g. "sqm", "sqft", "piece", "unit", null if not applicable)
+- category: string (the item's own area \u2014 one of: "floors", "walls", "ceilings", "joinery", "lighting", "sanitary", "kitchen", "hardware", "ffe", "other")
 
 Rules:
 - Extract up to 15 items maximum
 - Only extract items with real data (titles, prices, descriptions)
+- Classify each item's category by what the item IS (tiles \u2192 floors or walls, taps \u2192 sanitary, cabinet handles \u2192 hardware); use "other" when unsure
 - Do NOT invent data \u2014 if no items found, return empty array []
 - Do NOT output confidence, grade, or scoring fields
 
@@ -16269,7 +16366,11 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
             rawText: item.rawText || item.title,
             ...publicationDateFields(item.publishedDate, raw.fetchedAt),
             observedAt: raw.fetchedAt,
-            category: this.category,
+            // ADR-0009 (audit F11): prefer the item's own extracted category so
+            // static material evidence stops pooling into one bucket; the
+            // orchestrator validates it against the evidence enum and maps the
+            // class-level fallback to "other".
+            category: typeof item.category === "string" && item.category || this.category,
             geography: this.geography,
             sourceUrl: raw.url,
             // Store LLM-extracted metric/value/unit as metadata in rawText for normalize()
@@ -21117,6 +21218,7 @@ function buildBoardAnnexData(inputs) {
 
 // server/engines/design/material-quantity-engine.ts
 init_llm();
+init_tier_policy();
 var ASPECT_RATIOS = {
   // Living / Dining / Lobby
   LVG: 1.6,
@@ -21217,8 +21319,9 @@ async function generateMaterialAllocations(project, surfaces, materialLibrary2, 
   });
   const projectTier = project.mkt01Tier?.toLowerCase() || "mid";
   const projectStyle = (project.des01Style || "modern").toLowerCase();
+  const allowedTiers = libraryTiersForMkt01Tier(project.mkt01Tier);
   const filteredLibrary = materialLibrary2.filter(
-    (m) => (m.tier === projectTier || m.tier === adjacentTier(projectTier)) && (m.style === projectStyle || m.style === "all")
+    (m) => allowedTiers.includes(m.tier) && (m.style === projectStyle || m.style === "all")
   );
   const roomDescriptions = roomsForGemini.map((s) => {
     const grade2 = roomGradeMap.get(s.roomId) || "B";
@@ -21420,12 +21523,6 @@ RULES:
     room[element] = lockedSlices;
   }
   return geminiResult;
-}
-function adjacentTier(tier) {
-  if (tier === "ultra") return "premium";
-  if (tier === "premium") return "mid";
-  if (tier === "mid") return "affordable";
-  return "mid";
 }
 function buildQuantityCostSummary(surfaces, allocations, materialLibrary2, project) {
   const materialLibraryMap = new Map(materialLibrary2.map((m) => [m.id, m]));
@@ -25634,6 +25731,7 @@ function computeImprovementLevers(items) {
 
 // server/engines/pricing-engine.ts
 init_db();
+init_tier_policy();
 var MATERIAL_TO_EVIDENCE_CATEGORY = {
   tile: "floors",
   stone: "floors",
@@ -25649,32 +25747,30 @@ var MATERIAL_TO_EVIDENCE_CATEGORY = {
   accessory: "ffe",
   other: "other"
 };
-var TIER_TO_FINISH = {
-  economy: "basic",
-  mid: "standard",
-  premium: "premium",
-  luxury: "luxury",
-  ultra_luxury: "ultra_luxury"
-};
 async function getLiveCategoryPricing(finishLevel) {
   const normalizedFinish = finishLevel.toLowerCase();
   const allApproved = await listBenchmarkProposals("approved");
   const pricingDict = {};
+  const unitPreference = (unit) => unit === "sqm" ? 0 : unit === "sqft" ? 1 : 2;
   for (const proposal of allApproved) {
     const parts = proposal.benchmarkKey.split(":");
     if (parts.length < 3) continue;
     const [cat, finish, unit] = parts;
-    if (finish === normalizedFinish) {
-      pricingDict[cat] = {
-        category: cat,
-        finishLevel: finish,
-        unit,
-        p25: Number(proposal.proposedP25) || 0,
-        p50: Number(proposal.proposedP50) || 0,
-        p75: Number(proposal.proposedP75) || 0,
-        weightedMean: Number(proposal.weightedMean) || 0
-      };
+    if (finish !== normalizedFinish) continue;
+    const existing = pricingDict[cat];
+    if (existing) {
+      const keepExisting = unitPreference(existing.unit) < unitPreference(unit) || unitPreference(existing.unit) === unitPreference(unit) && existing.unit <= unit;
+      if (keepExisting) continue;
     }
+    pricingDict[cat] = {
+      category: cat,
+      finishLevel: finish,
+      unit,
+      p25: Number(proposal.proposedP25) || 0,
+      p50: Number(proposal.proposedP50) || 0,
+      p75: Number(proposal.proposedP75) || 0,
+      weightedMean: Number(proposal.weightedMean) || 0
+    };
   }
   return pricingDict;
 }
@@ -25686,7 +25782,7 @@ async function syncMaterialsWithBenchmarks() {
   let skippedCount = 0;
   for (const material of materials) {
     const evidenceCat = MATERIAL_TO_EVIDENCE_CATEGORY[material.category] || "other";
-    const targetFinishLevel = TIER_TO_FINISH[material.tier] || "standard";
+    const targetFinishLevel = catalogTierToFinish(material.tier);
     const searchPrefix = `${evidenceCat}:${targetFinishLevel}:`;
     const matchedProposal = allApproved.find(
       (p) => p.benchmarkKey.startsWith(searchPrefix)
@@ -28066,6 +28162,7 @@ async function generateDesignBriefDocx(data) {
 }
 
 // server/routers/design-briefs.ts
+init_tier_policy();
 var designBriefsRouter = router({
   generateBrief: designOrgMutationProcedure.input(
     z10.object({
@@ -28101,13 +28198,7 @@ var designBriefsRouter = router({
         er: Number(latest.erScore)
       }
     };
-    const tierToFinish = {
-      Mid: "standard",
-      "Upper-mid": "premium",
-      Luxury: "luxury",
-      "Ultra-luxury": "ultra_luxury"
-    };
-    const targetFinish = tierToFinish[inputs.mkt01Tier] || "standard";
+    const targetFinish = mkt01TierToFinish(inputs.mkt01Tier);
     const livePricing = await getLiveCategoryPricing(targetFinish);
     const matConstants = await getMaterialConstants();
     const areaSaleMedian = await getAreaSaleMedianSqm(project.dldAreaId);
