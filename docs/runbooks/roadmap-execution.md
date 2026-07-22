@@ -17,6 +17,14 @@ This runbook tells Codex, Claude Code, and human engineers how to execute `.agen
 | Durable reusable learning           | `.agent/state/LESSONS.md`        |
 | Concise completed handovers         | `.agent/state/WORKLOG.md`        |
 | Permanent detailed history          | Git commits                      |
+| Terms, acronyms, shorthand          | `memory/glossary.md`             |
+| People, directives, working style   | `memory/people/`                 |
+| UAE market and regulatory knowledge | `memory/domain/`                 |
+| External research provenance        | `memory/research/`               |
+| Decision rationale and alternatives | `memory/decisions/README.md`     |
+| Session narrative                   | `memory/journal/`                |
+
+The rows above the divider are execution state; the `memory/` rows are the second memory, which holds the durable context those files never had a home for. It is context, never authority, and it never restates a fact owned by a canonical file. See `docs/runbooks/memory-sync.md`.
 
 No chat session can promise “forever” memory. Repository state persists across Codex and Claude Code sessions; committed Git history is the durable cross-machine record.
 
