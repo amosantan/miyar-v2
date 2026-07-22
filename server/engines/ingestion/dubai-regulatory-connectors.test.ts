@@ -6,6 +6,7 @@ import {
   classifyRegulatoryCapture,
   createDubaiRegulatoryDocumentFetcher,
   DUBAI_REGULATORY_CONNECTOR_REGISTRY,
+  permitsRawArtifactStorage,
 } from "./dubai-regulatory-connectors";
 
 describe("Dubai regulatory connector registry", () => {
@@ -16,13 +17,45 @@ describe("Dubai regulatory connector registry", () => {
   });
 
   it("does not let an acquisition policy bypass catalogue retention or licensing states", () => {
-    const source = DUBAI_REGULATORY_SOURCE_CATALOGUE[0];
-    expect(buildRegisteredRegulatorySource(source, {
-      sourceKey: source.sourceKey,
-      termsApproved: true,
-      retentionApproved: true,
-      licensingApproved: true,
-    })).toMatchObject({ termsStatus: "approved", retentionStatus: "pending_review", licensingStatus: "pending_review" });
+    const approveEverything = (sourceKey: string) => ({ sourceKey, termsApproved: true, retentionApproved: true, licensingApproved: true });
+
+    // An out-of-scope authority is fail-closed in the catalogue itself, so an
+    // acquisition policy that approves everything must not unlock it.
+    const undecided = DUBAI_REGULATORY_SOURCE_CATALOGUE.find(source => source.coverageStatus === "unsupported")!;
+    expect(buildRegisteredRegulatorySource(undecided, approveEverything(undecided.sourceKey)))
+      .toMatchObject({ termsStatus: "approved", retentionStatus: "pending_review", licensingStatus: "pending_review" });
+
+    // An explicit prohibition likewise survives a fully-approving policy.
+    const prohibited = { ...undecided, retentionPolicy: "prohibited" as const, licensingStatus: "prohibited" as const };
+    expect(buildRegisteredRegulatorySource(prohibited, approveEverything(prohibited.sourceKey)))
+      .toMatchObject({ retentionStatus: "pending_review", licensingStatus: "pending_review" });
+
+    // A decided source still requires its own policy approval; the catalogue
+    // record alone grants nothing.
+    const decided = DUBAI_REGULATORY_SOURCE_CATALOGUE.find(source => source.licensingStatus === "permitted")!;
+    expect(buildRegisteredRegulatorySource(decided, { sourceKey: decided.sourceKey, termsApproved: false, retentionApproved: false, licensingApproved: false }))
+      .toMatchObject({ termsStatus: "pending_review", retentionStatus: "pending_review", licensingStatus: "pending_review" });
+  });
+
+  it("separates permission to retrieve from permission to keep the raw artifact", () => {
+    const base = DUBAI_REGULATORY_SOURCE_CATALOGUE[0];
+    const fullPolicy = { sourceKey: base.sourceKey, termsApproved: true, retentionApproved: true, licensingApproved: true };
+    const withRetention = (retentionPolicy: typeof base.retentionPolicy) =>
+      buildRegisteredRegulatorySource({ ...base, retentionPolicy, licensingStatus: "permitted" }, fullPolicy);
+
+    // metadata_only is lawfully readable without MIYAR holding a complete copy.
+    expect(withRetention("metadata_only")).toMatchObject({ retentionStatus: "approved", licensingStatus: "permitted" });
+    expect(permitsRawArtifactStorage({ ...base, retentionPolicy: "metadata_only" })).toBe(false);
+
+    // artifact_permitted additionally allows persisting the bytes.
+    expect(withRetention("artifact_permitted")).toMatchObject({ retentionStatus: "approved" });
+    expect(permitsRawArtifactStorage({ ...base, retentionPolicy: "artifact_permitted" })).toBe(true);
+
+    // Neither retrieval nor storage without a recorded decision.
+    for (const retentionPolicy of ["prohibited", "pending_review"] as const) {
+      expect(withRetention(retentionPolicy)).toMatchObject({ retentionStatus: "pending_review" });
+      expect(permitsRawArtifactStorage({ ...base, retentionPolicy })).toBe(false);
+    }
   });
 
   it("registers exact discovered artifacts under their official parent host and keeps them fail-closed", async () => {

@@ -21,6 +21,23 @@ export type RegulatoryAcquisitionPolicy = {
 };
 
 /**
+ * Retention policies under which retrieval itself is permitted.
+ *
+ * Retrieving a document and persisting its raw bytes are separate permissions.
+ * `metadata_only` allows retrieval while keeping only the fingerprint, HTTP
+ * metadata and derived locators; persisting the artifact additionally requires
+ * `artifact_permitted`, which `recordRegulatoryCapture` enforces independently
+ * at the storage boundary by refusing a storage reference.
+ *
+ * Keeping these separate is what makes an analysis-only posture an enforced
+ * control rather than a convention: a source can be lawfully readable without
+ * MIYAR ever holding a complete copy of the authority's document.
+ */
+function permitsRetrieval(retentionPolicy: RegulatorySourceRegistration["retentionPolicy"]): boolean {
+  return retentionPolicy === "artifact_permitted" || retentionPolicy === "metadata_only";
+}
+
+/**
  * Converts a checked-in registration to a fetch policy only after a separate
  * policy review. The catalogue itself intentionally grants no retrieval rights.
  */
@@ -35,9 +52,14 @@ export function buildRegisteredRegulatorySource(
     allowedHosts: registration.approvedHosts,
     termsStatus: policy.termsApproved ? "approved" : "pending_review",
     // A policy checkbox cannot override a source record that disallows storage/use.
-    retentionStatus: policy.retentionApproved && registration.retentionPolicy === "artifact_permitted" ? "approved" : "pending_review",
+    retentionStatus: policy.retentionApproved && permitsRetrieval(registration.retentionPolicy) ? "approved" : "pending_review",
     licensingStatus: policy.licensingApproved && registration.licensingStatus === "permitted" ? "permitted" : "pending_review",
   };
+}
+
+/** True when this source may retain the raw artifact, not merely retrieve it. */
+export function permitsRawArtifactStorage(registration: RegulatorySourceRegistration): boolean {
+  return registration.retentionPolicy === "artifact_permitted";
 }
 
 /**

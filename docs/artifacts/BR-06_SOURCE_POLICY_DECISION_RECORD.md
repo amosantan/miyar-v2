@@ -1,14 +1,25 @@
 # BR-06 Source-Policy Decision Record
 
-Status: `AWAITING_HUMAN_DECISION`
+Status: `SOURCE_POLICY_DECIDED` — professional approvals still outstanding
 Prepared: 2026-07-22
+Decided: 2026-07-22 by Amro Saleh (owner) for the 25 in-scope Dubai sources
 Catalogue observed from: `shared/regulatory-sources.ts` at `origin/main` `c7054c0` — 29 registrations
 
-This is a **blank decision form**, not a decision. Every cell below is unfilled because no
-source-policy decision has been made. Nothing in this file approves retrieval, retention,
-citation, authenticity, currency, or regulatory meaning, and no authority may be inferred
-from its existence. It exists so the decision-maker fills in blanks instead of inventing a
-schema, and so each decision maps 1:1 onto a field the code actually reads.
+**The source-policy decision in section 2 has been made.** The owner accepted the commercial
+licensing risk for the 25 in-scope Dubai sources, on the stated basis that MIYAR derives
+analysis rather than reproducing the authorities' documents, and after reading the published
+terms summarised in `BR-06_SOURCE_TERMS_RESEARCH_MEMO.md` — including the Dubai Legislation
+Portal's explicit prohibition on redistribution.
+
+Retention was recorded as `metadata_only`, not `artifact_permitted`, so retrieval is allowed
+while the storage boundary continues to refuse a raw artifact reference. MIYAR therefore never
+holds a complete copy of an authority's document, which keeps the stated basis for the decision
+an enforced control rather than an operating convention.
+
+**This decision covers licensing and retention only.** It establishes no currency, authenticity,
+or regulatory meaning, and it is **not** one of the four named professional approvals in section 6.
+BR-06 remains `NEEDS_HUMAN` until those exist. The four `authority_overlay` rows were left
+fail-closed and undecided.
 
 Companion documents: `BR-06_SOURCE_REVIEW_PACKET.md` (evidence gathered so far),
 `BR-06_SOURCE_TERMS_RESEARCH_MEMO.md` (published terms read per host — research input only, not
@@ -48,43 +59,44 @@ approved overlay exists.
 
 ## 2. Decision table — 29 sources
 
-Fill `Terms`, `Retention`, `Licensing`, `Decided by`, and `Decided at` (ISO-8601 UTC).
-Leave a row untouched to keep it fail-closed. Current state for **every** row is
-`pending_review` / `pending_review` / `candidate`.
+Decided 2026-07-22 for rows 1–25; `shared/regulatory-sources.ts` was updated to match in the
+same change. Rows 26–29 were left blank and remain fail-closed
+(`pending_review` / `pending_review` / `unsupported`), since a licensing decision grants nothing
+for a jurisdiction MIYAR does not support.
 
 ### Dubai Municipality — building code and permits
 
 | # | Source key | Class | Terms | Retention | Licensing | Decided by | Decided at |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `dm.dubai-building-code` | building_code | | | | | |
-| 2 | `dm.dbc-calculation-schedules` | building_code | | | | | |
-| 3 | `dm.building-regulation-amendments` | amendment_index | | | | | |
-| 4 | `dm.building-planning-circulars` | circular_index | | | | | |
+| 1 | `dm.dubai-building-code` | building_code | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
+| 2 | `dm.dbc-calculation-schedules` | building_code | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
+| 3 | `dm.building-regulation-amendments` | amendment_index | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
+| 4 | `dm.building-planning-circulars` | circular_index | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
 
 ### Dubai Civil Defence — fire and life safety
 
 | # | Source key | Class | Terms | Retention | Licensing | Decided by | Decided at |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 5 | `dcd.fire-life-safety-code` | fire_life_safety | | | | | |
-| 6 | `dcd.active-annexures-index` | amendment_index | | | | | |
-| 7 | `dcd.drawing-submission-requirements` | fire_life_safety | | | | | |
-| 8 | `dcd.material-requirements` | fire_life_safety | | | | | |
-| 9 | `dcd.stakeholder-responsibilities` | fire_life_safety | | | | | |
+| 5 | `dcd.fire-life-safety-code` | fire_life_safety | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
+| 6 | `dcd.active-annexures-index` | amendment_index | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
+| 7 | `dcd.drawing-submission-requirements` | fire_life_safety | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
+| 8 | `dcd.material-requirements` | fire_life_safety | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
+| 9 | `dcd.stakeholder-responsibilities` | fire_life_safety | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
 
 ### Dubai Municipality — accessibility
 
 | # | Source key | Class | Terms | Retention | Licensing | Decided by | Decided at |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 10 | `dm.universal-design-code` | accessibility | | | | | |
-| 11 | `dm.accessibility-guide` | accessibility | | | | | |
-| 12 | `dm.universal-design-villa-guidance` | accessibility | | | | | |
+| 10 | `dm.universal-design-code` | accessibility | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
+| 11 | `dm.accessibility-guide` | accessibility | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
+| 12 | `dm.universal-design-villa-guidance` | accessibility | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
 
 ### Dubai Municipality — sustainability
 
 | # | Source key | Class | Terms | Retention | Licensing | Decided by | Decided at |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 13 | `dm.al-safat` | sustainability | | | | | |
-| 14 | `dm.al-safat-practice-amendments` | amendment_index | | | | | |
+| 13 | `dm.al-safat` | sustainability | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
+| 14 | `dm.al-safat-practice-amendments` | amendment_index | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
 
 ### Dubai Municipality — food safety
 
@@ -93,21 +105,21 @@ guidance cannot create a room-area rule; keep the distinction when deciding lice
 
 | # | Source key | Class | Terms | Retention | Licensing | Decided by | Decided at |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 15 | `dm.food-establishment-layout` | food_layout | | | | | |
-| 16 | `dm.food-code` | food_layout | | | | | |
-| 17 | `dm.food-activity-requirements` | food_layout | | | | | |
-| 18 | `dm.food-kitchen-guidance` | food_operations | | | | | |
-| 19 | `dm.food-operations` | food_operations | | | | | |
+| 15 | `dm.food-establishment-layout` | food_layout | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
+| 16 | `dm.food-code` | food_layout | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
+| 17 | `dm.food-activity-requirements` | food_layout | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
+| 18 | `dm.food-kitchen-guidance` | food_operations | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
+| 19 | `dm.food-operations` | food_operations | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
 
 ### Dubai Legislation Portal — hospitality and holiday homes
 
 | # | Source key | Class | Terms | Retention | Licensing | Decided by | Decided at |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 20 | `dlp.hotel-establishment-decree-17-2013` | hospitality_legislation | | | | | |
-| 21 | `dlp.hotel-classification-resolution-1-2018` | hospitality_legislation | | | | | |
-| 22 | `dlp.holiday-home-decree-41-2013` | hospitality_legislation | | | | | |
-| 23 | `dlp.holiday-home-resolution-1-2020` | hospitality_legislation | | | | | |
-| 24 | `dlp.legislative-currency-index` | amendment_index | | | | | |
+| 20 | `dlp.hotel-establishment-decree-17-2013` | hospitality_legislation | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
+| 21 | `dlp.hotel-classification-resolution-1-2018` | hospitality_legislation | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
+| 22 | `dlp.holiday-home-decree-41-2013` | hospitality_legislation | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
+| 23 | `dlp.holiday-home-resolution-1-2020` | hospitality_legislation | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
+| 24 | `dlp.legislative-currency-index` | amendment_index | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
 
 Portal appearance or disappearance never establishes repeal. Currency is resolved only
 through a recorded relation plus assertions.
@@ -116,7 +128,7 @@ through a recorded relation plus assertions.
 
 | # | Source key | Class | Terms | Retention | Licensing | Decided by | Decided at |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 25 | `det.hotel-classification-current` | hospitality_classification | | | | | |
+| 25 | `det.hotel-classification-current` | hospitality_classification | approved | metadata_only | permitted | Amro Saleh (owner) | 2026-07-22 |
 
 Both hospitality typology candidates are explicitly blocked until an exact current DET
 hotel/hotel-apartment classification document is captured from an authorized official
