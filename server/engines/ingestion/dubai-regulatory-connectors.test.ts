@@ -65,12 +65,16 @@ describe("Dubai regulatory connector registry", () => {
       title: "Dubai Building Code 2021 PDF",
       canonicalUrl: "https://www.dm.gov.ae/documents/dbc-2021.pdf",
     });
+    // A child inherits its parent's host allowlist exactly — no more, no less —
+    // and gains no use rights from having been discovered.
+    const parent = DUBAI_REGULATORY_SOURCE_CATALOGUE.find(s => s.sourceKey === "dm.dubai-building-code")!;
     expect(child).toMatchObject({
       sourceKey: "dm.dubai-building-code.dbc-2021-pdf",
-      approvedHosts: ["www.dm.gov.ae", "dm.gov.ae"],
+      approvedHosts: parent.approvedHosts,
       retentionPolicy: "pending_review",
       licensingStatus: "pending_review",
     });
+    expect(child.approvedHosts).toContain("dmpmedia.dm.gov.ae");
     expect(() => buildDiscoveredRegulatoryDocumentRegistration({
       parentSourceKey: "dm.dubai-building-code",
       sourceKey: "dm.dubai-building-code.untrusted",

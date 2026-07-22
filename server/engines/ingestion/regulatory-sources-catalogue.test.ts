@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DUBAI_REGULATORY_SOURCE_CATALOGUE,
   registerDiscoveredRegulatoryDocument,
+  registerReviewedRegulatoryDocument,
   regulatorySourceRegistrationSchema,
 } from "@shared/regulatory-sources";
 
@@ -73,5 +74,35 @@ describe("Dubai regulatory source catalogue", () => {
       title: "Unapproved host",
       canonicalUrl: "https://example.org/document.pdf",
     })).toThrow(/not approved/);
+  });
+
+  it("lets a reviewer permit retrieval of an exact artifact without permitting a complete copy", () => {
+    const document = {
+      parentSourceKey: "dcd.fire-life-safety-code",
+      sourceKey: "dcd.fire-life-safety-code.2018-pdf",
+      title: "UAE Fire and Life Safety Code 2018 PDF",
+      canonicalUrl: "https://www.dcd.gov.ae/documents/fire-life-safety-2018.pdf",
+    } as const;
+    const review = {
+      sourceKey: document.sourceKey,
+      canonicalUrl: document.canonicalUrl,
+      licensingStatus: "permitted",
+      reviewedBy: "Amro Saleh (owner)",
+      reviewedAt: "2026-07-22T00:00:00.000Z",
+    } as const;
+
+    // An exact regulation document must not be forced to the most permissive
+    // retention; a reviewer may choose analysis-only for it, as for its parent.
+    const metadataOnly = registerReviewedRegulatoryDocument(document, { ...review, retentionPolicy: "metadata_only" });
+    expect(metadataOnly).toMatchObject({ retentionPolicy: "metadata_only", licensingStatus: "permitted" });
+    expect(metadataOnly.notes).toContain("Amro Saleh (owner)");
+
+    const artifactPermitted = registerReviewedRegulatoryDocument(document, { ...review, retentionPolicy: "artifact_permitted" });
+    expect(artifactPermitted).toMatchObject({ retentionPolicy: "artifact_permitted" });
+
+    // Weaker or absent retention decisions remain unusable.
+    for (const retentionPolicy of ["prohibited", "pending_review"]) {
+      expect(() => registerReviewedRegulatoryDocument(document, { ...review, retentionPolicy } as never)).toThrow();
+    }
   });
 });

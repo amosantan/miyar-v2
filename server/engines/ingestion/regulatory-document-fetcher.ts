@@ -546,15 +546,29 @@ export class RegulatoryDocumentFetcher {
         if (error instanceof RegulatoryFetchError && ["PRIVATE_OR_RESERVED_ADDRESS", "UNAPPROVED_HOST", "NON_HTTPS_URL", "REDIRECT_DENIED", "TIMEOUT", "RATE_LIMITED"].includes(error.code)) throw error;
         throw new RegulatoryFetchError("ROBOTS_UNAVAILABLE", `Could not establish robots policy for ${origin}`, error);
       }
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw new RegulatoryFetchError("ROBOTS_UNAVAILABLE", `robots.txt returned HTTP ${response.statusCode}`);
-      }
-      const mime = (headerValue(response.headers, "content-type") ?? "text/plain").split(";", 1)[0].trim().toLowerCase();
-      if (mime && mime !== "text/plain") throw new RegulatoryFetchError("ROBOTS_UNAVAILABLE", "robots.txt did not return text/plain");
-      try {
-        robots = robotsParser(robotsUrl.toString(), (await this.readBounded(response.body, context, 512 * 1024)).toString("utf8"));
-      } catch (error) {
-        throw new RegulatoryFetchError("ROBOTS_UNAVAILABLE", `Could not read robots policy for ${origin}`, error);
+      const status = response.statusCode;
+      const unavailable = status >= 400 && status < 500 && status !== 429;
+      if (unavailable) {
+        // RFC 9309 section 2.3.1.3: a 4xx robots.txt is "unavailable" — the
+        // host publishes no restrictions — and a crawler may access any
+        // resource. Object-storage and CDN hosts answer 400/403/404 because
+        // they simply have no such key, which is where authorities publish
+        // their actual documents. 429 is excluded: it means slow down, not
+        // "no rules". 5xx remains "unreachable" and still fails closed below.
+        //
+        // This is narrower than it looks: a robots.txt that exists and
+        // disallows is still obeyed, and an unreadable 2xx body still fails.
+        robots = robotsParser(robotsUrl.toString(), "User-agent: *\nAllow: /");
+      } else if (status < 200 || status >= 300) {
+        throw new RegulatoryFetchError("ROBOTS_UNAVAILABLE", `robots.txt returned HTTP ${status}`);
+      } else {
+        const mime = (headerValue(response.headers, "content-type") ?? "text/plain").split(";", 1)[0].trim().toLowerCase();
+        if (mime && mime !== "text/plain") throw new RegulatoryFetchError("ROBOTS_UNAVAILABLE", "robots.txt did not return text/plain");
+        try {
+          robots = robotsParser(robotsUrl.toString(), (await this.readBounded(response.body, context, 512 * 1024)).toString("utf8"));
+        } catch (error) {
+          throw new RegulatoryFetchError("ROBOTS_UNAVAILABLE", `Could not read robots policy for ${origin}`, error);
+        }
       }
       this.robotsCache.set(origin, { parser: robots, fetchedAt: this.monotonicNow() });
     }

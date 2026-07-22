@@ -99,6 +99,36 @@ describe("RegulatoryDocumentFetcher", () => {
     vi.unstubAllGlobals();
   });
 
+  // RFC 9309 2.3.1.3: a 4xx robots.txt means no restrictions are published.
+  // Object-storage hosts answer 400/403/404 because the key does not exist, and
+  // that is where authorities publish their actual documents.
+  it.each([400, 403, 404, 410])("treats an HTTP %i robots.txt as no restrictions published", async status => {
+    const transport = transportFor(url => url.pathname === "/robots.txt"
+      ? response(status, "<Error/>", { "content-type": "application/xml" })
+      : response(200, "document", { "content-type": "application/pdf" }));
+    await expect(testFetcher(transport).fetch(source.sourceKey)).resolves.toMatchObject({
+      receipt: { statusCode: 200, mimeType: "application/pdf" },
+    });
+  });
+
+  it("still fails closed for 429 and 5xx robots responses", async () => {
+    for (const status of [429, 500, 503]) {
+      const transport = transportFor(url => url.pathname === "/robots.txt"
+        ? response(status, "slow down", { "content-type": "text/plain" })
+        : response(200, "document", { "content-type": "application/pdf" }));
+      await expect(testFetcher(transport, { maxAttempts: 1 }).fetch(source.sourceKey)).rejects.toMatchObject({
+        code: expect.stringMatching(/ROBOTS_UNAVAILABLE|RATE_LIMITED/),
+      });
+    }
+  });
+
+  it("still obeys a robots.txt that exists and disallows", async () => {
+    const transport = transportFor(url => url.pathname === "/robots.txt"
+      ? response(200, "User-agent: *\nDisallow: /documents/", { "content-type": "text/plain" })
+      : response(200, "document", { "content-type": "application/pdf" }));
+    await expect(testFetcher(transport).fetch(source.sourceKey)).rejects.toMatchObject({ code: "ROBOTS_DENIED" });
+  });
+
   it("fails closed when robots cannot be retrieved or denies the document path", async () => {
     await expect(testFetcher(transportFor(() => response(503))).fetch(source.sourceKey)).rejects.toMatchObject({ code: "ROBOTS_UNAVAILABLE" });
 
