@@ -10,6 +10,7 @@
     "check": "tsc --noEmit",
     "check:design-router-contract": "tsx scripts/check-design-router-contract.ts",
     "check:bundle-budgets": "tsx scripts/check-client-bundle-budget.ts",
+    "check:mysql-evidence": "tsx scripts/check-mysql-evidence-freshness.ts",
     "audit:authorization": "tsx scripts/audit-resource-authorization.ts --check",
     "audit:database-safety": "tsx scripts/audit-database-entrypoints.ts",
     "audit:authorization:render": "tsx scripts/audit-resource-authorization.ts --render && prettier --write docs/security/resource-authorization-inventory.json docs/security/RESOURCE_AUTHORIZATION_INVENTORY.md",
