@@ -244,6 +244,26 @@ describe("RegulatoryDocumentFetcher", () => {
     expect(robotsRequests).toBe(2);
   });
 
+  // Regression: robots.txt was requested with the document Accept header, so a
+  // correctly-behaved server answered 406 Not Acceptable and the acquisition
+  // reported ROBOTS_UNAVAILABLE — indistinguishable from a genuine refusal.
+  it("asks for plain text when fetching robots.txt and document types otherwise", async () => {
+    const accepts = new Map<string, string>();
+    const transport: RegulatoryDocumentTransport = {
+      request: async ({ url, headers }) => {
+        accepts.set(url.pathname, headers.accept);
+        return url.pathname === "/robots.txt"
+          ? response(200, "User-agent: *\nAllow: /", { "content-type": "text/plain" })
+          : response(200, "document", { "content-type": "application/pdf" });
+      },
+    };
+    await testFetcher(transport).fetch(source.sourceKey);
+
+    expect(accepts.get("/robots.txt")).toBe("text/plain,*/*;q=0.1");
+    expect(accepts.get("/robots.txt")).toContain("text/plain");
+    expect(accepts.get("/documents/code.pdf")).toBe("application/pdf,text/html,application/xhtml+xml;q=0.9");
+  });
+
   describe("pinned DNS hook", () => {
     const addresses = [
       { address: "93.184.216.34", family: 4 as const },
