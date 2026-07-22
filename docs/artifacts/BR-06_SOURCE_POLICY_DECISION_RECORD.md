@@ -10,8 +10,15 @@ citation, authenticity, currency, or regulatory meaning, and no authority may be
 from its existence. It exists so the decision-maker fills in blanks instead of inventing a
 schema, and so each decision maps 1:1 onto a field the code actually reads.
 
-Companion documents: `BR-06_SOURCE_REVIEW_PACKET.md` (evidence gathered so far) and
-`docs/runbooks/regulatory-source-acquisition.md` (what happens once these decisions land).
+Companion documents: `BR-06_SOURCE_REVIEW_PACKET.md` (evidence gathered so far),
+`BR-06_SOURCE_TERMS_RESEARCH_MEMO.md` (published terms read per host — research input only, not
+evidence), and `docs/runbooks/regulatory-source-acquisition.md` (what happens once these decisions
+land).
+
+Before completing section 2, read the research memo. It records that every official host reserving a
+copyright line reserves **all** rights, that the Dubai Legislation Portal explicitly prohibits
+redistribution and requires written authorization for commercial use, that the Dubai Civil Defence
+`canonicalUrl` for five registrations is dead, and that the DET host refuses automated access.
 
 ---
 
