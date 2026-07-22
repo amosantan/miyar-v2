@@ -14,9 +14,26 @@ describe("Dubai regulatory source catalogue", () => {
       const url = new URL(source.canonicalUrl);
       expect(url.protocol).toBe("https:");
       expect(source.approvedHosts).toContain(url.hostname);
-      expect(source.retentionPolicy).toBe("pending_review");
-      expect(source.licensingStatus).toBe("pending_review");
     }
+  });
+
+  it("records the source-policy decision without ever permitting raw artifact retention", () => {
+    for (const source of DUBAI_REGULATORY_SOURCE_CATALOGUE) {
+      // The decision permits retrieval and analysis, never holding a complete
+      // copy of an authority's document. No source may reach artifact_permitted
+      // without a further, separately recorded decision.
+      expect(source.retentionPolicy).not.toBe("artifact_permitted");
+      if (source.coverageStatus === "unsupported") {
+        // Out-of-scope authorities stay fail-closed regardless of the decision.
+        expect(source.retentionPolicy).toBe("pending_review");
+        expect(source.licensingStatus).toBe("pending_review");
+      } else {
+        expect(source.retentionPolicy).toBe("metadata_only");
+        expect(source.licensingStatus).toBe("permitted");
+      }
+    }
+    const decided = DUBAI_REGULATORY_SOURCE_CATALOGUE.filter(source => source.licensingStatus === "permitted");
+    expect(decided).toHaveLength(25);
   });
 
   it("records special authorities as unsupported fail-closed scopes", () => {
