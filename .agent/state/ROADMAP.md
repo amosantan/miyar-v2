@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `EV-00` (user-directed cost-path truthfulness remediation, `ACTIVE`). `BR-06` remains `NEEDS_HUMAN` for exact source-policy decisions and named professional pack approvals.
+- Next executable step: `EV-00` release gates (`NEEDS_HUMAN`: PR merge, shared migrations 0056–0058, production reseeding, cost-consultant tier-mapping sign-off). `BR-06` remains `NEEDS_HUMAN` in parallel for exact source-policy decisions and named professional pack approvals.
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -668,7 +668,9 @@ Rules:
 
 ### EV-00 — Cost-path truthfulness remediation (user-directed)
 
-- Status: `ACTIVE`
+- Status: `NEEDS_HUMAN` (implementation complete and verified locally on branch `claude/cost-path-audit-material-library-2bb482`; merge, shared migrations, and named sign-offs remain)
+- Implementation evidence (2026-07-23, commits `8a91472`→`6f1e119` from base `8cd7e0a`): all six phases landed with ADR-0009/ADR-0010 accepted; deterministic `tier-policy`/`robots-policy` modules; strict robots before every provider with bypasses removed; migration 0056 provenance columns and assumption labels across reconciliation/PDF/DOCX/client; provenance-derived RFQ `pricingSource` with the KF-013 replace contract closed; migration 0057 deterministic finish keying with model suggestions demoted to metadata and `benchmark-key-v2` stamping; migration 0058 slug linkage proven on real MySQL with dead sources pruned and the Graniti connector added (`ROBOTS_ALLOWED` live). Final gates: DB-free suite 1,567/22; guarded MySQL 9 files/46 tests with regenerated TR03H evidence; authorization 389/0; database safety 123/2/0; check/build pass. `pnpm certify:workflow` fails pre-existing at the browser journey on canonical main itself (`KF-019`, reproduced at untouched base `8cd7e0a`); every pre-browser certification stage passes on this tree. Lessons `LES-047`/`LES-048` recorded.
+- Former status: `ACTIVE`
 - Class / priority: Data-truthfulness/ingestion/report / P0
 - Dependencies: None. User-directed on 2026-07-23 as an explicit reprioritization; interim measures only — it does not preempt the `EV-01`–`EV-03` evidence/price model.
 - Human gate: Shared/production migration application and reseeding; cost-consultant approval for any tier-ladder value change or the proposed `libraryTiersForMkt01Tier` mapping; commit/push/merge/deploy per repository policy.
