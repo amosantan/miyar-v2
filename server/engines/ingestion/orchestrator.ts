@@ -535,6 +535,19 @@ export async function runIngestion(
             normalized.unit || "unit",
           );
 
+          // EV-01b: the deterministic platform families carry price class,
+          // basis, and a stable product identity. Every other path leaves them
+          // unset, and the schema defaults (`unknown`) are the truthful answer
+          // for those — not a value invented here.
+          const platformFields = normalized as Partial<{
+            priceClass: string;
+            priceBasis: string;
+            packQuantity: number | null;
+            vatIncluded: boolean | null;
+            platformProductKey: string;
+            priceBasisPolicyVersion: string;
+          }>;
+
           const candidateScore = Math.round(qualityStage.score * 100);
           const persisted = await upsertPublicEvidenceObservation({
             recordId: generateRecordId(),
@@ -563,7 +576,17 @@ export async function runIngestion(
             designStyle: normalized.designStyle ?? null,
             brandsMentioned: normalized.brandsMentioned ?? null,
             materialSpec: normalized.materialSpec ?? null,
-            intelligenceType: (normalized.intelligenceType as any) ?? "material_price",
+            // EV-01b (audit follow-up): an undeclared source is NOT a material
+            // price. Defaulting to `material_price` here is what pooled
+            // property listings and consultancy research into material-price
+            // benchmark statistics.
+            intelligenceType: (normalized.intelligenceType as any) ?? "market_statistic",
+            priceClass: (platformFields.priceClass as any) ?? undefined,
+            priceBasis: (platformFields.priceBasis as any) ?? undefined,
+            packQuantity: platformFields.packQuantity?.toString() ?? null,
+            vatIncluded: platformFields.vatIncluded ?? null,
+            platformProductKey: platformFields.platformProductKey ?? null,
+            priceBasisPolicyVersion: platformFields.priceBasisPolicyVersion ?? null,
             corpusScope: "platform_public",
             corpusPolicyVersion: "public-v1",
           }, confidenceAssessmentStages({

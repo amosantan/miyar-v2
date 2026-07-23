@@ -703,6 +703,25 @@ Rules:
 - Verification: Domain walkthrough and sample observation/quote fixtures.
 - Expected artifacts: Data specification and migration decision.
 
+### EV-01b — Structured price sources, registry repair, and benchmark population (user-directed)
+
+- Status: `NEEDS_HUMAN` (implemented and gate-verified; every source inert pending BR-06 terms decisions)
+- Class / priority: Data/ingestion/truthfulness / P1
+- Dependencies: None. User-directed on 2026-07-23 as a follow-up to the `EV-01` source packet (PR #44). Interim only — it does **not** pre-empt the `EV-01` price-observation model, which stays `NEEDS_HUMAN`.
+- Human gate: Per-source BR-06 terms/licensing decisions; cost-consultant approval before any benchmark generated under the new population filters is published and before any value reaches `material_library`; shared/production migration application; commit/push/merge/deploy per repository policy.
+- Evidence: Live probing found the binding constraint is the pipeline, not source availability — one URL per source per run with no pagination, extraction capped at 15 items, against a benchmark threshold of ≥5 records and ≥2 sources per `category:finish:unit` group. Separately, four live defects let non-material evidence into material-price benchmark statistics, and two `EV-01` packet conclusions were wrong.
+- Change set:
+  - Additive migrations 0059/0060; every default leaves existing rows truthful (`pending`, `unknown`, null) per the ADR-0009 precedent.
+  - Deterministic non-LLM platform connector family (Shopify, WooCommerce, Magento) behind a terms gate, a per-page robots gate evaluated for the exact agent sent, and bounded page/item/timeout budgets that log what a truncated read left behind.
+  - `price-basis-policy-v1` parser that returns `unknown` rather than inferring what a listed price is per; `unknown` cannot key a published benchmark.
+  - Benchmark population fixed: `material_price` only, `platform_public` only, non-confidential only, shared price sanity bound, and a retail-only rejection rule.
+  - Registry repairs (`hafele-uae` deactivated; `rak-ceramics-uae` repointed to the shop subdomain; Dubai Pulse/DLD deactivated with the expired-certificate diagnosis) and eight new sources seeded inactive.
+- Done when: Every claim in the packet has live evidence; no source acquires anything before a recorded terms decision; the full gate battery passes.
+- Verification (2026-07-23): `tsc` clean; DB-free 1,646/22 across 123 files; guarded MySQL 9 files/46 with TR03H evidence regenerated and 0059/0060 applied to a disposable target; authorization 389/0; database safety 123/2/0; build and bundle budgets pass with `api/index.js` regenerated; `pnpm certify:workflow` PASS.
+- Expected artifacts: `docs/artifacts/EV-01b_PRICE_SOURCE_EXPANSION.md`, migrations 0059/0060, `connectors/platform/`, `price-sanity.ts`, lessons `LES-050`/`LES-051`.
+- Residual risk: `material_library` still has exactly one writer (a seed script) and `materials_catalog` still has no provenance columns, so ingested evidence cannot reach the authoritative cost table. Recorded, not fixed — it is `EV-03` scope. `ceilings` and `kitchen` remain uncovered by any verified public source.
+- Lessons: `LES-050`, `LES-051`
+
 ### EV-02 — Implement evidence and price schema safely
 
 - Status: `PLANNED`

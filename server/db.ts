@@ -2409,6 +2409,10 @@ export async function listEvidenceRecords(filters?: {
   evidencePhase?: string;
   confidentiality?: string;
   excludeConfidential?: boolean;
+  /** EV-01b: restrict to one evidence kind, e.g. only `material_price`. */
+  intelligenceType?: string;
+  /** EV-01b: restrict to one corpus, e.g. only `platform_public`. */
+  corpusScope?: string;
   limit?: number;
 }) {
   const db = await getDb();
@@ -2419,6 +2423,8 @@ export async function listEvidenceRecords(filters?: {
   if (filters?.reliabilityGrade) conditions.push(eq(evidenceRecords.reliabilityGrade, filters.reliabilityGrade as any));
   if (filters?.evidencePhase) conditions.push(eq(evidenceRecords.evidencePhase, filters.evidencePhase as any));
   if (filters?.confidentiality) conditions.push(eq(evidenceRecords.confidentiality, filters.confidentiality as any));
+  if (filters?.intelligenceType) conditions.push(eq(evidenceRecords.intelligenceType, filters.intelligenceType as any));
+  if (filters?.corpusScope) conditions.push(eq(evidenceRecords.corpusScope, filters.corpusScope as any));
   if (filters?.excludeConfidential) {
     conditions.push(sql`${evidenceRecords.confidentiality} NOT IN ('confidential', 'restricted')`);
   }
@@ -2563,13 +2569,28 @@ export async function upsertPublicEvidenceObservation(
     .digest("hex");
 
   return db.transaction(async (tx: any) => {
+    // EV-01b: when a connector supplies a stable per-source product identity,
+    // that is the identity — a storefront may rename a product or change its
+    // handle without it becoming a different product. Matching on
+    // (sourceUrl, itemName) alone would create a duplicate row and then
+    // collide with the (sourceRegistryId, platformProductKey) unique index.
+    const identityMatch =
+      data.platformProductKey && data.sourceRegistryId != null
+        ? and(
+          eq(evidenceRecords.sourceRegistryId, data.sourceRegistryId),
+          eq(evidenceRecords.platformProductKey, data.platformProductKey),
+        )
+        : and(
+          eq(evidenceRecords.sourceUrl, data.sourceUrl),
+          eq(evidenceRecords.itemName, data.itemName),
+        );
+
     const legacyMatches = await tx.select({
       id: evidenceRecords.id,
     })
       .from(evidenceRecords)
       .where(and(
-        eq(evidenceRecords.sourceUrl, data.sourceUrl),
-        eq(evidenceRecords.itemName, data.itemName),
+        identityMatch,
         isNull(evidenceRecords.orgId),
         isNull(evidenceRecords.projectId),
         eq(evidenceRecords.corpusScope, "platform_public")

@@ -18,7 +18,7 @@ import { runIngestion, runSingleConnector } from "./orchestrator";
 import { getDb, listSourceRegistry } from "../../db";
 import { sourceRegistry } from "../../../drizzle/schema";
 import { eq } from "drizzle-orm";
-import { DynamicConnector } from "./connectors/dynamic";
+import { DynamicConnector, createSourceConnector } from "./connectors/dynamic";
 import { getStaleSourceIds } from "./freshness";
 import { discoverNewSources, KNOWN_MISSING_SOURCES } from "./source-discovery";
 
@@ -106,7 +106,7 @@ export async function startIngestionScheduler(): Promise<void> {
           for (const source of sources) {
             idx++;
             console.log(`[Ingestion Scheduler] [${idx}/${sources.length}] Queuing source ${source.name}...`);
-            const connector = new DynamicConnector(source);
+            const connector = createSourceConnector(source);
 
             try {
               const report = await runIngestion([connector], "scheduled");
@@ -209,7 +209,7 @@ export async function startIngestionScheduler(): Promise<void> {
           if (!source) continue;
 
           try {
-            const connector = new DynamicConnector(source);
+            const connector = createSourceConnector(source);
             const report = await runSingleConnector(connector, "scheduled");
             console.log(
               `[Ingestion Scheduler] 🔄 Re-scraped ${source.name}: ` +

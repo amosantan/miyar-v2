@@ -73,3 +73,99 @@ describe("EV-00 registry consistency", () => {
     );
   });
 });
+
+/**
+ * EV-01b — repairs and additions from the 2026-07-23 source verification.
+ */
+describe("EV-01b registry state", () => {
+  function seed(slug: string) {
+    const row = UAE_SOURCES.find(source => source.slug === slug);
+    expect(row, `seed row ${slug} must exist`).toBeDefined();
+    return row!;
+  }
+
+  it("seeds no source as terms-approved", () => {
+    // Robots permission is a technical signal, not a commercial licence. Only
+    // a human may record acceptance, so a seed must never write "approved".
+    for (const source of UAE_SOURCES) {
+      expect(source.termsDecision ?? "pending").not.toBe("approved");
+    }
+  });
+
+  it("keeps every newly added source inactive until a terms decision exists", () => {
+    const added = [
+      "tile-king",
+      "the-hardware-stop",
+      "homesmiths-ae",
+      "danube-home-tiles",
+      "fepy-sanitary",
+      "ace-uae-paints",
+      "stonehaven-cost-index",
+      "turner-townsend-uae-mi",
+    ];
+    for (const slug of added) {
+      const row = seed(slug);
+      expect(row.isActive, `${slug} must be seeded inactive`).toBe(false);
+      expect(row.termsDecision).toBe("pending");
+      expect(row.notes).toContain("2026-07-23");
+    }
+  });
+
+  it("classes every consumer storefront as retail at reliability C", () => {
+    for (const slug of [
+      "tile-king",
+      "the-hardware-stop",
+      "homesmiths-ae",
+      "danube-home-tiles",
+      "fepy-sanitary",
+      "ace-uae-paints",
+      "rak-ceramics-uae",
+    ]) {
+      const row = seed(slug);
+      expect(row.priceClass, `${slug} price class`).toBe("retail_listed");
+      expect(row.reliabilityDefault, `${slug} grade`).toBe("C");
+    }
+  });
+
+  it("routes a platform source through json_api and a named platform together", () => {
+    for (const slug of ["tile-king", "the-hardware-stop", "homesmiths-ae", "rak-ceramics-uae"]) {
+      const row = seed(slug);
+      expect(row.scrapeMethod).toBe("json_api");
+      expect(row.platform).toBeDefined();
+      expect(["shopify", "woocommerce", "magento"]).toContain(row.platform);
+    }
+  });
+
+  it("repoints RAK Ceramics to the shop subdomain in both registries", () => {
+    const shopUrl = "https://onlineshop.rakceramics.com/ae_en/tiles.html";
+    expect(seed("rak-ceramics-uae").url).toBe(shopUrl);
+    expect(SOURCE_URLS["rak-ceramics-uae"]).toBe(shopUrl);
+  });
+
+  it("deactivates hafele rather than repairing a URL that 404s", () => {
+    expect(seed("hafele-uae").isActive).toBe(false);
+  });
+
+  it("records the Dubai Pulse outage as an expired certificate, not a migration", () => {
+    // The wrong diagnosis matters: repointing to `data.dubai` would target a
+    // host that does not resolve, and "relax TLS verification" would be the
+    // other tempting wrong fix.
+    for (const slug of ["dubai-pulse-materials", "dld-transactions"]) {
+      const row = seed(slug);
+      expect(row.isActive).toBe(false);
+      expect(row.notes).toMatch(/certificate/i);
+      expect(row.url).toContain("dubaipulse.gov.ae");
+    }
+
+    expect(seed("dubai-pulse-materials").notes).toMatch(/EXPIRED/i);
+    expect(seed("dubai-pulse-materials").notes).toMatch(/data\.dubai/);
+  });
+
+  it("classes the consultancy cost sources as benchmarks, not retail", () => {
+    for (const slug of ["stonehaven-cost-index", "turner-townsend-uae-mi"]) {
+      const row = seed(slug);
+      expect(row.priceClass).toBe("consultancy_benchmark");
+      expect(row.reliabilityDefault).toBe("B");
+    }
+  });
+});

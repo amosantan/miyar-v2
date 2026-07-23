@@ -33,6 +33,24 @@ interface SourceSeed {
     requestDelayMs: number;
     /** EV-00: dead or retired sources are deactivated, never deleted. */
     isActive?: boolean;
+    /**
+     * EV-01b: e-commerce platform. Set together with `scrapeMethod: "json_api"`
+     * to route a source through the deterministic (non-LLM) connector family.
+     */
+    platform?: "shopify" | "woocommerce" | "magento" | "none";
+    /**
+     * EV-01b: BR-06 source-terms decision. Seeds never write `approved` —
+     * robots permission is a technical signal, not a commercial licence, and
+     * only a human may record acceptance.
+     */
+    termsDecision?: "pending" | "approved" | "rejected";
+    /** EV-01b: what kind of price this source publishes. */
+    priceClass?:
+    | "retail_listed"
+    | "trade_quoted"
+    | "official_statistic"
+    | "consultancy_benchmark"
+    | "unknown";
 }
 
 export const UAE_SOURCES: SourceSeed[] = [
@@ -53,15 +71,22 @@ export const UAE_SOURCES: SourceSeed[] = [
     {
         name: "RAK Ceramics UAE",
         slug: "rak-ceramics-uae",
-        url: "https://www.rakceramics.com/ae/",
+        // EV-01b repair: the corporate site publishes no prices. The online
+        // shop on a different subdomain does — verified 2026-07-23, Magento
+        // `data-price-amount` attributes present on the tiles listing.
+        url: "https://onlineshop.rakceramics.com/ae_en/tiles.html",
         sourceType: "manufacturer_catalog",
-        reliabilityDefault: "B",
+        reliabilityDefault: "C",
         region: "UAE",
-        scrapeMethod: "html_llm",
+        scrapeMethod: "json_api",
+        platform: "magento",
+        termsDecision: "pending",
+        priceClass: "retail_listed",
         scrapeSchedule: "0 0 7 * * 1",
-        extractionHints: "Extract ceramic tile products, dimensions (e.g. 60x60, 80x80, 120x60), finishes (matt, glossy, polished), series names, and prices if available. RAK is a UAE manufacturer — high reliability for local pricing.",
-        notes: "UAE-based manufacturer. World's largest ceramics production facility in RAK.",
-        requestDelayMs: 2000,
+        extractionHints: "Deterministic Magento extraction: data-price-amount, data-product-sku, product-item-link. No LLM on the numeric path.",
+        notes: "UAE-based manufacturer. Repointed 2026-07-23 (EV-01b) from the corporate site (no prices) to the online shop. Consumer retail listing prices, not trade rates — reliability C, priceClass retail_listed. Inactive until a BR-06 terms decision is recorded.",
+        requestDelayMs: 3000,
+        isActive: false,
     },
     {
         name: "Porcelanosa UAE",
@@ -86,8 +111,9 @@ export const UAE_SOURCES: SourceSeed[] = [
         scrapeMethod: "html_llm",
         scrapeSchedule: "0 0 7 * * 3", // Wednesday 7 AM
         extractionHints: "Extract hardware products: handles, hinges, drawer systems, kitchen fittings, wardrobe accessories. Look for product codes, prices in AED, categories. Focus on kitchen and bathroom hardware for interior design benchmarks.",
-        notes: "German hardware manufacturer with UAE distribution. Key for joinery/hardware benchmarks.",
+        notes: "German hardware manufacturer with UAE distribution. Deactivated 2026-07-23 (EV-01b): the EV-00 URL repair to hafele.ae/en/ is itself a 404, and the base domain returns HTTP 403 to automated requests. Deactivation, not another repair.",
         requestDelayMs: 2000,
+        isActive: false,
     },
     {
         name: "GEMS Building Materials",
@@ -409,8 +435,10 @@ export const UAE_SOURCES: SourceSeed[] = [
         scrapeMethod: "html_llm",
         scrapeSchedule: "0 0 6 * * 1",
         extractionHints: "Extract average construction material prices in AED with material names, units, and periods from the open dataset.",
-        notes: "Official Dubai Pulse open dataset. Static connector: dubai-pulse-materials.",
+        priceClass: "official_statistic",
+        notes: "Official Dubai Pulse open dataset. Static connector: dubai-pulse-materials. EV-01b incident 2026-07-23: the domain is NOT retired — www.dubaipulse.gov.ae resolves (91.73.143.12) and serves TLS 1.2 with a DigiCert certificate for CN=dubaipulse.gov.ae, Government of Dubai, but the certificate has EXPIRED (openssl verify return code 10), which is why the robots gate reports ROBOTS_UNAVAILABLE. Do NOT repoint to data.dubai — neither data.dubai.gov.ae nor www.data.gov.ae resolves. Do NOT relax certificate verification. Deactivated pending the certificate being renewed; re-check quarterly.",
         requestDelayMs: 2000,
+        isActive: false,
     },
     {
         name: "SCAD Abu Dhabi Publications",
@@ -448,8 +476,10 @@ export const UAE_SOURCES: SourceSeed[] = [
         scrapeMethod: "html_llm",
         scrapeSchedule: "0 0 6 * * 1",
         extractionHints: "Extract Dubai Land Department transaction statistics with areas, values in AED, and periods from the open dataset.",
-        notes: "Official DLD open dataset. Static connector: dld-transactions.",
+        priceClass: "official_statistic",
+        notes: "Official DLD open dataset. Static connector: dld-transactions. EV-01b incident 2026-07-23: shares the expired dubaipulse.gov.ae TLS certificate documented on dubai-pulse-materials. Same disposition — deactivated pending certificate renewal, no domain repoint, no certificate-verification bypass.",
         requestDelayMs: 2000,
+        isActive: false,
     },
     {
         name: "Savills ME Research",
@@ -476,6 +506,148 @@ export const UAE_SOURCES: SourceSeed[] = [
         extractionHints: "Extract Dubai market report statistics, price indices, and transaction summaries with periods.",
         notes: "Market analytics reports. Static connector: property-monitor-dubai.",
         requestDelayMs: 2000,
+    },
+
+    // ── EV-01b: verified AED price sources ────────────────────────
+    // Every row below was probed live on 2026-07-23 through MIYAR's own robots
+    // gate and confirmed to publish real AED prices in server-side responses.
+    // All are seeded INACTIVE with termsDecision "pending": a robots allow is a
+    // technical signal, not a commercial licence, and BR-06 requires a recorded
+    // human terms decision before any of them acquires anything.
+    //
+    // The retail rows are reliability C and priceClass "retail_listed" — these
+    // are consumer shelf prices, not trade rates. The proposal generator will
+    // not publish a benchmark keyed only on them.
+    {
+        name: "Tile King",
+        slug: "tile-king",
+        url: "https://www.tileking.ae/collections/floor-tiles",
+        sourceType: "retailer_listing",
+        reliabilityDefault: "C",
+        region: "UAE",
+        scrapeMethod: "json_api",
+        platform: "shopify",
+        termsDecision: "pending",
+        priceClass: "retail_listed",
+        scrapeSchedule: "0 0 7 * * 2",
+        extractionHints: "Shopify products.json. Deterministic: variants[].price, variants[].sku, product_type, updated_at. No LLM.",
+        notes: "Verified 2026-07-23: robots Allow: /; products.json returns priced variants with sku, product_type, published_at, updated_at. Open question before any of its data influences a benchmark — whether the listed price is per piece, per box, or per sqm. The deterministic basis parser returns `unknown` for titles that carry only dimensions, which is the honest answer and blocks benchmark keying until resolved.",
+        requestDelayMs: 3000,
+        isActive: false,
+    },
+    {
+        name: "The Hardware Stop",
+        slug: "the-hardware-stop",
+        url: "https://thehardwarestop.com/",
+        sourceType: "retailer_listing",
+        reliabilityDefault: "C",
+        region: "UAE",
+        scrapeMethod: "json_api",
+        platform: "woocommerce",
+        termsDecision: "pending",
+        priceClass: "retail_listed",
+        scrapeSchedule: "0 0 7 * * 2",
+        extractionHints: "WooCommerce Store API. Deterministic: prices.price decoded with prices.currency_minor_unit, categories[], sku. Currency asserted AED. No LLM.",
+        notes: "Verified 2026-07-23: /wp-json/wc/store/v1/products returns HTTP 200 JSON with x-wp-total 5234, AED prices in minor units with an explicit currency_minor_unit, and a 100+ category taxonomy (Paints 3546, Home Hardware 417, Fasteners/Fixings 358, Electrical & Lighting 168, Building & Construction Supplies 160, Plumbing & Sanitary 63, Sheets & Boards 41). robots.txt disallows only /wp-admin/, /cart/, /checkout/ for a generic agent; named blocks are AhrefsBot, SemrushBot, Bingbot, Baiduspider, PetalBot. Largest verified structured AED catalogue found, and the only one reaching hardware, fixings and boards.",
+        requestDelayMs: 2000,
+        isActive: false,
+    },
+    {
+        name: "Homesmiths",
+        slug: "homesmiths-ae",
+        url: "https://www.homesmiths.ae/collections/all",
+        sourceType: "retailer_listing",
+        reliabilityDefault: "C",
+        region: "UAE",
+        scrapeMethod: "json_api",
+        platform: "shopify",
+        termsDecision: "pending",
+        priceClass: "retail_listed",
+        scrapeSchedule: "0 0 8 * * 2",
+        extractionHints: "Shopify products.json. Deterministic: variants[].price, updated_at. Weak category signal — product_type is empty on this store, so most items map to the ffe/other buckets.",
+        notes: "Verified 2026-07-23: products.json returns application/json with AED prices and updated_at. Homeware and FF&E rather than construction materials; lower value than the other two Shopify/Woo sources but genuine, dated AED observations.",
+        requestDelayMs: 3000,
+        isActive: false,
+    },
+    {
+        name: "Danube Home",
+        slug: "danube-home-tiles",
+        url: "https://www.danubehome.com/ae/en/c/tiles-and-bricks",
+        sourceType: "retailer_listing",
+        reliabilityDefault: "C",
+        region: "UAE",
+        scrapeMethod: "html_llm",
+        termsDecision: "pending",
+        priceClass: "retail_listed",
+        scrapeSchedule: "0 0 8 * * 2",
+        extractionHints: "Server-rendered category listing. Extract product names, AED prices, and units. Broadest category span of the verified sources: floors, walls, sanitary, FF&E.",
+        notes: "Verified 2026-07-23: category page ALLOWED by the robots gate, 84 real AED prices across 12 units, server-rendered (no JS rendering proxy needed). Distinct from the legacy `danube-home` row, which points at the site root where no prices are listed. No structured endpoint was found, so this stays on the LLM path until one is.",
+        requestDelayMs: 3000,
+        isActive: false,
+    },
+    {
+        name: "Fepy",
+        slug: "fepy-sanitary",
+        url: "https://www.fepy.com/sanitary-ware-supplies",
+        sourceType: "retailer_listing",
+        reliabilityDefault: "C",
+        region: "UAE",
+        scrapeMethod: "html_llm",
+        termsDecision: "pending",
+        priceClass: "retail_listed",
+        scrapeSchedule: "0 0 8 * * 3",
+        extractionHints: "React server-side rendered listing; no JS execution required. Extract sanitaryware product names, AED prices, and units.",
+        notes: "Verified 2026-07-23: ALLOWED by the robots gate, 41 real AED prices over roughly 567 catalogue items. Closes the sanitary category. Its WooCommerce Store API path returns 403, so this stays on the LLM path.",
+        requestDelayMs: 3000,
+        isActive: false,
+    },
+    {
+        name: "ACE UAE",
+        slug: "ace-uae-paints",
+        url: "https://www.aceuae.com/en/category/paints-supplies/paints",
+        sourceType: "retailer_listing",
+        reliabilityDefault: "C",
+        region: "UAE",
+        scrapeMethod: "html_llm",
+        termsDecision: "pending",
+        priceClass: "retail_listed",
+        scrapeSchedule: "0 0 8 * * 3",
+        extractionHints: "Extract paint and hardware product names, AED prices, and pack volumes. Volume in the title (e.g. 3.6L) resolves the per-litre basis deterministically.",
+        notes: "Verified 2026-07-23: robots grants explicit Allow for /en/category/ and /en/products/; 20 real AED prices across 4 units on the paints category. Contributes walls (paint) and hardware. Distinct from the legacy `ace-hardware-uae` root row.",
+        requestDelayMs: 3000,
+        isActive: false,
+    },
+    {
+        name: "Stonehaven Cost Index",
+        slug: "stonehaven-cost-index",
+        url: "https://www.stonehaven.ae/cost-index",
+        sourceType: "industry_report",
+        reliabilityDefault: "B",
+        region: "UAE",
+        scrapeMethod: "html_llm",
+        termsDecision: "pending",
+        priceClass: "consultancy_benchmark",
+        scrapeSchedule: "0 0 6 * * 1",
+        extractionHints: "Extract weekly GCC construction cost index material prices in AED with units and the issue date. Also links the free UAE Construction Cost Benchmarking Report PDF.",
+        notes: "Verified 2026-07-23: robots Allow: /; /cost-index returns HTTP 200; the free UAE_Benchmark_Report_2025.pdf returns HTTP 200 at 1,680,582 bytes. RICS-regulated cost management. This refutes the EV-01 packet's 'no free fit-out cost benchmark proved extractable' negative result — one exists and is reachable.",
+        requestDelayMs: 3000,
+        isActive: false,
+    },
+    {
+        name: "Turner & Townsend UAE Market Intelligence",
+        slug: "turner-townsend-uae-mi",
+        url: "https://marketintelligence.turnerandtownsend.com/uaemi-2025/construction-cost-performance",
+        sourceType: "industry_report",
+        reliabilityDefault: "B",
+        region: "UAE",
+        scrapeMethod: "html_llm",
+        termsDecision: "pending",
+        priceClass: "consultancy_benchmark",
+        scrapeSchedule: "0 0 6 * * 1",
+        extractionHints: "Extract construction cost rates in AED per square metre by asset type, split by Dubai and Abu Dhabi, with the publication year.",
+        notes: "Verified 2026-07-23: free HTML publishing AED/m2 by asset type for Dubai and Abu Dhabi (5-star hotel 10,500; high-rise residential 5,500; A-grade CBD office 6,200). Scope caveat that must survive into any use: these are total construction costs whose fit-out and MEP inclusions are not stated, so they are not a fit-out rate without a stated basis.",
+        requestDelayMs: 3000,
+        isActive: false,
     },
 ];
 
@@ -529,9 +701,19 @@ export async function seedUAESources(): Promise<{ created: number; updated: numb
                 scrapeSchedule: source.scrapeSchedule,
                 extractionHints: source.extractionHints,
                 requestDelayMs: source.requestDelayMs,
+                // EV-01b: acquisition configuration — safe to reconcile on every
+                // run because it describes how a source is read, not whether it
+                // may be read.
+                platform: source.platform ?? null,
+                priceClass: source.priceClass ?? "unknown",
             };
 
             if (targetId !== undefined) {
+                // EV-01b: `termsDecision` is deliberately NOT in the update set.
+                // It records a human's BR-06 decision, and a seeder re-run must
+                // never revert an approval back to "pending" — that would either
+                // silently disable a permitted source or, worse on a future edit,
+                // silently re-enable one.
                 await db.update(sourceRegistry)
                     .set(seedValues)
                     .where(eq(sourceRegistry.id, targetId));
@@ -540,6 +722,8 @@ export async function seedUAESources(): Promise<{ created: number; updated: numb
             } else {
                 await db.insert(sourceRegistry).values({
                     ...seedValues,
+                    // On first insert only. Seeds never write "approved".
+                    termsDecision: source.termsDecision ?? "pending",
                     lastScrapedStatus: "never",
                     lastRecordCount: 0,
                     consecutiveFailures: 0,

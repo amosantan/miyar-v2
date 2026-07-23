@@ -22,7 +22,7 @@ import { getDb, getConnectorHealthByRun, getConnectorHealthHistory, getConnector
 import { ingestionRuns, connectorHealth, sourceRegistry, designTrends } from "../../drizzle/schema";
 import { desc, eq, sql } from "drizzle-orm";
 import { getSchedulerStatus } from "../engines/ingestion/scheduler";
-import { DynamicConnector } from "../engines/ingestion/connectors/dynamic";
+import { DynamicConnector, createSourceConnector } from "../engines/ingestion/connectors/dynamic";
 import { seedUAESources } from "../engines/ingestion/seeds/uae-sources";
 import { assertDatabaseAccess } from "../_core/database-safety";
 
@@ -353,7 +353,7 @@ export const ingestionRouter = router({
       if (!db) throw new Error("DB not available");
       const [source] = await db.select().from(sourceRegistry).where(eq(sourceRegistry.id, input.id)).limit(1);
       if (!source) throw new Error("Source not found");
-      const connector = new DynamicConnector(source);
+      const connector = createSourceConnector(source);
       const report = await runIngestion([connector], "manual", ctx.user.id);
       // Update lastScrapedAt + status
       await db.update(sourceRegistry).set({
