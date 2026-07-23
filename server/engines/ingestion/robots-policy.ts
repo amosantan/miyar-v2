@@ -65,10 +65,17 @@ export interface RobotsPolicyDeps {
   cache?: RobotsPolicyCache;
   cacheTtlMs?: number;
   robotsFetchTimeoutMs?: number;
+  /** Total attempts for a transiently unavailable robots.txt (default 2). */
+  maxAttempts?: number;
+  /** Delay between attempts; injectable so tests stay fast and deterministic. */
+  retryDelayMs?: number;
+  sleepImpl?: (ms: number) => Promise<void>;
 }
 
 const DEFAULT_CACHE_TTL_MS = 15 * 60_000;
 const DEFAULT_ROBOTS_FETCH_TIMEOUT_MS = 10_000;
+const DEFAULT_MAX_ATTEMPTS = 2;
+const DEFAULT_RETRY_DELAY_MS = 500;
 
 const defaultCache: RobotsPolicyCache = new Map();
 
@@ -77,21 +84,17 @@ export function resetDefaultRobotsPolicyCache(): void {
   defaultCache.clear();
 }
 
-async function loadRulesetForOrigin(
-  origin: string,
+async function attemptRobotsFetch(
+  robotsUrl: string,
   userAgent: string,
   deps: RobotsPolicyDeps,
-  loadedAt: number,
-): Promise<RobotsCacheEntry> {
+): Promise<{ ruleset: RobotsRuleset | null; detail: string }> {
   const fetchImpl = deps.fetchImpl ?? globalThis.fetch.bind(globalThis);
   const timeoutMs = deps.robotsFetchTimeoutMs ?? DEFAULT_ROBOTS_FETCH_TIMEOUT_MS;
-  const ttlMs = deps.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
-  const expiresAt = loadedAt + ttlMs;
-  const robotsUrl = `${origin}/robots.txt`;
 
   try {
     const res = await fetchImpl(robotsUrl, {
-      headers: { "User-Agent": userAgent, Accept: "text/plain" },
+      headers: { "User-Agent": userAgent, Accept: "text/plain,*/*" },
       signal: AbortSignal.timeout(timeoutMs),
     });
 
@@ -99,7 +102,6 @@ async function loadRulesetForOrigin(
       return {
         ruleset: null,
         detail: `robots.txt returned HTTP ${res.status}; robots state unknown`,
-        expiresAt,
       };
     }
     if (!res.ok) {
@@ -108,33 +110,47 @@ async function loadRulesetForOrigin(
       return {
         ruleset: robotsParser(robotsUrl, ""),
         detail: `robots.txt HTTP ${res.status} treated as allow-all per RFC 9309`,
-        expiresAt,
       };
     }
 
-    const contentType = res.headers.get("content-type");
-    if (contentType && !contentType.toLowerCase().includes("text/plain")) {
-      return {
-        ruleset: null,
-        detail: `robots.txt served unexpected content type "${contentType}"`,
-        expiresAt,
-      };
-    }
-
+    // A 200 body is parsed whatever its declared content type. RFC 9309 does
+    // not require rejecting a mislabelled robots.txt, and several official
+    // UAE/institutional hosts serve theirs as text/html; refusing those
+    // blocked exactly the Tier-A sources this platform most needs. A body
+    // carrying no valid directives parses to an empty, allow-all ruleset,
+    // which is the same outcome RFC 9309 prescribes for "unavailable".
     const text = await res.text();
-    return {
-      ruleset: robotsParser(robotsUrl, text),
-      detail: "robots.txt loaded",
-      expiresAt,
-    };
+    return { ruleset: robotsParser(robotsUrl, text), detail: "robots.txt loaded" };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return {
-      ruleset: null,
-      detail: `robots.txt fetch failed: ${message}`,
-      expiresAt,
-    };
+    return { ruleset: null, detail: `robots.txt fetch failed: ${message}` };
   }
+}
+
+async function loadRulesetForOrigin(
+  origin: string,
+  userAgent: string,
+  deps: RobotsPolicyDeps,
+  loadedAt: number,
+): Promise<RobotsCacheEntry> {
+  const ttlMs = deps.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
+  const expiresAt = loadedAt + ttlMs;
+  const robotsUrl = `${origin}/robots.txt`;
+  const maxAttempts = Math.max(1, deps.maxAttempts ?? DEFAULT_MAX_ATTEMPTS);
+  const retryDelayMs = deps.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
+  const sleep = deps.sleepImpl ?? ((ms: number) => new Promise<void>(r => setTimeout(r, ms)));
+
+  let last = { ruleset: null as RobotsRuleset | null, detail: "robots.txt was never attempted" };
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    last = await attemptRobotsFetch(robotsUrl, userAgent, deps);
+    // Only a transient unavailable state is retried; an established verdict
+    // (parsed rules, or an RFC 9309 allow-all) is returned immediately so a
+    // deny is never converted into an allow by trying again.
+    if (last.ruleset !== null) break;
+    if (attempt < maxAttempts && retryDelayMs > 0) await sleep(retryDelayMs);
+  }
+
+  return { ruleset: last.ruleset, detail: last.detail, expiresAt };
 }
 
 /**

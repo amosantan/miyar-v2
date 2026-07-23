@@ -12864,53 +12864,47 @@ var init_board_pdf = __esm({
 
 // server/engines/ingestion/robots-policy.ts
 import robotsParser from "robots-parser";
-async function loadRulesetForOrigin(origin, userAgent, deps, loadedAt) {
+async function attemptRobotsFetch(robotsUrl, userAgent, deps) {
   const fetchImpl = deps.fetchImpl ?? globalThis.fetch.bind(globalThis);
   const timeoutMs = deps.robotsFetchTimeoutMs ?? DEFAULT_ROBOTS_FETCH_TIMEOUT_MS;
-  const ttlMs = deps.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
-  const expiresAt = loadedAt + ttlMs;
-  const robotsUrl = `${origin}/robots.txt`;
   try {
     const res = await fetchImpl(robotsUrl, {
-      headers: { "User-Agent": userAgent, Accept: "text/plain" },
+      headers: { "User-Agent": userAgent, Accept: "text/plain,*/*" },
       signal: AbortSignal.timeout(timeoutMs)
     });
     if (res.status === 429 || res.status >= 500) {
       return {
         ruleset: null,
-        detail: `robots.txt returned HTTP ${res.status}; robots state unknown`,
-        expiresAt
+        detail: `robots.txt returned HTTP ${res.status}; robots state unknown`
       };
     }
     if (!res.ok) {
       return {
         ruleset: robotsParser(robotsUrl, ""),
-        detail: `robots.txt HTTP ${res.status} treated as allow-all per RFC 9309`,
-        expiresAt
-      };
-    }
-    const contentType = res.headers.get("content-type");
-    if (contentType && !contentType.toLowerCase().includes("text/plain")) {
-      return {
-        ruleset: null,
-        detail: `robots.txt served unexpected content type "${contentType}"`,
-        expiresAt
+        detail: `robots.txt HTTP ${res.status} treated as allow-all per RFC 9309`
       };
     }
     const text5 = await res.text();
-    return {
-      ruleset: robotsParser(robotsUrl, text5),
-      detail: "robots.txt loaded",
-      expiresAt
-    };
+    return { ruleset: robotsParser(robotsUrl, text5), detail: "robots.txt loaded" };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return {
-      ruleset: null,
-      detail: `robots.txt fetch failed: ${message}`,
-      expiresAt
-    };
+    return { ruleset: null, detail: `robots.txt fetch failed: ${message}` };
   }
+}
+async function loadRulesetForOrigin(origin, userAgent, deps, loadedAt) {
+  const ttlMs = deps.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
+  const expiresAt = loadedAt + ttlMs;
+  const robotsUrl = `${origin}/robots.txt`;
+  const maxAttempts = Math.max(1, deps.maxAttempts ?? DEFAULT_MAX_ATTEMPTS);
+  const retryDelayMs = deps.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
+  const sleep = deps.sleepImpl ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+  let last = { ruleset: null, detail: "robots.txt was never attempted" };
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    last = await attemptRobotsFetch(robotsUrl, userAgent, deps);
+    if (last.ruleset !== null) break;
+    if (attempt < maxAttempts && retryDelayMs > 0) await sleep(retryDelayMs);
+  }
+  return { ruleset: last.ruleset, detail: last.detail, expiresAt };
 }
 async function evaluateRobotsPolicy(targetUrl, userAgent, deps = {}) {
   let origin;
@@ -12961,7 +12955,7 @@ async function assertUrlAllowedByRobots(targetUrl, userAgent, deps = {}) {
     throw new RobotsPolicyError(verdict.code, targetUrl, verdict.detail);
   }
 }
-var INGESTION_ROBOTS_POLICY_VERSION, RobotsPolicyError, DEFAULT_CACHE_TTL_MS, DEFAULT_ROBOTS_FETCH_TIMEOUT_MS, defaultCache;
+var INGESTION_ROBOTS_POLICY_VERSION, RobotsPolicyError, DEFAULT_CACHE_TTL_MS, DEFAULT_ROBOTS_FETCH_TIMEOUT_MS, DEFAULT_MAX_ATTEMPTS, DEFAULT_RETRY_DELAY_MS, defaultCache;
 var init_robots_policy = __esm({
   "server/engines/ingestion/robots-policy.ts"() {
     "use strict";
@@ -12977,6 +12971,8 @@ var init_robots_policy = __esm({
     };
     DEFAULT_CACHE_TTL_MS = 15 * 6e4;
     DEFAULT_ROBOTS_FETCH_TIMEOUT_MS = 1e4;
+    DEFAULT_MAX_ATTEMPTS = 2;
+    DEFAULT_RETRY_DELAY_MS = 500;
     defaultCache = /* @__PURE__ */ new Map();
   }
 });
@@ -15331,7 +15327,9 @@ async function runWithConcurrencyLimit(tasks, limit) {
   return results;
 }
 function mapCategory(category) {
-  return CATEGORY_MAP[category] || "other";
+  if (CATEGORY_MAP[category]) return CATEGORY_MAP[category];
+  const normalized = category.toLowerCase().replace(/[\s_-]+/g, "");
+  return CATEGORY_MAP[normalized] || CATEGORY_SYNONYMS[normalized] || "other";
 }
 function generateRecordId() {
   recordCounter++;
@@ -15960,7 +15958,7 @@ async function testScrape(connector) {
     durationMs: (/* @__PURE__ */ new Date()).getTime() - startedAt.getTime()
   };
 }
-var CONFIDENCE_MERGE_POLICY_VERSION, MAX_CONCURRENT, CATEGORY_MAP, recordCounter;
+var CONFIDENCE_MERGE_POLICY_VERSION, MAX_CONCURRENT, CATEGORY_MAP, CATEGORY_SYNONYMS, recordCounter;
 var init_orchestrator = __esm({
   "server/engines/ingestion/orchestrator.ts"() {
     "use strict";
@@ -15997,6 +15995,81 @@ var init_orchestrator = __esm({
       hardware: "hardware",
       ffe: "ffe",
       other: "other"
+    };
+    CATEGORY_SYNONYMS = {
+      floor: "floors",
+      flooring: "floors",
+      tile: "floors",
+      tiles: "floors",
+      ceramic: "floors",
+      ceramics: "floors",
+      porcelain: "floors",
+      marble: "floors",
+      granite: "floors",
+      stone: "floors",
+      slab: "floors",
+      slabs: "floors",
+      parquet: "floors",
+      vinyl: "floors",
+      laminate: "floors",
+      carpet: "floors",
+      wall: "walls",
+      paint: "walls",
+      paints: "walls",
+      wallpaper: "walls",
+      cladding: "walls",
+      plaster: "walls",
+      partition: "walls",
+      partitions: "walls",
+      ceiling: "ceilings",
+      gypsum: "ceilings",
+      falseceiling: "ceilings",
+      carpentry: "joinery",
+      cabinetry: "joinery",
+      millwork: "joinery",
+      door: "joinery",
+      doors: "joinery",
+      wardrobe: "joinery",
+      wardrobes: "joinery",
+      light: "lighting",
+      lights: "lighting",
+      luminaire: "lighting",
+      lamps: "lighting",
+      sanitaryware: "sanitary",
+      bathroom: "sanitary",
+      bath: "sanitary",
+      plumbing: "sanitary",
+      tap: "sanitary",
+      taps: "sanitary",
+      faucet: "sanitary",
+      faucets: "sanitary",
+      basin: "sanitary",
+      shower: "sanitary",
+      wc: "sanitary",
+      kitchens: "kitchen",
+      appliance: "kitchen",
+      appliances: "kitchen",
+      countertop: "kitchen",
+      countertops: "kitchen",
+      worktop: "kitchen",
+      ironmongery: "hardware",
+      handle: "hardware",
+      handles: "hardware",
+      hinge: "hardware",
+      hinges: "hardware",
+      lock: "hardware",
+      locks: "hardware",
+      furniture: "ffe",
+      furnishing: "ffe",
+      furnishings: "ffe",
+      fixture: "ffe",
+      fixtures: "ffe",
+      decor: "ffe",
+      rug: "ffe",
+      rugs: "ffe",
+      curtain: "ffe",
+      curtains: "ffe",
+      fabric: "ffe"
     };
     recordCounter = 0;
   }
@@ -16275,7 +16348,11 @@ async function extractViaLLM(sourceName, category, geography, html, lastFetch) {
       publishedDate: item.publishedDate || null,
       metric: String(item.metric || item.title || "").substring(0, 255),
       value: typeof item.value === "number" && isFinite(item.value) ? item.value : null,
-      unit: typeof item.unit === "string" ? item.unit : null
+      unit: typeof item.unit === "string" ? item.unit : null,
+      // ADR-0009 (audit F11): the per-item category must survive this
+      // mapping. It was previously dropped here, so every static-connector
+      // record fell back to the connector-level bucket.
+      category: typeof item.category === "string" && item.category.trim() ? item.category.trim() : null
     }));
   } catch (err) {
     console.error(`[LLM Extraction] Failed for ${sourceName}:`, err instanceof Error ? err.message : String(err));
