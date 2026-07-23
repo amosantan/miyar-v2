@@ -171,6 +171,12 @@ async function extractViaLLM(
         metric: String(item.metric || item.title || "").substring(0, 255),
         value: typeof item.value === "number" && isFinite(item.value) ? item.value : null,
         unit: typeof item.unit === "string" ? item.unit : null,
+        // ADR-0009 (audit F11): the per-item category must survive this
+        // mapping. It was previously dropped here, so every static-connector
+        // record fell back to the connector-level bucket.
+        category: typeof item.category === "string" && item.category.trim()
+          ? item.category.trim()
+          : null,
       }));
   } catch (err) {
     console.error(`[LLM Extraction] Failed for ${sourceName}:`, err instanceof Error ? err.message : String(err));
