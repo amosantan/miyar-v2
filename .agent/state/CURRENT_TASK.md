@@ -52,11 +52,6 @@ Fix all thirteen findings of the 2026-07-23 source-to-output cost-path audit plu
 
 ## Next Action
 
-1. Run the source-registry seeder against production so `source_registry.slug` is populated — the last step that makes the F4/F5 freshness and evidence-linkage fix effective. The seeder is the tested path and was proven lossless against current production data (24 matched rows update in place, 22 byte-identical and the other two differing only by the intended dead-domain deactivation notes; 9 new rows insert):
-
-   `DATABASE_URL="<production url>" MIYAR_DATABASE_APPROVAL="seed@<host>:3306/<database>" pnpm exec tsx server/engines/ingestion/seeds/uae-sources.ts`
-
-   Then verify `SELECT COUNT(*), COUNT(slug) FROM source_registry;` reports 99 rows with 33 slugs, and that `gems-building-materials` and `pan-marble-dubai` are inactive.
-2. Do **not** run the material-library seeder: all 35 seed rows already match production byte-for-byte and migration 0056's defaults already applied the provenance labels to all 285 rows.
-3. After the next ingestion window, re-review the resulting `benchmark-key-v2` proposals so they supersede the 1,935 `legacy-v0` rows and live pricing activates for the higher project tiers.
-4. Obtain cost-consultant sign-off for the proposed `libraryTiersForMkt01Tier` v2 mapping (v1 ships behavior-preserving) and for AED values covering the five empty seed categories.
+1. After the next ingestion window, re-review the resulting `benchmark-key-v2` proposals so they supersede the 1,935 `legacy-v0` rows and live pricing activates for Upper-mid, Luxury, and Ultra-luxury projects.
+2. Obtain cost-consultant sign-off for the proposed `libraryTiersForMkt01Tier` v2 mapping (v1 ships behavior-preserving) and for AED values covering the five empty seed categories (`ceiling`, `joinery`, `fittings`, `lighting`, `specialty`), which currently surface as unpriced allocations.
+3. Optional hygiene: production retains 13 legacy duplicate-URL registry rows without slugs, left untouched by this release; decide whether to retire them.
