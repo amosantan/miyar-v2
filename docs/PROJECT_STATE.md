@@ -4,9 +4,9 @@ This is the canonical location for current observed repository facts. It is not 
 
 ## Observation Metadata
 
-- Observed: 2026-07-21
-- Production source commit: `b68c341392f69474fdc9ab872bb648e520dd5f30` on canonical `main`, merging BR-04 PR #27.
-- Branch identity: canonical `origin/main` is `b68c341392f69474fdc9ab872bb648e520dd5f30`, including BR-04.
+- Observed: 2026-07-21; production source commit and branch identity re-observed 2026-07-23 after the KF-019 release.
+- Production source commit: `81082684333d6844bdcd3e447abc79197089547e` on canonical `main`, merging KF-019 PR #40 (`4a7bea7`). This release changed tests, the certification harness, and documentation only, so runtime application behavior matches the prior release lineage. Observed via GitHub production deployment `5568677902` in `success` state for the exact merge SHA.
+- Branch identity: canonical `origin/main` is `81082684333d6844bdcd3e447abc79197089547e`, including the KF-019 TR-13 recertification.
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
 - Production: Vercel target `dpl_BTcfrGZ6px4iHvJfiETrK8zP8s5F` is `READY` for exact source commit `b68c341`; BR-04 is compiled into the production workspace and narrowly enabled for organization 1 and consumer `project_workspace`. Root/login, three health observations, unauthenticated brief rejection, and concealed-share privacy headers pass.
@@ -73,6 +73,7 @@ Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 - Observed: 2026-07-23 in worktree `claude/suspicious-jepsen-1cb0fd` on canonical base `8cd7e0a`.
 - On untouched `8cd7e0a`, `pnpm certify:workflow` failed at `serial-node-browser-journey`: the TR-13 browser journey still exercised the pre-DI-01 legacy space-programme/MQI flow, which fresh canonical-authority projects refuse by design, so the earlier `PASS` row above does not hold for post-DI-01 canonical commits.
 - After the KF-019 remediation (sanitized persisted journey log, surfaced tRPC error envelopes, and a journey re-pointed at the approved canonical-first contract), two consecutive `pnpm certify:workflow` runs terminate `PASS` with strict cleanup and matching provenance; `pnpm check` and `pnpm check:mysql-evidence` pass in the same worktree. Details: `KF-019` and `LES-047`.
+- Released 2026-07-23: PR #40 passed `lint-and-test`, `mysql-authorization`, and the Vercel preview build, and merged `4a7bea7` as `8108268`. GitHub production deployment `5568677902` reached `success` for the exact merge SHA. Production smoke passed: home and login return 200, unauthenticated `auth.me` returns the null-user envelope, and an invalid share resolves 404 with `private, no-store` and `noindex, nofollow, noarchive` headers.
 
 ## Documentation State
 
