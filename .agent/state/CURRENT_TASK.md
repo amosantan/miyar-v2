@@ -3,7 +3,7 @@
 - ID: EV-00
 - Roadmap step: `EV-00`
 - Title: Cost-path truthfulness remediation (audit F1–F13 + KF-013)
-- Status: NEEDS_HUMAN (implementation complete and verified locally; merge, shared migrations, and named sign-offs remain)
+- Status: NEEDS_HUMAN (merged, deployed, schema released; source-registry slug seeding and the named sign-offs remain)
 - Owner: Claude Code
 - Started: 2026-07-23
 - Worktree: `/Users/amrosaleh/Maiyar/miyar-v2/.claude/worktrees/cost-path-audit-material-library-2bb482`
@@ -52,4 +52,6 @@ Fix all thirteen findings of the 2026-07-23 source-to-output cost-path audit plu
 
 ## Next Action
 
-Human gates: review/merge PR #39 (main is merged in and the full battery including `certify:workflow` passes on `bb200bb`); separately authorize shared/production application of migrations 0056–0058 and the production seeder runs (material library provenance, source_registry slugs); obtain cost-consultant sign-off for the proposed `libraryTiersForMkt01Tier` v2 mapping (v1 ships behavior-preserving).
+1. After the next ingestion window, re-review the resulting `benchmark-key-v2` proposals so they supersede the 1,935 `legacy-v0` rows and live pricing activates for Upper-mid, Luxury, and Ultra-luxury projects.
+2. Obtain cost-consultant sign-off for the proposed `libraryTiersForMkt01Tier` v2 mapping (v1 ships behavior-preserving) and for AED values covering the five empty seed categories (`ceiling`, `joinery`, `fittings`, `lighting`, `specialty`), which currently surface as unpriced allocations.
+3. Optional hygiene: production retains 13 legacy duplicate-URL registry rows without slugs, left untouched by this release; decide whether to retire them.
