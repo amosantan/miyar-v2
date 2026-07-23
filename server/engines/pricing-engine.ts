@@ -8,6 +8,7 @@
  */
 
 import * as db from "../db";
+import { catalogTierToFinish } from "./tier-policy";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -45,14 +46,8 @@ const MATERIAL_TO_EVIDENCE_CATEGORY: Record<string, string> = {
     other: "other",
 };
 
-// Maps material catalog tiers → evidence record finish levels
-const TIER_TO_FINISH: Record<string, string> = {
-    economy: "basic",
-    mid: "standard",
-    premium: "premium",
-    luxury: "luxury",
-    ultra_luxury: "ultra_luxury",
-};
+// ADR-0009: catalog-tier → finish-level mapping is owned by the versioned
+// tier policy (material-tier-policy-v1, values unchanged).
 
 // ─── Core Functions ─────────────────────────────────────────────────────────
 
@@ -72,24 +67,38 @@ export async function getLiveCategoryPricing(
 
     const pricingDict: Record<string, CategoryPricing> = {};
 
+    // ADR-0009: when several approved proposals share a category at the target
+    // finish (different units), select deterministically — prefer sqm, then
+    // sqft, then the lexicographically smallest unit — instead of letting the
+    // iteration order's last write win.
+    const unitPreference = (unit: string): number =>
+        unit === "sqm" ? 0 : unit === "sqft" ? 1 : 2;
+
     for (const proposal of allApproved) {
         // benchmarkKey format: "category:finishLevel:unit"
         const parts = proposal.benchmarkKey.split(":");
         if (parts.length < 3) continue;
 
         const [cat, finish, unit] = parts;
+        if (finish !== normalizedFinish) continue;
 
-        if (finish === normalizedFinish) {
-            pricingDict[cat] = {
-                category: cat,
-                finishLevel: finish,
-                unit,
-                p25: Number(proposal.proposedP25) || 0,
-                p50: Number(proposal.proposedP50) || 0,
-                p75: Number(proposal.proposedP75) || 0,
-                weightedMean: Number(proposal.weightedMean) || 0,
-            };
+        const existing = pricingDict[cat];
+        if (existing) {
+            const keepExisting =
+                unitPreference(existing.unit) < unitPreference(unit) ||
+                (unitPreference(existing.unit) === unitPreference(unit) &&
+                    existing.unit <= unit);
+            if (keepExisting) continue;
         }
+        pricingDict[cat] = {
+            category: cat,
+            finishLevel: finish,
+            unit,
+            p25: Number(proposal.proposedP25) || 0,
+            p50: Number(proposal.proposedP50) || 0,
+            p75: Number(proposal.proposedP75) || 0,
+            weightedMean: Number(proposal.weightedMean) || 0,
+        };
     }
 
     return pricingDict;
@@ -115,7 +124,7 @@ export async function syncMaterialsWithBenchmarks(): Promise<SyncResult> {
 
     for (const material of materials) {
         const evidenceCat = MATERIAL_TO_EVIDENCE_CATEGORY[material.category] || "other";
-        const targetFinishLevel = TIER_TO_FINISH[material.tier] || "standard";
+        const targetFinishLevel = catalogTierToFinish(material.tier);
         const searchPrefix = `${evidenceCat}:${targetFinishLevel}:`;
 
         // Find the matching approved benchmark proposal

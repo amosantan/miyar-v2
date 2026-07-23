@@ -1144,7 +1144,10 @@ export const projectRouter = router({
 
         const vocab = buildDesignVocabulary(project);
         const { totalFitoutBudgetAed, rooms } = buildSpaceProgram(project);
-        const materials = await db.getAllMaterials();
+        // ADR-0009: finish schedule and RFQ match on material_library's
+        // category/tier/style vocabulary; the former materials_catalog rows
+        // matched almost nothing and priced lines at zero.
+        const materials = await db.getMaterialLibrary();
         const finishSchedule = buildFinishSchedule(project, vocab, rooms, materials);
         const colorPalette = await buildColorPalette(project, vocab);
         const complianceChecklist = buildDMComplianceChecklist(

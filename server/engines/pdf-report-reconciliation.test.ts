@@ -55,6 +55,12 @@ const reconciliation: WorkflowSpaceMqiReconciliation = {
     min: 2600,
     mid: 4400,
     max: 6200,
+    basis: {
+      policyVersion: "material-library-provenance-v1",
+      label: "MIYAR assumption",
+      assumptionRowCount: 2,
+      observedRowCount: 0,
+    },
   },
 };
 
@@ -82,7 +88,27 @@ describe("full-report workflow reconciliation", () => {
     expect(html).toContain("AED 4,400.00");
     expect(html).toContain("material_library.priceAedMin/priceAedMax");
     expect(html).toContain("projects, space_program_rooms, material_allocations, material_library");
+    // ADR-0009: the cost-basis label renders with the assumption note and
+    // never uses the TR-11 forbidden claim wording.
+    expect(html).toContain("Cost basis:");
+    expect(html).toContain("MIYAR assumption");
+    expect(html).toContain("internal MIYAR reference catalogue prices, not market observations");
+    expect(html).not.toContain("(Market-Verified)");
+    expect(html).not.toContain("DLD-Backed Recommendations");
     expect(generateReportHTML("validation_summary", report)).not.toContain("sec-workflow-reconciliation");
+  });
+
+  it("renders legacy reconciliation payloads without a basis field intact", () => {
+    const legacyReconciliation = {
+      ...reconciliation,
+      materialCosts: (({ basis: _basis, ...rest }) => rest)(reconciliation.materialCosts),
+    } as unknown as WorkflowSpaceMqiReconciliation;
+    const html = generateReportHTML("full_report", {
+      ...TR10_FIXTURES.complete.report,
+      workflowReconciliation: legacyReconciliation,
+    } satisfies PDFReportInput);
+    expect(html).toContain("Workflow, Space & MQI Reconciliation");
+    expect(html).not.toContain("Cost basis:");
   });
 
   it("includes rendered reconciliation values in the full-report fingerprint only", () => {

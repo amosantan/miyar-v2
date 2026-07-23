@@ -30,6 +30,8 @@ export interface ReportMaterialLibraryPrice {
   id: number;
   priceAedMin: unknown;
   priceAedMax: unknown;
+  /** ADR-0009 provenance class; absent rows are treated as MIYAR assumptions. */
+  sourceType?: unknown;
 }
 
 export interface WorkflowSpaceMqiReconciliation {
@@ -85,6 +87,13 @@ export interface WorkflowSpaceMqiReconciliation {
     min: number;
     mid: number;
     max: number;
+    /** ADR-0009: provenance basis of the priced library rows behind min/mid/max. */
+    basis: {
+      policyVersion: "material-library-provenance-v1";
+      label: string;
+      assumptionRowCount: number;
+      observedRowCount: number;
+    };
   };
 }
 
@@ -203,23 +212,49 @@ export function buildWorkflowSpaceMqiReconciliation(input: {
   let unpricedAllocationCount = 0;
   let min = 0;
   let max = 0;
+  const pricedMaterialIds = new Set<number>();
   for (const allocation of input.allocations) {
     const material = allocation.materialLibraryId === null
       ? undefined
       : libraryById.get(allocation.materialLibraryId);
     const priceMin = finiteNumber(material?.priceAedMin);
     const priceMax = finiteNumber(material?.priceAedMax);
-    if (priceMin === null || priceMax === null) {
+    if (material === undefined || priceMin === null || priceMax === null) {
       unpricedAllocationCount += 1;
       continue;
     }
     const areaM2 = numberOrZero(allocation.surfaceAreaM2);
     pricedAllocationCount += 1;
+    pricedMaterialIds.add(material.id);
     min += areaM2 * priceMin;
     max += areaM2 * priceMax;
   }
   min = round2(min);
   max = round2(max);
+
+  // ADR-0009: classify the priced rows' provenance so the rendered report can
+  // label the basis of these totals. Observed = market observation or supplier
+  // quote; everything else (including legacy rows without the column) is an
+  // explicit MIYAR assumption.
+  let assumptionRowCount = 0;
+  let observedRowCount = 0;
+  for (const materialId of Array.from(pricedMaterialIds)) {
+    const material = libraryById.get(materialId);
+    const sourceType = typeof material?.sourceType === "string"
+      ? material.sourceType
+      : "miyar_assumption";
+    if (sourceType === "market_observation" || sourceType === "supplier_quote") {
+      observedRowCount += 1;
+    } else {
+      assumptionRowCount += 1;
+    }
+  }
+  const basisLabel =
+    observedRowCount === 0
+      ? "MIYAR assumption"
+      : assumptionRowCount === 0
+        ? "Observed market data"
+        : "Mixed (MIYAR assumption + observed)";
 
   return {
     version: RECONCILIATION_VERSION,
@@ -269,6 +304,12 @@ export function buildWorkflowSpaceMqiReconciliation(input: {
       min,
       mid: round2((min + max) / 2),
       max,
+      basis: {
+        policyVersion: "material-library-provenance-v1",
+        label: basisLabel,
+        assumptionRowCount,
+        observedRowCount,
+      },
     },
   };
 }

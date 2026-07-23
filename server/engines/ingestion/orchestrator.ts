@@ -27,6 +27,7 @@ import {
   upsertPublicEvidenceObservation,
 } from "../../db";
 import { generateBenchmarkProposals } from "./proposal-generator";
+import { classifyFinishLevelForObservation } from "../tier-policy";
 import { triggerAlertEngine } from "../autonomous/alert-engine";
 import { validateEvidence, type QualityResult } from "./data-quality";
 import { detectPriceChange } from "./change-detector";
@@ -121,7 +122,12 @@ async function runWithConcurrencyLimit<T>(
 
 /** Map connector evidence categories to evidence_records table enum values */
 const CATEGORY_MAP: Record<string, string> = {
-  material_cost: "floors",         // LLM now sets correct category per-item
+  // ADR-0009 (audit F11): connector-level buckets carry no per-item meaning,
+  // so they map to "other" instead of silently pooling every static
+  // connector's material evidence into the flooring benchmark. Per-item
+  // categories from extraction take precedence via validCategories below.
+  material_cost: "other",
+  property_price: "other",
   fitout_rate: "other",
   market_trend: "other",
   competitor_project: "other",
@@ -254,17 +260,34 @@ export async function runIngestion(
 
   const connectorResults: ConnectorResult[] = [];
 
-  // V3-03: Load lastSuccessfulFetch from sourceRegistry for each connector
+  // ADR-0009/EV-00 (audit F4): resolve each connector's source_registry row
+  // by numeric id (dynamic connectors) or slug (static connectors). The
+  // former name-vs-sourceId join matched zero rows on both scheduled paths,
+  // so lastSuccessfulFetch was never read or written.
+  const registryIdBySourceId = new Map<string, number>();
   try {
     const db = await getDb();
     if (db) {
       for (const connector of connectors) {
-        const rows = await db.select({ lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch })
+        const rows = await db.select({
+          id: sourceRegistry.id,
+          lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch,
+        })
           .from(sourceRegistry)
-          .where(eq(sourceRegistry.name, connector.sourceId))
+          .where(
+            connector.sourceRegistryId !== undefined
+              ? eq(sourceRegistry.id, connector.sourceRegistryId)
+              : eq(sourceRegistry.slug, connector.sourceId)
+          )
           .limit(1);
-        if (rows.length > 0 && rows[0].lastSuccessfulFetch) {
-          connector.lastSuccessfulFetch = rows[0].lastSuccessfulFetch;
+        if (rows.length > 0) {
+          connector.sourceRegistryId = rows[0].id;
+          registryIdBySourceId.set(String(connector.sourceId), rows[0].id);
+          if (rows[0].lastSuccessfulFetch) {
+            connector.lastSuccessfulFetch = rows[0].lastSuccessfulFetch;
+          }
+        } else {
+          console.warn(`[Ingestion] No source_registry row resolves for connector ${connector.sourceId}; health metrics will be skipped`);
         }
       }
     }
@@ -465,9 +488,20 @@ export async function runIngestion(
             ? evidence.category
             : mapCategory(evidence.category);
 
-          const sourceRegistryId = typeof connector.sourceId === 'number'
-            ? connector.sourceId
-            : (parseInt(connector.sourceId) || undefined);
+          // ADR-0009/EV-00 (audit F5): use the resolved registry row id; the
+          // former parseInt(slug) produced NaN → undefined for every static
+          // connector, so their evidence lost source linkage.
+          const sourceRegistryId = connector.sourceRegistryId;
+
+          // ADR-0009 (audit F6/F7): finishLevel — the price tier that keys
+          // benchmarks — is assigned only by the deterministic tier policy
+          // from the observation's price and unit. The model's suggestion is
+          // demoted to metadata and never becomes numerical authority.
+          const deterministicFinishLevel = classifyFinishLevelForObservation(
+            normalized.value ?? null,
+            normalized.valueMax ?? null,
+            normalized.unit || "unit",
+          );
 
           const candidateScore = Math.round(qualityStage.score * 100);
           const persisted = await upsertPublicEvidenceObservation({
@@ -492,7 +526,8 @@ export async function runIngestion(
             tags: normalized.tags,
             notes: `Auto-ingested from ${connector.sourceName} via V2 ingestion engine${qualityResult.status === "outlier_flagged" ? " [OUTLIER_FLAGGED: " + qualityResult.flags.join("; ") + "]" : ""}`,
             runId,
-            finishLevel: (normalized.finishLevel as any) ?? null,
+            finishLevel: deterministicFinishLevel,
+            modelSuggestedFinishLevel: normalized.finishLevel ?? null,
             designStyle: normalized.designStyle ?? null,
             brandsMentioned: normalized.brandsMentioned ?? null,
             materialSpec: normalized.materialSpec ?? null,
@@ -594,14 +629,20 @@ export async function runIngestion(
     }
   }
 
-  // V3-03: Update lastSuccessfulFetch and DFE health metrics for all connectors
+  // ADR-0009/EV-00 (audit F4): update health metrics by the resolved registry
+  // row id so lastSuccessfulFetch and consecutiveFailures finally accumulate
+  // for both connector families. Unresolved connectors are skipped (already
+  // logged at load time) instead of silently matching zero rows.
   try {
     const db = await getDb();
     if (db) {
       for (const result of connectorResults) {
+        const resolvedId = registryIdBySourceId.get(String(result.sourceId));
+        if (resolvedId === undefined) continue;
+
         // Get current consecutive failures to increment
         const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures })
-          .from(sourceRegistry).where(eq(sourceRegistry.name, result.sourceId)).limit(1);
+          .from(sourceRegistry).where(eq(sourceRegistry.id, resolvedId)).limit(1);
 
         const currentFailures = current.length > 0 ? current[0].consecutiveFailures : 0;
         const isSuccess = result.status === "success";
@@ -619,7 +660,7 @@ export async function runIngestion(
 
         await db.update(sourceRegistry)
           .set(updates)
-          .where(eq(sourceRegistry.name, result.sourceId));
+          .where(eq(sourceRegistry.id, resolvedId));
       }
     }
   } catch (err) {

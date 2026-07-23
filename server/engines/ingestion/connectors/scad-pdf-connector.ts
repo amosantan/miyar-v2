@@ -76,6 +76,8 @@ export class SCADPdfConnector extends BaseSourceConnector {
 
         for (const pdfUrl of SCAD_PDF_URLS) {
             try {
+                // ADR-0010: strict robots gate before the raw PDF download.
+                await this.assertRobots(pdfUrl);
                 const response = await fetch(pdfUrl, {
                     headers: {
                         "User-Agent": "Mozilla/5.0 (MIYAR Intelligence Platform; +https://miyar.ai)",
@@ -113,6 +115,8 @@ export class SCADPdfConnector extends BaseSourceConnector {
         // If no PDFs succeeded, fall back to HTML publications page
         if (allText.length < 100) {
             try {
+                // ADR-0010: the fallback page is gated identically.
+                await this.assertRobots(this.sourceUrl);
                 const htmlResp = await fetch(this.sourceUrl, {
                     headers: { "User-Agent": "Mozilla/5.0 (MIYAR Intelligence Platform)" },
                     signal: AbortSignal.timeout(15_000),

@@ -768,6 +768,9 @@ function renderWorkflowReconciliation(
         unpriced: "غير مسعّر",
         source: "المصدر",
         sourceTables: "جداول المصدر",
+        costBasis: "أساس التكلفة",
+        assumptionNote: "أسعار مرجعية داخلية من MIYAR وليست ملاحظات سوقية",
+        basisCounts: "صفوف المواد (افتراض / ملاحظة)",
       }
     : {
         heading: "Workflow, Space & MQI Reconciliation",
@@ -810,6 +813,9 @@ function renderWorkflowReconciliation(
         unpriced: "unpriced",
         source: "Source",
         sourceTables: "Source tables",
+        costBasis: "Cost basis",
+        assumptionNote: "internal MIYAR reference catalogue prices, not market observations",
+        basisCounts: "material rows (assumption / observed)",
       };
   const number = (value: number) =>
     value.toLocaleString("en-US", {
@@ -881,6 +887,7 @@ function renderWorkflowReconciliation(
       <td>${reconciliation.materialCosts.pricedAllocationCount}/${reconciliation.allocations.rowCount} · ${reconciliation.materialCosts.unpricedAllocationCount} ${copy.unpriced} · ${reconciliation.materialCosts.allAllocationsPriced ? copy.pass : copy.fail}</td>
     </tr>
   </table>
+  ${reconciliation.materialCosts.basis ? `<p style="font-size:8px; color:#777;">${copy.costBasis}: ${dynamicText(reconciliation.materialCosts.basis.label)}${reconciliation.materialCosts.basis.observedRowCount === 0 ? ` — ${copy.assumptionNote}` : ""} · ${reconciliation.materialCosts.basis.assumptionRowCount} / ${reconciliation.materialCosts.basis.observedRowCount} ${copy.basisCounts} · ${dynamicText(reconciliation.materialCosts.basis.policyVersion)}</p>` : ""}
   <p style="font-size:8px; color:#777;">${copy.source}: ${dynamicText(reconciliation.materialCosts.source)} · ${copy.sourceTables}: ${dynamicText(reconciliation.sourceTables.join(", "))} · ${dynamicText(reconciliation.version)}</p>
 </div>
 `;

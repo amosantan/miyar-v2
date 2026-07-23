@@ -3785,6 +3785,15 @@ export async function insertRfqLineItemsForOrg(
       .for("update");
     if (!brief[0]) return false;
 
+    // KF-013 replace contract: a regenerated RFQ replaces the brief's prior
+    // batch inside the same locked transaction, so a client retry after an
+    // uncertain response converges to exactly one intended batch instead of
+    // appending duplicates.
+    await tx.delete(rfqLineItems).where(and(
+      eq(rfqLineItems.projectId, expected.projectId),
+      eq(rfqLineItems.briefId, expected.briefId),
+      eq(rfqLineItems.organizationId, expected.orgId),
+    ));
     if (data.length > 0) await tx.insert(rfqLineItems).values(data);
     return true;
   });

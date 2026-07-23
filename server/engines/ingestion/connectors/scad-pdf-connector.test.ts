@@ -17,11 +17,25 @@ vi.mock("../../../_core/llm", () => ({
 }));
 
 import { SCADPdfConnector } from "./scad-pdf-connector";
+import { resetDefaultRobotsPolicyCache } from "../robots-policy";
+
+// ADR-0010: the connector now asserts robots.txt before every raw download,
+// so the stubbed fetch must serve an allow-all robots.txt as text/plain.
+const robotsAllowAll = {
+  ok: true,
+  status: 200,
+  headers: {
+    get: (name: string) =>
+      name.toLowerCase() === "content-type" ? "text/plain" : null,
+  },
+  text: async () => "User-agent: *\nAllow: /\n",
+};
 
 describe("SCADPdfConnector fetch", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.clearAllMocks();
+    resetDefaultRobotsPolicyCache();
   });
 
   it("extracts PDF text through the typed parser and releases resources", async () => {
@@ -34,10 +48,13 @@ describe("SCADPdfConnector fetch", () => {
     pdfMocks.destroy.mockResolvedValue(undefined);
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+      vi.fn().mockImplementation(async (url: string) => {
+        if (String(url).endsWith("/robots.txt")) return robotsAllowAll;
+        return {
+          ok: true,
+          status: 200,
+          arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+        };
       })
     );
 
@@ -57,9 +74,10 @@ describe("SCADPdfConnector fetch", () => {
         .fn()
         .mockImplementation(
           async (
-            _url: string,
+            url: string,
             options?: { headers?: Record<string, string> }
           ) => {
+            if (String(url).endsWith("/robots.txt")) return robotsAllowAll;
             if (options?.headers?.Accept === "application/pdf") {
               return { ok: false, status: 404 };
             }

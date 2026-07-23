@@ -15,6 +15,12 @@ import { initializeDatabaseSafety } from "../../../_core/database-safety";
 
 interface SourceSeed {
     name: string;
+    /**
+     * ADR-0009/EV-00: stable connector key. Sources with a static connector
+     * class use its sourceId verbatim so the orchestrator can resolve their
+     * registry row; others get a unique kebab slug for the dynamic path.
+     */
+    slug: string;
     url: string;
     sourceType: "supplier_catalog" | "manufacturer_catalog" | "developer_brochure" | "industry_report" |
     "government_tender" | "procurement_portal" | "trade_publication" | "retailer_listing" | "aggregator" | "other";
@@ -25,12 +31,15 @@ interface SourceSeed {
     extractionHints: string;
     notes: string;
     requestDelayMs: number;
+    /** EV-00: dead or retired sources are deactivated, never deleted. */
+    isActive?: boolean;
 }
 
-const UAE_SOURCES: SourceSeed[] = [
+export const UAE_SOURCES: SourceSeed[] = [
     // ── Supplier Catalogs ─────────────────────────────────────────
     {
         name: "Graniti UAE",
+        slug: "graniti-uae",
         url: "https://www.granitiuae.com/",
         sourceType: "supplier_catalog",
         reliabilityDefault: "B",
@@ -43,6 +52,7 @@ const UAE_SOURCES: SourceSeed[] = [
     },
     {
         name: "RAK Ceramics UAE",
+        slug: "rak-ceramics-uae",
         url: "https://www.rakceramics.com/ae/",
         sourceType: "manufacturer_catalog",
         reliabilityDefault: "B",
@@ -55,6 +65,7 @@ const UAE_SOURCES: SourceSeed[] = [
     },
     {
         name: "Porcelanosa UAE",
+        slug: "porcelanosa-uae",
         url: "https://www.porcelanosa.com/ae/",
         sourceType: "manufacturer_catalog",
         reliabilityDefault: "B",
@@ -67,6 +78,7 @@ const UAE_SOURCES: SourceSeed[] = [
     },
     {
         name: "Hafele UAE",
+        slug: "hafele-uae",
         url: "https://www.hafele.ae/en/",
         sourceType: "supplier_catalog",
         reliabilityDefault: "B",
@@ -79,6 +91,7 @@ const UAE_SOURCES: SourceSeed[] = [
     },
     {
         name: "GEMS Building Materials",
+        slug: "gems-building-materials",
         url: "https://www.gems-bm.com/",
         sourceType: "supplier_catalog",
         reliabilityDefault: "B",
@@ -86,11 +99,13 @@ const UAE_SOURCES: SourceSeed[] = [
         scrapeMethod: "html_llm",
         scrapeSchedule: "0 0 7 * * 1",
         extractionHints: "Extract building material products, prices in AED, categories (tiles, marble, granite, plumbing, electrical). Focus on unit prices per sqm/sqft/piece.",
-        notes: "UAE building materials supplier.",
+        notes: "UAE building materials supplier. Deactivated 2026-07-23 (EV-00): gems-bm.com no longer resolves (NXDOMAIN in the cost-path audit probe).",
         requestDelayMs: 2000,
+        isActive: false,
     },
     {
         name: "Dragon Mart Dubai",
+        slug: "dragon-mart-dubai",
         url: "https://www.dragonmart.ae/",
         sourceType: "retailer_listing",
         reliabilityDefault: "B",
@@ -103,6 +118,7 @@ const UAE_SOURCES: SourceSeed[] = [
     },
     {
         name: "Danube Home",
+        slug: "danube-home",
         url: "https://www.danubehome.com/uae/",
         sourceType: "retailer_listing",
         reliabilityDefault: "B",
@@ -115,6 +131,7 @@ const UAE_SOURCES: SourceSeed[] = [
     },
     {
         name: "IKEA UAE",
+        slug: "ikea-uae",
         url: "https://www.ikea.com/ae/en/",
         sourceType: "retailer_listing",
         reliabilityDefault: "B",
@@ -127,6 +144,7 @@ const UAE_SOURCES: SourceSeed[] = [
     },
     {
         name: "ACE Hardware UAE",
+        slug: "ace-hardware-uae",
         url: "https://www.aceuae.com/",
         sourceType: "retailer_listing",
         reliabilityDefault: "B",
@@ -139,6 +157,7 @@ const UAE_SOURCES: SourceSeed[] = [
     },
     {
         name: "Pan Marble Dubai",
+        slug: "pan-marble-dubai",
         url: "https://www.pansidubai.com/",
         sourceType: "supplier_catalog",
         reliabilityDefault: "B",
@@ -146,11 +165,13 @@ const UAE_SOURCES: SourceSeed[] = [
         scrapeMethod: "html_llm",
         scrapeSchedule: "0 0 7 * * 5", // Friday (monthly effective)
         extractionHints: "Extract marble and natural stone products: travertine, granite, onyx, limestone. Look for AED prices per sqm/sqft, slab dimensions, stone origin. Premium material supplier.",
-        notes: "Major marble/natural stone supplier in Dubai.",
+        notes: "Major marble/natural stone supplier in Dubai. Deactivated 2026-07-23 (EV-00): pansidubai.com no longer resolves (NXDOMAIN in the cost-path audit probe).",
         requestDelayMs: 3000,
+        isActive: false,
     },
     {
         name: "Homes R Us UAE",
+        slug: "homes-r-us-uae",
         url: "https://www.homecentre.com/ae/en",
         sourceType: "retailer_listing",
         reliabilityDefault: "C",
@@ -165,6 +186,7 @@ const UAE_SOURCES: SourceSeed[] = [
     // ── Developer Brochures (Competitor Intelligence) ─────────────
     {
         name: "Emaar Properties",
+        slug: "emaar-properties",
         url: "https://www.emaar.com/en/our-communities",
         sourceType: "developer_brochure",
         reliabilityDefault: "A",
@@ -177,6 +199,7 @@ const UAE_SOURCES: SourceSeed[] = [
     },
     {
         name: "DAMAC Properties",
+        slug: "damac-properties",
         url: "https://www.damacproperties.com/en/properties",
         sourceType: "developer_brochure",
         reliabilityDefault: "A",
@@ -189,6 +212,7 @@ const UAE_SOURCES: SourceSeed[] = [
     },
     {
         name: "Aldar Properties",
+        slug: "aldar-properties",
         url: "https://www.aldar.com/en/explore/businesses/aldar-development/residential",
         sourceType: "developer_brochure",
         reliabilityDefault: "A",
@@ -201,6 +225,7 @@ const UAE_SOURCES: SourceSeed[] = [
     },
     {
         name: "Sobha Realty",
+        slug: "sobha-realty",
         url: "https://www.sobharealty.com/projects/",
         sourceType: "developer_brochure",
         reliabilityDefault: "B",
@@ -213,6 +238,7 @@ const UAE_SOURCES: SourceSeed[] = [
     },
     {
         name: "Ellington Properties",
+        slug: "ellington-properties",
         url: "https://www.ellingtongroup.com/",
         sourceType: "developer_brochure",
         reliabilityDefault: "B",
@@ -227,6 +253,7 @@ const UAE_SOURCES: SourceSeed[] = [
     // ── Industry Reports & Trends ─────────────────────────────────
     {
         name: "CBRE UAE Research",
+        slug: "cbre-uae-research",
         url: "https://www.cbre.ae/en/insights",
         sourceType: "industry_report",
         reliabilityDefault: "A",
@@ -239,6 +266,7 @@ const UAE_SOURCES: SourceSeed[] = [
     },
     {
         name: "Knight Frank UAE",
+        slug: "knight-frank-uae",
         url: "https://www.knightfrank.ae/research",
         sourceType: "industry_report",
         reliabilityDefault: "A",
@@ -251,6 +279,7 @@ const UAE_SOURCES: SourceSeed[] = [
     },
     {
         name: "JLL MENA Research",
+        slug: "jll-mena-research",
         url: "https://www.jll.ae/en/trends-and-insights",
         sourceType: "industry_report",
         reliabilityDefault: "A",
@@ -263,6 +292,7 @@ const UAE_SOURCES: SourceSeed[] = [
     },
     {
         name: "Commercial Interior Design Magazine",
+        slug: "commercial-interior-design-mag",
         url: "https://www.commercialinteriordesign.com/",
         sourceType: "trade_publication",
         reliabilityDefault: "C",
@@ -275,6 +305,7 @@ const UAE_SOURCES: SourceSeed[] = [
     },
     {
         name: "Dezeen UAE/Dubai",
+        slug: "dezeen-uae-dubai",
         url: "https://www.dezeen.com/tag/dubai/",
         sourceType: "trade_publication",
         reliabilityDefault: "C",
@@ -287,6 +318,7 @@ const UAE_SOURCES: SourceSeed[] = [
     },
     {
         name: "ArchDaily UAE",
+        slug: "archdaily-uae",
         url: "https://www.archdaily.com/tag/united-arab-emirates",
         sourceType: "trade_publication",
         reliabilityDefault: "C",
@@ -301,6 +333,7 @@ const UAE_SOURCES: SourceSeed[] = [
     // ── Live Property Listing Aggregators (V5) ───────────────────
     {
         name: "Bayut Property Listings",
+        slug: "bayut-listings",
         url: "https://www.bayut.com/for-sale/property/dubai/",
         sourceType: "aggregator",
         reliabilityDefault: "B",
@@ -313,6 +346,7 @@ const UAE_SOURCES: SourceSeed[] = [
     },
     {
         name: "PropertyFinder Listings",
+        slug: "propertyfinder-listings",
         url: "https://www.propertyfinder.ae/en/buy/dubai/",
         sourceType: "aggregator",
         reliabilityDefault: "B",
@@ -323,54 +357,196 @@ const UAE_SOURCES: SourceSeed[] = [
         notes: "Top UAE property search portal. JS-rendered — requires Firecrawl.",
         requestDelayMs: 3000,
     },
+
+    // ── EV-00 (2026-07-23): registry rows for the static connectors that had
+    // none, so the scheduled cron path can resolve health/freshness by slug ──
+    {
+        name: "Nakheel Properties",
+        slug: "nakheel-properties",
+        url: "https://www.nakheel.com/en/",
+        sourceType: "developer_brochure",
+        reliabilityDefault: "A",
+        region: "Dubai",
+        scrapeMethod: "html_llm",
+        scrapeSchedule: "0 0 6 * * 1",
+        extractionHints: "Extract development/project names, finish descriptions, material brands, quality tier language from Nakheel project pages.",
+        notes: "Major Dubai master developer. Static connector: nakheel-properties.",
+        requestDelayMs: 2000,
+    },
+    {
+        name: "RICS Market Reports",
+        slug: "rics-market-reports",
+        url: "https://www.rics.org/news-insights/research-and-insights/",
+        sourceType: "industry_report",
+        reliabilityDefault: "A",
+        region: "UAE",
+        scrapeMethod: "html_llm",
+        scrapeSchedule: "0 0 6 * * 1",
+        extractionHints: "Extract construction cost statistics, market survey findings, and UAE/MENA indices with periods.",
+        notes: "Professional-body research. Static connector: rics-market-reports.",
+        requestDelayMs: 2000,
+    },
+    {
+        name: "Dubai Statistics Center",
+        slug: "dubai-statistics-center",
+        url: "https://www.dsc.gov.ae/en-us/Themes/Pages/default.aspx",
+        sourceType: "government_tender",
+        reliabilityDefault: "A",
+        region: "Dubai",
+        scrapeMethod: "html_llm",
+        scrapeSchedule: "0 0 6 * * 1",
+        extractionHints: "Extract official Dubai construction and price statistics with reporting periods.",
+        notes: "Official statistics portal. Static connector: dubai-statistics-center.",
+        requestDelayMs: 2000,
+    },
+    {
+        name: "Dubai Pulse — Material Prices",
+        slug: "dubai-pulse-materials",
+        url: "https://www.dubaipulse.gov.ae/data/dsc_average-construction-material-prices/dsc_average_construction_material_prices-open",
+        sourceType: "government_tender",
+        reliabilityDefault: "A",
+        region: "Dubai",
+        scrapeMethod: "html_llm",
+        scrapeSchedule: "0 0 6 * * 1",
+        extractionHints: "Extract average construction material prices in AED with material names, units, and periods from the open dataset.",
+        notes: "Official Dubai Pulse open dataset. Static connector: dubai-pulse-materials.",
+        requestDelayMs: 2000,
+    },
+    {
+        name: "SCAD Abu Dhabi Publications",
+        slug: "scad-abu-dhabi",
+        url: "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx",
+        sourceType: "government_tender",
+        reliabilityDefault: "A",
+        region: "Abu Dhabi",
+        scrapeMethod: "html_llm",
+        scrapeSchedule: "0 0 6 * * 1",
+        extractionHints: "Extract building material price index publications and statistics with periods.",
+        notes: "Statistics Centre Abu Dhabi publications page. Static connector: scad-abu-dhabi.",
+        requestDelayMs: 2000,
+    },
+    {
+        name: "SCAD Material Price PDFs",
+        slug: "scad-pdf-materials",
+        url: "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx",
+        sourceType: "government_tender",
+        reliabilityDefault: "A",
+        region: "Abu Dhabi",
+        scrapeMethod: "html_llm",
+        scrapeSchedule: "0 0 6 * * 1",
+        extractionHints: "Extract material price tables from SCAD construction cost PDFs (names, AED prices, units, indices, quarters).",
+        notes: "PDF variant of the SCAD publications source (same URL, distinct connector). Static connector: scad-pdf-materials.",
+        requestDelayMs: 2000,
+    },
+    {
+        name: "DLD Transactions (Dubai Pulse)",
+        slug: "dld-transactions",
+        url: "https://www.dubaipulse.gov.ae/data/dld_transactions/dld_transactions-open",
+        sourceType: "government_tender",
+        reliabilityDefault: "A",
+        region: "Dubai",
+        scrapeMethod: "html_llm",
+        scrapeSchedule: "0 0 6 * * 1",
+        extractionHints: "Extract Dubai Land Department transaction statistics with areas, values in AED, and periods from the open dataset.",
+        notes: "Official DLD open dataset. Static connector: dld-transactions.",
+        requestDelayMs: 2000,
+    },
+    {
+        name: "Savills ME Research",
+        slug: "savills-me-research",
+        url: "https://www.savills.me/insight-and-opinion/",
+        sourceType: "industry_report",
+        reliabilityDefault: "A",
+        region: "UAE",
+        scrapeMethod: "html_llm",
+        scrapeSchedule: "0 0 6 * * 1",
+        extractionHints: "Extract UAE market research findings, cost benchmarks, and statistics with periods.",
+        notes: "Consultancy research library. Static connector: savills-me-research.",
+        requestDelayMs: 2000,
+    },
+    {
+        name: "Property Monitor Dubai",
+        slug: "property-monitor-dubai",
+        url: "https://www.propertymonitor.ae/market-reports",
+        sourceType: "industry_report",
+        reliabilityDefault: "B",
+        region: "Dubai",
+        scrapeMethod: "html_llm",
+        scrapeSchedule: "0 0 6 * * 1",
+        extractionHints: "Extract Dubai market report statistics, price indices, and transaction summaries with periods.",
+        notes: "Market analytics reports. Static connector: property-monitor-dubai.",
+        requestDelayMs: 2000,
+    },
 ];
 
 // ─── Seeder Function ────────────────────────────────────────────
 
-export async function seedUAESources(): Promise<{ created: number; skipped: number; errors: string[] }> {
+export async function seedUAESources(): Promise<{ created: number; updated: number; skipped: number; errors: string[] }> {
     initializeDatabaseSafety("seed", { loadDotenv: true });
     const db = await getDb();
     if (!db) throw new Error("Database not available");
 
     let created = 0;
-    let skipped = 0;
+    let updated = 0;
+    const skipped = 0;
     const errors: string[] = [];
 
     for (const source of UAE_SOURCES) {
         try {
-            // Check if source already exists by URL
-            const existing = await db
+            // ADR-0009/EV-00: upsert keyed on the stable slug. Legacy rows
+            // (seeded before the slug column existed) are adopted by URL once
+            // and receive their slug; re-runs then update in place instead of
+            // duplicating or skipping stale data.
+            const bySlug = await db
                 .select({ id: sourceRegistry.id })
                 .from(sourceRegistry)
-                .where(eq(sourceRegistry.url, source.url))
+                .where(eq(sourceRegistry.slug, source.slug))
                 .limit(1);
 
-            if (existing.length > 0) {
-                console.log(`[Seeder] Skipping "${source.name}" — already exists (id=${existing[0].id})`);
-                skipped++;
-                continue;
+            let targetId = bySlug[0]?.id;
+            if (targetId === undefined) {
+                const legacyByUrl = await db
+                    .select({ id: sourceRegistry.id, slug: sourceRegistry.slug })
+                    .from(sourceRegistry)
+                    .where(eq(sourceRegistry.url, source.url))
+                    .limit(1);
+                if (legacyByUrl[0] && legacyByUrl[0].slug === null) {
+                    targetId = legacyByUrl[0].id;
+                }
             }
 
-            await db.insert(sourceRegistry).values({
+            const seedValues = {
                 name: source.name,
+                slug: source.slug,
                 url: source.url,
                 sourceType: source.sourceType,
                 reliabilityDefault: source.reliabilityDefault,
                 isWhitelisted: true,
                 region: source.region,
                 notes: source.notes,
-                isActive: true,
+                isActive: source.isActive ?? true,
                 scrapeMethod: source.scrapeMethod,
                 scrapeSchedule: source.scrapeSchedule,
                 extractionHints: source.extractionHints,
                 requestDelayMs: source.requestDelayMs,
-                lastScrapedStatus: "never",
-                lastRecordCount: 0,
-                consecutiveFailures: 0,
-            });
+            };
 
-            console.log(`[Seeder] ✅ Created source: "${source.name}"`);
-            created++;
+            if (targetId !== undefined) {
+                await db.update(sourceRegistry)
+                    .set(seedValues)
+                    .where(eq(sourceRegistry.id, targetId));
+                console.log(`[Seeder] 🔁 Updated source "${source.name}" (id=${targetId}, slug=${source.slug})`);
+                updated++;
+            } else {
+                await db.insert(sourceRegistry).values({
+                    ...seedValues,
+                    lastScrapedStatus: "never",
+                    lastRecordCount: 0,
+                    consecutiveFailures: 0,
+                });
+                console.log(`[Seeder] ✅ Created source: "${source.name}" (slug=${source.slug})`);
+                created++;
+            }
         } catch (err) {
             const msg = `Failed to seed "${source.name}": ${err instanceof Error ? err.message : String(err)}`;
             console.error(`[Seeder] ❌ ${msg}`);
@@ -378,8 +554,8 @@ export async function seedUAESources(): Promise<{ created: number; skipped: numb
         }
     }
 
-    console.log(`\n[Seeder] Done: ${created} created, ${skipped} skipped, ${errors.length} errors`);
-    return { created, skipped, errors };
+    console.log(`\n[Seeder] Done: ${created} created, ${updated} updated, ${errors.length} errors`);
+    return { created, updated, skipped, errors };
 }
 
 // ─── Run if executed directly ───────────────────────────────────

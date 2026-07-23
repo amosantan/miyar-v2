@@ -113,16 +113,18 @@ const CATEGORY_MATERIAL_MAP: Record<string, { categories: string[]; defaultUnit:
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function parseCostLabel(label: string): { min: number; max: number; isMarketVerified: boolean } | null {
-    // Retain the internal compatibility flag while public copy describes the
-    // value as an indicative estimate rather than a verified market fact.
-    const isVerified = label.includes("market-verified") || label.includes("indicative benchmark estimate");
+/**
+ * Parse the numeric AED range out of a BOQ cost label. ADR-0009: label text
+ * carries NO provenance authority — a line's pricingSource derives only from
+ * the quoted rate's own material provenance, never from label wording.
+ */
+function parseCostLabel(label: string): { min: number; max: number } | null {
     const cleaned = label.replace(/[^0-9.,\-—]/g, " ").trim();
     const numbers = cleaned.split(/[\-—\s]+/).map(s => Number(s.replace(/,/g, ""))).filter(n => !isNaN(n) && n > 0);
 
     if (numbers.length === 0) return null;
-    if (numbers.length === 1) return { min: numbers[0], max: numbers[0], isMarketVerified: isVerified };
-    return { min: numbers[0], max: numbers[1], isMarketVerified: isVerified };
+    if (numbers.length === 1) return { min: numbers[0], max: numbers[0] };
+    return { min: numbers[0], max: numbers[1] };
 }
 
 function parseBudgetCap(s: string): number | null {
@@ -160,6 +162,8 @@ export function buildRFQFromBrief(
         priceAedMin?: number | string | null;
         priceAedMax?: number | string | null;
         supplierName?: string | null;
+        /** ADR-0009 provenance class of the material row's price. */
+        sourceType?: string | null;
     }>,
 ): RfqPackResult {
     const items: RfqLineItem[] = [];
@@ -189,7 +193,13 @@ export function buildRFQFromBrief(
             matchingMaterials.slice(0, 3).forEach((mat, matIdx) => {
                 const rateMin = Number(mat.priceAedMin || 0);
                 const rateMax = Number(mat.priceAedMax || 0);
-                const pricingSource = costParsed?.isMarketVerified ? "market-verified" as const : "estimated" as const;
+                // ADR-0009: a line claims market verification only when the
+                // quoted rate's own material row is a market observation —
+                // never from section-label wording.
+                const pricingSource =
+                    mat.sourceType === "market_observation"
+                        ? ("market-verified" as const)
+                        : ("estimated" as const);
 
                 const totalMin = qty * rateMin;
                 const totalMax = qty * rateMax;
@@ -218,13 +228,13 @@ export function buildRFQFromBrief(
                 });
             });
         } else if (costParsed) {
-            // No specific materials — use the Brief's cost estimate as a provisional sum
-            const pricingSource = costParsed.isMarketVerified ? "market-verified" as const : "estimated" as const;
+            // No specific materials — use the Brief's cost estimate as a provisional
+            // sum. ADR-0009: provisional sums are estimates by definition.
+            const pricingSource = "estimated" as const;
             subtotalMin += costParsed.min;
             subtotalMax += costParsed.max;
 
-            if (pricingSource === "market-verified") marketVerifiedCount++;
-            else estimatedCount++;
+            estimatedCount++;
 
             items.push({
                 projectId,

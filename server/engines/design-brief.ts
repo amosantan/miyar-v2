@@ -30,8 +30,15 @@ export interface PricingAnalytics {
     carbonKg: number;
     maintenanceFactor: number;
   }[];
-  /** Source of pricing data */
-  pricingSource: "material_constants" | "live_benchmarks" | "project_budget" | "none";
+  /**
+   * Source of the structural pricing analytics. ADR-0009 (audit F8): the
+   * union formerly advertised "live_benchmarks" | "project_budget" | "none",
+   * but this analytic is produced from material_constants only and no code
+   * path ever assigned another value — the type now states reality. The
+   * live-benchmark path is disclosed separately via detailedBudget.costBasis
+   * and the cost-band labels.
+   */
+  pricingSource: "material_constants";
   /** Estimated sales premium AED from design tier */
   designPremiumAed: number;
   /** Premium % for market tier */
@@ -87,6 +94,12 @@ export interface DesignBriefData {
     costPerSqmTarget: string;
     totalBudgetCap: string;
     costBand: string;
+    /**
+     * ADR-0009 (audit F8): which basis produced the cost band —
+     * approved live benchmarks, the project budget cap, or the static
+     * default. Makes a silent live-pricing fallback visible in the DTO.
+     */
+    costBasis: "configured_benchmarks" | "budget_cap" | "static_default";
     flexibilityLevel: string;
     contingencyRecommendation: string;
     valueEngineeringMandates: string[];
@@ -126,6 +139,10 @@ export interface DesignBriefData {
     isOverBudget: boolean;
     overBudgetByAed: number;
     qualityLabel: string;
+    /** ADR-0009: provenance basis label of the priced library rows ("MIYAR assumption", …). */
+    costBasisLabel?: string;
+    /** ADR-0009: allocation slices with no resolvable priced library row. */
+    unpricedAllocationCount?: number;
     roomBreakdown: { roomId: string; roomName: string; roomCostMin: number; roomCostMax: number }[];
     topMaterials: { materialName: string; totalAreaM2: number; totalCostMin: number; totalCostMax: number; pctOfTotalSurface: number }[];
     generatedAt: string;
@@ -553,6 +570,11 @@ export function generateDesignBrief(
         : budget ? `AED ${budget.toLocaleString()}/sqm` : "Not specified",
       totalBudgetCap: totalBudgetCap ? `AED ${totalBudgetCap.toLocaleString()}` : "Not specified",
       costBand,
+      costBasis: dynamicCostPerSqm !== null
+        ? "configured_benchmarks" as const
+        : budget
+          ? "budget_cap" as const
+          : "static_default" as const,
       flexibilityLevel: flexMap[inputs.fin02Flexibility] || flexMap[3],
       contingencyRecommendation: inputs.fin03ShockTolerance <= 2 ? "Allocate 15-20% Contractor Contingency" : "Allocate 10% Contractor Contingency",
       valueEngineeringMandates: veNotes,
@@ -626,6 +648,8 @@ export function generateDesignBrief(
         isOverBudget: mqiData.summary.isOverBudget,
         overBudgetByAed: mqiData.summary.overBudgetByAed,
         qualityLabel: mqiData.summary.qualityLabel,
+        costBasisLabel: mqiData.summary.costBasis?.label,
+        unpricedAllocationCount: mqiData.summary.unpricedAllocationCount,
         roomBreakdown: mqiData.rooms.map(r => ({
           roomId: r.roomId,
           roomName: r.roomName,

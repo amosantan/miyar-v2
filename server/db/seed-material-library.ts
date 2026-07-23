@@ -1,7 +1,24 @@
+import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import { initializeDatabaseSafety } from "../_core/database-safety";
-import { materialLibrary } from "../../drizzle/schema.js"; // Need .js for ESM if running straight, or can use tsx. Let's assume we run via tsx, so we'll rename to .ts just in case, but user said .mjs. Let's stick to .ts and run with npx tsx. Actually, I will name it seed-material-library.ts so it matches the other TS files. Actually user explicitly requested "seed-material-library.mjs". Let's provide a ts version and mjs version to be safe, or just .ts since the project uses `tsx`. I will use .ts to avoid module issues.
+import { materialLibrary } from "../../drizzle/schema.js";
+
+/**
+ * ADR-0009: every seeded price is an explicit MIYAR assumption — an internal
+ * reference value with no external source or observation date. Only a
+ * deliberate later write may claim `supplier_quote` or `market_observation`.
+ * Adding or changing any AED value in this file is a numerical-policy change
+ * requiring cost-consultant approval.
+ */
+const ASSUMPTION_PROVENANCE = {
+    sourceType: "miyar_assumption",
+    sourceLabel: "MIYAR assumption",
+    sourceUrl: null,
+    priceObservedAt: null,
+    priceConfidence: "assumption",
+    provenancePolicyVersion: "material-library-provenance-v1",
+} as const;
 
 const materials = [
     // FLOORING
@@ -67,21 +84,50 @@ async function seed() {
 
     const db = drizzle(connection);
 
-    console.log("Seeding material library...");
+    console.log("Seeding material library (upsert keyed on product_code)...");
 
-    // Clear existing items if any to avoid duplicates on re-run
-    try {
-        await db.delete(materialLibrary);
-    } catch (e) {
-        console.log("Could not clear materialLibrary (maybe table doesn't exist yet?)");
-        process.exit(1);
-    }
+    // ADR-0009: upsert instead of delete-all + insert. The former full-table
+    // wipe reassigned autoincrement ids on every re-run, orphaning
+    // material_allocations.materialLibraryId and
+    // finish_schedule_items.materialLibraryId references. Rows absent from
+    // this seed are left untouched; remove them only through an explicit,
+    // separately authorized operation.
+    const rows = materials.map((material) => ({
+        ...material,
+        ...ASSUMPTION_PROVENANCE,
+    }));
 
     try {
-        await db.insert(materialLibrary).values(materials as any[]);
-        console.log(`Seeded ${materials.length} material items.`);
+        await db
+            .insert(materialLibrary)
+            .values(rows as any[])
+            .onDuplicateKeyUpdate({
+                set: {
+                    category: sql`VALUES(${materialLibrary.category})`,
+                    tier: sql`VALUES(${materialLibrary.tier})`,
+                    style: sql`VALUES(${materialLibrary.style})`,
+                    productName: sql`VALUES(${materialLibrary.productName})`,
+                    brand: sql`VALUES(${materialLibrary.brand})`,
+                    supplierName: sql`VALUES(${materialLibrary.supplierName})`,
+                    supplierLocation: sql`VALUES(${materialLibrary.supplierLocation})`,
+                    supplierPhone: sql`VALUES(${materialLibrary.supplierPhone})`,
+                    unitLabel: sql`VALUES(${materialLibrary.unitLabel})`,
+                    priceAedMin: sql`VALUES(${materialLibrary.priceAedMin})`,
+                    priceAedMax: sql`VALUES(${materialLibrary.priceAedMax})`,
+                    notes: sql`VALUES(${materialLibrary.notes})`,
+                    isActive: sql`VALUES(${materialLibrary.isActive})`,
+                    sourceType: sql`VALUES(${materialLibrary.sourceType})`,
+                    sourceLabel: sql`VALUES(${materialLibrary.sourceLabel})`,
+                    sourceUrl: sql`VALUES(${materialLibrary.sourceUrl})`,
+                    priceObservedAt: sql`VALUES(${materialLibrary.priceObservedAt})`,
+                    priceConfidence: sql`VALUES(${materialLibrary.priceConfidence})`,
+                    provenancePolicyVersion: sql`VALUES(${materialLibrary.provenancePolicyVersion})`,
+                },
+            });
+        console.log(`Upserted ${rows.length} material items as labelled MIYAR assumptions.`);
     } catch (err) {
         console.error("Failed to seed materials:", err);
+        process.exitCode = 1;
     } finally {
         await connection.end();
     }

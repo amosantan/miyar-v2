@@ -86,12 +86,14 @@ Policy-enforced human interaction gates are not repository failures and remain i
 
 ## KF-013 — RFQ generation retries are intentionally non-idempotent
 
-- Status: OPEN
+- Status: CLOSED
 - Observed: 2026-07-16 during `TR-03H`.
 - Evidence: the atomic RFQ helper inserts one complete batch per successful request and preserves order and duplicates, but it has no request key or prior-batch replacement contract.
 - Impact: a client retry after an uncertain response can append a second complete RFQ batch even though each individual transaction is atomic.
 - Owner: Later RFQ workflow/idempotency step; outside the bounded TR-03H authorization hardening scope.
 - Exit criterion: RFQ generation accepts a stable idempotency key or uses an approved replace/version contract, with retry and uncertain-response integration tests proving one intended result.
+- Closed: 2026-07-23 by `EV-00` Phase 4 (ADR-0009 remediation).
+- Closure evidence: `insertRfqLineItemsForOrg` now implements a replace contract — inside the existing transaction, after the project and brief FOR UPDATE locks succeed, the prior batch for `(projectId, briefId, organizationId)` is deleted before the new batch inserts, so a retried `generateRfqFromBrief` converges to exactly one intended batch. Guarded disposable-MySQL tests (`tests/mysql/rfq-idempotency.mysql.test.ts`) prove: a retried generation converges to the latest batch; another brief's rows are untouched; and a rejected cross-organization call neither deletes nor inserts. `createReportArtifactsForOrg` needs no change — it creates a fresh brief row per call, so its RFQ items are naturally single-shot per new briefId; this disposition is recorded here deliberately.
 
 ## KF-014 — GitHub Actions cannot start because the owner account is billing-locked
 

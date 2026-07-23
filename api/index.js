@@ -422,6 +422,7 @@ import {
   decimal,
   boolean,
   json,
+  date,
   index,
   uniqueIndex,
   foreignKey
@@ -1520,6 +1521,13 @@ var init_schema = __esm({
     sourceRegistry = mysqlTable("source_registry", {
       id: int("id").autoincrement().primaryKey(),
       name: varchar("name", { length: 255 }).notNull(),
+      /**
+       * ADR-0009/EV-00 (audit F4/F5): stable connector key. Static connectors
+       * resolve their registry row by this slug (their sourceId); dynamic
+       * connectors resolve by numeric id. The former name-vs-sourceId join never
+       * matched, so freshness and evidence linkage were silently lost.
+       */
+      slug: varchar("slug", { length: 64 }),
       url: text("url").notNull(),
       sourceType: mysqlEnum("sourceType", [
         "supplier_catalog",
@@ -1566,7 +1574,9 @@ var init_schema = __esm({
       requestDelayMs: int("requestDelayMs").default(2e3).notNull(),
       addedAt: timestamp("addedAt").defaultNow().notNull(),
       updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-    });
+    }, (table) => [
+      uniqueIndex("source_registry_slug_unique").on(table.slug)
+    ]);
     evidenceRecords = mysqlTable(
       "evidence_records",
       {
@@ -1640,6 +1650,9 @@ var init_schema = __esm({
         runId: varchar("runId", { length: 64 }),
         // links to intelligence_audit_log
         // V7: Design Intelligence Fields
+        // ADR-0009: finishLevel is assigned ONLY by the deterministic tier policy
+        // (price + unit); the model's suggestion is retained as metadata below
+        // and never keys a benchmark.
         finishLevel: mysqlEnum("finishLevel", [
           "basic",
           "standard",
@@ -1647,6 +1660,7 @@ var init_schema = __esm({
           "luxury",
           "ultra_luxury"
         ]),
+        modelSuggestedFinishLevel: varchar("modelSuggestedFinishLevel", { length: 32 }),
         designStyle: varchar("designStyle", { length: 255 }),
         brandsMentioned: json("brandsMentioned"),
         // string[]
@@ -1757,7 +1771,10 @@ var init_schema = __esm({
     benchmarkProposals = mysqlTable("benchmark_proposals", {
       id: int("id").autoincrement().primaryKey(),
       benchmarkKey: varchar("benchmarkKey", { length: 255 }).notNull(),
-      // category:tier:unit
+      // category:finishLevel:unit
+      // ADR-0009: distinguishes key eras — "legacy-v0" rows predate deterministic
+      // finish/category keying; new proposals stamp "benchmark-key-v2".
+      keyPolicyVersion: varchar("keyPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
       currentTypical: decimal("currentTypical", { precision: 12, scale: 2 }),
       currentMin: decimal("currentMin", { precision: 12, scale: 2 }),
       currentMax: decimal("currentMax", { precision: 12, scale: 2 }),
@@ -2186,8 +2203,27 @@ var init_schema = __esm({
       priceAedMin: decimal("price_aed_min", { precision: 10, scale: 2 }),
       priceAedMax: decimal("price_aed_max", { precision: 10, scale: 2 }),
       notes: text("notes"),
-      isActive: boolean("is_active").default(true).notNull()
-    });
+      isActive: boolean("is_active").default(true).notNull(),
+      // ADR-0009 provenance: defaults label every pre-existing row an explicit
+      // MIYAR assumption; only a deliberate write may claim an observation.
+      sourceType: mysqlEnum("source_type", [
+        "miyar_assumption",
+        "supplier_quote",
+        "market_observation",
+        "manual_entry"
+      ]).default("miyar_assumption").notNull(),
+      sourceLabel: varchar("source_label", { length: 255 }).default("MIYAR assumption").notNull(),
+      sourceUrl: varchar("source_url", { length: 500 }),
+      priceObservedAt: date("price_observed_at"),
+      priceConfidence: mysqlEnum("price_confidence", [
+        "assumption",
+        "indicative",
+        "quoted"
+      ]).default("assumption").notNull(),
+      provenancePolicyVersion: varchar("provenance_policy_version", { length: 64 }).default("material-library-provenance-v1").notNull()
+    }, (table) => [
+      uniqueIndex("material_library_product_code_unique").on(table.productCode)
+    ]);
     finishScheduleItems = mysqlTable("finish_schedule_items", {
       id: int("id").primaryKey().autoincrement(),
       projectId: int("project_id").notNull(),
@@ -7582,6 +7618,11 @@ async function insertRfqLineItemsForOrg(data, expected) {
       eq(designBriefs.projectId, expected.projectId)
     )).limit(1).for("update");
     if (!brief[0]) return false;
+    await tx.delete(rfqLineItems).where(and(
+      eq(rfqLineItems.projectId, expected.projectId),
+      eq(rfqLineItems.briefId, expected.briefId),
+      eq(rfqLineItems.organizationId, expected.orgId)
+    ));
     if (data.length > 0) await tx.insert(rfqLineItems).values(data);
     return true;
   });
@@ -9311,13 +9352,13 @@ function formatReportNumber(value, locale, options = {}) {
   return new Intl.NumberFormat(reportIntlLocale(locale), options).format(value);
 }
 function toValidDate(value) {
-  const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
+  const date2 = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date2.getTime()) ? null : date2;
 }
 function formatReportDate(value, locale, options = { year: "numeric", month: "long", day: "numeric" }) {
-  const date = toValidDate(value);
-  if (!date) return reportCopy(locale, "notAvailable");
-  return new Intl.DateTimeFormat(reportIntlLocale(locale), options).format(date);
+  const date2 = toValidDate(value);
+  if (!date2) return reportCopy(locale, "notAvailable");
+  return new Intl.DateTimeFormat(reportIntlLocale(locale), options).format(date2);
 }
 function formatReportDateTime(value, locale) {
   return formatReportDate(value, locale, {
@@ -9878,9 +9919,9 @@ function normalizeVersion(value) {
   return value.trim();
 }
 function normalizeGeneratedAt(value) {
-  const date = value === void 0 ? /* @__PURE__ */ new Date() : new Date(value);
-  if (Number.isNaN(date.getTime())) throw new TypeError("generatedAt must be a valid date");
-  return date.toISOString();
+  const date2 = value === void 0 ? /* @__PURE__ */ new Date() : new Date(value);
+  if (Number.isNaN(date2.getTime())) throw new TypeError("generatedAt must be a valid date");
+  return date2.toISOString();
 }
 function createReportRenderContext(input) {
   if (!isReportLocale(input.locale ?? "en")) throw new TypeError("locale must be en or ar");
@@ -10263,6 +10304,92 @@ var init_llm = __esm({
       return part;
     };
     mapRoleToGemini = (role) => role === "assistant" ? "model" : "user";
+  }
+});
+
+// server/engines/tier-policy.ts
+function classifyCatalogTier(priceMin, priceMax, unit) {
+  const price = priceMax || priceMin || 0;
+  if (PER_AREA_UNITS.has(unit)) {
+    if (price < 40) return "economy";
+    if (price < 150) return "mid";
+    if (price < 400) return "premium";
+    if (price < 800) return "luxury";
+    return "ultra_luxury";
+  }
+  if (price < 300) return "economy";
+  if (price < 1500) return "mid";
+  if (price < 5e3) return "premium";
+  if (price < 15e3) return "luxury";
+  return "ultra_luxury";
+}
+function catalogTierToFinish(tier) {
+  return CATALOG_TIER_TO_FINISH[tier] ?? "standard";
+}
+function classifyFinishLevel(priceMin, priceMax, unit) {
+  return catalogTierToFinish(classifyCatalogTier(priceMin, priceMax, unit));
+}
+function classifyFinishLevelForObservation(priceMin, priceMax, unit) {
+  if ((priceMin === null || priceMin === 0) && (priceMax === null || priceMax === 0)) {
+    return null;
+  }
+  let normalizedUnit = (unit ?? "unit").toLowerCase();
+  let min = priceMin;
+  let max2 = priceMax;
+  if (SQFT_UNITS.has(normalizedUnit)) {
+    if (min) min = min * SQFT_TO_SQM_FACTOR;
+    if (max2) max2 = max2 * SQFT_TO_SQM_FACTOR;
+    normalizedUnit = "sqm";
+  }
+  return classifyFinishLevel(min, max2, normalizedUnit);
+}
+function mkt01TierToFinish(mkt01Tier) {
+  return (mkt01Tier ? MKT01_TIER_TO_FINISH[mkt01Tier] : void 0) ?? "standard";
+}
+function legacyAdjacentTier(tier) {
+  if (tier === "ultra") return "premium";
+  if (tier === "premium") return "mid";
+  if (tier === "mid") return "affordable";
+  return "mid";
+}
+function libraryTiersForMkt01Tier(mkt01Tier) {
+  const normalized = (mkt01Tier ?? "").toLowerCase() || "mid";
+  const tiers = [];
+  if (LIBRARY_TIERS.has(normalized)) {
+    tiers.push(normalized);
+  }
+  const adjacent = legacyAdjacentTier(normalized);
+  if (!tiers.includes(adjacent)) {
+    tiers.push(adjacent);
+  }
+  return tiers;
+}
+var PER_AREA_UNITS, CATALOG_TIER_TO_FINISH, SQFT_TO_SQM_FACTOR, SQFT_UNITS, MKT01_TIER_TO_FINISH, LIBRARY_TIERS;
+var init_tier_policy = __esm({
+  "server/engines/tier-policy.ts"() {
+    "use strict";
+    PER_AREA_UNITS = /* @__PURE__ */ new Set(["sqm", "m\xB2", "sqft", "L"]);
+    CATALOG_TIER_TO_FINISH = {
+      economy: "basic",
+      mid: "standard",
+      premium: "premium",
+      luxury: "luxury",
+      ultra_luxury: "ultra_luxury"
+    };
+    SQFT_TO_SQM_FACTOR = 10.7639;
+    SQFT_UNITS = /* @__PURE__ */ new Set(["sqft", "sq.ft", "sq ft"]);
+    MKT01_TIER_TO_FINISH = {
+      Mid: "standard",
+      "Upper-mid": "premium",
+      Luxury: "luxury",
+      "Ultra-luxury": "ultra_luxury"
+    };
+    LIBRARY_TIERS = /* @__PURE__ */ new Set([
+      "affordable",
+      "mid",
+      "premium",
+      "ultra"
+    ]);
   }
 });
 
@@ -11409,12 +11536,11 @@ __export(rfq_generator_exports, {
   buildRFQPack: () => buildRFQPack
 });
 function parseCostLabel(label) {
-  const isVerified = label.includes("market-verified") || label.includes("indicative benchmark estimate");
   const cleaned = label.replace(/[^0-9.,\-—]/g, " ").trim();
   const numbers = cleaned.split(/[\-—\s]+/).map((s) => Number(s.replace(/,/g, ""))).filter((n) => !isNaN(n) && n > 0);
   if (numbers.length === 0) return null;
-  if (numbers.length === 1) return { min: numbers[0], max: numbers[0], isMarketVerified: isVerified };
-  return { min: numbers[0], max: numbers[1], isMarketVerified: isVerified };
+  if (numbers.length === 1) return { min: numbers[0], max: numbers[0] };
+  return { min: numbers[0], max: numbers[1] };
 }
 function parseBudgetCap(s) {
   const cleaned = s.replace(/[^0-9.]/g, "");
@@ -11451,7 +11577,7 @@ function buildRFQFromBrief(projectId, orgId, briefData, briefId, materials) {
       matchingMaterials.slice(0, 3).forEach((mat, matIdx) => {
         const rateMin = Number(mat.priceAedMin || 0);
         const rateMax = Number(mat.priceAedMax || 0);
-        const pricingSource = costParsed?.isMarketVerified ? "market-verified" : "estimated";
+        const pricingSource = mat.sourceType === "market_observation" ? "market-verified" : "estimated";
         const totalMin = qty * rateMin;
         const totalMax = qty * rateMax;
         subtotalMin += totalMin;
@@ -11477,11 +11603,10 @@ function buildRFQFromBrief(projectId, orgId, briefData, briefId, materials) {
         });
       });
     } else if (costParsed) {
-      const pricingSource = costParsed.isMarketVerified ? "market-verified" : "estimated";
+      const pricingSource = "estimated";
       subtotalMin += costParsed.min;
       subtotalMax += costParsed.max;
-      if (pricingSource === "market-verified") marketVerifiedCount++;
-      else estimatedCount++;
+      estimatedCount++;
       items.push({
         projectId,
         organizationId: orgId,
@@ -12737,6 +12862,125 @@ var init_board_pdf = __esm({
   }
 });
 
+// server/engines/ingestion/robots-policy.ts
+import robotsParser from "robots-parser";
+async function loadRulesetForOrigin(origin, userAgent, deps, loadedAt) {
+  const fetchImpl = deps.fetchImpl ?? globalThis.fetch.bind(globalThis);
+  const timeoutMs = deps.robotsFetchTimeoutMs ?? DEFAULT_ROBOTS_FETCH_TIMEOUT_MS;
+  const ttlMs = deps.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
+  const expiresAt = loadedAt + ttlMs;
+  const robotsUrl = `${origin}/robots.txt`;
+  try {
+    const res = await fetchImpl(robotsUrl, {
+      headers: { "User-Agent": userAgent, Accept: "text/plain" },
+      signal: AbortSignal.timeout(timeoutMs)
+    });
+    if (res.status === 429 || res.status >= 500) {
+      return {
+        ruleset: null,
+        detail: `robots.txt returned HTTP ${res.status}; robots state unknown`,
+        expiresAt
+      };
+    }
+    if (!res.ok) {
+      return {
+        ruleset: robotsParser(robotsUrl, ""),
+        detail: `robots.txt HTTP ${res.status} treated as allow-all per RFC 9309`,
+        expiresAt
+      };
+    }
+    const contentType = res.headers.get("content-type");
+    if (contentType && !contentType.toLowerCase().includes("text/plain")) {
+      return {
+        ruleset: null,
+        detail: `robots.txt served unexpected content type "${contentType}"`,
+        expiresAt
+      };
+    }
+    const text5 = await res.text();
+    return {
+      ruleset: robotsParser(robotsUrl, text5),
+      detail: "robots.txt loaded",
+      expiresAt
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      ruleset: null,
+      detail: `robots.txt fetch failed: ${message}`,
+      expiresAt
+    };
+  }
+}
+async function evaluateRobotsPolicy(targetUrl, userAgent, deps = {}) {
+  let origin;
+  try {
+    origin = new URL(targetUrl).origin;
+  } catch {
+    return {
+      allowed: false,
+      code: "ROBOTS_UNAVAILABLE",
+      policyVersion: INGESTION_ROBOTS_POLICY_VERSION,
+      detail: `invalid target URL "${targetUrl}"`
+    };
+  }
+  const cache2 = deps.cache ?? defaultCache;
+  const now = deps.now ? deps.now() : Date.now();
+  let entry = cache2.get(origin);
+  if (!entry || entry.expiresAt <= now) {
+    entry = await loadRulesetForOrigin(origin, userAgent, deps, now);
+    cache2.set(origin, entry);
+  }
+  if (entry.ruleset === null) {
+    return {
+      allowed: false,
+      code: "ROBOTS_UNAVAILABLE",
+      policyVersion: INGESTION_ROBOTS_POLICY_VERSION,
+      detail: entry.detail
+    };
+  }
+  const verdict = entry.ruleset.isAllowed(targetUrl, userAgent);
+  if (verdict === true) {
+    return {
+      allowed: true,
+      code: "ROBOTS_ALLOWED",
+      policyVersion: INGESTION_ROBOTS_POLICY_VERSION,
+      detail: entry.detail
+    };
+  }
+  return {
+    allowed: false,
+    code: "ROBOTS_DENIED",
+    policyVersion: INGESTION_ROBOTS_POLICY_VERSION,
+    detail: verdict === false ? "target disallowed by robots.txt" : "robots.txt produced no explicit allow for target"
+  };
+}
+async function assertUrlAllowedByRobots(targetUrl, userAgent, deps = {}) {
+  const verdict = await evaluateRobotsPolicy(targetUrl, userAgent, deps);
+  if (!verdict.allowed) {
+    throw new RobotsPolicyError(verdict.code, targetUrl, verdict.detail);
+  }
+}
+var INGESTION_ROBOTS_POLICY_VERSION, RobotsPolicyError, DEFAULT_CACHE_TTL_MS, DEFAULT_ROBOTS_FETCH_TIMEOUT_MS, defaultCache;
+var init_robots_policy = __esm({
+  "server/engines/ingestion/robots-policy.ts"() {
+    "use strict";
+    INGESTION_ROBOTS_POLICY_VERSION = "ingestion-robots-v1";
+    RobotsPolicyError = class extends Error {
+      constructor(code, targetUrl, detail) {
+        super(`Robots policy ${code} for ${targetUrl} (${detail})`);
+        this.code = code;
+        this.targetUrl = targetUrl;
+        this.detail = detail;
+        this.name = "RobotsPolicyError";
+      }
+    };
+    DEFAULT_CACHE_TTL_MS = 15 * 6e4;
+    DEFAULT_ROBOTS_FETCH_TIMEOUT_MS = 1e4;
+    defaultCache = /* @__PURE__ */ new Map();
+  }
+});
+
 // server/engines/ingestion/confidence-policy.ts
 function isValidDate(value) {
   return Number.isFinite(value.getTime());
@@ -12904,30 +13148,8 @@ var init_confidence_policy = __esm({
 
 // server/engines/ingestion/connector.ts
 import { z as z20 } from "zod";
-import robotsParser from "robots-parser";
 function getRandomUserAgent() {
   return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
-}
-async function checkRobotsTxt(targetUrl, userAgent) {
-  try {
-    const urlObj = new URL(targetUrl);
-    const origin = urlObj.origin;
-    let robots = robotsCache.get(origin);
-    if (!robots) {
-      const robotsUrl = `${origin}/robots.txt`;
-      const res = await globalThis.fetch(robotsUrl, { headers: { "User-Agent": userAgent } });
-      if (res.ok) {
-        const text5 = await res.text();
-        robots = robotsParser(robotsUrl, text5);
-      } else {
-        robots = robotsParser(robotsUrl, "");
-      }
-      robotsCache.set(origin, robots);
-    }
-    return robots.isAllowed(targetUrl, userAgent) !== false;
-  } catch (err) {
-    return true;
-  }
 }
 async function getFirecrawlClient() {
   const apiKey = process.env.FIRECRAWL_API_KEY;
@@ -13016,10 +13238,11 @@ function isApifyAvailable() {
 function isParseHubAvailable() {
   return !!process.env.PARSEHUB_API_KEY;
 }
-var USER_AGENTS, CAPTCHA_INDICATORS, PAYWALL_INDICATORS, robotsCache, _firecrawlClient, _firecrawlInitPromise, rawSourcePayloadSchema, extractedEvidenceSchema, normalizedEvidenceInputSchema, GRADE_A_SOURCE_IDS, GRADE_B_SOURCE_IDS, GRADE_C_SOURCE_IDS, firecrawlExhaustedAt, FIRECRAWL_EXHAUST_TTL_MS, FETCH_TIMEOUT_MS, MAX_RETRIES3, BASE_BACKOFF_MS, BaseSourceConnector;
+var USER_AGENTS, CAPTCHA_INDICATORS, PAYWALL_INDICATORS, ROBOTS_CHECK_USER_AGENT, _firecrawlClient, _firecrawlInitPromise, rawSourcePayloadSchema, extractedEvidenceSchema, normalizedEvidenceInputSchema, GRADE_A_SOURCE_IDS, GRADE_B_SOURCE_IDS, GRADE_C_SOURCE_IDS, firecrawlExhaustedAt, FIRECRAWL_EXHAUST_TTL_MS, FETCH_TIMEOUT_MS, MAX_RETRIES3, BASE_BACKOFF_MS, BaseSourceConnector;
 var init_connector = __esm({
   "server/engines/ingestion/connector.ts"() {
     "use strict";
+    init_robots_policy();
     init_confidence_policy();
     init_confidence_policy();
     USER_AGENTS = [
@@ -13031,7 +13254,7 @@ var init_connector = __esm({
     ];
     CAPTCHA_INDICATORS = ["cf-browser-verification", "g-recaptcha", "px-captcha", "Please verify you are a human"];
     PAYWALL_INDICATORS = ["subscribe to read", "premium content", "paywall"];
-    robotsCache = /* @__PURE__ */ new Map();
+    ROBOTS_CHECK_USER_AGENT = USER_AGENTS[0];
     _firecrawlClient = null;
     _firecrawlInitPromise = null;
     rawSourcePayloadSchema = z20.object({
@@ -13088,25 +13311,52 @@ var init_connector = __esm({
       "rak-ceramics-uae",
       "porcelanosa-uae",
       "hafele-uae",
-      "gems-building-materials",
+      "graniti-uae",
       "dragon-mart-dubai",
       "property-monitor-dubai"
     ]);
-    GRADE_C_SOURCE_IDS = /* @__PURE__ */ new Set(["dera-interiors"]);
+    GRADE_C_SOURCE_IDS = /* @__PURE__ */ new Set([]);
     firecrawlExhaustedAt = null;
     FIRECRAWL_EXHAUST_TTL_MS = 6 * 60 * 60 * 1e3;
     FETCH_TIMEOUT_MS = 15e3;
     MAX_RETRIES3 = 3;
     BASE_BACKOFF_MS = 1e3;
     BaseSourceConnector = class {
+      sourceRegistryId;
       lastSuccessfulFetch;
       requestDelayMs;
+      /**
+       * ADR-0010: strict robots gate, evaluated BEFORE any provider — proxies
+       * included. Returns a denial payload when the target may not be fetched,
+       * or null when the fetch may proceed. The per-origin cache inside
+       * robots-policy makes repeated assertions free.
+       */
+      async robotsDenial(url) {
+        const targetUrl = url || this.sourceUrl;
+        const verdict = await evaluateRobotsPolicy(targetUrl, ROBOTS_CHECK_USER_AGENT);
+        if (verdict.allowed) return null;
+        console.warn(`[Connector] Robots policy ${verdict.code} for ${targetUrl}: ${verdict.detail}`);
+        return {
+          url: targetUrl,
+          fetchedAt: /* @__PURE__ */ new Date(),
+          statusCode: 403,
+          error: `Blocked by robots policy (${verdict.code}): ${verdict.detail}`
+        };
+      }
+      /**
+       * Defensive robots gate for direct provider-helper calls (e.g. crawl loops
+       * that pass explicit URLs); throws RobotsPolicyError on denial.
+       */
+      async assertRobots(url) {
+        await assertUrlAllowedByRobots(url || this.sourceUrl, ROBOTS_CHECK_USER_AGENT);
+      }
       /**
        * Fetch using Firecrawl's headless browser API.
        * Renders JavaScript, bypasses bot protection, returns clean markdown.
        */
       async fetchWithFirecrawl(url) {
         const targetUrl = url || this.sourceUrl;
+        await this.assertRobots(targetUrl);
         const client = await getFirecrawlClient();
         if (!client) {
           throw new Error("Firecrawl client not available");
@@ -13146,6 +13396,7 @@ var init_connector = __esm({
        */
       async fetchWithScrapingDog(url) {
         const targetUrl = url || this.sourceUrl;
+        await this.assertRobots(targetUrl);
         const apiKey = process.env.SCRAPINGDOG_API_KEY;
         if (!apiKey) {
           throw new Error("SCRAPINGDOG_API_KEY not set");
@@ -13187,6 +13438,7 @@ var init_connector = __esm({
        */
       async fetchWithScrapingAnt(url) {
         const targetUrl = url || this.sourceUrl;
+        await this.assertRobots(targetUrl);
         const apiKey = process.env.SCRAPINGANT_API_KEY;
         if (!apiKey) {
           throw new Error("SCRAPINGANT_API_KEY not set");
@@ -13231,6 +13483,7 @@ var init_connector = __esm({
        */
       async fetchWithApify(url) {
         const targetUrl = url || this.sourceUrl;
+        await this.assertRobots(targetUrl);
         const apiKey = process.env.APIFY_API_KEY;
         if (!apiKey) {
           throw new Error("APIFY_API_KEY not set");
@@ -13286,6 +13539,7 @@ var init_connector = __esm({
        */
       async fetchWithParseHub(url) {
         const targetUrl = url || this.sourceUrl;
+        await this.assertRobots(targetUrl);
         const apiKey = process.env.PARSEHUB_API_KEY;
         const projectToken = process.env.PARSEHUB_PROJECT_TOKEN;
         if (!apiKey) {
@@ -13358,10 +13612,8 @@ var init_connector = __esm({
         const targetUrl = url || this.sourceUrl;
         let lastError;
         const userAgent = getRandomUserAgent();
-        const isAllowed = await checkRobotsTxt(targetUrl, userAgent);
-        if (!isAllowed) {
-          return { url: targetUrl, fetchedAt: /* @__PURE__ */ new Date(), statusCode: 403, error: "Blocked by origin robots.txt" };
-        }
+        const robotsBlock = await this.robotsDenial(targetUrl);
+        if (robotsBlock) return robotsBlock;
         for (let attempt = 1; attempt <= MAX_RETRIES3; attempt++) {
           try {
             const controller = new AbortController();
@@ -13429,6 +13681,8 @@ var init_connector = __esm({
         if (this.requestDelayMs && this.requestDelayMs > 0) {
           await new Promise((r) => setTimeout(r, this.requestDelayMs));
         }
+        const robotsBlock = await this.robotsDenial();
+        if (robotsBlock) return robotsBlock;
         if (isFirecrawlAvailable() && !isFirecrawlCreditExhausted()) {
           try {
             const result = await this.fetchWithFirecrawl();
@@ -13665,14 +13919,13 @@ Return a JSON array of objects with these EXACT fields:
 - value: number|null (numeric value in AED if applicable)
 - unit: string|null (e.g. "sqft", "sqm", "percent", "index", "AED/sqm")
 - trend: string|null (one of: "rising", "stable", "falling", or null if not a trend)
-- trendConfidence: string|null (one of: "confirmed" if multiple sources agree, "emerging" if single source/early signal, "speculative" if forecast/projection)
 - publishedDate: string|null (ISO date if found \u2014 include quarter: e.g. "2025-10-01" for Q4 2025)
 - category: string (one of: "floors", "walls", "ceilings", "sanitary", "lighting", "kitchen", "hardware", "joinery", "ffe", "other")
 
 Rules:
 - Extract ALL statistics, data points, and findings \u2014 up to 50 maximum
 - Always include the TIME PERIOD in the title (Q1/Q2/Q3/Q4 and year)
-- Include forecasts and projections \u2014 mark trendConfidence as "speculative" for predictions
+- Include forecasts and projections \u2014 note "forecast" or "projection" in rawText for predictions
 - Include percentage changes and growth rates (YoY, QoQ)
 - For comparisons (e.g. "Marble prices rose 12% YoY"), extract: value=12, unit="percent", trend="rising"
 - UAE-specific metrics to look for: DLD transaction volumes, RERA rental indices, construction cost per sqft, fitout cost benchmarks by tier, building permit counts
@@ -13790,6 +14043,7 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       constructor(config) {
         super();
         this.sourceId = String(config.id);
+        this.sourceRegistryId = typeof config.id === "number" ? config.id : Number.parseInt(String(config.id), 10) || void 0;
         this.sourceName = config.name;
         this.sourceUrl = config.url;
         this.reliabilityGrade = config.reliabilityDefault;
@@ -14116,7 +14370,7 @@ var init_freshness = __esm({
 // server/engines/ingestion/proposal-generator.ts
 import { randomUUID as randomUUID5 } from "crypto";
 async function generateBenchmarkProposals(options = {}) {
-  const { category, minEvidenceCount = 3, actorId, ingestionRunId } = options;
+  const { category, minEvidenceCount = 5, actorId, ingestionRunId } = options;
   const runId = `PROP-${randomUUID5().substring(0, 8)}`;
   const startedAt = /* @__PURE__ */ new Date();
   const evidence = await listEvidenceRecords({
@@ -14194,6 +14448,7 @@ async function generateBenchmarkProposals(options = {}) {
     try {
       const result = await createBenchmarkProposal({
         benchmarkKey,
+        keyPolicyVersion: BENCHMARK_KEY_POLICY_VERSION,
         proposedP25: String(p25.toFixed(2)),
         proposedP50: String(p50.toFixed(2)),
         proposedP75: String(p75.toFixed(2)),
@@ -14241,11 +14496,13 @@ async function generateBenchmarkProposals(options = {}) {
     proposals
   };
 }
+var BENCHMARK_KEY_POLICY_VERSION;
 var init_proposal_generator = __esm({
   "server/engines/ingestion/proposal-generator.ts"() {
     "use strict";
     init_db();
     init_freshness();
+    BENCHMARK_KEY_POLICY_VERSION = "benchmark-key-v2";
   }
 });
 
@@ -14883,19 +15140,7 @@ __export(evidence_to_materials_exports, {
 });
 import { eq as eq7, desc as desc4 } from "drizzle-orm";
 function detectTier(priceMin, priceMax, unit) {
-  const price = priceMax || priceMin || 0;
-  if (unit === "sqm" || unit === "m\xB2" || unit === "sqft" || unit === "L") {
-    if (price < 40) return "economy";
-    if (price < 150) return "mid";
-    if (price < 400) return "premium";
-    if (price < 800) return "luxury";
-    return "ultra_luxury";
-  }
-  if (price < 300) return "economy";
-  if (price < 1500) return "mid";
-  if (price < 5e3) return "premium";
-  if (price < 15e3) return "luxury";
-  return "ultra_luxury";
+  return classifyCatalogTier(priceMin, priceMax, unit);
 }
 async function syncEvidenceToMaterials(runId, limit = 500) {
   const db = await getDb();
@@ -14936,7 +15181,7 @@ async function syncEvidenceToMaterials(runId, limit = 500) {
         record.priceMax ? parseFloat(String(record.priceMax)) : 0,
         record.priceTypical ? parseFloat(String(record.priceTypical)) : 0
       );
-      if (maxRawPrice > 9999999) {
+      if (maxRawPrice > 1e7) {
         skipped++;
         continue;
       }
@@ -15037,6 +15282,7 @@ var init_evidence_to_materials = __esm({
     init_db();
     init_schema();
     init_db();
+    init_tier_policy();
     EVIDENCE_TO_CATALOG_CATEGORY = {
       floors: "tile",
       // most floor evidence is tile/stone
@@ -15159,13 +15405,25 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
   const runId = `ING-${randomUUID6().substring(0, 8)}`;
   const startedAt = /* @__PURE__ */ new Date();
   const connectorResults = [];
+  const registryIdBySourceId = /* @__PURE__ */ new Map();
   try {
     const db = await getDb();
     if (db) {
       for (const connector of connectors) {
-        const rows = await db.select({ lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch }).from(sourceRegistry).where(eq8(sourceRegistry.name, connector.sourceId)).limit(1);
-        if (rows.length > 0 && rows[0].lastSuccessfulFetch) {
-          connector.lastSuccessfulFetch = rows[0].lastSuccessfulFetch;
+        const rows = await db.select({
+          id: sourceRegistry.id,
+          lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch
+        }).from(sourceRegistry).where(
+          connector.sourceRegistryId !== void 0 ? eq8(sourceRegistry.id, connector.sourceRegistryId) : eq8(sourceRegistry.slug, connector.sourceId)
+        ).limit(1);
+        if (rows.length > 0) {
+          connector.sourceRegistryId = rows[0].id;
+          registryIdBySourceId.set(String(connector.sourceId), rows[0].id);
+          if (rows[0].lastSuccessfulFetch) {
+            connector.lastSuccessfulFetch = rows[0].lastSuccessfulFetch;
+          }
+        } else {
+          console.warn(`[Ingestion] No source_registry row resolves for connector ${connector.sourceId}; health metrics will be skipped`);
         }
       }
     }
@@ -15327,7 +15585,12 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
           const captureDate = confidenceEvaluation.publicationDate.parsedAt || raw.fetchedAt;
           const validCategories = ["floors", "walls", "ceilings", "joinery", "lighting", "sanitary", "kitchen", "hardware", "ffe", "other"];
           const evidenceCategory = validCategories.includes(evidence.category) ? evidence.category : mapCategory(evidence.category);
-          const sourceRegistryId = typeof connector.sourceId === "number" ? connector.sourceId : parseInt(connector.sourceId) || void 0;
+          const sourceRegistryId = connector.sourceRegistryId;
+          const deterministicFinishLevel = classifyFinishLevelForObservation(
+            normalized.value ?? null,
+            normalized.valueMax ?? null,
+            normalized.unit || "unit"
+          );
           const candidateScore = Math.round(qualityStage.score * 100);
           const persisted = await upsertPublicEvidenceObservation({
             recordId: generateRecordId(),
@@ -15351,7 +15614,8 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
             tags: normalized.tags,
             notes: `Auto-ingested from ${connector.sourceName} via V2 ingestion engine${qualityResult.status === "outlier_flagged" ? " [OUTLIER_FLAGGED: " + qualityResult.flags.join("; ") + "]" : ""}`,
             runId,
-            finishLevel: normalized.finishLevel ?? null,
+            finishLevel: deterministicFinishLevel,
+            modelSuggestedFinishLevel: normalized.finishLevel ?? null,
             designStyle: normalized.designStyle ?? null,
             brandsMentioned: normalized.brandsMentioned ?? null,
             materialSpec: normalized.materialSpec ?? null,
@@ -15444,7 +15708,9 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
     const db = await getDb();
     if (db) {
       for (const result of connectorResults) {
-        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures }).from(sourceRegistry).where(eq8(sourceRegistry.name, result.sourceId)).limit(1);
+        const resolvedId = registryIdBySourceId.get(String(result.sourceId));
+        if (resolvedId === void 0) continue;
+        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures }).from(sourceRegistry).where(eq8(sourceRegistry.id, resolvedId)).limit(1);
         const currentFailures = current.length > 0 ? current[0].consecutiveFailures : 0;
         const isSuccess = result.status === "success";
         const statusEnum = isSuccess ? result.evidenceExtracted > 0 ? "success" : "partial" : "failed";
@@ -15457,7 +15723,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         if (isSuccess) {
           updates.lastSuccessfulFetch = /* @__PURE__ */ new Date();
         }
-        await db.update(sourceRegistry).set(updates).where(eq8(sourceRegistry.name, result.sourceId));
+        await db.update(sourceRegistry).set(updates).where(eq8(sourceRegistry.id, resolvedId));
       }
     }
   } catch (err) {
@@ -15575,15 +15841,15 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         for (const record of recentEvidence) {
           const value = record.priceMin ? parseFloat(String(record.priceMin)) : null;
           if (value === null || isNaN(value)) continue;
-          const date = record.captureDate || record.createdAt;
-          if (!date) continue;
+          const date2 = record.captureDate || record.createdAt;
+          if (!date2) continue;
           const category = record.category || "other";
           const finishLevel = record.finishLevel?.toLowerCase() || "standard";
           const metric = `${category}:${finishLevel}`;
           const grade2 = record.reliabilityGrade || "C";
           if (!categoryGroups.has(metric)) categoryGroups.set(metric, { category, points: [] });
           categoryGroups.get(metric).points.push({
-            date: new Date(date),
+            date: new Date(date2),
             value,
             grade: grade2,
             sourceId: record.sourceRegistryId ? String(record.sourceRegistryId) : "unknown",
@@ -15701,6 +15967,7 @@ var init_orchestrator = __esm({
     init_connector();
     init_db();
     init_proposal_generator();
+    init_tier_policy();
     init_alert_engine();
     init_data_quality();
     init_change_detector();
@@ -15711,8 +15978,12 @@ var init_orchestrator = __esm({
     CONFIDENCE_MERGE_POLICY_VERSION = "evidence-confidence-merge-latest-v1";
     MAX_CONCURRENT = 3;
     CATEGORY_MAP = {
-      material_cost: "floors",
-      // LLM now sets correct category per-item
+      // ADR-0009 (audit F11): connector-level buckets carry no per-item meaning,
+      // so they map to "other" instead of silently pooling every static
+      // connector's material evidence into the flooring benchmark. Per-item
+      // categories from extraction take precedence via validCategories below.
+      material_cost: "other",
+      property_price: "other",
       fitout_rate: "other",
       market_trend: "other",
       competitor_project: "other",
@@ -15777,6 +16048,7 @@ PDF text content:
         let allText = "";
         for (const pdfUrl of SCAD_PDF_URLS) {
           try {
+            await this.assertRobots(pdfUrl);
             const response = await fetch(pdfUrl, {
               headers: {
                 "User-Agent": "Mozilla/5.0 (MIYAR Intelligence Platform; +https://miyar.ai)",
@@ -15809,6 +16081,7 @@ ${parsed.text}
         }
         if (allText.length < 100) {
           try {
+            await this.assertRobots(this.sourceUrl);
             const htmlResp = await fetch(this.sourceUrl, {
               headers: { "User-Agent": "Mozilla/5.0 (MIYAR Intelligence Platform)" },
               signal: AbortSignal.timeout(15e3)
@@ -15923,13 +16196,12 @@ __export(connectors_exports, {
   BayutListingsConnector: () => BayutListingsConnector,
   CBREResearchConnector: () => CBREResearchConnector,
   DAMACConnector: () => DAMACConnector,
-  DERAInteriorsConnector: () => DERAInteriorsConnector,
   DLDTransactionsConnector: () => DLDTransactionsConnector,
   DragonMartConnector: () => DragonMartConnector,
   DubaiPulseConnector: () => DubaiPulseConnector,
   DubaiStatisticsConnector: () => DubaiStatisticsConnector,
   EmaarConnector: () => EmaarConnector,
-  GEMSConnector: () => GEMSConnector,
+  GranitiUAEConnector: () => GranitiUAEConnector,
   HafeleConnector: () => HafeleConnector,
   JLLConnector: () => JLLConnector,
   KnightFrankConnector: () => KnightFrankConnector,
@@ -15950,7 +16222,7 @@ function buildExtractionUserPrompt(sourceName, category, geography, htmlSnippet,
   const dateFilter = lastFetch ? `
 Focus on content published or updated after ${lastFetch.toISOString().split("T")[0]}.` : "";
   return `Extract evidence items from this ${sourceName} webpage HTML.
-Category: ${category}
+Source focus: ${category}
 Geography: ${geography}${dateFilter}
 
 Return a JSON array of objects with these exact fields:
@@ -15960,10 +16232,12 @@ Return a JSON array of objects with these exact fields:
 - metric: string (what is being measured, e.g. "Marble Tile 60x60 price")
 - value: number|null (numeric value in AED if found, null otherwise)
 - unit: string|null (e.g. "sqm", "sqft", "piece", "unit", null if not applicable)
+- category: string (the item's own area \u2014 one of: "floors", "walls", "ceilings", "joinery", "lighting", "sanitary", "kitchen", "hardware", "ffe", "other")
 
 Rules:
 - Extract up to 15 items maximum
 - Only extract items with real data (titles, prices, descriptions)
+- Classify each item's category by what the item IS (tiles \u2192 floors or walls, taps \u2192 sanitary, cabinet handles \u2192 hardware); use "other" when unsure
 - Do NOT invent data \u2014 if no items found, return empty array []
 - Do NOT output confidence, grade, or scoring fields
 
@@ -16044,7 +16318,7 @@ function getAllConnectors() {
 function getConnectorsByIds(sourceIds) {
   return sourceIds.map((id) => getConnectorById(id)).filter((c) => c !== null);
 }
-var SOURCE_URLS, LLM_EXTRACTION_SYSTEM_PROMPT2, AED_PRICE_REGEX, NUMERIC_PRICE_REGEX, SQFT_REGEX, SQM_REGEX, HTMLSourceConnector, RAKCeramicsConnector, DERAInteriorsConnector, DragonMartConnector, PorcelanosaConnector, EmaarConnector, DAMACConnector, NakheelConnector, RICSConnector, JLLConnector, DubaiStatisticsConnector, HafeleConnector, GEMSConnector, DubaiPulseConnector, SCADConnector, DLDTransactionsConnector, AldarPropertiesConnector, CBREResearchConnector, KnightFrankConnector, SavillsConnector, PropertyMonitorConnector, BayutListingsConnector, PropertyFinderListingsConnector, ALL_CONNECTORS;
+var SOURCE_URLS, LLM_EXTRACTION_SYSTEM_PROMPT2, AED_PRICE_REGEX, NUMERIC_PRICE_REGEX, SQFT_REGEX, SQM_REGEX, HTMLSourceConnector, RAKCeramicsConnector, GranitiUAEConnector, DragonMartConnector, PorcelanosaConnector, EmaarConnector, DAMACConnector, NakheelConnector, RICSConnector, JLLConnector, DubaiStatisticsConnector, HafeleConnector, DubaiPulseConnector, SCADConnector, DLDTransactionsConnector, AldarPropertiesConnector, CBREResearchConnector, KnightFrankConnector, SavillsConnector, PropertyMonitorConnector, BayutListingsConnector, PropertyFinderListingsConnector, ALL_CONNECTORS;
 var init_connectors = __esm({
   "server/engines/ingestion/connectors/index.ts"() {
     "use strict";
@@ -16052,8 +16326,11 @@ var init_connectors = __esm({
     init_llm();
     init_scad_pdf_connector();
     SOURCE_URLS = {
+      // EV-00 registry prune (2026-07-23): dera-interiors (derainteriors.ae) and
+      // gems-building-materials (gemsbuilding.com) were removed — both domains no
+      // longer resolve; their deactivated seed rows retain the history.
       "rak-ceramics-uae": "https://www.rakceramics.com/",
-      "dera-interiors": "https://derainteriors.ae/",
+      "graniti-uae": "https://www.granitiuae.com/",
       "dragon-mart-dubai": "https://www.dragonmart.ae/",
       "porcelanosa-uae": "https://www.porcelanosa.com/ae/",
       "emaar-properties": "https://www.emaar.com/en/",
@@ -16062,8 +16339,9 @@ var init_connectors = __esm({
       "rics-market-reports": "https://www.rics.org/news-insights/research-and-insights/",
       "jll-mena-research": "https://www.jll.com/en/trends-and-insights/research",
       "dubai-statistics-center": "https://www.dsc.gov.ae/en-us/Themes/Pages/default.aspx",
-      "hafele-uae": "https://www.hafele.com/",
-      "gems-building-materials": "https://gemsbuilding.com/products/",
+      // EV-00 URL repair: the former hafele.com pointed at the US-dollar
+      // storefront; the UAE storefront matches the seed row.
+      "hafele-uae": "https://www.hafele.ae/en/",
       // ─── V4: New UAE Market Sources ─────────────────────────────────
       "dubai-pulse-materials": "https://www.dubaipulse.gov.ae/data/dsc_average-construction-material-prices/dsc_average_construction_material_prices-open",
       "scad-abu-dhabi": "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx",
@@ -16116,7 +16394,11 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
             rawText: item.rawText || item.title,
             ...publicationDateFields(item.publishedDate, raw.fetchedAt),
             observedAt: raw.fetchedAt,
-            category: this.category,
+            // ADR-0009 (audit F11): prefer the item's own extracted category so
+            // static material evidence stops pooling into one bucket; the
+            // orchestrator validates it against the evidence enum and maps the
+            // class-level fallback to "other".
+            category: typeof item.category === "string" && item.category || this.category,
             geography: this.geography,
             sourceUrl: raw.url,
             // Store LLM-extracted metric/value/unit as metadata in rawText for normalize()
@@ -16204,14 +16486,16 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       defaultTags = ["ceramics", "tiles", "flooring", "manufacturer"];
       defaultUnit = "sqm";
     };
-    DERAInteriorsConnector = class extends HTMLSourceConnector {
-      sourceId = "dera-interiors";
-      sourceName = "DERA Interiors";
-      sourceUrl = SOURCE_URLS["dera-interiors"];
-      category = "fitout_rate";
-      geography = "Dubai";
-      defaultTags = ["fitout", "interior-design", "contractor"];
-      defaultUnit = "sqft";
+    GranitiUAEConnector = class extends HTMLSourceConnector {
+      sourceId = "graniti-uae";
+      sourceName = "Graniti UAE";
+      sourceUrl = SOURCE_URLS["graniti-uae"];
+      category = "material_cost";
+      geography = "UAE";
+      defaultTags = ["tiles", "marble", "granite", "sanitaryware", "supplier"];
+      defaultUnit = "sqm";
+      requestDelayMs = 3e3;
+      // Respect the supplier's site — modest pacing
     };
     DragonMartConnector = class extends HTMLSourceConnector {
       sourceId = "dragon-mart-dubai";
@@ -16338,15 +16622,6 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       geography = "UAE";
       defaultTags = ["hardware", "fittings", "joinery", "manufacturer"];
       defaultUnit = "piece";
-    };
-    GEMSConnector = class extends HTMLSourceConnector {
-      sourceId = "gems-building-materials";
-      sourceName = "GEMS Building Materials";
-      sourceUrl = SOURCE_URLS["gems-building-materials"];
-      category = "material_cost";
-      geography = "UAE";
-      defaultTags = ["building-materials", "supplier", "wholesale"];
-      defaultUnit = "unit";
     };
     DubaiPulseConnector = class extends HTMLSourceConnector {
       sourceId = "dubai-pulse-materials";
@@ -16520,16 +16795,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       defaultUnit = "sqft";
       requestDelayMs = 2e3;
       // Respect rate limits
-      /**
-       * Bayut listings are JS-rendered — Firecrawl is strongly preferred.
-       * Falls back to basic fetch if Firecrawl is unavailable.
-       */
-      async fetch() {
-        if (this.requestDelayMs && this.requestDelayMs > 0) {
-          await new Promise((r) => setTimeout(r, this.requestDelayMs));
-        }
-        return this.fetchWithFirecrawl();
-      }
+      // Bayut is JS-rendered; the base fetch() chain already prefers Firecrawl
+      // and applies the ADR-0010 robots gate before any provider. No override.
       async normalize(evidence, context3) {
         const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context3);
         const llmEvidence = evidence;
@@ -16570,15 +16837,8 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       defaultUnit = "sqft";
       requestDelayMs = 2e3;
       // Respect rate limits
-      /**
-       * PropertyFinder is also JS-rendered — use Firecrawl.
-       */
-      async fetch() {
-        if (this.requestDelayMs && this.requestDelayMs > 0) {
-          await new Promise((r) => setTimeout(r, this.requestDelayMs));
-        }
-        return this.fetchWithFirecrawl();
-      }
+      // PropertyFinder is JS-rendered; the base fetch() chain already prefers
+      // Firecrawl and applies the ADR-0010 robots gate. No override.
       async normalize(evidence, context3) {
         const { grade: grade2, confidence, confidencePolicy, gradePolicy } = this.confidenceMetadata(evidence, context3);
         const llmEvidence = evidence;
@@ -16611,7 +16871,7 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
     };
     ALL_CONNECTORS = {
       "rak-ceramics-uae": () => new RAKCeramicsConnector(),
-      "dera-interiors": () => new DERAInteriorsConnector(),
+      "graniti-uae": () => new GranitiUAEConnector(),
       "dragon-mart-dubai": () => new DragonMartConnector(),
       "porcelanosa-uae": () => new PorcelanosaConnector(),
       "emaar-properties": () => new EmaarConnector(),
@@ -16621,7 +16881,6 @@ Return ONLY valid JSON. Do not include markdown code fences or any other text.`;
       "jll-mena-research": () => new JLLConnector(),
       "dubai-statistics-center": () => new DubaiStatisticsConnector(),
       "hafele-uae": () => new HafeleConnector(),
-      "gems-building-materials": () => new GEMSConnector(),
       // V4: New UAE Market Sources
       "dubai-pulse-materials": () => new DubaiPulseConnector(),
       "scad-abu-dhabi": () => new SCADConnector(),
@@ -16734,66 +16993,12 @@ Return as JSON array:
 }]`;
     KNOWN_MISSING_SOURCES = [
       {
-        name: "Porcelanosa UAE",
-        url: "https://www.porcelanosa.com/ae/",
-        category: "material_supplier",
-        dataTypes: ["tiles", "sanitary", "kitchens", "countertops"],
-        estimatedReliability: "B",
-        rationale: "Major European tile/bath brand with UAE showrooms, structured product catalog with pricing tiers",
-        suggestedFrequency: "monthly"
-      },
-      {
         name: "Al Murad UAE",
         url: "https://www.almurad.com/",
         category: "material_supplier",
         dataTypes: ["tiles", "stone", "sanitary", "bathroom_fittings"],
         estimatedReliability: "B",
         rationale: "Largest UAE-based tile & stone retailer, multiple branches, competitive pricing benchmark",
-        suggestedFrequency: "biweekly"
-      },
-      {
-        name: "DERA (Dubai Economic & Regulatory Authority)",
-        url: "https://www.dubaipulse.gov.ae/",
-        category: "government",
-        dataTypes: ["building_permits", "construction_statistics", "economic_indicators"],
-        estimatedReliability: "A",
-        rationale: "Dubai government open data portal with construction activity indicators",
-        suggestedFrequency: "monthly"
-      },
-      {
-        name: "Dezeen Middle East",
-        url: "https://www.dezeen.com/tag/united-arab-emirates/",
-        category: "design_trend",
-        dataTypes: ["design_trends", "project_showcases", "material_innovations"],
-        estimatedReliability: "B",
-        rationale: "Leading global design publication with dedicated UAE/ME content section",
-        suggestedFrequency: "weekly"
-      },
-      {
-        name: "Commercial Interior Design (CID) ME",
-        url: "https://www.commercialinteriordesign.com/",
-        category: "design_trend",
-        dataTypes: ["design_trends", "project_briefs", "supplier_news", "awards"],
-        estimatedReliability: "B",
-        rationale: "Middle East's premier interiors magazine, covers luxury hospitality & residential projects",
-        suggestedFrequency: "weekly"
-      },
-      {
-        name: "Aldar Properties",
-        url: "https://www.aldar.com/en/explore-aldar/businesses/aldar-development",
-        category: "developer",
-        dataTypes: ["project_portfolios", "interior_specifications", "pricing_ranges"],
-        estimatedReliability: "A",
-        rationale: "Abu Dhabi's largest developer, complements Dubai-focused Emaar/DAMAC/Nakheel data",
-        suggestedFrequency: "biweekly"
-      },
-      {
-        name: "Nakheel Projects",
-        url: "https://www.nakheel.com/en/communities",
-        category: "developer",
-        dataTypes: ["project_portfolios", "community_specs", "pricing_ranges"],
-        estimatedReliability: "A",
-        rationale: "Major Dubai developer (Palm Jumeirah, Dragon City), interior design specs in brochures",
         suggestedFrequency: "biweekly"
       },
       {
@@ -16831,15 +17036,6 @@ Return as JSON array:
         estimatedReliability: "B",
         rationale: "Ultra-luxury German kitchen brand, relevant price data for top-tier fitout benchmarks",
         suggestedFrequency: "monthly"
-      },
-      {
-        name: "ArchDaily Middle East",
-        url: "https://www.archdaily.com/tag/united-arab-emirates",
-        category: "design_trend",
-        dataTypes: ["architectural_trends", "project_specs", "material_innovations"],
-        estimatedReliability: "B",
-        rationale: "World's most-visited architecture portal, UAE project archives with material specs",
-        suggestedFrequency: "weekly"
       }
     ];
   }
@@ -18031,8 +18227,8 @@ function positiveSafeInteger(value) {
 function realIsoDate(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const [year, month, day] = value.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day ? value : null;
+  const date2 = new Date(Date.UTC(year, month - 1, day));
+  return date2.getUTCFullYear() === year && date2.getUTCMonth() === month - 1 && date2.getUTCDate() === day ? value : null;
 }
 function validateMarketEvidenceSnapshot(raw) {
   const transactionCount = positiveSafeInteger(raw.transactionCount);
@@ -20115,7 +20311,10 @@ function renderWorkflowReconciliation(reconciliation, locale) {
     priceCoverage: "\u062A\u063A\u0637\u064A\u0629 \u0627\u0644\u0623\u0633\u0639\u0627\u0631",
     unpriced: "\u063A\u064A\u0631 \u0645\u0633\u0639\u0651\u0631",
     source: "\u0627\u0644\u0645\u0635\u062F\u0631",
-    sourceTables: "\u062C\u062F\u0627\u0648\u0644 \u0627\u0644\u0645\u0635\u062F\u0631"
+    sourceTables: "\u062C\u062F\u0627\u0648\u0644 \u0627\u0644\u0645\u0635\u062F\u0631",
+    costBasis: "\u0623\u0633\u0627\u0633 \u0627\u0644\u062A\u0643\u0644\u0641\u0629",
+    assumptionNote: "\u0623\u0633\u0639\u0627\u0631 \u0645\u0631\u062C\u0639\u064A\u0629 \u062F\u0627\u062E\u0644\u064A\u0629 \u0645\u0646 MIYAR \u0648\u0644\u064A\u0633\u062A \u0645\u0644\u0627\u062D\u0638\u0627\u062A \u0633\u0648\u0642\u064A\u0629",
+    basisCounts: "\u0635\u0641\u0648\u0641 \u0627\u0644\u0645\u0648\u0627\u062F (\u0627\u0641\u062A\u0631\u0627\u0636 / \u0645\u0644\u0627\u062D\u0638\u0629)"
   } : {
     heading: "Workflow, Space & MQI Reconciliation",
     description: "Deterministic reconciliation of stored project, space-programme, material-allocation, and material-library values.",
@@ -20155,7 +20354,10 @@ function renderWorkflowReconciliation(reconciliation, locale) {
     priceCoverage: "Price coverage",
     unpriced: "unpriced",
     source: "Source",
-    sourceTables: "Source tables"
+    sourceTables: "Source tables",
+    costBasis: "Cost basis",
+    assumptionNote: "internal MIYAR reference catalogue prices, not market observations",
+    basisCounts: "material rows (assumption / observed)"
   };
   const number3 = (value) => value.toLocaleString("en-US", {
     minimumFractionDigits: 2,
@@ -20218,6 +20420,7 @@ function renderWorkflowReconciliation(reconciliation, locale) {
       <td>${reconciliation.materialCosts.pricedAllocationCount}/${reconciliation.allocations.rowCount} \xB7 ${reconciliation.materialCosts.unpricedAllocationCount} ${copy.unpriced} \xB7 ${reconciliation.materialCosts.allAllocationsPriced ? copy.pass : copy.fail}</td>
     </tr>
   </table>
+  ${reconciliation.materialCosts.basis ? `<p style="font-size:8px; color:#777;">${copy.costBasis}: ${dynamicText(reconciliation.materialCosts.basis.label)}${reconciliation.materialCosts.basis.observedRowCount === 0 ? ` \u2014 ${copy.assumptionNote}` : ""} \xB7 ${reconciliation.materialCosts.basis.assumptionRowCount} / ${reconciliation.materialCosts.basis.observedRowCount} ${copy.basisCounts} \xB7 ${dynamicText(reconciliation.materialCosts.basis.policyVersion)}</p>` : ""}
   <p style="font-size:8px; color:#777;">${copy.source}: ${dynamicText(reconciliation.materialCosts.source)} \xB7 ${copy.sourceTables}: ${dynamicText(reconciliation.sourceTables.join(", "))} \xB7 ${dynamicText(reconciliation.version)}</p>
 </div>
 `;
@@ -20972,6 +21175,7 @@ function buildBoardAnnexData(inputs) {
 
 // server/engines/design/material-quantity-engine.ts
 init_llm();
+init_tier_policy();
 var ASPECT_RATIOS = {
   // Living / Dining / Lobby
   LVG: 1.6,
@@ -21072,8 +21276,9 @@ async function generateMaterialAllocations(project, surfaces, materialLibrary2, 
   });
   const projectTier = project.mkt01Tier?.toLowerCase() || "mid";
   const projectStyle = (project.des01Style || "modern").toLowerCase();
+  const allowedTiers = libraryTiersForMkt01Tier(project.mkt01Tier);
   const filteredLibrary = materialLibrary2.filter(
-    (m) => (m.tier === projectTier || m.tier === adjacentTier(projectTier)) && (m.style === projectStyle || m.style === "all")
+    (m) => allowedTiers.includes(m.tier) && (m.style === projectStyle || m.style === "all")
   );
   const roomDescriptions = roomsForGemini.map((s) => {
     const grade2 = roomGradeMap.get(s.roomId) || "B";
@@ -21276,16 +21481,12 @@ RULES:
   }
   return geminiResult;
 }
-function adjacentTier(tier) {
-  if (tier === "ultra") return "premium";
-  if (tier === "premium") return "mid";
-  if (tier === "mid") return "affordable";
-  return "mid";
-}
 function buildQuantityCostSummary(surfaces, allocations, materialLibrary2, project) {
   const materialLibraryMap = new Map(materialLibrary2.map((m) => [m.id, m]));
   const roomBreakdowns = [];
   const materialTotals = /* @__PURE__ */ new Map();
+  let unpricedAllocationCount = 0;
+  const pricedLibraryRowIds = /* @__PURE__ */ new Set();
   let totalFloorM2 = 0;
   let totalWallM2 = 0;
   let totalCeilingM2 = 0;
@@ -21316,28 +21517,22 @@ function buildQuantityCostSummary(surfaces, allocations, materialLibrary2, proje
         const actualAreaM2 = elDef.areaM2 * (slice.percentage / 100);
         let unitCostMin = 0;
         let unitCostMax = 0;
+        let priced = false;
         if (slice.materialLibraryId) {
           const libEntry = materialLibraryMap.get(slice.materialLibraryId);
-          if (libEntry) {
-            unitCostMin = Number(libEntry.priceAedMin) || 0;
-            unitCostMax = Number(libEntry.priceAedMax) || 0;
+          if (libEntry && libEntry.priceAedMin !== null && libEntry.priceAedMax !== null) {
+            const priceMin = Number(libEntry.priceAedMin);
+            const priceMax = Number(libEntry.priceAedMax);
+            if (Number.isFinite(priceMin) && Number.isFinite(priceMax)) {
+              unitCostMin = priceMin;
+              unitCostMax = priceMax;
+              priced = true;
+              pricedLibraryRowIds.add(libEntry.id);
+            }
           }
-        } else {
-          const categoryMap = {
-            floor: ["flooring"],
-            walls: ["wall_paint", "wall_tile"],
-            ceiling: ["ceiling"],
-            joinery: ["joinery"]
-          };
-          const elKey = elDef.name.toLowerCase();
-          const cats = categoryMap[elKey] || [];
-          const fallback = materialLibrary2.find(
-            (m) => cats.includes((m.category || "").toLowerCase())
-          );
-          if (fallback) {
-            unitCostMin = Number(fallback.priceAedMin) || 0;
-            unitCostMax = Number(fallback.priceAedMax) || 0;
-          }
+        }
+        if (!priced) {
+          unpricedAllocationCount += 1;
         }
         const sliceCostMin = actualAreaM2 * unitCostMin;
         const sliceCostMax = actualAreaM2 * unitCostMax;
@@ -21352,6 +21547,7 @@ function buildQuantityCostSummary(surfaces, allocations, materialLibrary2, proje
           unitCostMax,
           totalCostMin: Number(sliceCostMin.toFixed(2)),
           totalCostMax: Number(sliceCostMax.toFixed(2)),
+          priced,
           reasoning: slice.reasoning
         });
         const existing = materialTotals.get(slice.materialName) || {
@@ -21410,6 +21606,19 @@ function buildQuantityCostSummary(surfaces, allocations, materialLibrary2, proje
     totalCostMax: Number(totals.totalCostMax.toFixed(2)),
     pctOfTotalSurface: totalSurfaceM2 > 0 ? Number((totals.totalAreaM2 / totalSurfaceM2 * 100).toFixed(1)) : 0
   })).sort((a, b) => b.totalAreaM2 - a.totalAreaM2);
+  const OBSERVED_SOURCE_TYPES = /* @__PURE__ */ new Set(["market_observation", "supplier_quote"]);
+  let assumptionRowCount = 0;
+  let observedRowCount = 0;
+  for (const rowId of Array.from(pricedLibraryRowIds)) {
+    const row = materialLibraryMap.get(rowId);
+    if (!row) continue;
+    if (OBSERVED_SOURCE_TYPES.has(row.sourceType ?? "miyar_assumption")) {
+      observedRowCount += 1;
+    } else {
+      assumptionRowCount += 1;
+    }
+  }
+  const costBasisLabel = observedRowCount === 0 ? "MIYAR assumption" : assumptionRowCount === 0 ? "Observed market data" : "Mixed (MIYAR assumption + observed)";
   return {
     rooms: roomBreakdowns,
     summary: {
@@ -21425,7 +21634,14 @@ function buildQuantityCostSummary(surfaces, allocations, materialLibrary2, proje
       budgetUtilizationPct,
       isOverBudget,
       overBudgetByAed,
-      qualityLabel: allocations.estimatedQualityLabel || "Standard"
+      qualityLabel: allocations.estimatedQualityLabel || "Standard",
+      unpricedAllocationCount,
+      costBasis: {
+        policyVersion: "material-library-provenance-v1",
+        label: costBasisLabel,
+        assumptionRowCount,
+        observedRowCount
+      }
     },
     generatedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
@@ -21511,21 +21727,35 @@ function buildWorkflowSpaceMqiReconciliation(input) {
   let unpricedAllocationCount = 0;
   let min = 0;
   let max2 = 0;
+  const pricedMaterialIds = /* @__PURE__ */ new Set();
   for (const allocation of input.allocations) {
     const material = allocation.materialLibraryId === null ? void 0 : libraryById.get(allocation.materialLibraryId);
     const priceMin = finiteNumber(material?.priceAedMin);
     const priceMax = finiteNumber(material?.priceAedMax);
-    if (priceMin === null || priceMax === null) {
+    if (material === void 0 || priceMin === null || priceMax === null) {
       unpricedAllocationCount += 1;
       continue;
     }
     const areaM2 = numberOrZero(allocation.surfaceAreaM2);
     pricedAllocationCount += 1;
+    pricedMaterialIds.add(material.id);
     min += areaM2 * priceMin;
     max2 += areaM2 * priceMax;
   }
   min = round2(min);
   max2 = round2(max2);
+  let assumptionRowCount = 0;
+  let observedRowCount = 0;
+  for (const materialId of Array.from(pricedMaterialIds)) {
+    const material = libraryById.get(materialId);
+    const sourceType = typeof material?.sourceType === "string" ? material.sourceType : "miyar_assumption";
+    if (sourceType === "market_observation" || sourceType === "supplier_quote") {
+      observedRowCount += 1;
+    } else {
+      assumptionRowCount += 1;
+    }
+  }
+  const basisLabel = observedRowCount === 0 ? "MIYAR assumption" : assumptionRowCount === 0 ? "Observed market data" : "Mixed (MIYAR assumption + observed)";
   return {
     version: RECONCILIATION_VERSION,
     sourceTables: [
@@ -21570,7 +21800,13 @@ function buildWorkflowSpaceMqiReconciliation(input) {
       allAllocationsPriced: input.allocations.length > 0 && unpricedAllocationCount === 0,
       min,
       mid: round2((min + max2) / 2),
-      max: max2
+      max: max2,
+      basis: {
+        policyVersion: "material-library-provenance-v1",
+        label: basisLabel,
+        assumptionRowCount,
+        observedRowCount
+      }
     }
   };
 }
@@ -21928,6 +22164,7 @@ function generateDesignBrief2(project, inputs, scoreResult, livePricing, materia
       costPerSqmTarget: dynamicCostPerSqm ? `AED ${Math.round(dynamicCostPerSqm).toLocaleString()}/sqm (indicative benchmark estimate)` : budget ? `AED ${budget.toLocaleString()}/sqm` : "Not specified",
       totalBudgetCap: totalBudgetCap ? `AED ${totalBudgetCap.toLocaleString()}` : "Not specified",
       costBand,
+      costBasis: dynamicCostPerSqm !== null ? "configured_benchmarks" : budget ? "budget_cap" : "static_default",
       flexibilityLevel: flexMap[inputs.fin02Flexibility] || flexMap[3],
       contingencyRecommendation: inputs.fin03ShockTolerance <= 2 ? "Allocate 15-20% Contractor Contingency" : "Allocate 10% Contractor Contingency",
       valueEngineeringMandates: veNotes
@@ -22001,6 +22238,8 @@ function generateDesignBrief2(project, inputs, scoreResult, livePricing, materia
         isOverBudget: mqiData.summary.isOverBudget,
         overBudgetByAed: mqiData.summary.overBudgetByAed,
         qualityLabel: mqiData.summary.qualityLabel,
+        costBasisLabel: mqiData.summary.costBasis?.label,
+        unpricedAllocationCount: mqiData.summary.unpricedAllocationCount,
         roomBreakdown: mqiData.rooms.map((r) => ({
           roomId: r.roomId,
           roomName: r.roomName,
@@ -24357,7 +24596,7 @@ var projectRouter = router({
       const { buildDMComplianceChecklist: buildDMComplianceChecklist2 } = await Promise.resolve().then(() => (init_dm_compliance(), dm_compliance_exports));
       const vocab = buildDesignVocabulary2(project);
       const { totalFitoutBudgetAed, rooms } = buildSpaceProgram2(project);
-      const materials = await getAllMaterials();
+      const materials = await getMaterialLibrary();
       const finishSchedule = buildFinishSchedule2(project, vocab, rooms, materials);
       const colorPalette = await buildColorPalette2(project, vocab);
       const complianceChecklist = buildDMComplianceChecklist2(
@@ -25449,6 +25688,7 @@ function computeImprovementLevers(items) {
 
 // server/engines/pricing-engine.ts
 init_db();
+init_tier_policy();
 var MATERIAL_TO_EVIDENCE_CATEGORY = {
   tile: "floors",
   stone: "floors",
@@ -25464,32 +25704,30 @@ var MATERIAL_TO_EVIDENCE_CATEGORY = {
   accessory: "ffe",
   other: "other"
 };
-var TIER_TO_FINISH = {
-  economy: "basic",
-  mid: "standard",
-  premium: "premium",
-  luxury: "luxury",
-  ultra_luxury: "ultra_luxury"
-};
 async function getLiveCategoryPricing(finishLevel) {
   const normalizedFinish = finishLevel.toLowerCase();
   const allApproved = await listBenchmarkProposals("approved");
   const pricingDict = {};
+  const unitPreference = (unit) => unit === "sqm" ? 0 : unit === "sqft" ? 1 : 2;
   for (const proposal of allApproved) {
     const parts = proposal.benchmarkKey.split(":");
     if (parts.length < 3) continue;
     const [cat, finish, unit] = parts;
-    if (finish === normalizedFinish) {
-      pricingDict[cat] = {
-        category: cat,
-        finishLevel: finish,
-        unit,
-        p25: Number(proposal.proposedP25) || 0,
-        p50: Number(proposal.proposedP50) || 0,
-        p75: Number(proposal.proposedP75) || 0,
-        weightedMean: Number(proposal.weightedMean) || 0
-      };
+    if (finish !== normalizedFinish) continue;
+    const existing = pricingDict[cat];
+    if (existing) {
+      const keepExisting = unitPreference(existing.unit) < unitPreference(unit) || unitPreference(existing.unit) === unitPreference(unit) && existing.unit <= unit;
+      if (keepExisting) continue;
     }
+    pricingDict[cat] = {
+      category: cat,
+      finishLevel: finish,
+      unit,
+      p25: Number(proposal.proposedP25) || 0,
+      p50: Number(proposal.proposedP50) || 0,
+      p75: Number(proposal.proposedP75) || 0,
+      weightedMean: Number(proposal.weightedMean) || 0
+    };
   }
   return pricingDict;
 }
@@ -25501,7 +25739,7 @@ async function syncMaterialsWithBenchmarks() {
   let skippedCount = 0;
   for (const material of materials) {
     const evidenceCat = MATERIAL_TO_EVIDENCE_CATEGORY[material.category] || "other";
-    const targetFinishLevel = TIER_TO_FINISH[material.tier] || "standard";
+    const targetFinishLevel = catalogTierToFinish(material.tier);
     const searchPrefix = `${evidenceCat}:${targetFinishLevel}:`;
     const matchedProposal = allApproved.find(
       (p) => p.benchmarkKey.startsWith(searchPrefix)
@@ -27376,6 +27614,7 @@ var DOCX_AR_COPY = {
   "Cost Per Sqm Target": "\u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0627\u0644\u0645\u0633\u062A\u0647\u062F\u0641\u0629 \u0644\u0643\u0644 \u0645\xB2",
   "Total Budget Cap": "\u0627\u0644\u062D\u062F \u0627\u0644\u0623\u0639\u0644\u0649 \u0644\u0644\u0645\u064A\u0632\u0627\u0646\u064A\u0629",
   "Cost Band": "\u0646\u0637\u0627\u0642 \u0627\u0644\u062A\u0643\u0644\u0641\u0629",
+  "Cost Basis": "\u0623\u0633\u0627\u0633 \u0627\u0644\u062A\u0643\u0644\u0641\u0629",
   "Contingency Recommendation": "\u062A\u0648\u0635\u064A\u0629 \u0627\u0644\u0627\u062D\u062A\u064A\u0627\u0637\u064A",
   "Budget Flexibility Level": "\u0645\u0633\u062A\u0648\u0649 \u0645\u0631\u0648\u0646\u0629 \u0627\u0644\u0645\u064A\u0632\u0627\u0646\u064A\u0629",
   "Lead Time Window": "\u0646\u0627\u0641\u0630\u0629 \u0627\u0644\u0645\u0647\u0644\u0629 \u0627\u0644\u0632\u0645\u0646\u064A\u0629",
@@ -27708,6 +27947,8 @@ async function generateDesignBriefDocx(data) {
       ["Cost Per Sqm Target", budget.costPerSqmTarget ?? "\u2014"],
       ["Total Budget Cap", budget.totalBudgetCap ?? "\u2014"],
       ["Cost Band", budget.costBand ?? "\u2014"],
+      // ADR-0009: the MQI cost basis label travels with every budget rendering.
+      ["Cost Basis", budget.mqiSummary?.costBasisLabel ? `${budget.mqiSummary.costBasisLabel}${Number(budget.mqiSummary.unpricedAllocationCount) > 0 ? ` \u2014 ${budget.mqiSummary.unpricedAllocationCount} unpriced allocations` : ""}` : "\u2014"],
       ["Contingency Recommendation", budget.contingencyRecommendation ?? "\u2014"],
       ["Budget Flexibility Level", budget.flexibilityLevel ?? "\u2014"]
     ], rtl)
@@ -27878,6 +28119,7 @@ async function generateDesignBriefDocx(data) {
 }
 
 // server/routers/design-briefs.ts
+init_tier_policy();
 var designBriefsRouter = router({
   generateBrief: designOrgMutationProcedure.input(
     z10.object({
@@ -27913,13 +28155,7 @@ var designBriefsRouter = router({
         er: Number(latest.erScore)
       }
     };
-    const tierToFinish = {
-      Mid: "standard",
-      "Upper-mid": "premium",
-      Luxury: "luxury",
-      "Ultra-luxury": "ultra_luxury"
-    };
-    const targetFinish = tierToFinish[inputs.mkt01Tier] || "standard";
+    const targetFinish = mkt01TierToFinish(inputs.mkt01Tier);
     const livePricing = await getLiveCategoryPricing(targetFinish);
     const matConstants = await getMaterialConstants();
     const areaSaleMedian = await getAreaSaleMedianSqm(project.dldAreaId);
@@ -28123,15 +28359,16 @@ var designBriefsRouter = router({
       detailedBudget: brief.detailedBudget,
       designerInstructions: brief.designerInstructions
     };
-    const materials = await getAllMaterials();
+    const materials = await getMaterialLibrary();
     const materialList = materials.map((m) => ({
       id: m.id,
-      name: m.name || m.productName || "",
+      name: m.productName || "",
       category: m.category || "",
       tier: m.tier || "mid",
-      priceAedMin: m.typicalCostLow || m.priceAedMin || 0,
-      priceAedMax: m.typicalCostHigh || m.priceAedMax || 0,
-      supplierName: m.supplierName || "TBD"
+      priceAedMin: m.priceAedMin ?? 0,
+      priceAedMax: m.priceAedMax ?? 0,
+      supplierName: m.supplierName || "TBD",
+      sourceType: m.sourceType
     }));
     const result = buildRFQFromBrief(
       input.projectId,
@@ -32918,6 +33155,7 @@ var UAE_SOURCES = [
   // ── Supplier Catalogs ─────────────────────────────────────────
   {
     name: "Graniti UAE",
+    slug: "graniti-uae",
     url: "https://www.granitiuae.com/",
     sourceType: "supplier_catalog",
     reliabilityDefault: "B",
@@ -32931,6 +33169,7 @@ var UAE_SOURCES = [
   },
   {
     name: "RAK Ceramics UAE",
+    slug: "rak-ceramics-uae",
     url: "https://www.rakceramics.com/ae/",
     sourceType: "manufacturer_catalog",
     reliabilityDefault: "B",
@@ -32943,6 +33182,7 @@ var UAE_SOURCES = [
   },
   {
     name: "Porcelanosa UAE",
+    slug: "porcelanosa-uae",
     url: "https://www.porcelanosa.com/ae/",
     sourceType: "manufacturer_catalog",
     reliabilityDefault: "B",
@@ -32955,6 +33195,7 @@ var UAE_SOURCES = [
   },
   {
     name: "Hafele UAE",
+    slug: "hafele-uae",
     url: "https://www.hafele.ae/en/",
     sourceType: "supplier_catalog",
     reliabilityDefault: "B",
@@ -32968,6 +33209,7 @@ var UAE_SOURCES = [
   },
   {
     name: "GEMS Building Materials",
+    slug: "gems-building-materials",
     url: "https://www.gems-bm.com/",
     sourceType: "supplier_catalog",
     reliabilityDefault: "B",
@@ -32975,11 +33217,13 @@ var UAE_SOURCES = [
     scrapeMethod: "html_llm",
     scrapeSchedule: "0 0 7 * * 1",
     extractionHints: "Extract building material products, prices in AED, categories (tiles, marble, granite, plumbing, electrical). Focus on unit prices per sqm/sqft/piece.",
-    notes: "UAE building materials supplier.",
-    requestDelayMs: 2e3
+    notes: "UAE building materials supplier. Deactivated 2026-07-23 (EV-00): gems-bm.com no longer resolves (NXDOMAIN in the cost-path audit probe).",
+    requestDelayMs: 2e3,
+    isActive: false
   },
   {
     name: "Dragon Mart Dubai",
+    slug: "dragon-mart-dubai",
     url: "https://www.dragonmart.ae/",
     sourceType: "retailer_listing",
     reliabilityDefault: "B",
@@ -32992,6 +33236,7 @@ var UAE_SOURCES = [
   },
   {
     name: "Danube Home",
+    slug: "danube-home",
     url: "https://www.danubehome.com/uae/",
     sourceType: "retailer_listing",
     reliabilityDefault: "B",
@@ -33005,6 +33250,7 @@ var UAE_SOURCES = [
   },
   {
     name: "IKEA UAE",
+    slug: "ikea-uae",
     url: "https://www.ikea.com/ae/en/",
     sourceType: "retailer_listing",
     reliabilityDefault: "B",
@@ -33017,6 +33263,7 @@ var UAE_SOURCES = [
   },
   {
     name: "ACE Hardware UAE",
+    slug: "ace-hardware-uae",
     url: "https://www.aceuae.com/",
     sourceType: "retailer_listing",
     reliabilityDefault: "B",
@@ -33029,6 +33276,7 @@ var UAE_SOURCES = [
   },
   {
     name: "Pan Marble Dubai",
+    slug: "pan-marble-dubai",
     url: "https://www.pansidubai.com/",
     sourceType: "supplier_catalog",
     reliabilityDefault: "B",
@@ -33037,11 +33285,13 @@ var UAE_SOURCES = [
     scrapeSchedule: "0 0 7 * * 5",
     // Friday (monthly effective)
     extractionHints: "Extract marble and natural stone products: travertine, granite, onyx, limestone. Look for AED prices per sqm/sqft, slab dimensions, stone origin. Premium material supplier.",
-    notes: "Major marble/natural stone supplier in Dubai.",
-    requestDelayMs: 3e3
+    notes: "Major marble/natural stone supplier in Dubai. Deactivated 2026-07-23 (EV-00): pansidubai.com no longer resolves (NXDOMAIN in the cost-path audit probe).",
+    requestDelayMs: 3e3,
+    isActive: false
   },
   {
     name: "Homes R Us UAE",
+    slug: "homes-r-us-uae",
     url: "https://www.homecentre.com/ae/en",
     sourceType: "retailer_listing",
     reliabilityDefault: "C",
@@ -33055,6 +33305,7 @@ var UAE_SOURCES = [
   // ── Developer Brochures (Competitor Intelligence) ─────────────
   {
     name: "Emaar Properties",
+    slug: "emaar-properties",
     url: "https://www.emaar.com/en/our-communities",
     sourceType: "developer_brochure",
     reliabilityDefault: "A",
@@ -33067,6 +33318,7 @@ var UAE_SOURCES = [
   },
   {
     name: "DAMAC Properties",
+    slug: "damac-properties",
     url: "https://www.damacproperties.com/en/properties",
     sourceType: "developer_brochure",
     reliabilityDefault: "A",
@@ -33079,6 +33331,7 @@ var UAE_SOURCES = [
   },
   {
     name: "Aldar Properties",
+    slug: "aldar-properties",
     url: "https://www.aldar.com/en/explore/businesses/aldar-development/residential",
     sourceType: "developer_brochure",
     reliabilityDefault: "A",
@@ -33091,6 +33344,7 @@ var UAE_SOURCES = [
   },
   {
     name: "Sobha Realty",
+    slug: "sobha-realty",
     url: "https://www.sobharealty.com/projects/",
     sourceType: "developer_brochure",
     reliabilityDefault: "B",
@@ -33103,6 +33357,7 @@ var UAE_SOURCES = [
   },
   {
     name: "Ellington Properties",
+    slug: "ellington-properties",
     url: "https://www.ellingtongroup.com/",
     sourceType: "developer_brochure",
     reliabilityDefault: "B",
@@ -33116,6 +33371,7 @@ var UAE_SOURCES = [
   // ── Industry Reports & Trends ─────────────────────────────────
   {
     name: "CBRE UAE Research",
+    slug: "cbre-uae-research",
     url: "https://www.cbre.ae/en/insights",
     sourceType: "industry_report",
     reliabilityDefault: "A",
@@ -33128,6 +33384,7 @@ var UAE_SOURCES = [
   },
   {
     name: "Knight Frank UAE",
+    slug: "knight-frank-uae",
     url: "https://www.knightfrank.ae/research",
     sourceType: "industry_report",
     reliabilityDefault: "A",
@@ -33140,6 +33397,7 @@ var UAE_SOURCES = [
   },
   {
     name: "JLL MENA Research",
+    slug: "jll-mena-research",
     url: "https://www.jll.ae/en/trends-and-insights",
     sourceType: "industry_report",
     reliabilityDefault: "A",
@@ -33152,6 +33410,7 @@ var UAE_SOURCES = [
   },
   {
     name: "Commercial Interior Design Magazine",
+    slug: "commercial-interior-design-mag",
     url: "https://www.commercialinteriordesign.com/",
     sourceType: "trade_publication",
     reliabilityDefault: "C",
@@ -33164,6 +33423,7 @@ var UAE_SOURCES = [
   },
   {
     name: "Dezeen UAE/Dubai",
+    slug: "dezeen-uae-dubai",
     url: "https://www.dezeen.com/tag/dubai/",
     sourceType: "trade_publication",
     reliabilityDefault: "C",
@@ -33176,6 +33436,7 @@ var UAE_SOURCES = [
   },
   {
     name: "ArchDaily UAE",
+    slug: "archdaily-uae",
     url: "https://www.archdaily.com/tag/united-arab-emirates",
     sourceType: "trade_publication",
     reliabilityDefault: "C",
@@ -33189,6 +33450,7 @@ var UAE_SOURCES = [
   // ── Live Property Listing Aggregators (V5) ───────────────────
   {
     name: "Bayut Property Listings",
+    slug: "bayut-listings",
     url: "https://www.bayut.com/for-sale/property/dubai/",
     sourceType: "aggregator",
     reliabilityDefault: "B",
@@ -33202,6 +33464,7 @@ var UAE_SOURCES = [
   },
   {
     name: "PropertyFinder Listings",
+    slug: "propertyfinder-listings",
     url: "https://www.propertyfinder.ae/en/buy/dubai/",
     sourceType: "aggregator",
     reliabilityDefault: "B",
@@ -33212,6 +33475,125 @@ var UAE_SOURCES = [
     extractionHints: "Extract property listings: project/building name, area, asking price in AED, property type, bedrooms, size sqft, agent/developer. Focus on listed prices for market intelligence and pricing trends.",
     notes: "Top UAE property search portal. JS-rendered \u2014 requires Firecrawl.",
     requestDelayMs: 3e3
+  },
+  // ── EV-00 (2026-07-23): registry rows for the static connectors that had
+  // none, so the scheduled cron path can resolve health/freshness by slug ──
+  {
+    name: "Nakheel Properties",
+    slug: "nakheel-properties",
+    url: "https://www.nakheel.com/en/",
+    sourceType: "developer_brochure",
+    reliabilityDefault: "A",
+    region: "Dubai",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1",
+    extractionHints: "Extract development/project names, finish descriptions, material brands, quality tier language from Nakheel project pages.",
+    notes: "Major Dubai master developer. Static connector: nakheel-properties.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "RICS Market Reports",
+    slug: "rics-market-reports",
+    url: "https://www.rics.org/news-insights/research-and-insights/",
+    sourceType: "industry_report",
+    reliabilityDefault: "A",
+    region: "UAE",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1",
+    extractionHints: "Extract construction cost statistics, market survey findings, and UAE/MENA indices with periods.",
+    notes: "Professional-body research. Static connector: rics-market-reports.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "Dubai Statistics Center",
+    slug: "dubai-statistics-center",
+    url: "https://www.dsc.gov.ae/en-us/Themes/Pages/default.aspx",
+    sourceType: "government_tender",
+    reliabilityDefault: "A",
+    region: "Dubai",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1",
+    extractionHints: "Extract official Dubai construction and price statistics with reporting periods.",
+    notes: "Official statistics portal. Static connector: dubai-statistics-center.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "Dubai Pulse \u2014 Material Prices",
+    slug: "dubai-pulse-materials",
+    url: "https://www.dubaipulse.gov.ae/data/dsc_average-construction-material-prices/dsc_average_construction_material_prices-open",
+    sourceType: "government_tender",
+    reliabilityDefault: "A",
+    region: "Dubai",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1",
+    extractionHints: "Extract average construction material prices in AED with material names, units, and periods from the open dataset.",
+    notes: "Official Dubai Pulse open dataset. Static connector: dubai-pulse-materials.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "SCAD Abu Dhabi Publications",
+    slug: "scad-abu-dhabi",
+    url: "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx",
+    sourceType: "government_tender",
+    reliabilityDefault: "A",
+    region: "Abu Dhabi",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1",
+    extractionHints: "Extract building material price index publications and statistics with periods.",
+    notes: "Statistics Centre Abu Dhabi publications page. Static connector: scad-abu-dhabi.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "SCAD Material Price PDFs",
+    slug: "scad-pdf-materials",
+    url: "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx",
+    sourceType: "government_tender",
+    reliabilityDefault: "A",
+    region: "Abu Dhabi",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1",
+    extractionHints: "Extract material price tables from SCAD construction cost PDFs (names, AED prices, units, indices, quarters).",
+    notes: "PDF variant of the SCAD publications source (same URL, distinct connector). Static connector: scad-pdf-materials.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "DLD Transactions (Dubai Pulse)",
+    slug: "dld-transactions",
+    url: "https://www.dubaipulse.gov.ae/data/dld_transactions/dld_transactions-open",
+    sourceType: "government_tender",
+    reliabilityDefault: "A",
+    region: "Dubai",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1",
+    extractionHints: "Extract Dubai Land Department transaction statistics with areas, values in AED, and periods from the open dataset.",
+    notes: "Official DLD open dataset. Static connector: dld-transactions.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "Savills ME Research",
+    slug: "savills-me-research",
+    url: "https://www.savills.me/insight-and-opinion/",
+    sourceType: "industry_report",
+    reliabilityDefault: "A",
+    region: "UAE",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1",
+    extractionHints: "Extract UAE market research findings, cost benchmarks, and statistics with periods.",
+    notes: "Consultancy research library. Static connector: savills-me-research.",
+    requestDelayMs: 2e3
+  },
+  {
+    name: "Property Monitor Dubai",
+    slug: "property-monitor-dubai",
+    url: "https://www.propertymonitor.ae/market-reports",
+    sourceType: "industry_report",
+    reliabilityDefault: "B",
+    region: "Dubai",
+    scrapeMethod: "html_llm",
+    scrapeSchedule: "0 0 6 * * 1",
+    extractionHints: "Extract Dubai market report statistics, price indices, and transaction summaries with periods.",
+    notes: "Market analytics reports. Static connector: property-monitor-dubai.",
+    requestDelayMs: 2e3
   }
 ];
 async function seedUAESources() {
@@ -33219,35 +33601,48 @@ async function seedUAESources() {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   let created = 0;
-  let skipped = 0;
+  let updated = 0;
+  const skipped = 0;
   const errors = [];
   for (const source of UAE_SOURCES) {
     try {
-      const existing = await db.select({ id: sourceRegistry.id }).from(sourceRegistry).where(eq9(sourceRegistry.url, source.url)).limit(1);
-      if (existing.length > 0) {
-        console.log(`[Seeder] Skipping "${source.name}" \u2014 already exists (id=${existing[0].id})`);
-        skipped++;
-        continue;
+      const bySlug = await db.select({ id: sourceRegistry.id }).from(sourceRegistry).where(eq9(sourceRegistry.slug, source.slug)).limit(1);
+      let targetId = bySlug[0]?.id;
+      if (targetId === void 0) {
+        const legacyByUrl = await db.select({ id: sourceRegistry.id, slug: sourceRegistry.slug }).from(sourceRegistry).where(eq9(sourceRegistry.url, source.url)).limit(1);
+        if (legacyByUrl[0] && legacyByUrl[0].slug === null) {
+          targetId = legacyByUrl[0].id;
+        }
       }
-      await db.insert(sourceRegistry).values({
+      const seedValues = {
         name: source.name,
+        slug: source.slug,
         url: source.url,
         sourceType: source.sourceType,
         reliabilityDefault: source.reliabilityDefault,
         isWhitelisted: true,
         region: source.region,
         notes: source.notes,
-        isActive: true,
+        isActive: source.isActive ?? true,
         scrapeMethod: source.scrapeMethod,
         scrapeSchedule: source.scrapeSchedule,
         extractionHints: source.extractionHints,
-        requestDelayMs: source.requestDelayMs,
-        lastScrapedStatus: "never",
-        lastRecordCount: 0,
-        consecutiveFailures: 0
-      });
-      console.log(`[Seeder] \u2705 Created source: "${source.name}"`);
-      created++;
+        requestDelayMs: source.requestDelayMs
+      };
+      if (targetId !== void 0) {
+        await db.update(sourceRegistry).set(seedValues).where(eq9(sourceRegistry.id, targetId));
+        console.log(`[Seeder] \u{1F501} Updated source "${source.name}" (id=${targetId}, slug=${source.slug})`);
+        updated++;
+      } else {
+        await db.insert(sourceRegistry).values({
+          ...seedValues,
+          lastScrapedStatus: "never",
+          lastRecordCount: 0,
+          consecutiveFailures: 0
+        });
+        console.log(`[Seeder] \u2705 Created source: "${source.name}" (slug=${source.slug})`);
+        created++;
+      }
     } catch (err) {
       const msg = `Failed to seed "${source.name}": ${err instanceof Error ? err.message : String(err)}`;
       console.error(`[Seeder] \u274C ${msg}`);
@@ -33255,8 +33650,8 @@ async function seedUAESources() {
     }
   }
   console.log(`
-[Seeder] Done: ${created} created, ${skipped} skipped, ${errors.length} errors`);
-  return { created, skipped, errors };
+[Seeder] Done: ${created} created, ${updated} updated, ${errors.length} errors`);
+  return { created, updated, skipped, errors };
 }
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("uae-sources.ts")) {
   seedUAESources().then(({ created, skipped, errors }) => {
@@ -35061,11 +35456,11 @@ async function runTrendAnalysis(records, input, persist) {
     const metric = record.itemName || "unknown";
     const value = record.priceMin ? parseFloat(String(record.priceMin)) : null;
     if (value === null || Number.isNaN(value)) continue;
-    const date = record.captureDate || record.createdAt;
-    if (!date) continue;
+    const date2 = record.captureDate || record.createdAt;
+    if (!date2) continue;
     if (!metricGroups.has(metric)) metricGroups.set(metric, []);
     metricGroups.get(metric).push({
-      date: new Date(date),
+      date: new Date(date2),
       value,
       grade: record.reliabilityGrade || "C",
       sourceId: record.sourceRegistryId ? String(record.sourceRegistryId) : "unknown",

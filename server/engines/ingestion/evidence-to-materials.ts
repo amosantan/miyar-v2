@@ -10,6 +10,7 @@ import { getDb } from "../../db";
 import { materialsCatalog, evidenceRecords } from "../../../drizzle/schema";
 import { eq, desc } from "drizzle-orm";
 import { getMaterialConstants } from "../../db";
+import { classifyCatalogTier } from "../tier-policy";
 
 // ─── Category Mapping ────────────────────────────────────────────
 // Evidence categories → Materials Catalog categories
@@ -28,25 +29,10 @@ const EVIDENCE_TO_CATALOG_CATEGORY: Record<string, string> = {
 };
 
 // ─── Tier Detection ──────────────────────────────────────────────
-// materials_catalog enum: economy, mid, premium, luxury, ultra_luxury
+// ADR-0009 (audit F10): the AED ladder is owned by the versioned tier policy
+// (material-tier-policy-v1, values unchanged); this module only delegates.
 function detectTier(priceMin: number | null, priceMax: number | null, unit: string): "economy" | "mid" | "premium" | "luxury" | "ultra_luxury" {
-    const price = priceMax || priceMin || 0;
-
-    // Per-sqm pricing (tiles, flooring, paint)
-    if (unit === "sqm" || unit === "m²" || unit === "sqft" || unit === "L") {
-        if (price < 40) return "economy";
-        if (price < 150) return "mid";
-        if (price < 400) return "premium";
-        if (price < 800) return "luxury";
-        return "ultra_luxury";
-    }
-
-    // Per-unit pricing (sanitaryware, fixtures)
-    if (price < 300) return "economy";
-    if (price < 1500) return "mid";
-    if (price < 5000) return "premium";
-    if (price < 15000) return "luxury";
-    return "ultra_luxury";
+    return classifyCatalogTier(priceMin, priceMax, unit);
 }
 
 // ─── Main Sync Function ─────────────────────────────────────────
@@ -123,7 +109,7 @@ export async function syncEvidenceToMaterials(
                 record.priceMax ? parseFloat(String(record.priceMax)) : 0,
                 record.priceTypical ? parseFloat(String(record.priceTypical)) : 0,
             );
-            if (maxRawPrice > 99_999_99) { // >10M AED is not a material price
+            if (maxRawPrice > 10_000_000) { // >10M AED is not a material price
                 skipped++;
                 continue;
             }

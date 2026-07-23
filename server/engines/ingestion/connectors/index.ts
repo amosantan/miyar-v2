@@ -28,8 +28,11 @@ import { SCADPdfConnector } from "./scad-pdf-connector";
 // ─── SOURCE_URLS Registry ──────────────────────────────────────
 
 export const SOURCE_URLS: Record<string, string> = {
+  // EV-00 registry prune (2026-07-23): dera-interiors (derainteriors.ae) and
+  // gems-building-materials (gemsbuilding.com) were removed — both domains no
+  // longer resolve; their deactivated seed rows retain the history.
   "rak-ceramics-uae": "https://www.rakceramics.com/",
-  "dera-interiors": "https://derainteriors.ae/",
+  "graniti-uae": "https://www.granitiuae.com/",
   "dragon-mart-dubai": "https://www.dragonmart.ae/",
   "porcelanosa-uae": "https://www.porcelanosa.com/ae/",
   "emaar-properties": "https://www.emaar.com/en/",
@@ -38,8 +41,9 @@ export const SOURCE_URLS: Record<string, string> = {
   "rics-market-reports": "https://www.rics.org/news-insights/research-and-insights/",
   "jll-mena-research": "https://www.jll.com/en/trends-and-insights/research",
   "dubai-statistics-center": "https://www.dsc.gov.ae/en-us/Themes/Pages/default.aspx",
-  "hafele-uae": "https://www.hafele.com/",
-  "gems-building-materials": "https://gemsbuilding.com/products/",
+  // EV-00 URL repair: the former hafele.com pointed at the US-dollar
+  // storefront; the UAE storefront matches the seed row.
+  "hafele-uae": "https://www.hafele.ae/en/",
   // ─── V4: New UAE Market Sources ─────────────────────────────────
   "dubai-pulse-materials": "https://www.dubaipulse.gov.ae/data/dsc_average-construction-material-prices/dsc_average_construction_material_prices-open",
   "scad-abu-dhabi": "https://www.scad.gov.ae/en/pages/GeneralPublications.aspx",
@@ -73,7 +77,7 @@ function buildExtractionUserPrompt(
     : "";
 
   return `Extract evidence items from this ${sourceName} webpage HTML.
-Category: ${category}
+Source focus: ${category}
 Geography: ${geography}${dateFilter}
 
 Return a JSON array of objects with these exact fields:
@@ -83,10 +87,12 @@ Return a JSON array of objects with these exact fields:
 - metric: string (what is being measured, e.g. "Marble Tile 60x60 price")
 - value: number|null (numeric value in AED if found, null otherwise)
 - unit: string|null (e.g. "sqm", "sqft", "piece", "unit", null if not applicable)
+- category: string (the item's own area — one of: "floors", "walls", "ceilings", "joinery", "lighting", "sanitary", "kitchen", "hardware", "ffe", "other")
 
 Rules:
 - Extract up to 15 items maximum
 - Only extract items with real data (titles, prices, descriptions)
+- Classify each item's category by what the item IS (tiles → floors or walls, taps → sanitary, cabinet handles → hardware); use "other" when unsure
 - Do NOT invent data — if no items found, return empty array []
 - Do NOT output confidence, grade, or scoring fields
 
@@ -101,6 +107,7 @@ interface LLMExtractedItem {
   metric: string;
   value: number | null;
   unit: string | null;
+  category?: string | null;
 }
 
 /**
@@ -253,7 +260,11 @@ abstract class HTMLSourceConnector extends BaseSourceConnector {
         rawText: item.rawText || item.title,
         ...publicationDateFields(item.publishedDate, raw.fetchedAt),
         observedAt: raw.fetchedAt,
-        category: this.category,
+        // ADR-0009 (audit F11): prefer the item's own extracted category so
+        // static material evidence stops pooling into one bucket; the
+        // orchestrator validates it against the evidence enum and maps the
+        // class-level fallback to "other".
+        category: (typeof item.category === "string" && item.category) || this.category,
         geography: this.geography,
         sourceUrl: raw.url,
         // Store LLM-extracted metric/value/unit as metadata in rawText for normalize()
@@ -365,16 +376,20 @@ export class RAKCeramicsConnector extends HTMLSourceConnector {
   defaultUnit = "sqm";
 }
 
-// ─── 2. DERA Interiors ──────────────────────────────────────────
+// ─── 2. Graniti UAE ─────────────────────────────────────────────
+// EV-00: the only probed source that published recognisable AED prices;
+// fully subject to the ADR-0010 robots gate — if granitiuae.com disallows,
+// it fails closed by design.
 
-export class DERAInteriorsConnector extends HTMLSourceConnector {
-  sourceId = "dera-interiors";
-  sourceName = "DERA Interiors";
-  sourceUrl = SOURCE_URLS["dera-interiors"];
-  category = "fitout_rate";
-  geography = "Dubai";
-  defaultTags = ["fitout", "interior-design", "contractor"];
-  defaultUnit = "sqft";
+export class GranitiUAEConnector extends HTMLSourceConnector {
+  sourceId = "graniti-uae";
+  sourceName = "Graniti UAE";
+  sourceUrl = SOURCE_URLS["graniti-uae"];
+  category = "material_cost";
+  geography = "UAE";
+  defaultTags = ["tiles", "marble", "granite", "sanitaryware", "supplier"];
+  defaultUnit = "sqm";
+  requestDelayMs = 3000; // Respect the supplier's site — modest pacing
 }
 
 // ─── 3. Dragon Mart Dubai ───────────────────────────────────────
@@ -546,18 +561,6 @@ export class HafeleConnector extends HTMLSourceConnector {
   geography = "UAE";
   defaultTags = ["hardware", "fittings", "joinery", "manufacturer"];
   defaultUnit = "piece";
-}
-
-// ─── 12. GEMS Building Materials ────────────────────────────────
-
-export class GEMSConnector extends HTMLSourceConnector {
-  sourceId = "gems-building-materials";
-  sourceName = "GEMS Building Materials";
-  sourceUrl = SOURCE_URLS["gems-building-materials"];
-  category = "material_cost";
-  geography = "UAE";
-  defaultTags = ["building-materials", "supplier", "wholesale"];
-  defaultUnit = "unit";
 }
 
 // ─── 13. Dubai Pulse — Construction Material Prices ─────────────
@@ -794,17 +797,8 @@ export class BayutListingsConnector extends HTMLSourceConnector {
   defaultUnit = "sqft";
   requestDelayMs = 2000; // Respect rate limits
 
-  /**
-   * Bayut listings are JS-rendered — Firecrawl is strongly preferred.
-   * Falls back to basic fetch if Firecrawl is unavailable.
-   */
-  async fetch(): Promise<RawSourcePayload> {
-    if (this.requestDelayMs && this.requestDelayMs > 0) {
-      await new Promise(r => setTimeout(r, this.requestDelayMs));
-    }
-    // Always prefer Firecrawl for Bayut (JS-rendered SPA)
-    return this.fetchWithFirecrawl();
-  }
+  // Bayut is JS-rendered; the base fetch() chain already prefers Firecrawl
+  // and applies the ADR-0010 robots gate before any provider. No override.
 
   async normalize(
     evidence: ExtractedEvidence,
@@ -858,15 +852,8 @@ export class PropertyFinderListingsConnector extends HTMLSourceConnector {
   defaultUnit = "sqft";
   requestDelayMs = 2000; // Respect rate limits
 
-  /**
-   * PropertyFinder is also JS-rendered — use Firecrawl.
-   */
-  async fetch(): Promise<RawSourcePayload> {
-    if (this.requestDelayMs && this.requestDelayMs > 0) {
-      await new Promise(r => setTimeout(r, this.requestDelayMs));
-    }
-    return this.fetchWithFirecrawl();
-  }
+  // PropertyFinder is JS-rendered; the base fetch() chain already prefers
+  // Firecrawl and applies the ADR-0010 robots gate. No override.
 
   async normalize(
     evidence: ExtractedEvidence,
@@ -911,7 +898,7 @@ export class PropertyFinderListingsConnector extends HTMLSourceConnector {
 
 export const ALL_CONNECTORS: Record<string, () => BaseSourceConnector> = {
   "rak-ceramics-uae": () => new RAKCeramicsConnector(),
-  "dera-interiors": () => new DERAInteriorsConnector(),
+  "graniti-uae": () => new GranitiUAEConnector(),
   "dragon-mart-dubai": () => new DragonMartConnector(),
   "porcelanosa-uae": () => new PorcelanosaConnector(),
   "emaar-properties": () => new EmaarConnector(),
@@ -921,7 +908,6 @@ export const ALL_CONNECTORS: Record<string, () => BaseSourceConnector> = {
   "jll-mena-research": () => new JLLConnector(),
   "dubai-statistics-center": () => new DubaiStatisticsConnector(),
   "hafele-uae": () => new HafeleConnector(),
-  "gems-building-materials": () => new GEMSConnector(),
   // V4: New UAE Market Sources
   "dubai-pulse-materials": () => new DubaiPulseConnector(),
   "scad-abu-dhabi": () => new SCADConnector(),
