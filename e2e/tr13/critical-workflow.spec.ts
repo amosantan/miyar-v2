@@ -168,11 +168,60 @@ async function trpcRequest<T>(
           data: { json: input },
         }
   );
-  expect(response.ok(), `${procedure} must succeed`).toBe(true);
+  let failureDetail = "";
+  if (!response.ok()) {
+    // Surface the tRPC error envelope so a non-OK response is diagnosable;
+    // redact share paths/tokens so the guarded secret scan stays clean.
+    const body = await response.text().catch(() => "");
+    const sanitizedBody = body
+      .slice(0, 2_000)
+      .replace(/\/share\/(?!:token)[A-Za-z0-9_-]{8,}/g, "/share/[REDACTED]")
+      .replace(
+        /(shareToken["']?\s*[:=]\s*["'])[A-Za-z0-9_-]{8,}/gi,
+        "$1[REDACTED]"
+      );
+    failureDetail = ` (status ${response.status()}): ${sanitizedBody}`;
+  }
+  expect(response.ok(), `${procedure} must succeed${failureDetail}`).toBe(true);
   const payload = (await response.json()) as {
     result: { data: { json: T } };
   };
   return payload.result.data.json;
+}
+
+/**
+ * Issue a tRPC call that is expected to be refused, returning the concrete
+ * error contract. page.request bypasses page diagnostics, so an expected
+ * refusal never counts as an unexpected browser HTTP error.
+ */
+async function trpcErrorRequest(
+  page: Page,
+  procedure: string,
+  input: Record<string, unknown>,
+  method: "GET" | "POST"
+): Promise<{ status: number; code: string | undefined; message: string }> {
+  const encoded = encodeURIComponent(JSON.stringify({ json: input }));
+  const response = await page.request.fetch(
+    method === "GET"
+      ? `/api/trpc/${procedure}?input=${encoded}`
+      : `/api/trpc/${procedure}`,
+    method === "GET"
+      ? { method }
+      : {
+          method,
+          headers: { "content-type": "application/json" },
+          data: { json: input },
+        }
+  );
+  expect(response.ok(), `${procedure} must be refused`).toBe(false);
+  const payload = (await response.json()) as {
+    error?: { json?: { message?: string; data?: { code?: string } } };
+  };
+  return {
+    status: response.status(),
+    code: payload.error?.json?.data?.code,
+    message: payload.error?.json?.message ?? "",
+  };
 }
 
 test.describe("TR-13 critical workflow harness", () => {
@@ -268,6 +317,7 @@ test.describe("TR-13 critical workflow harness", () => {
   });
 
   test("renders the public home and login entry routes", async ({ page }) => {
+    const state = diagnostics.get(page);
     await page.goto("/");
     await expect(
       page.getByRole("heading", {
@@ -275,8 +325,12 @@ test.describe("TR-13 critical workflow harness", () => {
       })
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
+    // Leaving the public home can abort its still-in-flight auth.me query;
+    // that aborted fetch is an expected session transition, not a defect.
+    if (state) state.expectingSessionTransition = true;
     await page.goto("/login");
     await expect(page.getByRole("button", { name: "Sign In" })).toBeVisible();
+    if (state) state.expectingSessionTransition = false;
     await expectNoHorizontalOverflow(page);
     writeBrowserEvidence({
       publicHomeInspected: true,
@@ -370,74 +424,164 @@ test.describe("TR-13 critical workflow harness", () => {
       page.getByText(/Decision Score|Composite/i).first()
     ).toBeVisible({ timeout: 20_000 });
 
-    const generatedSpace = await trpcRequest<{
-      roomCount: number;
-      source: string;
-    }>(page, "spaceProgram.generate", { projectId }, "POST");
-    expect(generatedSpace.roomCount).toBeGreaterThan(0);
-    expect(generatedSpace.source).toBe("typology_default");
-    const space = await trpcRequest<{
-      rooms: Array<{ id: number; roomCode: string; sqm: string }>;
-      summary: { fitOutSqm: number };
-    }>(page, "spaceProgram.getForProject", { projectId }, "GET");
-    expect(space.rooms.length).toBe(generatedSpace.roomCount);
-    expect(space.summary.fitOutSqm).toBeGreaterThan(0);
-    for (const room of space.rooms) {
-      await trpcRequest(
-        page,
-        "spaceProgram.updateRoom",
-        {
-          roomId: room.id,
-          finishGrade: "C",
-        },
-        "POST"
-      );
-    }
-    await trpcRequest(
+    // DI-01 canonical-first: a fresh UI-created project starts with canonical
+    // geometry authority. The legacy typology programme write must refuse with
+    // the approved read-only contract and must not materialize legacy rooms.
+    const legacyRefusal = await trpcErrorRequest(
       page,
-      "materialQuantity.generate",
+      "spaceProgram.generate",
+      { projectId },
+      "POST"
+    );
+    expect(legacyRefusal.status).toBe(409);
+    expect(legacyRefusal.code).toBe("CONFLICT");
+    expect(legacyRefusal.message).toBe(
+      "Legacy room and area values are read-only while canonical geometry is authoritative."
+    );
+    expect(
+      await trpcRequest<null>(
+        page,
+        "spaceProgram.getForProject",
+        { projectId },
+        "GET"
+      )
+    ).toBeNull();
+
+    // The supported space path is an immutable manual/DXF draft that only an
+    // organization admin can approve as canonical.
+    const manualGeometryRooms = [
+      {
+        spaceId: "tr13-majlis",
+        roomName: "Majlis",
+        levelElevation: "0",
+        outerRing: [
+          { x: "0", y: "0" },
+          { x: "6", y: "0" },
+          { x: "6", y: "5" },
+          { x: "0", y: "5" },
+          { x: "0", y: "0" },
+        ],
+      },
+      {
+        spaceId: "tr13-bedroom",
+        roomName: "Bedroom",
+        levelElevation: "0",
+        outerRing: [
+          { x: "7", y: "0" },
+          { x: "11", y: "0" },
+          { x: "11", y: "5" },
+          { x: "7", y: "5" },
+          { x: "7", y: "0" },
+        ],
+      },
+    ];
+    const geometryPreview = await trpcRequest<{
+      status: string;
+      rooms: Array<{ spaceId: string; areaSqm: string }>;
+    }>(
+      page,
+      "spaceProgram.previewManualGeometry",
       {
         projectId,
+        sourceUnit: "m",
+        snapTransform: "1mm",
+        rooms: manualGeometryRooms,
       },
       "POST"
     );
-    await trpcRequest(
+    expect(geometryPreview.status).toBe("ready");
+    expect(geometryPreview.rooms).toHaveLength(2);
+    const savedDraft = await trpcRequest<{
+      geometryVersionId: number;
+      lifecycleState: string;
+    }>(
       page,
-      "materialQuantity.lockAllocations",
-      { projectId, isLocked: true },
+      "spaceProgram.saveGeometryDraft",
+      {
+        projectId,
+        expectedCurrentVersionId: null,
+        source: {
+          kind: "manual",
+          sourceUnit: "m",
+          snapTransform: "1mm",
+          rooms: manualGeometryRooms,
+        },
+      },
       "POST"
     );
-    await trpcRequest(page, "materialQuantity.generate", { projectId }, "POST");
-    const mqi = await trpcRequest<{
-      totalAllocations: number;
-      rooms: Array<{
-        elements: Array<{
-          allocations: Array<{
-            allocationPct: number;
-            surfaceAreaM2: number;
-            isLocked: boolean;
-          }>;
-        }>;
-      }>;
-    }>(page, "materialQuantity.getForProject", { projectId }, "GET");
-    expect(mqi.totalAllocations).toBeGreaterThan(0);
+    expect(savedDraft.lifecycleState).toBe("draft");
+    const reviewStateBefore = await trpcRequest<{
+      authorityMode: string;
+      currentGraphVersionId: number | null;
+      draft?: { geometryVersionId: number };
+      canonical?: { rooms: Array<{ spaceId: string }> };
+    }>(page, "spaceProgram.getGeometryReviewState", { projectId }, "GET");
+    expect(reviewStateBefore.authorityMode).toBe("canonical");
+    expect(reviewStateBefore.draft?.geometryVersionId).toBe(
+      savedDraft.geometryVersionId
+    );
+    expect(reviewStateBefore.canonical ?? null).toBeNull();
+    await trpcRequest(
+      page,
+      "spaceProgram.reviewGeometryDraft",
+      {
+        projectId,
+        geometryVersionId: savedDraft.geometryVersionId,
+        expectedCurrentVersionId: reviewStateBefore.currentGraphVersionId,
+        decision: "approve_as_canonical",
+      },
+      "POST"
+    );
+    const reviewStateAfter = await trpcRequest<{
+      authorityMode: string;
+      selectedGeometryVersionId: number | null;
+      canonical?: {
+        totalAreaSqm: string;
+        rooms: Array<{ spaceId: string; areaSqm: string }>;
+      };
+    }>(page, "spaceProgram.getGeometryReviewState", { projectId }, "GET");
+    expect(reviewStateAfter.authorityMode).toBe("canonical");
+    expect(reviewStateAfter.selectedGeometryVersionId).toBe(
+      savedDraft.geometryVersionId
+    );
+    expect(reviewStateAfter.canonical?.rooms).toHaveLength(2);
     expect(
-      mqi.rooms
-        .flatMap(room => room.elements)
-        .every(
-          element =>
-            element.allocations.reduce(
-              (sum, allocation) => sum + allocation.allocationPct,
-              0
-            ) === 100
-        )
-    ).toBe(true);
+      reviewStateAfter.canonical!.rooms.reduce(
+        (sum, room) => sum + Number(room.areaSqm),
+        0
+      )
+    ).toBe(50);
+
+    // Canonical MQI intentionally fails closed until every reviewed stable
+    // space has an explicit finish-scope mapping; nothing may be inferred from
+    // room-floor polygons, and no legacy programme may appear as a fallback.
+    const mqiRefusal = await trpcErrorRequest(
+      page,
+      "materialQuantity.generate",
+      { projectId },
+      "POST"
+    );
+    expect(mqiRefusal.status).toBe(412);
+    expect(mqiRefusal.code).toBe("PRECONDITION_FAILED");
+    expect(mqiRefusal.message).toContain(
+      "explicit reviewed finish-scope mapping"
+    );
     expect(
-      mqi.rooms
-        .flatMap(room => room.elements)
-        .flatMap(element => element.allocations)
-        .every(allocation => allocation.isLocked)
-    ).toBe(true);
+      await trpcRequest<null>(
+        page,
+        "materialQuantity.getForProject",
+        { projectId },
+        "GET"
+      )
+    ).toBeNull();
+    expect(
+      await trpcRequest<null>(
+        page,
+        "spaceProgram.getForProject",
+        { projectId },
+        "GET"
+      )
+    ).toBeNull();
 
     const structuredBrief = await trpcRequest<{
       id: number;
@@ -493,10 +637,18 @@ test.describe("TR-13 critical workflow harness", () => {
       .click();
     await page.getByRole("tab", { name: "Space programme" }).click();
     await expect(
-      page.getByText(space.rooms[0]!.roomCode).first()
+      page.getByText("Canonical room geometry is reviewed").first()
+    ).toBeVisible();
+    await expect(
+      page.getByText("No legacy typology programme was generated").first()
     ).toBeVisible();
     await page.getByRole("tab", { name: "Material cost" }).click();
-    await expect(page.getByText("Finish Cost (Est.)")).toBeVisible();
+    await expect(
+      page.getByText("explicit finish-scope mapping").first()
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Generate Material Allocations" })
+    ).toHaveCount(0);
     await page.goto(`/projects/${projectId}/investor-summary`);
     await page.getByRole("button", { name: "Create share link" }).click();
     await expect(page.getByRole("button", { name: /Copied!/ })).toBeVisible({
@@ -569,12 +721,13 @@ test.describe("TR-13 critical workflow harness", () => {
       storedFullReportGeneratedThroughApi: true,
       aiAdvisorSharePrerequisite: "synthetic-browser-fixture",
       aiAdvisorGenerationCertifiedInVitestMysqlRouter: true,
-      gradeCRoomsSetThroughScopedRoutes: true,
-      gradeCDeterministicMqiGenerated: true,
+      canonicalFirstProjectAuthority: true,
+      legacySpaceProgramWriteRefused: true,
+      canonicalGeometryDraftApprovedByAdmin: true,
+      canonicalMqiFailsClosedPendingFinishScope: true,
+      noLegacyProgrammeMaterialized: true,
       spaceProgrammeScreenInspected: true,
       mqiScreenInspected: true,
-      allocationGroupsTotal100Pct: true,
-      lockedAllocationPreserved: true,
       assistantDeferredUntilOpen: true,
       assistantMarkdownLoadedOnDemand: true,
       reportRendererLoadedOnDemand: true,

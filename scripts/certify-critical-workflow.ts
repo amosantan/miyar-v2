@@ -84,6 +84,16 @@ function run(
         ? result.stderr
         : Buffer.from(result.stderr ?? ""),
     ]).toString("utf8");
+    // Persist a sanitized copy before any verdict so a failing journey stays
+    // diagnosable; the replacements cannot match the secret-scan patterns.
+    const sanitizedOutput = output
+      .replace(/\/share\/(?!:token)[A-Za-z0-9_-]{8,}/g, "/share/[REDACTED]")
+      .replace(
+        /(shareToken["']?\s*[:=]\s*["'])[A-Za-z0-9_-]{8,}/gi,
+        "$1[REDACTED]"
+      );
+    const sanitizedLogName = `${stage}.log`;
+    writeFileSync(path.join(OUTPUT, sanitizedLogName), sanitizedOutput);
     if (
       /\/share\/(?!:token)[A-Za-z0-9_-]{8,}/.test(output) ||
       /shareToken["']?\s*[:=]\s*["'][A-Za-z0-9_-]{8,}/i.test(output)
@@ -97,11 +107,20 @@ function run(
           status: "PASS",
           fullShareUrls: 0,
           rawShareTokens: 0,
+          sanitizedProcessLog: sanitizedLogName,
         },
         null,
         2
       )}\n`
     );
+    if (result.error || result.status !== 0) {
+      process.stderr.write(
+        `${stage} failed; sanitized process output tail (full log: ${path.join(
+          "tmp/tr13-workflow-certification",
+          sanitizedLogName
+        )}):\n${sanitizedOutput.slice(-16_000)}\n`
+      );
+    }
   }
   if (result.error)
     fail(`${stage} did not complete within its bounded runtime`);
@@ -259,12 +278,13 @@ function collectFinalEvidence() {
     "quickCreate",
     "assumptionsConfirmed",
     "evaluationRun",
-    "gradeCRoomsSetThroughScopedRoutes",
-    "gradeCDeterministicMqiGenerated",
+    "canonicalFirstProjectAuthority",
+    "legacySpaceProgramWriteRefused",
+    "canonicalGeometryDraftApprovedByAdmin",
+    "canonicalMqiFailsClosedPendingFinishScope",
+    "noLegacyProgrammeMaterialized",
     "spaceProgrammeScreenInspected",
     "mqiScreenInspected",
-    "allocationGroupsTotal100Pct",
-    "lockedAllocationPreserved",
     "assistantDeferredUntilOpen",
     "assistantMarkdownLoadedOnDemand",
     "reportRendererLoadedOnDemand",
@@ -428,6 +448,7 @@ function writeManifest(input: {
           browser: [
             "desktop public home and login",
             "desktop admin project creation, confirmation, and evaluation",
+            "canonical geometry draft, admin approval, and fail-closed MQI state",
             "deferred assistant and rich Markdown loading",
             "mobile authenticated dashboard, assistant, project, and reports",
             "deferred stored-report preview rendering",
