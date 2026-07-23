@@ -3,7 +3,7 @@
 - ID: EV-00
 - Roadmap step: `EV-00`
 - Title: Cost-path truthfulness remediation (audit F1–F13 + KF-013)
-- Status: NEEDS_HUMAN (implementation complete and verified locally; merge, shared migrations, and named sign-offs remain)
+- Status: NEEDS_HUMAN (merged, deployed, schema released; source-registry slug seeding and the named sign-offs remain)
 - Owner: Claude Code
 - Started: 2026-07-23
 - Worktree: `/Users/amrosaleh/Maiyar/miyar-v2/.claude/worktrees/cost-path-audit-material-library-2bb482`
@@ -52,4 +52,11 @@ Fix all thirteen findings of the 2026-07-23 source-to-output cost-path audit plu
 
 ## Next Action
 
-Human gates: review/merge PR #39 (main is merged in and the full battery including `certify:workflow` passes on `bb200bb`); separately authorize shared/production application of migrations 0056–0058 and the production seeder runs (material library provenance, source_registry slugs); obtain cost-consultant sign-off for the proposed `libraryTiersForMkt01Tier` v2 mapping (v1 ships behavior-preserving).
+1. Run the source-registry seeder against production so `source_registry.slug` is populated — the last step that makes the F4/F5 freshness and evidence-linkage fix effective. The seeder is the tested path and was proven lossless against current production data (24 matched rows update in place, 22 byte-identical and the other two differing only by the intended dead-domain deactivation notes; 9 new rows insert):
+
+   `DATABASE_URL="<production url>" MIYAR_DATABASE_APPROVAL="seed@<host>:3306/<database>" pnpm exec tsx server/engines/ingestion/seeds/uae-sources.ts`
+
+   Then verify `SELECT COUNT(*), COUNT(slug) FROM source_registry;` reports 99 rows with 33 slugs, and that `gems-building-materials` and `pan-marble-dubai` are inactive.
+2. Do **not** run the material-library seeder: all 35 seed rows already match production byte-for-byte and migration 0056's defaults already applied the provenance labels to all 285 rows.
+3. After the next ingestion window, re-review the resulting `benchmark-key-v2` proposals so they supersede the 1,935 `legacy-v0` rows and live pricing activates for the higher project tiers.
+4. Obtain cost-consultant sign-off for the proposed `libraryTiersForMkt01Tier` v2 mapping (v1 ships behavior-preserving) and for AED values covering the five empty seed categories.
