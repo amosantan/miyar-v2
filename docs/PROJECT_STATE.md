@@ -68,6 +68,12 @@ At the observation above:
 
 Reproduced groups and exit criteria live in `.agent/state/KNOWN_FAILURES.md`.
 
+## KF-019 Certification Remediation Observation
+
+- Observed: 2026-07-23 in worktree `claude/suspicious-jepsen-1cb0fd` on canonical base `8cd7e0a`.
+- On untouched `8cd7e0a`, `pnpm certify:workflow` failed at `serial-node-browser-journey`: the TR-13 browser journey still exercised the pre-DI-01 legacy space-programme/MQI flow, which fresh canonical-authority projects refuse by design, so the earlier `PASS` row above does not hold for post-DI-01 canonical commits.
+- After the KF-019 remediation (sanitized persisted journey log, surfaced tRPC error envelopes, and a journey re-pointed at the approved canonical-first contract), two consecutive `pnpm certify:workflow` runs terminate `PASS` with strict cleanup and matching provenance; `pnpm check` and `pnpm check:mysql-evidence` pass in the same worktree. Details: `KF-019` and `LES-047`.
+
 ## Documentation State
 
 - `AGENTS.md` is the canonical cross-agent engineering contract.
