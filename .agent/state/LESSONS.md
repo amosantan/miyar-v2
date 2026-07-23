@@ -530,7 +530,18 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Reuse rule: When a check pins file hashes, the hash list is part of the change surface. Before merging, confirm whether an edited file is pinned and regenerate through the approved workflow in the same change. A cascade of unrelated findings usually has one upstream cause — fix that, not the symptoms, and give the cause its own fast check.
 - Supersedes / related: Related to `LES-045`.
 
-### LES-047 — A gate result read through a pipe is not a gate result
+### LES-047 — Re-run end-to-end certifications when an approved authority change lands, and never discard captured child output
+
+- Date / roadmap step: 2026-07-23 / `KF-019` (TR-13 × DI-01)
+- Context: TR-13's browser journey certifies the critical workflow through real HTTP routes on one UI-created project. Owner-approved DI-01 canonical-first made every fresh project start with canonical geometry authority, refusing legacy space-programme writes and failing MQI closed pending finish-scope mapping.
+- Observed: `pnpm certify:workflow` failed at `serial-node-browser-journey` with `spaceProgram.generate must succeed` on untouched canonical main while all earlier stages passed; the journey app-server output was piped only into an in-memory secret scan, so the deterministic 409 refusal was invisible from evidence. A separate home→login `auth.me` abort intermittently failed the journey before the critical test ran.
+- Cause: DI-01's closure gate list did not include the TR-13 workflow certification, so the certification contract silently pinned superseded product behavior; independently, the harness captured but discarded the only stream that could explain a journey failure.
+- Fix or decision: Certification stages that capture process output must persist a sanitized copy in the evidence directory — redacted with the same patterns the secret scan enforces so redacted text cannot re-match — and print a sanitized tail on failure. Expected refusals are asserted through an explicit error-envelope helper, and the journey now certifies the approved canonical-first contract including its approved negatives (legacy 409 CONFLICT, MQI 412 fail-closed).
+- Proof: With observability in place the root cause was one server stack line in the persisted log; after the contract update, two consecutive `pnpm certify:workflow` runs PASS with strict cleanup and matching provenance on the same commit lineage that previously failed.
+- Reuse rule: When an approved change moves runtime authority or default resource state, list every end-to-end certification touching that surface in the change's closure gates and re-run it in the same change. Never let a harness capture-and-discard child output — persist it sanitized, or the first divergence becomes undiagnosable.
+- Supersedes / related: Related to `LES-046` (evidence artifacts are part of the change surface).
+
+### LES-048 — A gate result read through a pipe is not a gate result
 
 - Date / roadmap step: 2026-07-23 / `EV-00`
 - Context: Phase gates were run as `command 2>&1 | tail -N` with the exit status echoed afterwards, in a zsh worktree shell.
@@ -539,9 +550,9 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Fix or decision: Capture each gate's own exit code before any pipe (`cmd > log 2>&1; code=$?`), keep the complete log on disk, and treat a "pass" whose full output was never persisted as unverified. Batch batteries now run through a step wrapper that records per-step exits.
 - Proof: The re-run with per-step exit capture exposed the real `certify:workflow` failure and the design-contract drift that the piped run had hidden; both were then fixed or attributed with evidence.
 - Reuse rule: Never assert a verification gate from a piped command's `$?` or a truncated tail. Persist the full log and the command's own exit status, and re-verify any earlier "pass" produced without them.
-- Supersedes / related: Extends `LES-004`.
+- Supersedes / related: Extends `LES-004`; complements `LES-047`'s persisted-output rule.
 
-### LES-048 — Attribute a broad-gate failure at the untouched base before treating it as a regression
+### LES-049 — Attribute a broad-gate failure at the untouched base before treating it as a regression
 
 - Date / roadmap step: 2026-07-23 / `EV-00`
 - Context: `pnpm certify:workflow` failed at the TR-13 browser journey (`spaceProgram.generate must succeed`) during the Phase 3 gate, after cost-path changes that plausibly touched adjacent surfaces.
@@ -550,4 +561,4 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Fix or decision: Reproduce the failing gate at the exact base commit in a disposable worktree before diagnosing the diff; record the pre-existing failure (`KF-019`) with both reproductions and hand root-causing to a bounded follow-up; require the eventual fix to make the journey's server errors observable in evidence.
 - Proof: Base commit `8cd7e0a` and the EV-00 tree fail at the same assertion with the same passing prefix stages; `KF-019` records commands, environment, and exit criterion, and the remediation continued under the documented pre-existing-failure provision of the Definition of Done.
 - Reuse rule: When a broad certification fails after your change, run it once at the untouched base before touching the diff. If it fails there too, record it as a known failure with both reproductions instead of absorbing it into your change; never claim the gate as green either way.
-- Supersedes / related: Extends `LES-030` and `LES-047`; tracked by `KF-019`.
+- Supersedes / related: Extends `LES-030` and `LES-048`; the failure it attributed was later closed by the `KF-019` remediation recorded in `LES-047`.

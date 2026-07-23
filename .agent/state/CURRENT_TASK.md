@@ -37,7 +37,7 @@ Fix all thirteen findings of the 2026-07-23 source-to-output cost-path audit plu
 
 ## Baseline
 
-- Fresh `pnpm install --frozen-lockfile`; `pnpm check` PASS at `8cd7e0a` (the first piped baseline was a false green — see LES-047).
+- Fresh `pnpm install --frozen-lockfile`; `pnpm check` PASS at `8cd7e0a` (the first piped baseline was a false green — see LES-048).
 - Targeted policy suites 51/51 at Phase 1.
 
 ## Final Verification Evidence (2026-07-23, commit `6f1e119`)

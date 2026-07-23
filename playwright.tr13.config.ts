@@ -33,5 +33,9 @@ export default defineConfig({
     port,
     reuseExistingServer: false,
     timeout: 60_000,
+    // Both app-server streams must reach the guarded runner, which secret-scans
+    // the combined output and persists only a sanitized copy as evidence.
+    stdout: "pipe",
+    stderr: "pipe",
   },
 });
