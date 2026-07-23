@@ -52,6 +52,8 @@ Fix all thirteen findings of the 2026-07-23 source-to-output cost-path audit plu
 
 ## Next Action
 
-1. After the next ingestion window, re-review the resulting `benchmark-key-v2` proposals so they supersede the 1,935 `legacy-v0` rows and live pricing activates for Upper-mid, Luxury, and Ultra-luxury projects.
-2. Obtain cost-consultant sign-off for the proposed `libraryTiersForMkt01Tier` v2 mapping (v1 ships behavior-preserving) and for AED values covering the five empty seed categories (`ceiling`, `joinery`, `fittings`, `lighting`, `specialty`), which currently surface as unpriced allocations.
-3. Optional hygiene: production retains 13 legacy duplicate-URL registry rows without slugs, left untouched by this release; decide whether to retire them.
+1. Trigger one ingestion run and confirm the fixes land: the previously blocked government sources (`dsc.gov.ae`, `scad.gov.ae`, `rics.org`) should now succeed, and priced material evidence should carry real categories (Graniti's stone in `floors`) rather than `other`.
+2. Re-review the resulting `benchmark-key-v2` proposals so they supersede the 1,935 `legacy-v0` rows — this is what activates live per-category pricing for Upper-mid, Luxury, and Ultra-luxury projects.
+3. Decide the per-source terms/licensing position for the six verified pricing sources in `docs/artifacts/EV-01_SOURCE_CANDIDATE_PACKET.md` under the `BR-06` process, then build the Tile King connector first (structured JSON, dated records, explicit robots allow) — confirming its price unit basis before its data reaches any benchmark.
+4. Apply the three indicated registry repairs: deactivate `hafele-uae`, repoint `rak-ceramics-uae` at the shop subdomain, and repoint the two Dubai Pulse sources once the `data.dubai` dataset slugs are confirmed.
+5. Cost-consultant sign-off remains open for the `libraryTiersForMkt01Tier` v2 mapping and for AED values covering `ceilings`, `joinery`, `kitchen`, `fittings`, and `specialty`.
