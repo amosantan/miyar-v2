@@ -11,6 +11,7 @@ import {
 } from "../connector";
 import { invokeLLM } from "../../../_core/llm";
 import { discoverLinks, DEFAULT_CRAWL_CONFIG, type CrawlConfig } from "../crawler";
+import { createPlatformConnector } from "./platform";
 
 // ─── HTML Content Cleanup ────────────────────────────────────────
 
@@ -650,4 +651,42 @@ export class DynamicConnector extends BaseSourceConnector {
             intelligenceType: llmEvidence._llmIntelligenceType ?? "material_price",
         };
     }
+}
+
+// ─── EV-01b: Registry-row → connector resolution ────────────────
+
+/**
+ * Resolve a `source_registry` row to the connector that should acquire it.
+ *
+ * A row is platform-backed only when BOTH `scrapeMethod = "json_api"` and a
+ * supported `platform` are set, so flipping one field alone never silently
+ * changes how a source is read. Everything else keeps the existing dynamic
+ * (LLM-assisted) path unchanged.
+ *
+ * Call sites use this instead of `new DynamicConnector(row)` directly. A
+ * factory is used rather than delegation inside the constructor because
+ * `new DynamicConnector(...)` returning a different class would be a genuine
+ * surprise to anyone reading the call site.
+ */
+export function createSourceConnector(
+    source: ConstructorParameters<typeof DynamicConnector>[0] & {
+        platform?: string | null;
+        termsDecision?: string | null;
+        priceClass?: string | null;
+    }
+): BaseSourceConnector {
+    const platformConnector = createPlatformConnector({
+        id: source.id,
+        name: source.name,
+        url: source.url,
+        platform: source.platform,
+        scrapeMethod: source.scrapeMethod,
+        termsDecision: source.termsDecision,
+        priceClass: source.priceClass,
+        reliabilityDefault: source.reliabilityDefault ?? null,
+        requestDelayMs: source.requestDelayMs ?? null,
+        scrapeConfig: source.scrapeConfig ?? null,
+    });
+
+    return platformConnector ?? new DynamicConnector(source);
 }

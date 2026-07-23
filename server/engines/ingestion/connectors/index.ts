@@ -31,7 +31,9 @@ export const SOURCE_URLS: Record<string, string> = {
   // EV-00 registry prune (2026-07-23): dera-interiors (derainteriors.ae) and
   // gems-building-materials (gemsbuilding.com) were removed — both domains no
   // longer resolve; their deactivated seed rows retain the history.
-  "rak-ceramics-uae": "https://www.rakceramics.com/",
+  // EV-01b: repointed from the corporate site, which publishes no prices, to
+  // the online shop, which does. Kept in step with the seed row.
+  "rak-ceramics-uae": "https://onlineshop.rakceramics.com/ae_en/tiles.html",
   "graniti-uae": "https://www.granitiuae.com/",
   "dragon-mart-dubai": "https://www.dragonmart.ae/",
   "porcelanosa-uae": "https://www.porcelanosa.com/ae/",
@@ -217,6 +219,34 @@ function extractSnippet(text: string, maxLen = 500): string {
 
 // ─── Base class for HTML connectors with LLM extraction ────────
 
+/**
+ * EV-01b: derive the evidence `intelligenceType` from the connector's declared
+ * source focus.
+ *
+ * Before this, every static connector left `intelligenceType` undefined and the
+ * orchestrator defaulted it to `material_price` — so Bayut and PropertyFinder
+ * property listings, developer brochures, and consultancy research were all
+ * labelled material prices and pooled into material-price benchmark statistics.
+ * The class-level `category` already states what each source publishes; this
+ * reads it rather than assuming.
+ *
+ * Anything unrecognised becomes "market_statistic", never "material_price":
+ * an unclassified source must not silently become a price authority.
+ */
+export function intelligenceTypeForSourceFocus(sourceFocus: string): string {
+  switch (sourceFocus) {
+    case "material_cost":
+      return "material_price";
+    case "competitor_project":
+      return "competitor_positioning";
+    case "property_price":
+    case "market_trend":
+      return "market_statistic";
+    default:
+      return "market_statistic";
+  }
+}
+
 abstract class HTMLSourceConnector extends BaseSourceConnector {
   abstract category: string;
   abstract geography: string;
@@ -332,6 +362,10 @@ abstract class HTMLSourceConnector extends BaseSourceConnector {
     const { grade, confidence, confidencePolicy, gradePolicy } =
       this.confidenceMetadata(evidence, context);
 
+    // ADR-0009/EV-01b: what this source publishes is declared by the connector,
+    // not assumed downstream.
+    const intelligenceType = intelligenceTypeForSourceFocus(this.category);
+
     // Check for LLM-extracted metadata
     const llmEvidence = evidence as any;
     if (llmEvidence._llmValue !== undefined) {
@@ -345,6 +379,7 @@ abstract class HTMLSourceConnector extends BaseSourceConnector {
         gradePolicy,
         summary: extractSnippet(evidence.rawText),
         tags: this.defaultTags,
+        intelligenceType,
       };
     }
 
@@ -360,6 +395,7 @@ abstract class HTMLSourceConnector extends BaseSourceConnector {
       gradePolicy,
       summary: extractSnippet(evidence.rawText),
       tags: this.defaultTags,
+      intelligenceType,
     };
   }
 }

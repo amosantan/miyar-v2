@@ -1437,6 +1437,47 @@ export const sourceRegistry = mysqlTable("source_registry", {
   consecutiveFailures: int("consecutiveFailures").default(0).notNull(),
   requestDelayMs: int("requestDelayMs").default(2000).notNull(),
 
+  /**
+   * EV-01b: e-commerce platform behind this source. When set alongside
+   * `scrapeMethod = "json_api"` the deterministic platform connector family
+   * handles acquisition instead of the LLM path. `null` means "not probed".
+   */
+  platform: mysqlEnum("platform", [
+    "shopify",
+    "woocommerce",
+    "magento",
+    "none",
+  ]),
+  /**
+   * EV-01b: mechanical enforcement of the BR-06 source-terms process. Robots
+   * permission is a technical signal, not a commercial licence — a connector
+   * refuses to acquire until a human records `approved` here. Every existing
+   * row defaults to `pending`, which is the truthful state: no terms decision
+   * has been recorded for any of them.
+   */
+  termsDecision: mysqlEnum("termsDecision", [
+    "pending",
+    "approved",
+    "rejected",
+  ])
+    .default("pending")
+    .notNull(),
+  /**
+   * EV-01b: what kind of price this source publishes. Retail listings are not
+   * trade rates and must not be presented as if they were; the proposal
+   * generator refuses to publish a benchmark keyed only on `retail_listed`
+   * evidence. `unknown` is the truthful default for unclassified rows.
+   */
+  priceClass: mysqlEnum("priceClass", [
+    "retail_listed",
+    "trade_quoted",
+    "official_statistic",
+    "consultancy_benchmark",
+    "unknown",
+  ])
+    .default("unknown")
+    .notNull(),
+
   addedAt: timestamp("addedAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => [
@@ -1543,6 +1584,52 @@ export const evidenceRecords = mysqlTable(
       .default("legacy-v0")
       .notNull(),
     publicObservationKey: varchar("publicObservationKey", { length: 64 }),
+    /**
+     * EV-01b: the price class carried from the source registry row at write
+     * time. `unknown` is truthful for every pre-existing record — none was
+     * classified when it was captured.
+     */
+    priceClass: mysqlEnum("priceClass", [
+      "retail_listed",
+      "trade_quoted",
+      "official_statistic",
+      "consultancy_benchmark",
+      "unknown",
+    ])
+      .default("unknown")
+      .notNull(),
+    /**
+     * EV-01b: what the price is actually per. A listed tile price may be per
+     * piece, per box, or per m²; using the wrong basis corrupts every
+     * downstream benchmark. The deterministic parser returns `unknown` rather
+     * than guessing, and `unknown` cannot key a published benchmark.
+     */
+    priceBasis: mysqlEnum("priceBasis", [
+      "per_piece",
+      "per_pack",
+      "per_sqm",
+      "per_lm",
+      "per_litre",
+      "unknown",
+    ])
+      .default("unknown")
+      .notNull(),
+    /** Units per pack when `priceBasis = "per_pack"`; null when not derivable. */
+    packQuantity: decimal("packQuantity", { precision: 10, scale: 3 }),
+    /** Null means the source did not state it — never assume VAT treatment. */
+    vatIncluded: boolean("vatIncluded"),
+    /**
+     * Stable per-source product identity (SKU, or platform product/variant id)
+     * used to make re-ingestion idempotent. Null for every legacy row, and the
+     * unique index below tolerates repeated nulls in MySQL.
+     */
+    platformProductKey: varchar("platformProductKey", { length: 128 }),
+    /**
+     * Null means the basis was never evaluated by a versioned parser, which is
+     * the truthful state for legacy rows — it is not stamped with a policy
+     * they never passed through.
+     */
+    priceBasisPolicyVersion: varchar("priceBasisPolicyVersion", { length: 64 }),
     createdBy: int("createdBy"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
   },
@@ -1555,6 +1642,10 @@ export const evidenceRecords = mysqlTable(
     ),
     uniqueIndex("evidence_records_public_observation_key_unique").on(
       table.publicObservationKey
+    ),
+    uniqueIndex("evidence_records_source_product_key_unique").on(
+      table.sourceRegistryId,
+      table.platformProductKey
     ),
   ]
 );
@@ -1665,6 +1756,14 @@ export const benchmarkProposals = mysqlTable("benchmark_proposals", {
   sourceDiversity: int("sourceDiversity").notNull(),
   reliabilityDist: json("reliabilityDist").notNull(), // { A: n, B: n, C: n }
   recencyDist: json("recencyDist").notNull(), // { recent: n, mid: n, old: n }
+  /**
+   * EV-01b: what the proposed number is actually made of. A reviewer needs to
+   * see that a percentile came entirely from consumer retail listings, or from
+   * records whose price basis was never resolved, before approving it.
+   * Null on pre-existing proposals — they were never assessed for either.
+   */
+  priceClassDist: json("priceClassDist"), // { retail_listed: n, ... }
+  priceBasisDist: json("priceBasisDist"), // { per_sqm: n, unknown: n, ... }
   confidenceScore: int("confidenceScore").notNull(), // 0-100
   impactNotes: text("impactNotes"),
   recommendation: mysqlEnum("recommendation", ["publish", "reject"]).notNull(),

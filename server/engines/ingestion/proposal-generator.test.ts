@@ -25,6 +25,10 @@ type EvidenceFixture = {
   captureDate: Date;
   sourceRegistryId: number | null;
   sourceUrl: string;
+  // EV-01b. Absent on legacy records, which is the truthful state for them.
+  priceClass?: string;
+  priceBasis?: string;
+  priceBasisPolicyVersion?: string | null;
 };
 
 function record(overrides: Partial<EvidenceFixture> = {}): EvidenceFixture {
@@ -148,5 +152,136 @@ describe("generateBenchmarkProposals (real function)", () => {
     const call = vi.mocked(db.createBenchmarkProposal).mock.calls[0][0];
     expect(call.recommendation).toBe("reject");
     expect(call.rejectionReason).toContain("source diversity");
+  });
+});
+
+/**
+ * EV-01b — the population a global material benchmark may be computed from.
+ *
+ * Before this, the generator asked only for a category. Every static connector
+ * left `intelligenceType` undefined and the orchestrator defaulted it to
+ * `material_price`, so property listings, developer brochures and consultancy
+ * research were pooled into material-price percentiles — along with any
+ * organization-scoped or confidential evidence.
+ */
+describe("benchmark population filters", () => {
+  function fiveRecords(overrides: Partial<EvidenceFixture> = {}) {
+    return Array.from({ length: 5 }, (_, index) =>
+      record({ sourceUrl: `https://s${index}.example/`, ...overrides }),
+    ) as never;
+  }
+
+  it("asks the database only for public, non-confidential material prices", async () => {
+    vi.mocked(db.listEvidenceRecords).mockResolvedValue(fiveRecords());
+
+    await generateBenchmarkProposals();
+
+    const filters = vi.mocked(db.listEvidenceRecords).mock.calls[0][0];
+    expect(filters).toMatchObject({
+      intelligenceType: "material_price",
+      corpusScope: "platform_public",
+      excludeConfidential: true,
+    });
+  });
+
+  it("drops a record priced above the material sanity ceiling", async () => {
+    vi.mocked(db.listEvidenceRecords).mockResolvedValue([
+      ...(fiveRecords() as unknown as EvidenceFixture[]),
+      record({ priceTypical: "12000000.00", sourceUrl: "https://listing.example/" }),
+    ] as never);
+
+    await generateBenchmarkProposals();
+
+    const call = vi.mocked(db.createBenchmarkProposal).mock.calls[0][0];
+    expect(call.evidenceCount).toBe(5);
+  });
+
+  it("drops a record with no positive price rather than counting it", async () => {
+    vi.mocked(db.listEvidenceRecords).mockResolvedValue([
+      ...(fiveRecords() as unknown as EvidenceFixture[]),
+      record({ priceTypical: "0.00", sourceUrl: "https://zero.example/" }),
+    ] as never);
+
+    await generateBenchmarkProposals();
+
+    expect(vi.mocked(db.createBenchmarkProposal).mock.calls[0][0].evidenceCount).toBe(5);
+  });
+
+  it("documents that the inherited ceiling does NOT catch a typical property listing", async () => {
+    // AED 4.2m is a Dubai apartment, not a material unit price — but it sits
+    // under the inherited 10M bound and therefore survives. Tightening that
+    // bound is a decision threshold change and needs cost-consultant approval
+    // (AGENTS.md human gates), so this records the real behaviour rather than
+    // asserting a limit the code does not enforce.
+    vi.mocked(db.listEvidenceRecords).mockResolvedValue([
+      ...(fiveRecords() as unknown as EvidenceFixture[]),
+      record({ priceTypical: "4200000.00", sourceUrl: "https://listing.example/" }),
+    ] as never);
+
+    await generateBenchmarkProposals();
+
+    expect(vi.mocked(db.createBenchmarkProposal).mock.calls[0][0].evidenceCount).toBe(6);
+  });
+
+  it("rejects a group made only of consumer retail listings", async () => {
+    vi.mocked(db.listEvidenceRecords).mockResolvedValue(
+      Array.from({ length: 5 }, (_, index) =>
+        record({ sourceUrl: `https://s${index}.example/`, priceClass: "retail_listed" }),
+      ) as never,
+    );
+
+    const result = await generateBenchmarkProposals();
+
+    expect(result.proposals[0].recommendation).toBe("reject");
+    const call = vi.mocked(db.createBenchmarkProposal).mock.calls[0][0];
+    expect(call.rejectionReason).toContain("Retail-only price class");
+    expect(call.priceClassDist).toEqual({ retail_listed: 5 });
+  });
+
+  it("publishes once a second price class joins the retail evidence", async () => {
+    vi.mocked(db.listEvidenceRecords).mockResolvedValue([
+      record({ sourceUrl: "https://s0.example/", priceClass: "retail_listed" }),
+      record({ sourceUrl: "https://s1.example/", priceClass: "retail_listed" }),
+      record({ sourceUrl: "https://s2.example/", priceClass: "retail_listed" }),
+      record({ sourceUrl: "https://s3.example/", priceClass: "retail_listed" }),
+      record({ sourceUrl: "https://s4.example/", priceClass: "trade_quoted" }),
+    ] as never);
+
+    const result = await generateBenchmarkProposals();
+
+    expect(result.proposals[0].recommendation).toBe("publish");
+    const call = vi.mocked(db.createBenchmarkProposal).mock.calls[0][0];
+    expect(call.priceClassDist).toEqual({ retail_listed: 4, trade_quoted: 1 });
+  });
+
+  it("rejects a group whose basis a parser evaluated and could not resolve", async () => {
+    vi.mocked(db.listEvidenceRecords).mockResolvedValue(
+      Array.from({ length: 5 }, (_, index) =>
+        record({
+          sourceUrl: `https://s${index}.example/`,
+          priceClass: "trade_quoted",
+          priceBasis: "unknown",
+          priceBasisPolicyVersion: "price-basis-policy-v1",
+        }),
+      ) as never,
+    );
+
+    const result = await generateBenchmarkProposals();
+
+    expect(result.proposals[0].recommendation).toBe("reject");
+    expect(
+      vi.mocked(db.createBenchmarkProposal).mock.calls[0][0].rejectionReason,
+    ).toContain("basis unresolved");
+  });
+
+  it("does not apply the basis rule to legacy records no parser ever saw", async () => {
+    // These predate the basis column; their basis signal is `unit`, which
+    // already keys the benchmark. Rejecting them would halt every existing
+    // proposal for a reason that does not apply to them.
+    vi.mocked(db.listEvidenceRecords).mockResolvedValue(fiveRecords());
+
+    const result = await generateBenchmarkProposals();
+
+    expect(result.proposals[0].recommendation).toBe("publish");
   });
 });

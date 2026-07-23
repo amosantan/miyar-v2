@@ -8,7 +8,7 @@
  */
 
 import { getDb, listSourceRegistry, listEvidenceRecords } from "../../db";
-import { DynamicConnector } from "./connectors/dynamic";
+import { DynamicConnector, createSourceConnector } from "./connectors/dynamic";
 import { runSingleConnector } from "./orchestrator";
 import { initializeDatabaseSafety } from "../../_core/database-safety";
 
@@ -83,7 +83,7 @@ async function runAudit() {
         };
 
         try {
-            const connector = new DynamicConnector(source);
+            const connector = createSourceConnector(source);
 
             // Test fetch (which provider works?)
             const payload = await connector.fetch();

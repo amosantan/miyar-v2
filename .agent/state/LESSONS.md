@@ -562,3 +562,25 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: Base commit `8cd7e0a` and the EV-00 tree fail at the same assertion with the same passing prefix stages; `KF-019` records commands, environment, and exit criterion, and the remediation continued under the documented pre-existing-failure provision of the Definition of Done.
 - Reuse rule: When a broad certification fails after your change, run it once at the untouched base before touching the diff. If it fails there too, record it as a known failure with both reproductions instead of absorbing it into your change; never claim the gate as green either way.
 - Supersedes / related: Extends `LES-030` and `LES-048`; the failure it attributed was later closed by the `KF-019` remediation recorded in `LES-047`.
+
+### LES-050 — "Unreachable" is a symptom, not a diagnosis: check TLS and DNS before declaring a source dead or migrated
+
+- Date / roadmap step: 2026-07-23 / `EV-01b`
+- Context: The `EV-01` source packet recorded `dubaipulse.gov.ae` as `ROBOTS_UNAVAILABLE`, inferred the portal "has migrated to `data.dubai`", and recommended repointing the `dubai-pulse-materials` and `dld-transactions` Grade-A connectors at that domain.
+- Observed: `www.dubaipulse.gov.ae` resolves (91.73.143.12) and completes a TLS 1.2 handshake presenting a DigiCert certificate for `CN=dubaipulse.gov.ae`, `O=Government of Dubai` — with `Verify return code: 10 (certificate has expired)`. The proposed replacement hosts `data.dubai.gov.ae` and `www.data.gov.ae` do not resolve at all. The site was never retired; the gate was reporting a certificate failure, and the recommended repair would have pointed two Grade-A connectors at a non-existent host.
+- Cause: The acquisition gate collapses every pre-fetch failure into one verdict code, and a plausible migration story was accepted without a transport-layer check. A robots verdict cannot distinguish "disallowed", "DNS gone", "certificate expired", and "WAF refusal", but the remediation for each is completely different.
+- Fix or decision: Record the failure as a dated external incident on the registry row with the exact `openssl s_client` verdict, keep the URL, deactivate pending renewal, and pin the diagnosis with a test asserting the note says *certificate* and not *migration*. Never relax certificate verification to "fix" an expired-certificate source — that converts an availability problem into a trust problem.
+- Proof: `openssl s_client -connect www.dubaipulse.gov.ae:443` returns verify code 10 with a Government of Dubai subject; `dig +short data.dubai.gov.ae` and `dig +short www.data.gov.ae` both return empty; `registry-consistency.test.ts` ("records the Dubai Pulse outage as an expired certificate, not a migration") fails if the wrong story is written back.
+- Reuse rule: Before declaring a source dead, moved, or bot-walled, separate the layers — DNS resolves? TLS validates? HTTP status? robots verdict? Write the layer that actually failed into the registry note. A migration claim needs the destination host to resolve before it may be acted on.
+- Supersedes / related: Corrects a conclusion in `docs/artifacts/EV-01_SOURCE_CANDIDATE_PACKET.md`; complements `LES-049` (attribute before you remediate).
+
+### LES-051 — Running a typecheck inside a git worktree can shadow a real node package
+
+- Date / roadmap step: 2026-07-23 / `EV-01b`
+- Context: The DB-free suite failed on `server/routers/design.contract.test.ts` with `ERR_MODULE_NOT_FOUND: Cannot find package '<worktree>/node_modules/typescript/index.js'`, after the rest of the tree was green.
+- Observed: The worktree's `node_modules/` contained exactly two entries — `.vite/` and a `typescript/` directory holding only `tsbuildinfo`. The stub directory shadowed the parent checkout's real `typescript` package, so any test spawning a script that imports `typescript` failed. Deleting the stub restored the test with no code change.
+- Cause: `tsconfig.json` sets `tsBuildInfoFile: "./node_modules/typescript/tsbuildinfo"`. In a worktree with no `node_modules` of its own, the first `tsc`/`pnpm check` run creates that path, and Node's resolver then treats the incomplete directory as the package.
+- Fix or decision: Treat a bare `node_modules/typescript` containing only `tsbuildinfo` as a build artifact and remove it before running suites that spawn child scripts. Attribute the failure to the environment rather than the diff.
+- Proof: `ls node_modules/typescript` showed `tsbuildinfo` alone; `rm -rf node_modules/typescript` turned `design.contract.test.ts` from failing to 4/4 passing with no source change, and the full suite then reported 1,646 passed / 0 failed.
+- Reuse rule: In a worktree, a module-resolution failure naming a package under the worktree's own `node_modules` is an artifact of an incremental-build cache path, not a dependency problem. Check what the directory actually contains before installing anything or blaming the change.
+- Supersedes / related: Complements `LES-048` (a gate result read through a pipe is not a gate result) — both are false signals from the harness rather than the code.

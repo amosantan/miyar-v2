@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "observedAt": "2026-07-22T22:25:42.494Z",
+  "observedAt": "2026-07-23T17:34:16.530Z",
   "databaseEngine": "MySQL 8.0",
   "targetClass": "disposable localhost database",
   "command": "pnpm test:authorization:mysql",
@@ -24,7 +24,7 @@
   "fileHashes": {
     "tests/mysql/design-authorization.mysql.test.ts": "8f6ab9b2fdceff1c7e554fa48b2914818edd80172b277e06becebffdf9994698",
     "tests/mysql/br03-brief-workflow.mysql.test.ts": "cfaf210df8dacee7242e42451d8710ab0398e1507e98295d216f430bf42cd1dd",
-    "server/db.ts": "0a2bb46fe60fc9dab07d98beac7159945887ae41f9109c9cbe0de40192171086",
+    "server/db.ts": "8a02a13e3445188720b523568d20ee56b78c546b48ed0aec8dc8cd6df856e80d",
     "server/_core/trpc.ts": "2e477dae1baf779d3767642875bf85108036b7571577073ece1205a4dced889e",
     "server/_core/market-resource-access.ts": "f36c7ce048d61ed5fa43d24b0c870ed02ab83649b1bd25617cda130c97d31ab9",
     "server/routers.ts": "1efd10d471ad276c4b3051224a6953341f26f6ec0d6a9dacf782a36010a4531a",
@@ -52,9 +52,9 @@
     "server/routers/materialQuantity.ts": "3a2bcaec6a310a0b21d56a365ae703aca7ae6a614acb7b912afa6ad985d4646d",
     "server/routers/analytics.ts": "e89f49b0200d59511657cf3a3e5d89d6b134638a335dc050585c49d4c1fcd086",
     "server/routers/autonomous.ts": "761742d4831cf1b3926bda866b1d646b39f8637f15370728e45fd491864705f6",
-    "server/routers/market-intelligence.ts": "a2d47b6b4531d22e02befc1c74a93f6628826fce6a331def3f1a66d738908d35",
+    "server/routers/market-intelligence.ts": "742771b6079d7f5b220fce5feed0ccfbb91dc551e0dd4465b3ae06209b9b31c3",
     "server/routers/portfolio.ts": "d14b4fe0af2daf3bcbe84b3421e824a25eb16425f442be35be4fae544c9efa2b",
-    "drizzle/schema.ts": "e057e762ef14b38f64ac0a9d414f031ca52fd5346420b7bfe94ae5f04897e063",
+    "drizzle/schema.ts": "1bb6711683b849ba58dd6d29bdfeb98eb569473cd67d60607c01a770de0ce640",
     "drizzle/0045_steady_amazoness.sql": "9862f48fe585e31c835ea97bd5c11b3e7640e97ba2764217534f5fbcad2df48d",
     "drizzle/0046_far_blob.sql": "c213114207dd7b66e8a10b4e94c1b77ef0ddaf6b69cb1e5b212752a1dc6666cb",
     "drizzle/0047_sharp_grandmaster.sql": "7a2105fa9d80b10415483351fd7f191de3fc57c2d9f2cb27d8ae6af86c8b200d",

@@ -11,6 +11,7 @@ import { materialsCatalog, evidenceRecords } from "../../../drizzle/schema";
 import { eq, desc } from "drizzle-orm";
 import { getMaterialConstants } from "../../db";
 import { classifyCatalogTier } from "../tier-policy";
+import { isPlausibleMaterialPrice } from "./price-sanity";
 
 // ─── Category Mapping ────────────────────────────────────────────
 // Evidence categories → Materials Catalog categories
@@ -103,13 +104,10 @@ export async function syncEvidenceToMaterials(
                 continue;
             }
 
-            // Skip absurd prices (property values, not material costs)
-            const maxRawPrice = Math.max(
-                record.priceMin ? parseFloat(String(record.priceMin)) : 0,
-                record.priceMax ? parseFloat(String(record.priceMax)) : 0,
-                record.priceTypical ? parseFloat(String(record.priceTypical)) : 0,
-            );
-            if (maxRawPrice > 10_000_000) { // >10M AED is not a material price
+            // Skip absurd prices (property values, not material costs).
+            // EV-01b: the bound is shared with the benchmark proposal path so
+            // both enforce the same ceiling.
+            if (!isPlausibleMaterialPrice(record)) {
                 skipped++;
                 continue;
             }

@@ -14,7 +14,7 @@ import {
 } from "../_core/trpc";
 import * as db from "../db";
 import { nanoid } from "nanoid";
-import { DynamicConnector } from "../engines/ingestion/connectors/dynamic";
+import { DynamicConnector, createSourceConnector } from "../engines/ingestion/connectors/dynamic";
 import { runSingleConnector, testScrape } from "../engines/ingestion/orchestrator";
 import { generateCsvTemplate, processCsvUpload } from "../engines/ingestion/csv-pipeline";
 import { seedUAESources } from "../engines/ingestion/seeds/uae-sources";
@@ -294,7 +294,7 @@ export const marketIntelligenceRouter = router({
       .mutation(async ({ input }) => {
         const source = await db.getSourceRegistryById(input.id);
         if (!source) throw new Error("Source not found");
-        const connector = new DynamicConnector(source);
+        const connector = createSourceConnector(source);
         return await testScrape(connector);
       }),
 
@@ -307,7 +307,7 @@ export const marketIntelligenceRouter = router({
         // Reset failures on manual run intent
         await db.updateSourceRegistryEntry(source.id, { consecutiveFailures: 0 });
 
-        const connector = new DynamicConnector(source);
+        const connector = createSourceConnector(source);
         const report = await runSingleConnector(connector, "manual", ctx.user.id);
 
         // Update registry with latest results

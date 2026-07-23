@@ -16,6 +16,7 @@
 import { randomUUID } from "crypto";
 import * as db from "../../db";
 import { getFreshnessWeight, FRESHNESS_WEIGHT_FRESH, FRESHNESS_WEIGHT_AGING, FRESHNESS_WEIGHT_STALE } from "./freshness";
+import { isPlausibleMaterialPrice } from "./price-sanity";
 
 export interface ProposalGenerationResult {
   proposalsCreated: number;
@@ -51,9 +52,18 @@ export async function generateBenchmarkProposals(
   const runId = `PROP-${randomUUID().substring(0, 8)}`;
   const startedAt = new Date();
 
-  // Get all evidence records, optionally filtered by category
+  // EV-01b: the population a global material benchmark may be computed from.
+  //   - `material_price` only. Property listings, developer brochures and
+  //     consultancy research are evidence, but they are not material prices.
+  //   - `platform_public` only, so organization evidence never keys a shared
+  //     benchmark.
+  //   - never confidential or restricted.
+  // Previously this call passed only `category`, so all three leaked in.
   const evidence = await db.listEvidenceRecords({
     category,
+    intelligenceType: "material_price",
+    corpusScope: "platform_public",
+    excludeConfidential: true,
     limit: 10000,
   });
 
@@ -61,9 +71,13 @@ export async function generateBenchmarkProposals(
     return { proposalsCreated: 0, groupsAnalyzed: 0, totalEvidence: 0, proposals: [] };
   }
 
+  // A figure outside the plausible band for a material unit price is a parsing
+  // artefact or a property value; it must not move a percentile.
+  const sane = evidence.filter((rec: any) => isPlausibleMaterialPrice(rec));
+
   // Group evidence by category + finishLevel + unit (benchmark key)
   const groups = new Map<string, typeof evidence>();
-  for (const rec of evidence) {
+  for (const rec of sane) {
     const finish = rec.finishLevel?.toLowerCase() || 'standard';
     const key = `${rec.category}:${finish}:${rec.unit}`;
     const existing = groups.get(key) ?? [];
@@ -126,6 +140,34 @@ export async function generateBenchmarkProposals(
     const uniqueSources = new Set(records.map((r: any) => r.sourceRegistryId ?? r.sourceUrl));
     const sourceDiversity = uniqueSources.size;
 
+    // EV-01b: composition of the group, so a reviewer sees what the number is
+    // actually made of rather than just its confidence score.
+    const priceClassDist: Record<string, number> = {};
+    const priceBasisDist: Record<string, number> = {};
+    for (const rec of records) {
+      const cls = (rec as any).priceClass ?? "unknown";
+      const basis = (rec as any).priceBasis ?? "unknown";
+      priceClassDist[cls] = (priceClassDist[cls] ?? 0) + 1;
+      priceBasisDist[basis] = (priceBasisDist[basis] ?? 0) + 1;
+    }
+
+    const classesPresent = Object.keys(priceClassDist).filter(k => priceClassDist[k] > 0);
+    const retailOnly =
+      classesPresent.length > 0 &&
+      classesPresent.every(cls => cls === "retail_listed");
+
+    // Only records a versioned basis parser actually looked at can be said to
+    // have an unresolved basis. Legacy records were never evaluated — their
+    // basis signal is the `unit` field, which already keys the benchmark — so
+    // this rule must not silently reject every pre-existing group.
+    const basisEvaluated = records.filter(
+      (rec: any) => rec.priceBasisPolicyVersion != null
+    );
+    const basisUnknownOnly =
+      basisEvaluated.length === records.length &&
+      basisEvaluated.length > 0 &&
+      basisEvaluated.every((rec: any) => (rec.priceBasis ?? "unknown") === "unknown");
+
     // Confidence score
     let confidence = 50;
     if (records.length >= 10) confidence += 15;
@@ -146,6 +188,22 @@ export async function generateBenchmarkProposals(
     } else if (sourceDiversity < 2) {
       recommendation = "reject";
       rejectionReason = `Insufficient source diversity: ${sourceDiversity} < 2`;
+    } else if (retailOnly) {
+      // EV-01b: consumer retail listings are not trade rates. They may inform
+      // a sanity band, but a published benchmark needs at least one other
+      // price class — a trade quote, an official statistic, or a consultancy
+      // benchmark.
+      recommendation = "reject";
+      rejectionReason =
+        `Retail-only price class (${records.length} records): a published benchmark ` +
+        `requires a second price class`;
+    } else if (basisUnknownOnly) {
+      // A price whose basis is unknown may be per piece, per box, or per m².
+      // Percentiles over mixed bases are meaningless.
+      recommendation = "reject";
+      rejectionReason =
+        `Price basis unresolved for all ${records.length} records; ` +
+        `cannot key a benchmark on an unknown basis`;
     } else if (confidence < 40) {
       recommendation = "reject";
       rejectionReason = `Low confidence score: ${confidence}`;
@@ -163,6 +221,8 @@ export async function generateBenchmarkProposals(
         sourceDiversity,
         reliabilityDist,
         recencyDist,
+        priceClassDist,
+        priceBasisDist,
         confidenceScore: confidence,
         recommendation,
         rejectionReason,
