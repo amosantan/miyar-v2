@@ -160,4 +160,36 @@ describe("runIngestion persist policy (ADR-0009)", () => {
     const categories = upsertCalls().map(persisted => persisted.category);
     expect(categories).toEqual(["sanitary", "other", "other"]);
   });
+
+  it("maps near-miss extraction categories onto the evidence vocabulary", async () => {
+    // The production run showed models answering with product words rather
+    // than the enum ("tiles", "marble"). These map deterministically instead
+    // of collapsing into "other" (audit F11).
+    await runIngestion(
+      [stubConnector([
+        { title: "Calacatta Marble Slab", category: "marble", value: 480, unit: "sqm" },
+        { title: "Porcelain Tile 60x60", category: "tiles", value: 180, unit: "sqm" },
+        { title: "Basin Mixer", category: "Bathroom", value: 700, unit: "unit" },
+        { title: "Cabinet Handle", category: "ironmongery", value: 90, unit: "unit" },
+        { title: "Pendant Lamp", category: "lights", value: 1200, unit: "unit" },
+        { title: "Wall Paint 10L", category: "paint", value: 240, unit: "L" },
+      ])],
+      "manual",
+    );
+
+    expect(upsertCalls().map(p => p.category)).toEqual([
+      "floors", "floors", "sanitary", "hardware", "lighting", "walls",
+    ]);
+  });
+
+  it("leaves genuinely unknown categories as an honest other", async () => {
+    await runIngestion(
+      [stubConnector([
+        { title: "Quarterly Market Note", category: "wibble", value: null, unit: null },
+      ])],
+      "manual",
+    );
+
+    expect(upsertCalls()[0].category).toBe("other");
+  });
 });

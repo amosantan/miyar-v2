@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "observedAt": "2026-07-23T17:34:16.530Z",
+  "observedAt": "2026-07-23T17:52:24.514Z",
   "databaseEngine": "MySQL 8.0",
   "targetClass": "disposable localhost database",
   "command": "pnpm test:authorization:mysql",

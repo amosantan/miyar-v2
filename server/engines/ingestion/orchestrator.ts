@@ -143,8 +143,40 @@ const CATEGORY_MAP: Record<string, string> = {
   other: "other",
 };
 
+/**
+ * ADR-0009 (audit F11): extraction returns a per-item category in the
+ * evidence vocabulary, but models routinely answer with a near-miss term
+ * ("tiles", "marble", "bathroom"). These synonyms map such answers onto the
+ * evidence enum deterministically. Anything still unrecognized stays "other"
+ * — an honest unknown, never a guess pooled into a priced category.
+ */
+const CATEGORY_SYNONYMS: Record<string, string> = {
+  floor: "floors", flooring: "floors", tile: "floors", tiles: "floors",
+  ceramic: "floors", ceramics: "floors", porcelain: "floors", marble: "floors",
+  granite: "floors", stone: "floors", slab: "floors", slabs: "floors",
+  parquet: "floors", vinyl: "floors", laminate: "floors", carpet: "floors",
+  wall: "walls", paint: "walls", paints: "walls", wallpaper: "walls",
+  cladding: "walls", plaster: "walls", partition: "walls", partitions: "walls",
+  ceiling: "ceilings", gypsum: "ceilings", falseceiling: "ceilings",
+  carpentry: "joinery", cabinetry: "joinery", millwork: "joinery",
+  door: "joinery", doors: "joinery", wardrobe: "joinery", wardrobes: "joinery",
+  light: "lighting", lights: "lighting", luminaire: "lighting", lamps: "lighting",
+  sanitaryware: "sanitary", bathroom: "sanitary", bath: "sanitary",
+  plumbing: "sanitary", tap: "sanitary", taps: "sanitary", faucet: "sanitary",
+  faucets: "sanitary", basin: "sanitary", shower: "sanitary", wc: "sanitary",
+  kitchens: "kitchen", appliance: "kitchen", appliances: "kitchen",
+  countertop: "kitchen", countertops: "kitchen", worktop: "kitchen",
+  ironmongery: "hardware", handle: "hardware", handles: "hardware",
+  hinge: "hardware", hinges: "hardware", lock: "hardware", locks: "hardware",
+  furniture: "ffe", furnishing: "ffe", furnishings: "ffe", fixture: "ffe",
+  fixtures: "ffe", decor: "ffe", rug: "ffe", rugs: "ffe", curtain: "ffe",
+  curtains: "ffe", fabric: "ffe",
+};
+
 function mapCategory(category: string): string {
-  return CATEGORY_MAP[category] || "other";
+  if (CATEGORY_MAP[category]) return CATEGORY_MAP[category];
+  const normalized = category.toLowerCase().replace(/[\s_-]+/g, "");
+  return CATEGORY_MAP[normalized] || CATEGORY_SYNONYMS[normalized] || "other";
 }
 
 // ─── Record ID Generator ─────────────────────────────────────────
