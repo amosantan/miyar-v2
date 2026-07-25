@@ -1,10 +1,11 @@
 # ADR-0009: Material cost authority and interim provenance
 
-- Status: Accepted
+- Status: Superseded by ADR-0011 (2026-07-23)
 - Date: 2026-07-23
 - Deciders: Amro Saleh (product, schema, and cost-policy owner)
 - Technical area: Material costs, benchmarks, and ingestion-to-report provenance
 - Supersedes: none
+- Superseded by: ADR-0011 (evidence and price-observation model). The interim decisions below remain in force in production until EV-02/EV-03 implement the approved model; ADR-0011 governs the target state.
 
 ## Context
 
