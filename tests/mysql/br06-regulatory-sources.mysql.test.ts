@@ -19,6 +19,13 @@ const registration = {
 
 const requiredAssertionTypes = ["document_identity", "authenticity", "temporal_status", "jurisdiction", "permitted_use"] as const;
 
+// The version.status snapshot is computed against the assertion's write-time
+// clock. Pin it to a fixed instant inside every fixture's validity window
+// (after validFrom 2026-07-02, before any validTo used below) so the derived
+// status is "asserted" regardless of the wall-clock date the suite runs on.
+// Assertion expiry itself is still exercised through `basisAt` in the tests.
+const ASSERTION_WRITE_CLOCK = new Date("2026-07-20T00:00:00Z");
+
 async function assertVersion(sourceVersionId: number, options: { validTo?: Date } = {}) {
   for (const assertionType of requiredAssertionTypes) {
     await createRegulatorySourceAssertion({
@@ -29,7 +36,7 @@ async function assertVersion(sourceVersionId: number, options: { validTo?: Date 
       reason: `BR-06 ${assertionType} review`,
       validFrom: new Date("2026-07-02T00:00:00Z"),
       validTo: options.validTo,
-    });
+    }, { now: ASSERTION_WRITE_CLOCK });
   }
 }
 

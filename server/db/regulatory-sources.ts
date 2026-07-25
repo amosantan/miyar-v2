@@ -198,7 +198,13 @@ export async function createRegulatorySourceAssertion(input: {
   reason: string;
   validFrom: Date;
   validTo?: Date;
-}) {
+},
+// The write-time clock used to snapshot `version.status` (see below). Kept as
+// a second parameter so it never enters `input` — which is spread into both
+// the assertion fingerprint and the row insert. Production passes nothing and
+// gets wall-clock time; tests inject a fixed instant so the derived snapshot
+// does not depend on the day the suite happens to run.
+options: { now?: Date } = {}) {
   const db = await database();
   return db.transaction(async tx => {
     const version = (await tx.select().from(regulatorySourceVersions).where(eq(regulatorySourceVersions.id, input.sourceVersionId)).limit(1).for("update"))[0];
@@ -208,8 +214,12 @@ export async function createRegulatorySourceAssertion(input: {
     const assertions = await tx.select().from(regulatorySourceAssertions).where(eq(regulatorySourceAssertions.sourceVersionId, input.sourceVersionId)).orderBy(asc(regulatorySourceAssertions.id));
     const latest = new Map(assertions.map(assertion => [assertion.assertionType, assertion]));
     const required = ["document_identity", "authenticity", "temporal_status", "jurisdiction", "permitted_use"] as const;
-    const now = new Date();
+    // A coarse write-time snapshot only. The authoritative currency check is in
+    // loadRegulatoryResolutionState, which recomputes `requiredAssertionsCurrent`
+    // at the requested `basisAt`, so this row never needs a background rewrite.
+    const now = options.now ?? new Date();
     const complete = required.every(type => {
+      //DEBUG
       const assertion = latest.get(type);
       return assertion?.decision === "accepted" && assertion.validFrom <= now && (!assertion.validTo || assertion.validTo > now);
     });

@@ -47077,7 +47077,7 @@ async function createRegulatorySourceRelation(input) {
   const result = await db.insert(regulatorySourceRelations).values({ ...input, clauseScope: [...input.clauseScope].sort(), relationFingerprint });
   return { id: Number(result[0].insertId), relationFingerprint };
 }
-async function createRegulatorySourceAssertion(input) {
+async function createRegulatorySourceAssertion(input, options = {}) {
   const db = await database3();
   return db.transaction(async (tx) => {
     const version = (await tx.select().from(regulatorySourceVersions).where(eq21(regulatorySourceVersions.id, input.sourceVersionId)).limit(1).for("update"))[0];
@@ -47087,7 +47087,7 @@ async function createRegulatorySourceAssertion(input) {
     const assertions = await tx.select().from(regulatorySourceAssertions).where(eq21(regulatorySourceAssertions.sourceVersionId, input.sourceVersionId)).orderBy(asc3(regulatorySourceAssertions.id));
     const latest = new Map(assertions.map((assertion) => [assertion.assertionType, assertion]));
     const required = ["document_identity", "authenticity", "temporal_status", "jurisdiction", "permitted_use"];
-    const now = /* @__PURE__ */ new Date();
+    const now = options.now ?? /* @__PURE__ */ new Date();
     const complete = required.every((type) => {
       const assertion = latest.get(type);
       return assertion?.decision === "accepted" && assertion.validFrom <= now && (!assertion.validTo || assertion.validTo > now);

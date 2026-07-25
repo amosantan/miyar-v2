@@ -1,6 +1,6 @@
 {
   "status": "PASS",
-  "observedAt": "2026-07-23T17:52:24.514Z",
+  "observedAt": "2026-07-25T08:35:21.297Z",
   "databaseEngine": "MySQL 8.0",
   "targetClass": "disposable localhost database",
   "command": "pnpm test:authorization:mysql",
@@ -71,7 +71,7 @@
     "drizzle/meta/0055_snapshot.json": "56b7320f51f4dfa8bca726caffa94ee7dfa0b91d9b3f9d26a383017a68ed90cd",
     "tests/mysql/di01-geometry.mysql.test.ts": "0b6a7f8b03e6cabfab2c95a41eb9c8a2e5f3d8ab3a8b5d01e0cead28bcb79091",
     "tests/mysql/br05-typology-packs.mysql.test.ts": "82f2a0d5fef60470416c8484296688b6eaf3bd3bec635bc1109b995dbd2c51de",
-    "tests/mysql/br06-regulatory-sources.mysql.test.ts": "b9327597ac107afc02243a173e91460da47341ec6b78c3e12ce54572bc0996d3",
+    "tests/mysql/br06-regulatory-sources.mysql.test.ts": "7677c7d6f1382e286cc0209bed3eaa319bf7fa967d27332616b92cc21fe6ef5f",
     "shared/typology-pack.ts": "05036e63ed955e10712c889d2d9238234660b7a0c0d79e997313a0ca75104f10",
     "server/engines/typology-pack.ts": "4a21eff1f67e2991e131fb5a44b75811b5dfceb43cd0bb9561f13b0b3acae700",
     "server/engines/typology-pack.test.ts": "3efc98ec67a12adb86fadcb2175b7156fa2895c4b160fd6bc9d783e0f0f6e0a5",
