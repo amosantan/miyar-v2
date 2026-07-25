@@ -1,59 +1,44 @@
 # Current Task
 
-- ID: EV-00
-- Roadmap step: `EV-00`
-- Title: Cost-path truthfulness remediation (audit F1–F13 + KF-013)
-- Status: NEEDS_HUMAN (merged, deployed, schema released; source-registry slug seeding and the named sign-offs remain)
-- Owner: Claude Code
-- Started: 2026-07-23
-- Worktree: `/Users/amrosaleh/Maiyar/miyar-v2/.claude/worktrees/cost-path-audit-material-library-2bb482`
-- Branch: `claude/cost-path-audit-material-library-2bb482`
-- Base: canonical `origin/main` commit `8cd7e0a`
-- Classification: Data-truthfulness / ingestion / report remediation (P0)
-- Risk: provenance mislabelling in issued documents, benchmark keying changes, tenant-safe public-upsert invariants (KF-017 closure), pinned-hash MySQL evidence (LES-046), and preservation of the TR-09/TR-11/TR-13 contract tests.
-- Retry budget: three evidence-based attempts per failure class.
-- Human gates: shared/production migration application (0056–0058) and production reseeding (material library provenance backfill-free defaults; source_registry slugs); cost-consultant approval for tier-ladder value changes and the proposed `libraryTiersForMkt01Tier` mapping; PR merge and deployment.
+- ID: EV-02
+- Roadmap step: `EV-02`
+- Title: Implement the evidence and price schema safely
+- Status: READY (not yet started; awaiting an implementation session)
+- Owner: unassigned
+- Started: —
+- Base: canonical `origin/main` on the EV-01 merge lineage (`1b270f2` or later)
+- Classification: Schema / data (P1)
+- Dependencies: `EV-01` (`CLOSED`, ADR-0011) and `TR-14` (`CLOSED`) — both satisfied.
+- Human gates: the schema shape is approved via ADR-0011; **shared/production-database application remains separately human-gated** and must stop at `NEEDS_HUMAN` until an exact-target approval is recorded (the EV-00/EV-01b precedent).
 
 ## Goal
 
-Fix all thirteen findings of the 2026-07-23 source-to-output cost-path audit plus open `KF-013`, under the four owner decisions recorded in ADR-0009 and ADR-0010.
+Implement the ADR-0011 evidence/price-observation model as a safe, additive, expand-phase schema, with an idempotent backfill and a resolver read-API — changing only where numbers are read from, never any value.
 
-## Acceptance Criteria
+## Scope (from ADR-0011 and `docs/artifacts/EV-01_EVIDENCE_PRICE_MODEL.md` §3, §9)
 
-- [x] Phase 1 — ADR-0009/ADR-0010 accepted and indexed; `tier-policy.ts` (v1 values verbatim) and `robots-policy.ts` (RFC 9309, fail-closed) with passing tests; label-derived `market-verified` stamping removed from `rfq-generator.ts`. (Commit `8a91472`)
-- [x] Phase 2 — robots asserted before every provider including proxies; Bayut/PropertyFinder/SCAD-PDF bypasses removed; regression tests prove no provider runs on denial. (Commit `8a91472`)
-- [x] Phase 3 — additive provenance columns on `material_library` (migration 0056); seed upsert keyed on unique `product_code`; MQI unpriced-allocation semantics match reconciliation; basis labels render in reconciliation output, PDF, DOCX, and client MQI card without forbidden public-claim strings. (Commit `7661f78`)
-- [x] Phase 4 — RFQ `pricingSource` derives from row provenance; `insertRfqLineItemsForOrg` replaces the prior batch per (project, brief, org) in one transaction with guarded-MySQL proof; finish-schedule/RFQ call sites receive material_library-shaped rows; `PricingAnalytics.pricingSource` narrowed and `detailedBudget.costBasis` exposed; `KF-013` closed. (Commit `9592d7a`)
-- [x] Phase 5 — evidence `finishLevel` set deterministically via tier-policy with model output demoted to `modelSuggestedFinishLevel` (migration 0057); per-item categories from static connectors; `CATEGORY_MAP` no longer pools material costs into floors; proposals stamped `benchmark-key-v2` with legacy keys served unchanged; `minEvidenceCount` aligned to the reject threshold; drifted v15 test replaced by real-function coverage. (Commit `a5efbc4`)
-- [x] Phase 6 — registry rows resolved by id or slug (migration 0058) so `lastSuccessfulFetch`/`consecutiveFailures`/`sourceRegistryId` are truthfully recorded on both scheduled paths, proven on real MySQL; dead sources deactivated; URLs repaired; Graniti UAE connector registered and its robots.txt verified `ROBOTS_ALLOWED` under the strict gate. (Commit `6f1e119`)
-- [x] Final — full gate battery green with per-step exit codes; after merging main's KF-019 recertification, `pnpm certify:workflow` terminates `PASS` on the merged tree (`bb200bb`), upgrading the formerly degraded gate; state files updated.
+- New tables: `product` (identity), `specification` (spec key), `supplier_quote` (org-scoped, confidential-by-default).
+- Extend `evidence_records` → price observation (`productId`, `specId`, `priceScope`, delivery/MOQ/lead-time, `observationKind`), keeping it append-only.
+- Extend `benchmark_proposals` → governed benchmark (`specId`, `sourceKind` `observed | assumption`, `supersedesId`).
+- Resolver read-API: `specification → single governed value` carrying its source-ladder rung.
+- Idempotent, reversible backfill: `material_library` → assumption governed values (labels preserved); `evidence_records` → observations; `materials_catalog` → deduped products.
+
+## Acceptance Criteria (to be expanded at task start)
+
+- [ ] Additive migrations only; every default leaves existing rows truthful; no value, weight, threshold, or benchmark changes.
+- [ ] Observations and quotes append-only; original evidence preserved.
+- [ ] Uniqueness, unit, date, currency, org/global-scope, and confidentiality constraints per ADR-0011 §5.
+- [ ] Backfill runs twice with identical result (idempotent) and has a documented rollback.
+- [ ] Safe-target migration + restore rehearsal pass on disposable MySQL with representative legacy data.
+- [ ] Full gate battery (check, DB-free suite, guarded MySQL with regenerated TR03H evidence, authorization, DB-safety, build).
 
 ## Non-Goals
 
-- Changing any tier-ladder threshold value, seed AED price, scoring weight, or financial assumption (cost-consultant gate).
-- Implementing the `EV-01` evidence/price model or merging the material tables (`EV-03`).
-- Applying migrations to shared/production databases, reseeding production, merging, or deploying without explicit authorization.
-- Modifying the regulatory acquisition path.
+- Cutting MQI / reconciliation / RFQ / reports over to the resolver — that is `EV-03`, where `material_library`'s single-writer dead-end is actually closed. EV-02 only builds the shape.
+- Changing any AED value, tier threshold, scoring weight, or benchmark (cost-consultant gate).
+- Applying migrations to shared/production databases without explicit exact-target authorization.
 
-## Baseline
+## Notes
 
-- Fresh `pnpm install --frozen-lockfile`; `pnpm check` PASS at `8cd7e0a` (the first piped baseline was a false green — see LES-048).
-- Targeted policy suites 51/51 at Phase 1.
-
-## Final Verification Evidence (2026-07-23, commits `6f1e119` and merge `bb200bb`)
-
-- `DATABASE_URL='' pnpm test`: PASS, 1,567 tests with 22 skipped (120 files).
-- `pnpm test:authorization:mysql` (disposable loopback DB on the local MySQL server): PASS, 9 files / 46 tests, including migrations 0056–0058 forward application, the RFQ replace-contract proofs, and the EV-00 registry-linkage integration proof; TR03H evidence regenerated through the approved workflow; `pnpm check:mysql-evidence` current.
-- `pnpm audit:authorization`: 389 procedures, 0 remediation rows (inventory re-rendered from live code; no classification changed).
-- `pnpm audit:database-safety`: 123 entrypoints, 2 allowlisted, 0 findings.
-- `pnpm check` and `pnpm build` (with regenerated tracked serverless bundle): PASS.
-- `pnpm certify:workflow`: PASS on merge commit `bb200bb` after main's KF-019 recertification landed (`TR-13 critical workflow certification PASS`, strict cleanup). At `6f1e119` it had failed pre-existing at the browser journey — reproduced identically at untouched base `8cd7e0a`, recorded as `KF-019`, since closed upstream by PR #40.
-- Live robots probe: `granitiuae.com` → `ROBOTS_ALLOWED` under `ingestion-robots-v1`.
-
-## Next Action
-
-1. Trigger one ingestion run and confirm the fixes land: the previously blocked government sources (`dsc.gov.ae`, `scad.gov.ae`, `rics.org`) should now succeed, and priced material evidence should carry real categories (Graniti's stone in `floors`) rather than `other`.
-2. Re-review the resulting `benchmark-key-v2` proposals so they supersede the 1,935 `legacy-v0` rows — this is what activates live per-category pricing for Upper-mid, Luxury, and Ultra-luxury projects.
-3. Decide the per-source terms/licensing position for the six verified pricing sources in `docs/artifacts/EV-01_SOURCE_CANDIDATE_PACKET.md` under the `BR-06` process, then build the Tile King connector first (structured JSON, dated records, explicit robots allow) — confirming its price unit basis before its data reaches any benchmark.
-4. Apply the three indicated registry repairs: deactivate `hafele-uae`, repoint `rak-ceramics-uae` at the shop subdomain, and repoint the two Dubai Pulse sources once the `data.dubai` dataset slugs are confirmed.
-5. Cost-consultant sign-off remains open for the `libraryTiersForMkt01Tier` v2 mapping and for AED values covering `ceilings`, `joinery`, `kitchen`, `fittings`, and `specialty`.
+- Canonical treatments are fixed by ADR-0011 §5: VAT-exclusive; `supply_only`/`supply_and_install` never mixed; emirate geography; the approved source ladder (quote › official stat › consultancy › market-obs benchmark › retail-only sanity › assumption); waste excluded; 3-year observation retention.
+- Any ADR-0011 §7 ruling may still be amended by a superseding ADR before implementation locks it in.

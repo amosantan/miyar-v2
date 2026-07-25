@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `EV-00` release gates (`NEEDS_HUMAN`: PR merge, shared migrations 0056–0058, production reseeding, cost-consultant tier-mapping sign-off). `BR-06` remains `NEEDS_HUMAN` in parallel for exact source-policy decisions and named professional pack approvals.
+- Next executable step: `EV-02` — implement the ADR-0011 evidence/price schema safely (additive migrations + resolver read-API + idempotent backfill on disposable MySQL). Its dependencies `EV-01` and `TR-14` are both `CLOSED`; shared/production application remains separately human-gated. In parallel and still `NEEDS_HUMAN`: EV-00's residual cost-consultant tier-mapping sign-off, EV-01b's per-source BR-06 terms decisions, and `BR-06` professional pack approvals.
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -690,18 +690,20 @@ Rules:
 
 ### EV-01 — Approve the evidence and price-observation model
 
-- Status: `NEEDS_HUMAN`
+- Status: `CLOSED`
 - Class / priority: Data/schema/commercial / P1
 - Dependencies: `BR-02`
-- Human gate: Schema owner, cost consultant, procurement owner, source/licensing owner.
+- Human gate: Schema owner, cost consultant, procurement owner, source/licensing owner — all satisfied by Amro Saleh's approval-with-defaults on 2026-07-23.
 - Evidence: Three overlapping material models and mutable min/max prices cannot represent current commercial truth.
-- Decision package:
-  - Separate product identity, specification, price observation, supplier offer/quote, governed benchmark, and assumption.
-  - Approve unit/pack, VAT, delivery, supply/install, waste, MOQ, lead time, capture, validity, geography, confidentiality, and source-ladder fields.
-  - Approve licensing and retention rules.
+- Decision package (approved):
+  - Six separated concepts (product identity, specification, price observation, supplier quote, governed benchmark, assumption) resolving to one governed value; observations and quotes append-only.
+  - The full field set and canonical treatments (VAT-exclusive, supply/install separated, emirate geography, source ladder, waste-excluded, retention, licensing) approved at recommended defaults.
 - Done when: Representative tile, stone, joinery, paint, sanitaryware, lighting, and furniture examples normalize without information loss.
-- Verification: Domain walkthrough and sample observation/quote fixtures.
-- Expected artifacts: Data specification and migration decision.
+- Closed: 2026-07-23
+- Terminal task state: `PASS`
+- Completion evidence: `docs/artifacts/EV-01_EVIDENCE_PRICE_MODEL.md` (`EV-01-v1`) approved with defaults; ratified as ADR-0011, which supersedes ADR-0009; all seven owner rulings resolved and recorded; the seven representative materials normalize without loss (spec §8), including quote-only joinery and per-litre/per-m² paint.
+- Residual risk: The model is a decision only. No table, number, or calculation changed. EV-02 implements it under its own shared-database human gate; any §7 ruling may still be amended by a superseding ADR before EV-02 builds on it.
+- Expected artifacts: Data specification (`EV-01-v1`) and migration decision — delivered; ADR-0011 accepted.
 
 ### EV-01b — Structured price sources, registry repair, and benchmark population (user-directed)
 
@@ -724,11 +726,11 @@ Rules:
 
 ### EV-02 — Implement evidence and price schema safely
 
-- Status: `PLANNED`
+- Status: `READY` (next executable step; both dependencies `CLOSED`)
 - Class / priority: Schema/data / P1
-- Dependencies: `EV-01`, `TR-14`
-- Human gate: Schema approval; shared-database apply requires separate authorization.
-- Evidence: Approved model from `EV-01`.
+- Dependencies: `EV-01` (`CLOSED`), `TR-14` (`CLOSED`)
+- Human gate: Schema shape is approved via ADR-0011; shared/production-database apply still requires separate authorization.
+- Evidence: Approved model from `EV-01` (`docs/artifacts/EV-01_EVIDENCE_PRICE_MODEL.md`, ADR-0011).
 - Change set:
   - Generate forward migration and compatibility/backfill path.
   - Keep observations append-only and preserve original evidence.
