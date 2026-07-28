@@ -51,6 +51,21 @@ async function truncateFixtures() {
   await pool.query("set foreign_key_checks=1");
 }
 
+async function insertRows(
+  prefix: string,
+  rows: Array<Array<string | number | null>>
+) {
+  for (let index = 0; index < rows.length; index += 400) {
+    const chunk = rows.slice(index, index + 400);
+    await pool.query(
+      `${prefix} values ${chunk
+        .map(row => `(${row.map(() => "?").join(",")})`)
+        .join(",")}`,
+      chunk.flat()
+    );
+  }
+}
+
 beforeAll(async () =>
   assertEv02ProductionSchemaContract(pool as unknown as mysql.Connection)
 );
@@ -741,6 +756,17 @@ describe("EV-02 disposable MySQL evidence and price schema", () => {
       expect(first.insertedProductIds).toHaveLength(4);
       expect(first.insertedSpecificationIds).toHaveLength(1);
       expect(first.insertedBenchmarkProposalIds).toHaveLength(1);
+      const [governed] = await pool.query<mysql.RowDataPacket[]>(
+        `select proposedP25,proposedP50,proposedP75,weightedMean
+         from benchmark_proposals where id=?`,
+        [first.insertedBenchmarkProposalIds[0]]
+      );
+      expect(governed[0]).toEqual({
+        proposedP25: "100.00",
+        proposedP50: "125.01",
+        proposedP75: "150.01",
+        weightedMean: "125.01",
+      });
       expect(first.unresolved).toEqual([
         {
           table: "material_library",
@@ -759,6 +785,94 @@ describe("EV-02 disposable MySQL evidence and price schema", () => {
       expect(second.insertedSpecificationIds).toEqual([]);
       expect(second.insertedBenchmarkProposalIds).toEqual([]);
       expect(second.linkChanges).toEqual([]);
+
+      await expect(
+        rollbackEv02LegacyBackfillBulk(
+          connection,
+          { ...first, version: "wrong-version" } as never,
+          canonicalTarget
+        )
+      ).rejects.toThrow("Unsupported rollback manifest");
+      await expect(
+        rollbackEv02LegacyBackfillBulk(
+          connection,
+          first,
+          "127.0.0.1:3306/wrong"
+        )
+      ).rejects.toThrow("Rollback target does not match manifest");
+
+      const libraryLink = first.linkChanges.find(
+        link => link.table === "material_library"
+      )!;
+      await pool.execute(
+        "update material_library set product_id=null where id=?",
+        [libraryLink.id]
+      );
+      await expect(
+        rollbackEv02LegacyBackfillBulk(connection, first, canonicalTarget)
+      ).rejects.toThrow("material_library links diverged");
+      await pool.execute(
+        "update material_library set product_id=? where id=?",
+        [libraryLink.productId, libraryLink.id]
+      );
+
+      await pool.execute(
+        "update benchmark_proposals set proposedP50='999.00' where id=?",
+        [first.insertedBenchmarkProposalIds[0]]
+      );
+      await expect(
+        rollbackEv02LegacyBackfillBulk(connection, first, canonicalTarget)
+      ).rejects.toThrow("governed value");
+      await pool.execute(
+        "update benchmark_proposals set proposedP50=? where id=?",
+        [
+          first.insertedBenchmarks[0].p50,
+          first.insertedBenchmarkProposalIds[0],
+        ]
+      );
+
+      await insertGovernedValue({
+        specId: first.insertedSpecificationIds[0],
+        orgId: null,
+        quoteId: null,
+        rung: "assumption",
+        p50: "200.00",
+      });
+      const [successorResult] = await pool.query<mysql.RowDataPacket[]>(
+        "select max(id) as id from benchmark_proposals"
+      );
+      const successorId = Number(successorResult[0].id);
+      await pool.execute(
+        "update benchmark_proposals set supersedesId=? where id=?",
+        [first.insertedBenchmarkProposalIds[0], successorId]
+      );
+      await expect(
+        rollbackEv02LegacyBackfillBulk(connection, first, canonicalTarget)
+      ).rejects.toThrow("successor");
+      await pool.execute("delete from benchmark_proposals where id=?", [
+        successorId,
+      ]);
+
+      await pool.execute(
+        "update evidence_records set specId=? where id=(select id from (select id from evidence_records order by id limit 1) first_evidence)",
+        [first.insertedSpecificationIds[0]]
+      );
+      await expect(
+        rollbackEv02LegacyBackfillBulk(connection, first, canonicalTarget)
+      ).rejects.toThrow("specification has an evidence reference");
+      await pool.execute("update evidence_records set specId=null");
+
+      await pool.execute(
+        `insert into materials_catalog (name,category,tier,productId)
+         values ('Unexpected reference','tile','mid',?)`,
+        [first.insertedProductIds[0]]
+      );
+      await expect(
+        rollbackEv02LegacyBackfillBulk(connection, first, canonicalTarget)
+      ).rejects.toThrow("another legacy reference");
+      await pool.execute(
+        "delete from materials_catalog where name='Unexpected reference'"
+      );
 
       await connection.beginTransaction();
       await rollbackEv02LegacyBackfillBulk(
@@ -793,5 +907,102 @@ describe("EV-02 disposable MySQL evidence and price schema", () => {
       "select productId from evidence_records order by id"
     );
     expect(evidenceProducts[0].productId).toBe(evidenceProducts[1].productId);
+  });
+
+  it("rehearses production-shape bulk apply and rollback within the Vitess limit", async () => {
+    await insertRows(
+      `insert into material_library
+       (category,tier,product_code,product_name,brand,supplier_name,unit_label,
+        price_aed_min,price_aed_max)`,
+      Array.from({ length: 285 }, (_, index) => [
+        "flooring",
+        "mid",
+        `SCALE-LIB-${index + 1}`,
+        `Scale library ${index + 1}`,
+        "Scale Brand",
+        "Scale Supplier",
+        "sqm",
+        index < 242 ? "100.00" : null,
+        index < 242 ? "150.01" : null,
+      ])
+    );
+    await insertRows(
+      "insert into materials_catalog (name,category,tier)",
+      Array.from({ length: 853 }, (_, index) => [
+        `Scale catalog ${index + 1}`,
+        "tile",
+        "mid",
+      ])
+    );
+    await insertRows(
+      `insert into evidence_records
+       (recordId,category,itemName,unit,sourceUrl,captureDate,
+        reliabilityGrade,confidenceScore)`,
+      Array.from({ length: 1819 }, (_, index) => [
+        `EV02-SCALE-${index + 1}`,
+        "walls",
+        `Scale evidence ${index + 1}`,
+        "sqm",
+        `https://example.invalid/scale/${index + 1}`,
+        "2026-07-28 00:00:00",
+        "B",
+        70,
+      ])
+    );
+
+    const connection = await pool.getConnection();
+    try {
+      const applyStarted = performance.now();
+      await connection.beginTransaction();
+      const manifest = await applyEv02LegacyBackfillBulk(connection, {
+        databaseTarget: canonicalTarget,
+        now: new Date("2026-07-28T00:00:00Z"),
+      });
+      await connection.commit();
+      const applyDurationMs = performance.now() - applyStarted;
+      expect(manifest.insertedProductIds).toHaveLength(2957);
+      expect(manifest.insertedSpecificationIds).toHaveLength(1);
+      expect(manifest.insertedBenchmarkProposalIds).toHaveLength(242);
+      expect(manifest.unresolved).toHaveLength(43);
+      expect(applyDurationMs).toBeLessThan(20_000);
+      const [oddCent] = await pool.query<mysql.RowDataPacket[]>(
+        `select proposedP50,weightedMean from benchmark_proposals
+         where legacyMaterialLibraryId is not null order by legacyMaterialLibraryId limit 1`
+      );
+      expect(oddCent[0]).toEqual({
+        proposedP50: "125.01",
+        weightedMean: "125.01",
+      });
+
+      const rollbackStarted = performance.now();
+      await connection.beginTransaction();
+      await rollbackEv02LegacyBackfillBulk(
+        connection,
+        manifest,
+        canonicalTarget
+      );
+      await connection.commit();
+      const rollbackDurationMs = performance.now() - rollbackStarted;
+      expect(rollbackDurationMs).toBeLessThan(20_000);
+      const [counts] = await pool.query<mysql.RowDataPacket[]>(
+        `select
+          (select count(*) from product) as products,
+          (select count(*) from specification) as specifications,
+          (select count(*) from benchmark_proposals) as governed,
+          (select count(*) from material_library where product_id is not null) as libraryLinks,
+          (select count(*) from materials_catalog where productId is not null) as catalogLinks,
+          (select count(*) from evidence_records where productId is not null) as evidenceLinks`
+      );
+      expect(counts[0]).toEqual({
+        products: 0,
+        specifications: 0,
+        governed: 0,
+        libraryLinks: 0,
+        catalogLinks: 0,
+        evidenceLinks: 0,
+      });
+    } finally {
+      connection.release();
+    }
   });
 });

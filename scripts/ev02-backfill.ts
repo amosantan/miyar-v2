@@ -33,6 +33,7 @@ const productionTarget = valueAfter("--production-target");
 const expectedMigrationSha256 = valueAfter("--expected-migration-sha256");
 const approvalRef = valueAfter("--approval-ref");
 const wrapperAttestation = valueAfter("--wrapper-attestation");
+const writeQuiesced = args.has("--write-quiesced");
 if (apply && rollback)
   throw new Error("Choose --apply or --rollback, not both");
 if ((apply || rollback) && !manifestPath) {
@@ -51,6 +52,8 @@ const executionTarget = resolveEv02BackfillExecutionTarget({
   databaseApproval: process.env.MIYAR_DATABASE_APPROVAL,
   wrapperAttestation,
   environmentAttestation: process.env.EV02_PLANETSCALE_WRAPPER_ATTESTATION,
+  rollback,
+  writeQuiesced,
 });
 initializeDatabaseSafety("migrate", {
   loadDotenv: false,

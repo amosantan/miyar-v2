@@ -81,6 +81,18 @@ Run dry-run first. Apply still requires `--apply` and a new absolute owner-only
 manifest path. Retain the manifest outside Git until the rollback window is
 closed. Rollback uses the same wrapper, deploy-request evidence, target, digest,
 approval, and proxy binding; it refuses any manifest or current-state mismatch.
+Before production rollback, disable and verify all application/API writes to
+the target. The wrapper requires an explicit `--write-quiesced` attestation and
+refuses rollback without it:
+
+```sh
+pnpm exec tsx scripts/ev02-planetscale-backfill.ts \
+  --deploy-requests <comma-separated-applied-request-numbers> \
+  --rollback \
+  --write-quiesced \
+  --manifest /secure/path/ev02-manifest.json
+```
+
 If the wrapper times out after a manifest is created, do not retry apply: first
 reconcile every manifest fingerprint and link against live state to determine
 whether commit succeeded, then choose guarded rollback or the idempotent rerun.

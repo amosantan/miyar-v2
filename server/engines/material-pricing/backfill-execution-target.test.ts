@@ -57,6 +57,22 @@ describe("EV-02 backfill execution target", () => {
     });
   });
 
+  it("requires an explicit write-quiescent gate for production rollback", () => {
+    expect(() =>
+      resolveEv02BackfillExecutionTarget({
+        ...productionInput,
+        rollback: true,
+      })
+    ).toThrow("write-quiescent maintenance window");
+    expect(
+      resolveEv02BackfillExecutionTarget({
+        ...productionInput,
+        rollback: true,
+        writeQuiesced: true,
+      })
+    ).toMatchObject({ production: true });
+  });
+
   it.each([
     [
       "wrong logical target",
