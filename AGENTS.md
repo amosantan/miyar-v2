@@ -73,6 +73,8 @@ Never trust recorded test counts, table counts, phase status, or build status wi
 - `.agent/state/ROADMAP.md`: canonical step order, status, dependencies, gates, and next executable step.
 - `.agent/state/LESSONS.md`: append-only reusable lessons proven during execution.
 - `docs/PROJECT_STATE.md`: canonical verified repository facts.
+- `memory/`: second memory shared by Codex and Claude Code; start at `memory/README.md`.
+- `.claude/hooks/`: mechanical enforcement for Claude Code sessions.
 - `docs/archive/`: historical evidence only; never use as current authority.
 - `docs/artifacts/`: approved project briefs, reports, and business artifacts; verify sensitivity before committing.
 
@@ -122,6 +124,12 @@ Do not overwrite, discard, or reformat unrelated user changes.
 - Use a review branch for material work; do not push directly to a protected branch unless explicitly requested and permitted.
 - Do not stage, commit, push, merge, deploy, or open a pull request unless the task authorizes that action.
 - Keep commits scoped and describe verified behavior, not aspirational completion.
+
+## Local Credential Convention
+
+- PlanetScale service credentials, when configured on a developer machine, live only in the Git-ignored `.env.planetscale.local` file with owner-only permissions.
+- Codex and Claude Code may source that file for approved PlanetScale operations, but must never print its values, copy them into prompts/logs/state files, commit the file, or claim the credential is available on another machine.
+- The expected variable names are `PLANETSCALE_SERVICE_TOKEN_ID` and `PLANETSCALE_SERVICE_TOKEN`.
 
 ## Verification and Definition of Done
 
@@ -176,6 +184,31 @@ Do not duplicate changing statistics across instruction files. Update one canoni
 
 Use `docs/runbooks/roadmap-execution.md` to start, close, block, or hand over roadmap steps. A completed step must update the roadmap, current task, worklog, and any proven lessons in the same verified change.
 
+## Second Memory
+
+The `memory/` tree is the git-tracked second memory shared by Codex and Claude Code. It exists for the durable context the files above never had a home for. It is context, never authority; deterministic TypeScript remains the numerical authority.
+
+Anti-drift rule: `memory/` owns only what this repository does not already own. Everything else is a pointer. Never copy a fact out of a canonical file into `memory/` — a copied fact drifts, and a drifted fact lies.
+
+| Knowledge | Canonical home |
+| --------------------------------------------- | ------------------------------ |
+| Terms, acronyms, shorthand | `memory/glossary.md` |
+| People, directives, working style | `memory/people/` |
+| UAE market and regulatory knowledge | `memory/domain/` |
+| External research provenance (sources required) | `memory/research/` |
+| Decision rationale and rejected alternatives | `memory/decisions/README.md` |
+| Session narrative | `memory/journal/` |
+
+Rules:
+
+1. Read `memory/README.md` after the Start-of-Task Protocol; it is the hot cache and index.
+2. Record a new term, directive, sourced domain fact, research finding, or decision rationale when it appears, not at the end.
+3. Before ending material work, write the session's learnings to their canonical homes. Claude Code additionally has a `SessionEnd` hook that records objective facts; Codex must perform this step deliberately.
+4. `memory/` is git-tracked. Never place secrets, credentials, production data, or confidential material in it.
+5. Obsidian recall is a read/search lens over this repository, never a second store. The vault root is the repository root, so unscoped search is invalid — always pass `pathPrefix` or `excludePaths`, and never write an Obsidian-only note that duplicates a canonical fact.
+
+Follow `docs/runbooks/memory-sync.md` so both agents use and maintain the second memory identically.
+
 ## Domain Routing
 
 Before specialized work, read the matching skill:
@@ -186,6 +219,11 @@ Before specialized work, read the matching skill:
 - Ingestion and connectors: `.agent/skills/miyar-ingestion/SKILL.md`
 - Analytics: `.agent/skills/miyar-analytics/SKILL.md`
 - Sales premium and yield: `.agent/skills/miyar-sales-premium/SKILL.md`
+
+For complex cross-layer, authorization, data/schema, scoring, report, release,
+or independently investigable work, first load
+`.agent/skills/miyar-plan-orchestrator/SKILL.md`. Start in Plan Mode when the
+client supports it; otherwise follow its read-only plan gate before editing.
 
 Use `LOOP_ENGINEERING.md` for the complete lifecycle and `docs/loops/LOOP_TEMPLATE.md` for new repeatable loops.
 
