@@ -103,8 +103,8 @@ for (const request of deployRequests) {
 
 const nonce = randomBytes(32).toString("hex");
 const innerArgs = [
-  "pnpm",
-  "exec",
+  process.execPath,
+  "--import",
   "tsx",
   "scripts/ev02-backfill.ts",
   ...(apply ? ["--apply"] : rollback ? ["--rollback"] : []),

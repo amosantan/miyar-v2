@@ -5,6 +5,7 @@ import {
   EV02_MIGRATION_SHA256,
   EV02_PRODUCTION_DATABASE_TARGET,
   EV02_PRODUCTION_TARGET,
+  normalizeEv02ConnectionUrlForInspection,
   resolveEv02BackfillExecutionTarget,
 } from "./backfill-execution-target";
 
@@ -21,6 +22,19 @@ const productionInput = {
 };
 
 describe("EV-02 backfill execution target", () => {
+  it("normalizes PlanetScale's mysql2 proxy URL only for safety inspection", () => {
+    expect(
+      normalizeEv02ConnectionUrlForInspection(
+        "mysql2://root@127.0.0.1:3306/miyar-v2"
+      )
+    ).toBe("mysql://root@127.0.0.1:3306/miyar-v2");
+    expect(
+      normalizeEv02ConnectionUrlForInspection(
+        "mysql://root@127.0.0.1:3306/miyar-v2"
+      )
+    ).toBe("mysql://root@127.0.0.1:3306/miyar-v2");
+  });
+
   it("retains the disposable-loopback default", () => {
     expect(
       resolveEv02BackfillExecutionTarget({

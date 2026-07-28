@@ -20,6 +20,10 @@ import {
   applyEv02LegacyBackfill,
   rollbackEv02LegacyBackfill,
 } from "../../server/engines/material-pricing/backfill";
+import {
+  applyEv02LegacyBackfillBulk,
+  rollbackEv02LegacyBackfillBulk,
+} from "../../server/engines/material-pricing/backfill-bulk";
 import { assertEv02ProductionSchemaContract } from "../../server/engines/material-pricing/backfill-schema-contract";
 import { resolveGovernedMaterialValue } from "../../server/engines/material-pricing/resolver";
 import { buildProductIdentityKey } from "../../server/engines/material-pricing/policy";
@@ -690,5 +694,104 @@ describe("EV-02 disposable MySQL evidence and price schema", () => {
       createHash("sha256").update(JSON.stringify(after)).digest("hex")
     ).toBe(beforeHash);
     expect(after).toHaveLength(before.length);
+  });
+
+  it("runs the PlanetScale bulk backfill with equivalent idempotent outcomes", async () => {
+    await pool.execute(
+      `insert into material_library
+       (category,tier,product_code,product_name,brand,supplier_name,unit_label,
+        price_aed_min,price_aed_max)
+       values
+       ('flooring','mid','BULK-1','Bulk priced','Bulk Brand','Supplier','sqm','100.00','150.01'),
+       ('lighting','premium',null,'Bulk incomplete','Bulk Brand','Supplier','piece',null,'300.00')`
+    );
+    await pool.execute(
+      "insert into materials_catalog (name,category,tier) values ('Bulk catalog','tile','mid')"
+    );
+    const [evidenceResult] = await pool.execute(
+      `insert into evidence_records
+       (recordId,sourceRegistryId,category,itemName,unit,sourceUrl,captureDate,
+        reliabilityGrade,confidenceScore,platformProductKey)
+       values
+       ('EV02-BULK-1',88,'walls','Bulk evidence A','sqm','https://example.invalid/bulk-a',now(),'B',70,'SKU-88')`
+    );
+    await pool.execute(
+      `insert into evidence_records
+       (recordId,sourceRegistryId,category,itemName,unit,sourceUrl,captureDate,
+        reliabilityGrade,confidenceScore,supersedesObservationId)
+       values
+       ('EV02-BULK-2',88,'walls','Bulk evidence B','sqm','https://example.invalid/bulk-b',now(),'B',70,?)`,
+      [Number((evidenceResult as { insertId: number }).insertId)]
+    );
+    const [before] = await pool.query<mysql.RowDataPacket[]>(
+      "select id,price_aed_min,price_aed_max from material_library order by id"
+    );
+    const beforeHash = createHash("sha256")
+      .update(JSON.stringify(before))
+      .digest("hex");
+
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const first = await applyEv02LegacyBackfillBulk(connection, {
+        databaseTarget: canonicalTarget,
+        now: new Date("2026-07-28T00:00:00Z"),
+      });
+      await connection.commit();
+      expect(first.insertedProductIds).toHaveLength(4);
+      expect(first.insertedSpecificationIds).toHaveLength(1);
+      expect(first.insertedBenchmarkProposalIds).toHaveLength(1);
+      expect(first.unresolved).toEqual([
+        {
+          table: "material_library",
+          id: expect.any(Number),
+          reason: "incomplete_price_range",
+        },
+      ]);
+
+      await connection.beginTransaction();
+      const second = await applyEv02LegacyBackfillBulk(connection, {
+        databaseTarget: canonicalTarget,
+        now: new Date("2026-07-28T00:00:00Z"),
+      });
+      await connection.commit();
+      expect(second.insertedProductIds).toEqual([]);
+      expect(second.insertedSpecificationIds).toEqual([]);
+      expect(second.insertedBenchmarkProposalIds).toEqual([]);
+      expect(second.linkChanges).toEqual([]);
+
+      await connection.beginTransaction();
+      await rollbackEv02LegacyBackfillBulk(
+        connection,
+        first,
+        canonicalTarget
+      );
+      await connection.commit();
+      const [rolledBackLinks] = await pool.query<mysql.RowDataPacket[]>(
+        "select product_id from material_library order by id"
+      );
+      expect(rolledBackLinks.every(row => row.product_id === null)).toBe(true);
+
+      await connection.beginTransaction();
+      const reapplied = await applyEv02LegacyBackfillBulk(connection, {
+        databaseTarget: canonicalTarget,
+        now: new Date("2026-07-28T00:00:00Z"),
+      });
+      await connection.commit();
+      expect(reapplied.insertedBenchmarkProposalIds).toHaveLength(1);
+    } finally {
+      connection.release();
+    }
+
+    const [after] = await pool.query<mysql.RowDataPacket[]>(
+      "select id,price_aed_min,price_aed_max from material_library order by id"
+    );
+    expect(
+      createHash("sha256").update(JSON.stringify(after)).digest("hex")
+    ).toBe(beforeHash);
+    const [evidenceProducts] = await pool.query<mysql.RowDataPacket[]>(
+      "select productId from evidence_records order by id"
+    );
+    expect(evidenceProducts[0].productId).toBe(evidenceProducts[1].productId);
   });
 });

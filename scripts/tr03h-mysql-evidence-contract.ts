@@ -75,6 +75,7 @@ export const REQUIRED_MYSQL_EVIDENCE_FILES = [
   "server/engines/material-pricing/policy.ts",
   "server/engines/material-pricing/resolver.ts",
   "server/engines/material-pricing/backfill.ts",
+  "server/engines/material-pricing/backfill-bulk.ts",
   "server/engines/material-pricing/backfill-execution-target.ts",
   "server/engines/material-pricing/backfill-execution-target.test.ts",
   "server/engines/material-pricing/backfill-schema-contract.ts",

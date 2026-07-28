@@ -27,6 +27,13 @@ export type Ev02BackfillExecutionTarget = {
   databaseApproval?: string;
 };
 
+export function normalizeEv02ConnectionUrlForInspection(
+  databaseUrl: string | undefined
+): string | undefined {
+  if (!databaseUrl?.startsWith("mysql2://")) return databaseUrl;
+  return `mysql://${databaseUrl.slice("mysql2://".length)}`;
+}
+
 function requireApprovalRef(value: string | undefined): string {
   if (
     !value ||

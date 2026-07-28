@@ -11,7 +11,14 @@ import {
   rollbackEv02LegacyBackfill,
   type Ev02BackfillManifest,
 } from "../server/engines/material-pricing/backfill";
-import { resolveEv02BackfillExecutionTarget } from "../server/engines/material-pricing/backfill-execution-target";
+import {
+  applyEv02LegacyBackfillBulk,
+  rollbackEv02LegacyBackfillBulk,
+} from "../server/engines/material-pricing/backfill-bulk";
+import {
+  normalizeEv02ConnectionUrlForInspection,
+  resolveEv02BackfillExecutionTarget,
+} from "../server/engines/material-pricing/backfill-execution-target";
 import { assertEv02ProductionSchemaContract } from "../server/engines/material-pricing/backfill-schema-contract";
 
 const args = new Set(process.argv.slice(2));
@@ -33,7 +40,9 @@ if ((apply || rollback) && !manifestPath) {
 }
 
 const databaseUrl = process.env.DATABASE_URL;
-const target = inspectDatabaseTarget(databaseUrl);
+const target = inspectDatabaseTarget(
+  normalizeEv02ConnectionUrlForInspection(databaseUrl)
+);
 const executionTarget = resolveEv02BackfillExecutionTarget({
   connectionTarget: target,
   productionTarget,
@@ -61,7 +70,9 @@ try {
     const manifest = JSON.parse(
       readFileSync(manifestPath!, "utf8")
     ) as Ev02BackfillManifest;
-    await rollbackEv02LegacyBackfill(
+    await (executionTarget.production
+      ? rollbackEv02LegacyBackfillBulk
+      : rollbackEv02LegacyBackfill)(
       connection,
       manifest,
       executionTarget.manifestTarget
@@ -71,7 +82,9 @@ try {
       `[ev02-backfill] rollback PASS target=${executionTarget.manifestTarget}`
     );
   } else {
-    const manifest = await applyEv02LegacyBackfill(connection, {
+    const manifest = await (executionTarget.production
+      ? applyEv02LegacyBackfillBulk
+      : applyEv02LegacyBackfill)(connection, {
       databaseTarget: executionTarget.manifestTarget,
       now: new Date(),
     });
