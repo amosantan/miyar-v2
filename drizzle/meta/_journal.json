@@ -428,6 +428,13 @@
       "when": 1784827215099,
       "tag": "0060_benchmark_proposal_composition",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "5",
+      "when": 1785263581509,
+      "tag": "0061_ev02_evidence_price_schema",
+      "breakpoints": true
     }
   ]
 }

@@ -869,9 +869,161 @@ export const materialBoards = mysqlTable("material_boards", {
 export type MaterialBoard = typeof materialBoards.$inferSelect;
 export type InsertMaterialBoard = typeof materialBoards.$inferInsert;
 
+// ─── EV-02 Governed Material Identity ───────────────────────────────────────
+export const products = mysqlTable(
+  "product",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    orgId: int("orgId"),
+    brand: varchar("brand", { length: 255 }),
+    manufacturer: varchar("manufacturer", { length: 255 }),
+    productCode: varchar("productCode", { length: 128 }),
+    productName: varchar("productName", { length: 255 }).notNull(),
+    series: varchar("series", { length: 255 }),
+    canonicalCategory: mysqlEnum("canonicalCategory", [
+      "floors",
+      "walls",
+      "ceilings",
+      "joinery",
+      "lighting",
+      "sanitary",
+      "kitchen",
+      "hardware",
+      "ffe",
+      "other",
+    ]).notNull(),
+    nominalDimensions: json("nominalDimensions"),
+    materialComposition: text("materialComposition"),
+    finish: varchar("finish", { length: 255 }),
+    styleTags: json("styleTags"),
+    originCountry: varchar("originCountry", { length: 128 }),
+    discontinued: boolean("discontinued").default(false).notNull(),
+    createdVia: mysqlEnum("createdVia", [
+      "manual",
+      "scrape_dedup",
+      "quote_import",
+    ]).notNull(),
+    sourceRegistryId: int("sourceRegistryId"),
+    createdBy: int("createdBy"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    uniqueIndex("product_brand_code_unique").on(table.brand, table.productCode),
+    index("product_scope_category_name_idx").on(
+      table.orgId,
+      table.canonicalCategory,
+      table.productName
+    ),
+  ]
+);
+
+export type Product = typeof products.$inferSelect;
+export type InsertProduct = typeof products.$inferInsert;
+
+export const specifications = mysqlTable(
+  "specification",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    specKey: varchar("specKey", { length: 255 }).notNull(),
+    category: mysqlEnum("category", [
+      "floors",
+      "walls",
+      "ceilings",
+      "joinery",
+      "lighting",
+      "sanitary",
+      "kitchen",
+      "hardware",
+      "ffe",
+      "other",
+    ]).notNull(),
+    finishLevel: mysqlEnum("finishLevel", [
+      "basic",
+      "standard",
+      "premium",
+      "luxury",
+      "ultra_luxury",
+    ]).notNull(),
+    unitBasis: mysqlEnum("unitBasis", [
+      "per_piece",
+      "per_pack",
+      "per_sqm",
+      "per_lm",
+      "per_litre",
+    ]).notNull(),
+    geography: mysqlEnum("geography", [
+      "dubai",
+      "abu_dhabi",
+      "sharjah",
+      "ajman",
+      "umm_al_quwain",
+      "ras_al_khaimah",
+      "fujairah",
+      "uae",
+    ]).notNull(),
+    performanceAttributes: json("performanceAttributes"),
+    policyVersion: varchar("policyVersion", { length: 64 }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("specification_spec_key_unique").on(table.specKey),
+    index("specification_resolution_idx").on(
+      table.category,
+      table.finishLevel,
+      table.unitBasis,
+      table.geography
+    ),
+  ]
+);
+
+export type Specification = typeof specifications.$inferSelect;
+export type InsertSpecification = typeof specifications.$inferInsert;
+
+export const supplierQuotes = mysqlTable(
+  "supplier_quote",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    orgId: int("orgId").notNull(),
+    supplierName: varchar("supplierName", { length: 255 }).notNull(),
+    contactRef: varchar("contactRef", { length: 255 }),
+    quoteRef: varchar("quoteRef", { length: 255 }).notNull(),
+    receivedAt: timestamp("receivedAt").notNull(),
+    validUntil: timestamp("validUntil"),
+    confidentiality: mysqlEnum("confidentiality", [
+      "internal",
+      "confidential",
+      "restricted",
+    ])
+      .default("confidential")
+      .notNull(),
+    inclusions: json("inclusions"),
+    exclusions: json("exclusions"),
+    alternates: json("alternates"),
+    supersedesId: int("supersedesId"),
+    createdBy: int("createdBy").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("supplier_quote_org_ref_unique").on(
+      table.orgId,
+      table.quoteRef
+    ),
+    uniqueIndex("supplier_quote_supersedes_unique").on(table.supersedesId),
+    index("supplier_quote_org_validity_idx").on(
+      table.orgId,
+      table.validUntil
+    ),
+  ]
+);
+
+export type SupplierQuote = typeof supplierQuotes.$inferSelect;
+export type InsertSupplierQuote = typeof supplierQuotes.$inferInsert;
+
 // ─── Materials Catalog (V2.8 — FF&E Library) ────────────────────────────────
 export const materialsCatalog = mysqlTable("materials_catalog", {
   id: int("id").autoincrement().primaryKey(),
+  productId: int("productId"),
   name: varchar("name", { length: 255 }).notNull(),
   category: mysqlEnum("category", [
     "tile",
@@ -1630,6 +1782,39 @@ export const evidenceRecords = mysqlTable(
      * they never passed through.
      */
     priceBasisPolicyVersion: varchar("priceBasisPolicyVersion", { length: 64 }),
+    // EV-02: nullable on legacy rows. New governed price observations require
+    // both a specification and an explicit supply/install scope in the closed
+    // write helper; unresolved legacy rows remain ineligible for aggregation.
+    productId: int("productId"),
+    specId: int("specId"),
+    geography: mysqlEnum("geography", [
+      "dubai",
+      "abu_dhabi",
+      "sharjah",
+      "ajman",
+      "umm_al_quwain",
+      "ras_al_khaimah",
+      "fujairah",
+      "uae",
+    ]),
+    priceScope: mysqlEnum("priceScope", [
+      "supply_only",
+      "supply_and_install",
+    ]),
+    deliveryIncluded: boolean("deliveryIncluded"),
+    moqValue: decimal("moqValue", { precision: 12, scale: 3 }),
+    moqUnit: varchar("moqUnit", { length: 32 }),
+    leadTimeDays: int("leadTimeDays"),
+    wasteBasis: varchar("wasteBasis", { length: 64 }),
+    observationKind: mysqlEnum("observationKind", [
+      "market_listing",
+      "official_statistic",
+      "consultancy_benchmark",
+      "supplier_quote",
+      "manual",
+    ]),
+    supplierQuoteId: int("supplierQuoteId"),
+    supersedesObservationId: int("supersedesObservationId"),
     createdBy: int("createdBy"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
   },
@@ -1647,6 +1832,16 @@ export const evidenceRecords = mysqlTable(
       table.sourceRegistryId,
       table.platformProductKey
     ),
+    uniqueIndex("evidence_records_supersedes_unique").on(
+      table.supersedesObservationId
+    ),
+    index("evidence_records_governed_price_idx").on(
+      table.specId,
+      table.productId,
+      table.priceScope,
+      table.captureDate
+    ),
+    index("evidence_records_supplier_quote_idx").on(table.supplierQuoteId),
   ]
 );
 
@@ -1739,6 +1934,35 @@ export type InsertEvidenceConfidenceAssessment =
 export const benchmarkProposals = mysqlTable("benchmark_proposals", {
   id: int("id").autoincrement().primaryKey(),
   benchmarkKey: varchar("benchmarkKey", { length: 255 }).notNull(), // category:finishLevel:unit
+  specId: int("specId"),
+  productId: int("productId"),
+  orgId: int("orgId"),
+  priceScope: mysqlEnum("priceScope", [
+    "supply_only",
+    "supply_and_install",
+  ]),
+  sourceKind: mysqlEnum("sourceKind", ["observed", "assumption"])
+    .default("observed")
+    .notNull(),
+  sourceLadderRung: mysqlEnum("sourceLadderRung", [
+    "supplier_quote",
+    "official_statistic",
+    "consultancy_benchmark",
+    "market_observation",
+    "retail_sanity",
+    "assumption",
+  ]),
+  benchmarkVersionId: int("benchmarkVersionId"),
+  supplierQuoteId: int("supplierQuoteId"),
+  supersedesId: int("supersedesId"),
+  legacyMaterialLibraryId: int("legacyMaterialLibraryId"),
+  sourceLabel: varchar("sourceLabel", { length: 255 }),
+  priceConfidence: mysqlEnum("priceConfidence", [
+    "assumption",
+    "indicative",
+    "quoted",
+  ]),
+  provenancePolicyVersion: varchar("provenancePolicyVersion", { length: 64 }),
   // ADR-0009: distinguishes key eras — "legacy-v0" rows predate deterministic
   // finish/category keying; new proposals stamp "benchmark-key-v2".
   keyPolicyVersion: varchar("keyPolicyVersion", { length: 64 })
@@ -1779,7 +2003,21 @@ export const benchmarkProposals = mysqlTable("benchmark_proposals", {
   benchmarkSnapshotId: int("benchmarkSnapshotId"),
   runId: varchar("runId", { length: 64 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, table => [
+  uniqueIndex("benchmark_proposals_supersedes_unique").on(table.supersedesId),
+  uniqueIndex("benchmark_proposals_legacy_library_unique").on(
+    table.legacyMaterialLibraryId
+  ),
+  index("benchmark_proposals_governed_resolver_idx").on(
+    table.specId,
+    table.orgId,
+    table.productId,
+    table.priceScope,
+    table.status,
+    table.recommendation
+  ),
+  index("benchmark_proposals_supplier_quote_idx").on(table.supplierQuoteId),
+]);
 
 export type BenchmarkProposal = typeof benchmarkProposals.$inferSelect;
 export type InsertBenchmarkProposal = typeof benchmarkProposals.$inferInsert;
@@ -2209,6 +2447,7 @@ export type InsertNlQueryLog = typeof nlQueryLog.$inferInsert;
 // ─── V8 - Design Intelligence Layer ───────────────────────────────────────
 export const materialLibrary = mysqlTable("material_library", {
   id: int("id").primaryKey().autoincrement(),
+  productId: int("product_id"),
   category: mysqlEnum("category", [
     "flooring",
     "wall_paint",
