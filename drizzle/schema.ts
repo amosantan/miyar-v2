@@ -875,6 +875,7 @@ export const products = mysqlTable(
   {
     id: int("id").autoincrement().primaryKey(),
     orgId: int("orgId"),
+    identityKey: varchar("identityKey", { length: 64 }).notNull(),
     brand: varchar("brand", { length: 255 }),
     manufacturer: varchar("manufacturer", { length: 255 }),
     productCode: varchar("productCode", { length: 128 }),
@@ -909,7 +910,12 @@ export const products = mysqlTable(
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
   table => [
-    uniqueIndex("product_brand_code_unique").on(table.brand, table.productCode),
+    uniqueIndex("product_identity_key_unique").on(table.identityKey),
+    index("product_scope_brand_code_idx").on(
+      table.orgId,
+      table.brand,
+      table.productCode
+    ),
     index("product_scope_category_name_idx").on(
       table.orgId,
       table.canonicalCategory,

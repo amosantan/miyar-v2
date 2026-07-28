@@ -1,6 +1,7 @@
 CREATE TABLE `product` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`orgId` int,
+	`identityKey` varchar(64) NOT NULL,
 	`brand` varchar(255),
 	`manufacturer` varchar(255),
 	`productCode` varchar(128),
@@ -19,7 +20,7 @@ CREATE TABLE `product` (
 	`createdAt` timestamp NOT NULL DEFAULT (now()),
 	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
 	CONSTRAINT `product_id` PRIMARY KEY(`id`),
-	CONSTRAINT `product_brand_code_unique` UNIQUE(`brand`,`productCode`)
+	CONSTRAINT `product_identity_key_unique` UNIQUE(`identityKey`)
 );
 --> statement-breakpoint
 CREATE TABLE `specification` (
@@ -86,6 +87,7 @@ ALTER TABLE `materials_catalog` ADD `productId` int;--> statement-breakpoint
 ALTER TABLE `benchmark_proposals` ADD CONSTRAINT `benchmark_proposals_supersedes_unique` UNIQUE(`supersedesId`);--> statement-breakpoint
 ALTER TABLE `benchmark_proposals` ADD CONSTRAINT `benchmark_proposals_legacy_library_unique` UNIQUE(`legacyMaterialLibraryId`);--> statement-breakpoint
 ALTER TABLE `evidence_records` ADD CONSTRAINT `evidence_records_supersedes_unique` UNIQUE(`supersedesObservationId`);--> statement-breakpoint
+CREATE INDEX `product_scope_brand_code_idx` ON `product` (`orgId`,`brand`,`productCode`);--> statement-breakpoint
 CREATE INDEX `product_scope_category_name_idx` ON `product` (`orgId`,`canonicalCategory`,`productName`);--> statement-breakpoint
 CREATE INDEX `specification_resolution_idx` ON `specification` (`category`,`finishLevel`,`unitBasis`,`geography`);--> statement-breakpoint
 CREATE INDEX `supplier_quote_org_validity_idx` ON `supplier_quote` (`orgId`,`validUntil`);--> statement-breakpoint

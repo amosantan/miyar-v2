@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "49106b29-387a-41c7-99e0-c44e3fcbbbaf",
+  "id": "4751751d-dd19-47f8-8278-cf3c028fb088",
   "prevId": "91ad6aae-8308-4260-9cd7-aa667d4fb3fa",
   "tables": {
     "accuracy_snapshots": {
@@ -11703,6 +11703,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "identityKey": {
+          "name": "identityKey",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "brand": {
           "name": "brand",
           "type": "varchar(255)",
@@ -11828,13 +11835,21 @@
         }
       },
       "indexes": {
-        "product_brand_code_unique": {
-          "name": "product_brand_code_unique",
+        "product_identity_key_unique": {
+          "name": "product_identity_key_unique",
           "columns": [
+            "identityKey"
+          ],
+          "isUnique": true
+        },
+        "product_scope_brand_code_idx": {
+          "name": "product_scope_brand_code_idx",
+          "columns": [
+            "orgId",
             "brand",
             "productCode"
           ],
-          "isUnique": true
+          "isUnique": false
         },
         "product_scope_category_name_idx": {
           "name": "product_scope_category_name_idx",

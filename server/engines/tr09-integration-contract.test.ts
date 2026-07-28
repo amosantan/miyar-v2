@@ -6,7 +6,7 @@ function source(path: string) {
 }
 
 describe("TR-09 integration contracts", () => {
-  it("keeps public connector matching tenant-safe and latest-wins atomic", () => {
+  it("keeps public connector matching tenant-safe, append-only, and atomic", () => {
     const db = source("../db.ts");
     const helperStart = db.indexOf("export async function upsertPublicEvidenceObservation");
     const helperEnd = db.indexOf("export async function recordRejectedConfidenceAssessment", helperStart);
@@ -18,7 +18,11 @@ describe("TR-09 integration contracts", () => {
     expect(helper).toContain('eq(evidenceRecords.corpusScope, "platform_public")');
     expect(helper).toContain("publicObservationKey");
     expect(helper).toContain("onDuplicateKeyUpdate");
-    expect(helper).toContain('mergeDecision: existing ? "latest_accepted" : "inserted"');
+    expect(helper).toContain("supersedesObservationId: latest.id");
+    expect(helper).toContain(
+      'mergeDecision: createdRoot ? "inserted" : "latest_accepted"'
+    );
+    expect(helper).not.toContain("latestObservation");
     expect(helper).not.toContain("Math.max");
   });
 

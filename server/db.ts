@@ -2495,8 +2495,26 @@ export async function getEvidenceRecordById(id: number) {
 export async function createEvidenceRecord(data: typeof evidenceRecords.$inferInsert) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+  assertLegacyEvidenceWrite(data);
   const [result] = await db.insert(evidenceRecords).values(data);
   return { id: Number(result.insertId) };
+}
+
+function assertLegacyEvidenceWrite(
+  data: typeof evidenceRecords.$inferInsert
+): void {
+  if (
+    data.specId != null ||
+    data.productId != null ||
+    data.priceScope != null ||
+    data.observationKind != null ||
+    data.supplierQuoteId != null ||
+    data.supersedesObservationId != null
+  ) {
+    throw new Error(
+      "Governed price observations must use the append-only material-pricing helper"
+    );
+  }
 }
 
 type ConfidenceDecimalField =
@@ -2522,6 +2540,7 @@ export async function createEvidenceRecordWithConfidenceAssessment(
 ) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+  assertLegacyEvidenceWrite(data);
 
   return db.transaction(async (tx: any) => {
     const [recordResult] = await tx.insert(evidenceRecords).values({
@@ -2550,10 +2569,9 @@ export interface PublicEvidenceObservationResult {
 }
 
 /**
- * Latest accepted connector observation wins. Matching and mutation are both
- * restricted to the public platform corpus so a same-key tenant row is never
- * read, locked, or changed. The evidence mutation, append-only assessment, and
- * current pointer update share one transaction.
+ * Connector captures are append-only. A stable platform identity selects the
+ * root observation, while each later accepted capture becomes one immutable
+ * successor. Retrying the same recordId returns the prior row idempotently.
  */
 export async function upsertPublicEvidenceObservation(
   data: typeof evidenceRecords.$inferInsert,
@@ -2564,6 +2582,7 @@ export async function upsertPublicEvidenceObservation(
   if (data.orgId != null || data.projectId != null || data.corpusScope !== "platform_public") {
     throw new Error("Public connector observations must be platform_public with no organization or project");
   }
+  assertLegacyEvidenceWrite(data);
   const publicObservationKey = createHash("sha256")
     .update(JSON.stringify([data.sourceUrl, data.itemName]))
     .digest("hex");
@@ -2593,31 +2612,16 @@ export async function upsertPublicEvidenceObservation(
         identityMatch,
         isNull(evidenceRecords.orgId),
         isNull(evidenceRecords.projectId),
+        isNull(evidenceRecords.specId),
+        isNull(evidenceRecords.priceScope),
+        isNull(evidenceRecords.observationKind),
         eq(evidenceRecords.corpusScope, "platform_public")
       ))
       .orderBy(desc(evidenceRecords.captureDate))
       .limit(1);
 
-    let existing: { id: number; confidenceScore: number; priceTypical: string | null; recordId: string } | undefined;
-    let evidenceRecordId: number;
-    let created = false;
-
-    if (legacyMatches[0]) {
-      const locked = await tx.select({
-        id: evidenceRecords.id,
-        confidenceScore: evidenceRecords.confidenceScore,
-        priceTypical: evidenceRecords.priceTypical,
-        recordId: evidenceRecords.recordId,
-      }).from(evidenceRecords).where(and(
-        eq(evidenceRecords.id, legacyMatches[0].id),
-        isNull(evidenceRecords.orgId),
-        isNull(evidenceRecords.projectId),
-        eq(evidenceRecords.corpusScope, "platform_public")
-      )).limit(1).for("update");
-      existing = locked[0];
-      if (!existing) throw new Error("Public observation disappeared before it could be locked");
-      evidenceRecordId = existing.id;
-    } else {
+    let rootId = legacyMatches[0]?.id as number | undefined;
+    if (rootId === undefined) {
       const [insertResult] = await tx.insert(evidenceRecords).values({
         ...data,
         publicObservationKey,
@@ -2625,50 +2629,103 @@ export async function upsertPublicEvidenceObservation(
       }).onDuplicateKeyUpdate({
         set: { id: sql`LAST_INSERT_ID(${evidenceRecords.id})` },
       });
-      evidenceRecordId = Number(insertResult.insertId);
-      const locked = await tx.select({
+      rootId = Number(insertResult.insertId);
+    }
+
+    type LockedObservation = {
+      id: number;
+      confidenceScore: number;
+      priceTypical: string | null;
+      recordId: string;
+      currentConfidenceAssessmentId: number | null;
+      productId: number | null;
+    };
+    const lockedRoot = await tx.select({
+      id: evidenceRecords.id,
+      confidenceScore: evidenceRecords.confidenceScore,
+      priceTypical: evidenceRecords.priceTypical,
+      recordId: evidenceRecords.recordId,
+      currentConfidenceAssessmentId:
+        evidenceRecords.currentConfidenceAssessmentId,
+      productId: evidenceRecords.productId,
+    }).from(evidenceRecords).where(and(
+      eq(evidenceRecords.id, rootId),
+      isNull(evidenceRecords.orgId),
+      isNull(evidenceRecords.projectId),
+      isNull(evidenceRecords.specId),
+      isNull(evidenceRecords.priceScope),
+      isNull(evidenceRecords.observationKind),
+      eq(evidenceRecords.corpusScope, "platform_public")
+    )).limit(1).for("update");
+    if (!lockedRoot[0]) {
+      throw new Error("Public observation conflict resolved outside the public corpus");
+    }
+
+    let latest = lockedRoot[0] as LockedObservation;
+    while (true) {
+      if (
+        latest.recordId === data.recordId &&
+        latest.currentConfidenceAssessmentId !== null
+      ) {
+        return {
+          id: latest.id,
+          assessmentId: latest.currentConfidenceAssessmentId,
+          created: false,
+          previousConfidenceScore: null,
+          previousPriceTypical: null,
+        };
+      }
+      const successor = await tx.select({
         id: evidenceRecords.id,
         confidenceScore: evidenceRecords.confidenceScore,
         priceTypical: evidenceRecords.priceTypical,
         recordId: evidenceRecords.recordId,
+        currentConfidenceAssessmentId:
+          evidenceRecords.currentConfidenceAssessmentId,
+        productId: evidenceRecords.productId,
       }).from(evidenceRecords).where(and(
-        eq(evidenceRecords.id, evidenceRecordId),
+        eq(evidenceRecords.supersedesObservationId, latest.id),
         isNull(evidenceRecords.orgId),
         isNull(evidenceRecords.projectId),
-        eq(evidenceRecords.corpusScope, "platform_public"),
-        eq(evidenceRecords.publicObservationKey, publicObservationKey)
+        isNull(evidenceRecords.specId),
+        isNull(evidenceRecords.priceScope),
+        isNull(evidenceRecords.observationKind),
+        eq(evidenceRecords.corpusScope, "platform_public")
       )).limit(1).for("update");
-      if (!locked[0]) throw new Error("Public observation conflict resolved outside the public corpus");
-      created = locked[0].recordId === data.recordId;
-      if (!created) existing = locked[0];
+      if (!successor[0]) break;
+      latest = successor[0] as LockedObservation;
     }
 
-    if (!created) {
+    let evidenceRecordId = latest.id;
+    const createdRoot =
+      latest.recordId === data.recordId &&
+      latest.currentConfidenceAssessmentId === null;
+    if (!createdRoot) {
       const {
         id: _ignoredId,
-        recordId: _ignoredRecordId,
         currentConfidenceAssessmentId: _ignoredAssessmentId,
-        ...latestObservation
+        publicObservationKey: _ignoredPublicKey,
+        supersedesObservationId: _ignoredSupersedesId,
+        ...successorData
       } = data;
-      await tx.update(evidenceRecords).set({
-        ...latestObservation,
-        publicObservationKey,
+      const [successorResult] = await tx.insert(evidenceRecords).values({
+        ...successorData,
+        productId: latest.productId,
+        platformProductKey: null,
+        publicObservationKey: null,
+        supersedesObservationId: latest.id,
         confidencePolicyVersion: assessment.confidencePolicyId,
-      }).where(and(
-        eq(evidenceRecords.id, evidenceRecordId),
-        isNull(evidenceRecords.orgId),
-        isNull(evidenceRecords.projectId),
-        eq(evidenceRecords.corpusScope, "platform_public")
-      ));
+      });
+      evidenceRecordId = Number(successorResult.insertId);
     }
 
     const finalScore = Number(data.confidenceScore);
     const [assessmentResult] = await tx.insert(evidenceConfidenceAssessments).values({
       ...assessment,
       evidenceRecordId,
-      previousScore: existing?.confidenceScore ?? null,
+      previousScore: createdRoot ? null : latest.confidenceScore,
       finalScore,
-      mergeDecision: existing ? "latest_accepted" : "inserted",
+      mergeDecision: createdRoot ? "inserted" : "latest_accepted",
       outcome: "accepted",
     });
     const assessmentId = Number(assessmentResult.insertId);
@@ -2681,15 +2738,18 @@ export async function upsertPublicEvidenceObservation(
         eq(evidenceRecords.id, evidenceRecordId),
         isNull(evidenceRecords.orgId),
         isNull(evidenceRecords.projectId),
+        isNull(evidenceRecords.specId),
+        isNull(evidenceRecords.priceScope),
+        isNull(evidenceRecords.observationKind),
         eq(evidenceRecords.corpusScope, "platform_public")
       ));
 
     return {
       id: evidenceRecordId,
       assessmentId,
-      created,
-      previousConfidenceScore: existing?.confidenceScore ?? null,
-      previousPriceTypical: existing?.priceTypical ?? null,
+      created: createdRoot,
+      previousConfidenceScore: createdRoot ? null : latest.confidenceScore,
+      previousPriceTypical: createdRoot ? null : latest.priceTypical,
     };
   });
 }
@@ -2725,6 +2785,7 @@ export async function createEvidenceRecordForOrg(
 ) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+  assertLegacyEvidenceWrite(data);
   return db.transaction(async (tx: any) => {
     const ownedProject = await tx.select({ id: projects.id })
       .from(projects)
@@ -2744,20 +2805,15 @@ export async function createEvidenceRecordForOrg(
 }
 
 export async function deleteEvidenceRecord(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("DB not available");
-  await db.delete(evidenceRecords).where(eq(evidenceRecords.id, id));
+  void id;
+  throw new Error(
+    "Evidence observations are append-only; record a governed supersession"
+  );
 }
 
 export async function deleteGlobalEvidenceRecord(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("DB not available");
-  const result = await db.delete(evidenceRecords).where(and(
-    eq(evidenceRecords.id, id),
-    isNull(evidenceRecords.projectId),
-    isNull(evidenceRecords.orgId)
-  ));
-  return Number(result[0].affectedRows) === 1;
+  void id;
+  return false;
 }
 
 export async function getPreviousPublicEvidenceRecord(
@@ -2920,22 +2976,47 @@ export async function getBenchmarkProposalById(id: number) {
   return rows[0];
 }
 
-export async function createBenchmarkProposal(data: typeof benchmarkProposals.$inferInsert) {
+export async function createBenchmarkProposal(
+  data: Omit<
+    typeof benchmarkProposals.$inferInsert,
+    "status" | "reviewedAt" | "reviewedBy" | "reviewerNotes"
+  >
+) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const [result] = await db.insert(benchmarkProposals).values(data);
+  const {
+    status: _ignoredStatus,
+    reviewedAt: _ignoredReviewedAt,
+    reviewedBy: _ignoredReviewedBy,
+    reviewerNotes: _ignoredReviewerNotes,
+    ...pendingData
+  } = data as typeof benchmarkProposals.$inferInsert;
+  const [result] = await db.insert(benchmarkProposals).values({
+    ...pendingData,
+    status: "pending",
+    reviewedAt: null,
+    reviewedBy: null,
+    reviewerNotes: null,
+  });
   return { id: Number(result.insertId) };
 }
 
 export async function reviewBenchmarkProposal(
   id: number,
-  data: { status: "approved" | "rejected"; reviewerNotes?: string; reviewedBy: number }
+  data: { status: "approved" | "rejected"; reviewerNotes?: string; reviewedBy: number },
+  options: { now?: Date } = {}
 ) {
   const db = await getDb();
-  if (!db) return;
-  await db.update(benchmarkProposals)
-    .set({ ...data, reviewedAt: new Date() })
-    .where(eq(benchmarkProposals.id, id));
+  if (!db) return false;
+  const result = await db.update(benchmarkProposals)
+    .set({ ...data, reviewedAt: options.now ?? new Date() })
+    .where(and(
+      eq(benchmarkProposals.id, id),
+      eq(benchmarkProposals.status, "pending"),
+      isNull(benchmarkProposals.reviewedAt),
+      isNull(benchmarkProposals.reviewedBy),
+    ));
+  return Number(result[0].affectedRows) === 1;
 }
 
 // ─── Benchmark Snapshots ────────────────────────────────────────────────────

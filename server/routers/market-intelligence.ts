@@ -800,11 +800,17 @@ export const marketIntelligenceRouter = router({
         reviewerNotes: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        await db.reviewBenchmarkProposal(input.id, {
+        const reviewed = await db.reviewBenchmarkProposal(input.id, {
           status: input.status,
           reviewerNotes: input.reviewerNotes,
           reviewedBy: ctx.user.id,
         });
+        if (!reviewed) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Benchmark proposal is no longer pending",
+          });
+        }
 
         // If approved, create a benchmark snapshot
         if (input.status === "approved") {

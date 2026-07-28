@@ -66,6 +66,7 @@ export type ResolvedGovernedMaterialValue = {
   value: {
     benchmarkProposalId: number;
     benchmarkVersionId: number | null;
+    benchmarkVersion: string;
     specificationId: number;
     productId: number | null;
     organizationId: number | null;
