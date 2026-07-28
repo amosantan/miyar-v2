@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Active/next executable step: `EV-02` — implement the ADR-0011 evidence/price schema safely (additive migrations + resolver read-API + idempotent backfill on disposable MySQL). Its dependencies `EV-01` and `TR-14` are both `CLOSED`; shared/production application remains separately human-gated. In parallel and still `NEEDS_HUMAN`: EV-00's residual cost-consultant tier-mapping sign-off, EV-01b's per-source BR-06 terms decisions, and `BR-06` professional pack approvals.
+- Active/next executable step: `EV-03` — consolidate material identity and calculation inputs, cutting calculation consumers over to the EV-02 governed resolver without changing numerical policy. `EV-02` is `CLOSED`; applying migration 0061 or its backfill to a shared/production target remains separately `NEEDS_HUMAN`. In parallel and still `NEEDS_HUMAN`: EV-00's residual cost-consultant tier-mapping sign-off, EV-01b's per-source BR-06 terms decisions, and `BR-06` professional pack approvals.
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -726,7 +726,7 @@ Rules:
 
 ### EV-02 — Implement evidence and price schema safely
 
-- Status: `ACTIVE` (started 2026-07-28 on `codex/ev-02-evidence-price-schema`)
+- Status: `CLOSED`
 - Class / priority: Schema/data / P1
 - Dependencies: `EV-01` (`CLOSED`), `TR-14` (`CLOSED`)
 - Human gate: Schema shape is approved via ADR-0011; shared/production-database apply still requires separate authorization.
@@ -738,10 +738,15 @@ Rules:
 - Done when: Safe-target migration and restore pass with representative legacy data.
 - Verification: Migration review, safe apply, integrity queries, rollback/restore rehearsal.
 - Expected artifacts: Migration, backfill/dry-run script, recovery plan.
+- Closed: 2026-07-28
+- Terminal task state: `PASS`
+- Completion evidence: Additive migration 0061 introduces singular SQL `product`, `specification`, and `supplier_quote` entities with conventional plural TypeScript symbols and legacy-compatible governed extensions. Closed helpers enforce append-only observations/quotes and one-way benchmark approval; the explicit-clock resolver is tenant-safe, scope-separated, ambiguity-closed, and never consumes raw observations. The guarded backfill is dry-run by default, refuses protected targets, preserves exact decimal midpoints and original legacy prices, emits an owner-only rollback manifest, is idempotent, and preflights every known reference before rollback. Verification passes: focused policy/resolver 11/11; DB-free 1,662 with 22 skipped; disposable-MySQL 51/51 across 10 files with 82 hashes current; authorization 389/0; database safety 130/2/0; TypeScript, build/budgets, critical workflow certification, migration/diff review, and independent MIYAR Sol review.
+- Residual risk: Migration 0061 and the backfill have not been applied to PlanetScale or any shared/production database. That exact-target operation remains `NEEDS_HUMAN`; EV-03 owns consumer cutover and ambiguous legacy mapping approval.
+- Lessons: `LES-053`
 
 ### EV-03 — Consolidate material identity and calculation inputs
 
-- Status: `PLANNED`
+- Status: `READY`
 - Class / priority: Data/engine / P1
 - Dependencies: `EV-02`
 - Human gate: Mapping approval for ambiguous legacy categories/units.

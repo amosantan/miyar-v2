@@ -371,6 +371,7 @@ __export(schema_exports, {
   portfolioProjects: () => portfolioProjects,
   portfolios: () => portfolios,
   priceChangeEvents: () => priceChangeEvents,
+  products: () => products,
   projectAssets: () => projectAssets,
   projectColorPalettes: () => projectColorPalettes,
   projectGeometryAuthorities: () => projectGeometryAuthorities,
@@ -403,6 +404,8 @@ __export(schema_exports, {
   spaceRecommendations: () => spaceRecommendations,
   spaceVersions: () => spaceVersions,
   spatialGraphVersions: () => spatialGraphVersions,
+  specifications: () => specifications,
+  supplierQuotes: () => supplierQuotes,
   sustainabilitySnapshots: () => sustainabilitySnapshots,
   trendSnapshots: () => trendSnapshots,
   trendTags: () => trendTags,
@@ -427,7 +430,7 @@ import {
   uniqueIndex,
   foreignKey
 } from "drizzle-orm/mysql-core";
-var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, evidenceConfidenceAssessments, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, portfolioAlerts, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces, projectGeometryAuthorities, spatialGraphVersions, spaceIdentities, spaceVersions, geometrySources, measurementRecords, measurementInputEdges, geometryReconciliationEvents, legacySpaceLinks, artifactInputSnapshots, typologyPackRevisions, typologyPackEvents, regulatorySources, regulatorySourceVersions, regulatorySourceCaptures, regulatoryClauseCandidates, regulatorySourceRelations, regulatorySourceAssertions, briefSectionValues, briefRoleValues, briefStreams, briefVersions, briefSectionRevisions, briefVersionSections, briefRoleEvents, briefFindings, briefFindingResolutions, briefApplicabilityEvents, briefApprovals, briefDependencies, briefConditionEvents, briefOperations, briefEvents, briefIssues, briefIssueSections, briefIssueApprovals, briefIssueApplicability, briefIssueDependencies, briefLegacyLinks;
+var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, products, specifications, supplierQuotes, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, evidenceConfidenceAssessments, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, portfolioAlerts, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces, projectGeometryAuthorities, spatialGraphVersions, spaceIdentities, spaceVersions, geometrySources, measurementRecords, measurementInputEdges, geometryReconciliationEvents, legacySpaceLinks, artifactInputSnapshots, typologyPackRevisions, typologyPackEvents, regulatorySources, regulatorySourceVersions, regulatorySourceCaptures, regulatoryClauseCandidates, regulatorySourceRelations, regulatorySourceAssertions, briefSectionValues, briefRoleValues, briefStreams, briefVersions, briefSectionRevisions, briefVersionSections, briefRoleEvents, briefFindings, briefFindingResolutions, briefApplicabilityEvents, briefApprovals, briefDependencies, briefConditionEvents, briefOperations, briefEvents, briefIssues, briefIssueSections, briefIssueApprovals, briefIssueApplicability, briefIssueDependencies, briefLegacyLinks;
 var init_schema = __esm({
   "drizzle/schema.ts"() {
     "use strict";
@@ -1142,8 +1145,151 @@ var init_schema = __esm({
       createdAt: timestamp("createdAt").defaultNow().notNull(),
       updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
     });
+    products = mysqlTable(
+      "product",
+      {
+        id: int("id").autoincrement().primaryKey(),
+        orgId: int("orgId"),
+        identityKey: varchar("identityKey", { length: 64 }).notNull(),
+        brand: varchar("brand", { length: 255 }),
+        manufacturer: varchar("manufacturer", { length: 255 }),
+        productCode: varchar("productCode", { length: 128 }),
+        productName: varchar("productName", { length: 255 }).notNull(),
+        series: varchar("series", { length: 255 }),
+        canonicalCategory: mysqlEnum("canonicalCategory", [
+          "floors",
+          "walls",
+          "ceilings",
+          "joinery",
+          "lighting",
+          "sanitary",
+          "kitchen",
+          "hardware",
+          "ffe",
+          "other"
+        ]).notNull(),
+        nominalDimensions: json("nominalDimensions"),
+        materialComposition: text("materialComposition"),
+        finish: varchar("finish", { length: 255 }),
+        styleTags: json("styleTags"),
+        originCountry: varchar("originCountry", { length: 128 }),
+        discontinued: boolean("discontinued").default(false).notNull(),
+        createdVia: mysqlEnum("createdVia", [
+          "manual",
+          "scrape_dedup",
+          "quote_import"
+        ]).notNull(),
+        sourceRegistryId: int("sourceRegistryId"),
+        createdBy: int("createdBy"),
+        createdAt: timestamp("createdAt").defaultNow().notNull(),
+        updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("product_identity_key_unique").on(table.identityKey),
+        index("product_scope_brand_code_idx").on(
+          table.orgId,
+          table.brand,
+          table.productCode
+        ),
+        index("product_scope_category_name_idx").on(
+          table.orgId,
+          table.canonicalCategory,
+          table.productName
+        )
+      ]
+    );
+    specifications = mysqlTable(
+      "specification",
+      {
+        id: int("id").autoincrement().primaryKey(),
+        specKey: varchar("specKey", { length: 255 }).notNull(),
+        category: mysqlEnum("category", [
+          "floors",
+          "walls",
+          "ceilings",
+          "joinery",
+          "lighting",
+          "sanitary",
+          "kitchen",
+          "hardware",
+          "ffe",
+          "other"
+        ]).notNull(),
+        finishLevel: mysqlEnum("finishLevel", [
+          "basic",
+          "standard",
+          "premium",
+          "luxury",
+          "ultra_luxury"
+        ]).notNull(),
+        unitBasis: mysqlEnum("unitBasis", [
+          "per_piece",
+          "per_pack",
+          "per_sqm",
+          "per_lm",
+          "per_litre"
+        ]).notNull(),
+        geography: mysqlEnum("geography", [
+          "dubai",
+          "abu_dhabi",
+          "sharjah",
+          "ajman",
+          "umm_al_quwain",
+          "ras_al_khaimah",
+          "fujairah",
+          "uae"
+        ]).notNull(),
+        performanceAttributes: json("performanceAttributes"),
+        policyVersion: varchar("policyVersion", { length: 64 }).notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("specification_spec_key_unique").on(table.specKey),
+        index("specification_resolution_idx").on(
+          table.category,
+          table.finishLevel,
+          table.unitBasis,
+          table.geography
+        )
+      ]
+    );
+    supplierQuotes = mysqlTable(
+      "supplier_quote",
+      {
+        id: int("id").autoincrement().primaryKey(),
+        orgId: int("orgId").notNull(),
+        supplierName: varchar("supplierName", { length: 255 }).notNull(),
+        contactRef: varchar("contactRef", { length: 255 }),
+        quoteRef: varchar("quoteRef", { length: 255 }).notNull(),
+        receivedAt: timestamp("receivedAt").notNull(),
+        validUntil: timestamp("validUntil"),
+        confidentiality: mysqlEnum("confidentiality", [
+          "internal",
+          "confidential",
+          "restricted"
+        ]).default("confidential").notNull(),
+        inclusions: json("inclusions"),
+        exclusions: json("exclusions"),
+        alternates: json("alternates"),
+        supersedesId: int("supersedesId"),
+        createdBy: int("createdBy").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("supplier_quote_org_ref_unique").on(
+          table.orgId,
+          table.quoteRef
+        ),
+        uniqueIndex("supplier_quote_supersedes_unique").on(table.supersedesId),
+        index("supplier_quote_org_validity_idx").on(
+          table.orgId,
+          table.validUntil
+        )
+      ]
+    );
     materialsCatalog = mysqlTable("materials_catalog", {
       id: int("id").autoincrement().primaryKey(),
+      productId: int("productId"),
       name: varchar("name", { length: 255 }).notNull(),
       category: mysqlEnum("category", [
         "tile",
@@ -1758,6 +1904,39 @@ var init_schema = __esm({
          * they never passed through.
          */
         priceBasisPolicyVersion: varchar("priceBasisPolicyVersion", { length: 64 }),
+        // EV-02: nullable on legacy rows. New governed price observations require
+        // both a specification and an explicit supply/install scope in the closed
+        // write helper; unresolved legacy rows remain ineligible for aggregation.
+        productId: int("productId"),
+        specId: int("specId"),
+        geography: mysqlEnum("geography", [
+          "dubai",
+          "abu_dhabi",
+          "sharjah",
+          "ajman",
+          "umm_al_quwain",
+          "ras_al_khaimah",
+          "fujairah",
+          "uae"
+        ]),
+        priceScope: mysqlEnum("priceScope", [
+          "supply_only",
+          "supply_and_install"
+        ]),
+        deliveryIncluded: boolean("deliveryIncluded"),
+        moqValue: decimal("moqValue", { precision: 12, scale: 3 }),
+        moqUnit: varchar("moqUnit", { length: 32 }),
+        leadTimeDays: int("leadTimeDays"),
+        wasteBasis: varchar("wasteBasis", { length: 64 }),
+        observationKind: mysqlEnum("observationKind", [
+          "market_listing",
+          "official_statistic",
+          "consultancy_benchmark",
+          "supplier_quote",
+          "manual"
+        ]),
+        supplierQuoteId: int("supplierQuoteId"),
+        supersedesObservationId: int("supersedesObservationId"),
         createdBy: int("createdBy"),
         createdAt: timestamp("createdAt").defaultNow().notNull()
       },
@@ -1774,7 +1953,17 @@ var init_schema = __esm({
         uniqueIndex("evidence_records_source_product_key_unique").on(
           table.sourceRegistryId,
           table.platformProductKey
-        )
+        ),
+        uniqueIndex("evidence_records_supersedes_unique").on(
+          table.supersedesObservationId
+        ),
+        index("evidence_records_governed_price_idx").on(
+          table.specId,
+          table.productId,
+          table.priceScope,
+          table.captureDate
+        ),
+        index("evidence_records_supplier_quote_idx").on(table.supplierQuoteId)
       ]
     );
     evidenceConfidenceAssessments = mysqlTable(
@@ -1854,6 +2043,33 @@ var init_schema = __esm({
       id: int("id").autoincrement().primaryKey(),
       benchmarkKey: varchar("benchmarkKey", { length: 255 }).notNull(),
       // category:finishLevel:unit
+      specId: int("specId"),
+      productId: int("productId"),
+      orgId: int("orgId"),
+      priceScope: mysqlEnum("priceScope", [
+        "supply_only",
+        "supply_and_install"
+      ]),
+      sourceKind: mysqlEnum("sourceKind", ["observed", "assumption"]).default("observed").notNull(),
+      sourceLadderRung: mysqlEnum("sourceLadderRung", [
+        "supplier_quote",
+        "official_statistic",
+        "consultancy_benchmark",
+        "market_observation",
+        "retail_sanity",
+        "assumption"
+      ]),
+      benchmarkVersionId: int("benchmarkVersionId"),
+      supplierQuoteId: int("supplierQuoteId"),
+      supersedesId: int("supersedesId"),
+      legacyMaterialLibraryId: int("legacyMaterialLibraryId"),
+      sourceLabel: varchar("sourceLabel", { length: 255 }),
+      priceConfidence: mysqlEnum("priceConfidence", [
+        "assumption",
+        "indicative",
+        "quoted"
+      ]),
+      provenancePolicyVersion: varchar("provenancePolicyVersion", { length: 64 }),
       // ADR-0009: distinguishes key eras — "legacy-v0" rows predate deterministic
       // finish/category keying; new proposals stamp "benchmark-key-v2".
       keyPolicyVersion: varchar("keyPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
@@ -1896,7 +2112,21 @@ var init_schema = __esm({
       benchmarkSnapshotId: int("benchmarkSnapshotId"),
       runId: varchar("runId", { length: 64 }),
       createdAt: timestamp("createdAt").defaultNow().notNull()
-    });
+    }, (table) => [
+      uniqueIndex("benchmark_proposals_supersedes_unique").on(table.supersedesId),
+      uniqueIndex("benchmark_proposals_legacy_library_unique").on(
+        table.legacyMaterialLibraryId
+      ),
+      index("benchmark_proposals_governed_resolver_idx").on(
+        table.specId,
+        table.orgId,
+        table.productId,
+        table.priceScope,
+        table.status,
+        table.recommendation
+      ),
+      index("benchmark_proposals_supplier_quote_idx").on(table.supplierQuoteId)
+    ]);
     benchmarkSnapshots = mysqlTable("benchmark_snapshots", {
       id: int("id").autoincrement().primaryKey(),
       benchmarkVersionId: int("benchmarkVersionId"),
@@ -2264,6 +2494,7 @@ var init_schema = __esm({
     });
     materialLibrary = mysqlTable("material_library", {
       id: int("id").primaryKey().autoincrement(),
+      productId: int("product_id"),
       category: mysqlEnum("category", [
         "flooring",
         "wall_paint",
@@ -6817,12 +7048,21 @@ async function getEvidenceRecordById(id) {
 async function createEvidenceRecord(data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+  assertLegacyEvidenceWrite(data);
   const [result] = await db.insert(evidenceRecords).values(data);
   return { id: Number(result.insertId) };
+}
+function assertLegacyEvidenceWrite(data) {
+  if (data.specId != null || data.productId != null || data.priceScope != null || data.observationKind != null || data.supplierQuoteId != null || data.supersedesObservationId != null) {
+    throw new Error(
+      "Governed price observations must use the append-only material-pricing helper"
+    );
+  }
 }
 async function createEvidenceRecordWithConfidenceAssessment(data, assessment) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+  assertLegacyEvidenceWrite(data);
   return db.transaction(async (tx) => {
     const [recordResult] = await tx.insert(evidenceRecords).values({
       ...data,
@@ -6844,6 +7084,7 @@ async function upsertPublicEvidenceObservation(data, assessment) {
   if (data.orgId != null || data.projectId != null || data.corpusScope !== "platform_public") {
     throw new Error("Public connector observations must be platform_public with no organization or project");
   }
+  assertLegacyEvidenceWrite(data);
   const publicObservationKey = createHash("sha256").update(JSON.stringify([data.sourceUrl, data.itemName])).digest("hex");
   return db.transaction(async (tx) => {
     const identityMatch = data.platformProductKey && data.sourceRegistryId != null ? and(
@@ -6859,27 +7100,13 @@ async function upsertPublicEvidenceObservation(data, assessment) {
       identityMatch,
       isNull(evidenceRecords.orgId),
       isNull(evidenceRecords.projectId),
+      isNull(evidenceRecords.specId),
+      isNull(evidenceRecords.priceScope),
+      isNull(evidenceRecords.observationKind),
       eq(evidenceRecords.corpusScope, "platform_public")
     )).orderBy(desc(evidenceRecords.captureDate)).limit(1);
-    let existing;
-    let evidenceRecordId;
-    let created = false;
-    if (legacyMatches[0]) {
-      const locked = await tx.select({
-        id: evidenceRecords.id,
-        confidenceScore: evidenceRecords.confidenceScore,
-        priceTypical: evidenceRecords.priceTypical,
-        recordId: evidenceRecords.recordId
-      }).from(evidenceRecords).where(and(
-        eq(evidenceRecords.id, legacyMatches[0].id),
-        isNull(evidenceRecords.orgId),
-        isNull(evidenceRecords.projectId),
-        eq(evidenceRecords.corpusScope, "platform_public")
-      )).limit(1).for("update");
-      existing = locked[0];
-      if (!existing) throw new Error("Public observation disappeared before it could be locked");
-      evidenceRecordId = existing.id;
-    } else {
+    let rootId = legacyMatches[0]?.id;
+    if (rootId === void 0) {
       const [insertResult] = await tx.insert(evidenceRecords).values({
         ...data,
         publicObservationKey,
@@ -6887,48 +7114,84 @@ async function upsertPublicEvidenceObservation(data, assessment) {
       }).onDuplicateKeyUpdate({
         set: { id: sql`LAST_INSERT_ID(${evidenceRecords.id})` }
       });
-      evidenceRecordId = Number(insertResult.insertId);
-      const locked = await tx.select({
+      rootId = Number(insertResult.insertId);
+    }
+    const lockedRoot = await tx.select({
+      id: evidenceRecords.id,
+      confidenceScore: evidenceRecords.confidenceScore,
+      priceTypical: evidenceRecords.priceTypical,
+      recordId: evidenceRecords.recordId,
+      currentConfidenceAssessmentId: evidenceRecords.currentConfidenceAssessmentId,
+      productId: evidenceRecords.productId
+    }).from(evidenceRecords).where(and(
+      eq(evidenceRecords.id, rootId),
+      isNull(evidenceRecords.orgId),
+      isNull(evidenceRecords.projectId),
+      isNull(evidenceRecords.specId),
+      isNull(evidenceRecords.priceScope),
+      isNull(evidenceRecords.observationKind),
+      eq(evidenceRecords.corpusScope, "platform_public")
+    )).limit(1).for("update");
+    if (!lockedRoot[0]) {
+      throw new Error("Public observation conflict resolved outside the public corpus");
+    }
+    let latest = lockedRoot[0];
+    while (true) {
+      if (latest.recordId === data.recordId && latest.currentConfidenceAssessmentId !== null) {
+        return {
+          id: latest.id,
+          assessmentId: latest.currentConfidenceAssessmentId,
+          created: false,
+          previousConfidenceScore: null,
+          previousPriceTypical: null
+        };
+      }
+      const successor = await tx.select({
         id: evidenceRecords.id,
         confidenceScore: evidenceRecords.confidenceScore,
         priceTypical: evidenceRecords.priceTypical,
-        recordId: evidenceRecords.recordId
+        recordId: evidenceRecords.recordId,
+        currentConfidenceAssessmentId: evidenceRecords.currentConfidenceAssessmentId,
+        productId: evidenceRecords.productId
       }).from(evidenceRecords).where(and(
-        eq(evidenceRecords.id, evidenceRecordId),
+        eq(evidenceRecords.supersedesObservationId, latest.id),
         isNull(evidenceRecords.orgId),
         isNull(evidenceRecords.projectId),
-        eq(evidenceRecords.corpusScope, "platform_public"),
-        eq(evidenceRecords.publicObservationKey, publicObservationKey)
+        isNull(evidenceRecords.specId),
+        isNull(evidenceRecords.priceScope),
+        isNull(evidenceRecords.observationKind),
+        eq(evidenceRecords.corpusScope, "platform_public")
       )).limit(1).for("update");
-      if (!locked[0]) throw new Error("Public observation conflict resolved outside the public corpus");
-      created = locked[0].recordId === data.recordId;
-      if (!created) existing = locked[0];
+      if (!successor[0]) break;
+      latest = successor[0];
     }
-    if (!created) {
+    let evidenceRecordId = latest.id;
+    const createdRoot = latest.recordId === data.recordId && latest.currentConfidenceAssessmentId === null;
+    if (!createdRoot) {
       const {
         id: _ignoredId,
-        recordId: _ignoredRecordId,
         currentConfidenceAssessmentId: _ignoredAssessmentId,
-        ...latestObservation
+        publicObservationKey: _ignoredPublicKey,
+        supersedesObservationId: _ignoredSupersedesId,
+        ...successorData
       } = data;
-      await tx.update(evidenceRecords).set({
-        ...latestObservation,
-        publicObservationKey,
+      const [successorResult] = await tx.insert(evidenceRecords).values({
+        ...successorData,
+        productId: latest.productId,
+        platformProductKey: null,
+        publicObservationKey: null,
+        supersedesObservationId: latest.id,
         confidencePolicyVersion: assessment.confidencePolicyId
-      }).where(and(
-        eq(evidenceRecords.id, evidenceRecordId),
-        isNull(evidenceRecords.orgId),
-        isNull(evidenceRecords.projectId),
-        eq(evidenceRecords.corpusScope, "platform_public")
-      ));
+      });
+      evidenceRecordId = Number(successorResult.insertId);
     }
     const finalScore = Number(data.confidenceScore);
     const [assessmentResult] = await tx.insert(evidenceConfidenceAssessments).values({
       ...assessment,
       evidenceRecordId,
-      previousScore: existing?.confidenceScore ?? null,
+      previousScore: createdRoot ? null : latest.confidenceScore,
       finalScore,
-      mergeDecision: existing ? "latest_accepted" : "inserted",
+      mergeDecision: createdRoot ? "inserted" : "latest_accepted",
       outcome: "accepted"
     });
     const assessmentId = Number(assessmentResult.insertId);
@@ -6939,14 +7202,17 @@ async function upsertPublicEvidenceObservation(data, assessment) {
       eq(evidenceRecords.id, evidenceRecordId),
       isNull(evidenceRecords.orgId),
       isNull(evidenceRecords.projectId),
+      isNull(evidenceRecords.specId),
+      isNull(evidenceRecords.priceScope),
+      isNull(evidenceRecords.observationKind),
       eq(evidenceRecords.corpusScope, "platform_public")
     ));
     return {
       id: evidenceRecordId,
       assessmentId,
-      created,
-      previousConfidenceScore: existing?.confidenceScore ?? null,
-      previousPriceTypical: existing?.priceTypical ?? null
+      created: createdRoot,
+      previousConfidenceScore: createdRoot ? null : latest.confidenceScore,
+      previousPriceTypical: createdRoot ? null : latest.priceTypical
     };
   });
 }
@@ -6969,6 +7235,7 @@ async function listConfidenceAssessmentHistory(evidenceRecordId, limit = 50) {
 async function createEvidenceRecordForOrg(orgId, projectId, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+  assertLegacyEvidenceWrite(data);
   return db.transaction(async (tx) => {
     const ownedProject = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId))).limit(1).for("update");
     if (ownedProject.length !== 1) return null;
@@ -6983,19 +7250,14 @@ async function createEvidenceRecordForOrg(orgId, projectId, data) {
   });
 }
 async function deleteEvidenceRecord(id) {
-  const db = await getDb();
-  if (!db) throw new Error("DB not available");
-  await db.delete(evidenceRecords).where(eq(evidenceRecords.id, id));
+  void id;
+  throw new Error(
+    "Evidence observations are append-only; record a governed supersession"
+  );
 }
 async function deleteGlobalEvidenceRecord(id) {
-  const db = await getDb();
-  if (!db) throw new Error("DB not available");
-  const result = await db.delete(evidenceRecords).where(and(
-    eq(evidenceRecords.id, id),
-    isNull(evidenceRecords.projectId),
-    isNull(evidenceRecords.orgId)
-  ));
-  return Number(result[0].affectedRows) === 1;
+  void id;
+  return false;
 }
 async function getPreviousPublicEvidenceRecord(itemName, sourceRegistryId, beforeDate) {
   const db = await getDb();
@@ -7121,13 +7383,32 @@ async function getBenchmarkProposalById(id) {
 async function createBenchmarkProposal(data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const [result] = await db.insert(benchmarkProposals).values(data);
+  const {
+    status: _ignoredStatus,
+    reviewedAt: _ignoredReviewedAt,
+    reviewedBy: _ignoredReviewedBy,
+    reviewerNotes: _ignoredReviewerNotes,
+    ...pendingData
+  } = data;
+  const [result] = await db.insert(benchmarkProposals).values({
+    ...pendingData,
+    status: "pending",
+    reviewedAt: null,
+    reviewedBy: null,
+    reviewerNotes: null
+  });
   return { id: Number(result.insertId) };
 }
-async function reviewBenchmarkProposal(id, data) {
+async function reviewBenchmarkProposal(id, data, options = {}) {
   const db = await getDb();
-  if (!db) return;
-  await db.update(benchmarkProposals).set({ ...data, reviewedAt: /* @__PURE__ */ new Date() }).where(eq(benchmarkProposals.id, id));
+  if (!db) return false;
+  const result = await db.update(benchmarkProposals).set({ ...data, reviewedAt: options.now ?? /* @__PURE__ */ new Date() }).where(and(
+    eq(benchmarkProposals.id, id),
+    eq(benchmarkProposals.status, "pending"),
+    isNull(benchmarkProposals.reviewedAt),
+    isNull(benchmarkProposals.reviewedBy)
+  ));
+  return Number(result[0].affectedRows) === 1;
 }
 async function listBenchmarkSnapshots() {
   const db = await getDb();
@@ -14280,7 +14561,7 @@ var init_magento = __esm({
       }
       parsePage(body, _headers, pageUrl) {
         const chunks = body.split(ITEM_SPLIT).slice(1);
-        const products = [];
+        const products2 = [];
         const categoryHint = plainText(
           body.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]
         );
@@ -14301,7 +14582,7 @@ var init_magento = __esm({
           const shortDesc = plainText(chunk.match(SHORT_DESC)?.[1]);
           const isFromPrice = AS_LOW_AS.test(chunk);
           const basis = parsePriceBasis(`${title} ${shortDesc}`);
-          products.push({
+          products2.push({
             productKey,
             title,
             // Magento rounds display but keeps full float precision in the
@@ -14324,10 +14605,10 @@ var init_magento = __esm({
           });
         }
         return {
-          products,
+          products: products2,
           reportedTotal: null,
           // Magento exposes the next page through rel="next"; absence ends it.
-          hasMore: /rel="next"/i.test(body) && products.length > 0
+          hasMore: /rel="next"/i.test(body) && products2.length > 0
         };
       }
     };
@@ -14379,7 +14660,7 @@ var init_shopify = __esm({
           throw new Error(`Shopify endpoint returned non-JSON for ${pageUrl}`);
         }
         const raw = Array.isArray(payload.products) ? payload.products : [];
-        const products = [];
+        const products2 = [];
         for (const item of raw) {
           const variants = (item.variants ?? []).filter(Boolean);
           const prices = variants.map((v) => Number.parseFloat(String(v.price ?? ""))).filter((p) => Number.isFinite(p) && p > 0);
@@ -14400,7 +14681,7 @@ var init_shopify = __esm({
             ...normalizeTags(item.tags)
           ].filter(Boolean);
           const productUrl = item.handle ? new URL(`/products/${item.handle}`, this.base.origin).toString() : pageUrl;
-          products.push({
+          products2.push({
             productKey,
             title,
             priceAed,
@@ -14419,7 +14700,7 @@ var init_shopify = __esm({
           });
         }
         return {
-          products,
+          products: products2,
           reportedTotal: null,
           // Shopify signals exhaustion with a short/empty page.
           hasMore: raw.length === SHOPIFY_PAGE_SIZE
@@ -14475,7 +14756,7 @@ var init_woocommerce = __esm({
         const totalPagesHeader = headers.get("x-wp-totalpages");
         const reportedTotal = totalHeader ? Number.parseInt(totalHeader, 10) : null;
         const totalPages = totalPagesHeader ? Number.parseInt(totalPagesHeader, 10) : null;
-        const products = [];
+        const products2 = [];
         for (const item of payload) {
           const prices = item.prices;
           if (!prices) continue;
@@ -14491,7 +14772,7 @@ var init_woocommerce = __esm({
           const categoryPath = (item.categories ?? []).map((c) => stripHtml2(c?.name)).filter(Boolean);
           const shortDescription = stripHtml2(item.short_description);
           const basis = parsePriceBasis(`${title} ${shortDescription}`);
-          products.push({
+          products2.push({
             productKey,
             title,
             priceAed,
@@ -14513,7 +14794,7 @@ var init_woocommerce = __esm({
           10
         );
         return {
-          products,
+          products: products2,
           reportedTotal: Number.isFinite(reportedTotal) ? reportedTotal : null,
           hasMore: totalPages !== null && Number.isFinite(totalPages) ? currentPage < totalPages : payload.length === WOO_PAGE_SIZE
         };
@@ -35485,11 +35766,17 @@ var marketIntelligenceRouter = router({
       status: z21.enum(["approved", "rejected"]),
       reviewerNotes: z21.string().optional()
     })).mutation(async ({ input, ctx }) => {
-      await reviewBenchmarkProposal(input.id, {
+      const reviewed = await reviewBenchmarkProposal(input.id, {
         status: input.status,
         reviewerNotes: input.reviewerNotes,
         reviewedBy: ctx.user.id
       });
+      if (!reviewed) {
+        throw new TRPCError22({
+          code: "CONFLICT",
+          message: "Benchmark proposal is no longer pending"
+        });
+      }
       if (input.status === "approved") {
         const proposal = await getBenchmarkProposalById(input.id);
         if (proposal) {
