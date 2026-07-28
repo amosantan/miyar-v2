@@ -60,3 +60,27 @@ maintenance window, backup/restore point, and rollback owner. Re-run the
 disposable evidence suite against the exact commit. Stop if any field is
 ambiguous; neither this document nor a passing local rehearsal grants authority
 to mutate production.
+
+After that approval, run production only through the governed wrapper. It
+authenticates the exact organization, verifies every supplied deploy request is
+applied to `main` and names the checked-in migration digest, launches and owns
+the exact `pscale connect` command, and supplies the standard remote approval
+binding internally:
+
+```sh
+pnpm exec tsx scripts/ev02-planetscale-backfill.ts \
+  --deploy-requests <comma-separated-applied-request-numbers>
+```
+
+Direct invocation of the inner production mode and direct remote database URLs
+remain forbidden. The wrapper recomputes the migration digest, validates the
+live column/type/nullability/default and unique/index contract, uses a 15-second
+connection timeout, and terminates the complete operation after ten minutes.
+
+Run dry-run first. Apply still requires `--apply` and a new absolute owner-only
+manifest path. Retain the manifest outside Git until the rollback window is
+closed. Rollback uses the same wrapper, deploy-request evidence, target, digest,
+approval, and proxy binding; it refuses any manifest or current-state mismatch.
+If the wrapper times out after a manifest is created, do not retry apply: first
+reconcile every manifest fingerprint and link against live state to determine
+whether commit succeeded, then choose guarded rollback or the idempotent rerun.
