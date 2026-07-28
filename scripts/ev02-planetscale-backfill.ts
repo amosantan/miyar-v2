@@ -17,6 +17,7 @@ const OPERATION_TIMEOUT_MS = 10 * 60 * 1000;
 const args = new Set(process.argv.slice(2));
 const apply = args.has("--apply");
 const rollback = args.has("--rollback");
+const writeQuiesced = args.has("--write-quiesced");
 
 function valueAfter(flag: string): string | undefined {
   const index = process.argv.indexOf(flag);
@@ -43,6 +44,11 @@ function pscaleJson(command: string[]): unknown {
 }
 
 if (apply && rollback) throw new Error("Choose --apply or --rollback");
+if (rollback && !writeQuiesced) {
+  throw new Error(
+    "Production rollback requires --write-quiesced after application/API writes are disabled and verified"
+  );
+}
 const manifestArg = valueAfter("--manifest");
 if ((apply || rollback) && !manifestArg) {
   throw new Error("--apply and --rollback require --manifest");
@@ -103,11 +109,12 @@ for (const request of deployRequests) {
 
 const nonce = randomBytes(32).toString("hex");
 const innerArgs = [
-  "pnpm",
-  "exec",
+  process.execPath,
+  "--import",
   "tsx",
   "scripts/ev02-backfill.ts",
   ...(apply ? ["--apply"] : rollback ? ["--rollback"] : []),
+  ...(writeQuiesced ? ["--write-quiesced"] : []),
   ...(manifestPath ? ["--manifest", manifestPath] : []),
   "--production-target",
   EV02_PRODUCTION_TARGET,

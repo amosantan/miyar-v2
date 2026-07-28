@@ -18,6 +18,8 @@ type ExecutionTargetInput = {
   databaseApproval?: string;
   wrapperAttestation?: string;
   environmentAttestation?: string;
+  rollback?: boolean;
+  writeQuiesced?: boolean;
 };
 
 export type Ev02BackfillExecutionTarget = {
@@ -26,6 +28,13 @@ export type Ev02BackfillExecutionTarget = {
   safetyDatabaseUrl: string;
   databaseApproval?: string;
 };
+
+export function normalizeEv02ConnectionUrlForInspection(
+  databaseUrl: string | undefined
+): string | undefined {
+  if (!databaseUrl?.startsWith("mysql2://")) return databaseUrl;
+  return `mysql://${databaseUrl.slice("mysql2://".length)}`;
+}
 
 function requireApprovalRef(value: string | undefined): string {
   if (
@@ -73,6 +82,11 @@ export function resolveEv02BackfillExecutionTarget(
     throw new Error("Production EV-02 migration digest mismatch");
   }
   requireApprovalRef(input.approvalRef);
+  if (input.rollback && !input.writeQuiesced) {
+    throw new Error(
+      "Production EV-02 rollback requires an explicitly verified write-quiescent maintenance window"
+    );
+  }
   if (
     !input.wrapperAttestation ||
     !/^[a-f0-9]{64}$/.test(input.wrapperAttestation) ||
