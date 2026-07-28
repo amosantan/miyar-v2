@@ -4,14 +4,14 @@ This is the canonical location for current observed repository facts. It is not 
 
 ## Observation Metadata
 
-- Observed: 2026-07-21; production source commit and branch identity re-observed 2026-07-23 after the EV-01b release. See the dated release sections below for the intervening EV-00, EV-00 follow-up, and EV-01b deployments.
+- Observed: 2026-07-21; production source commit re-observed 2026-07-23 after the EV-01b release; branch and roadmap identity re-observed 2026-07-28 before EV-02 implementation. See the dated release sections below for the intervening EV-00, EV-00 follow-up, and EV-01b deployments.
 - Production source commit: `63523a7` on canonical `main`, merging EV-01b PR #46. GitHub production deployment `5578419171` reached `success` for the exact merge SHA; production smoke passed (see the EV-01b Release Observation section). Its production schema migrations 0059–0060 were applied first via PlanetScale deploy request #9 (`complete`).
-- Branch identity: canonical `origin/main` is `63523a7`, the EV-01b merge commit, whose lineage includes the KF-019 TR-13 recertification (`8108268`) and the EV-00 cost-path release.
+- Branch identity: canonical `origin/main` is `2bce6a9`, whose lineage includes EV-01b (`63523a7`), the EV-01 ADR approval, the KF-019 TR-13 recertification (`8108268`), and the EV-00 cost-path release.
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
 - Production: Vercel target `dpl_BTcfrGZ6px4iHvJfiETrK8zP8s5F` is `READY` for exact source commit `b68c341`; BR-04 is compiled into the production workspace and narrowly enabled for organization 1 and consumer `project_workspace`. Root/login, three health observations, unauthenticated brief rejection, and concealed-share privacy headers pass.
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Roadmap state: `BR-01` through `BR-04` are closed at `PASS`; BR-04 is merged and deployed. `BR-05` is the single next executable step. `BR-04B`–`BR-04E` remain dependency-gated successors. `DI-01` remains merged and closed through canonical commit `ce5e44a`; its shared migration and production release remain separately gated. `SC-05` and UX-01's independent authenticated-production recheck remain `NEEDS_HUMAN`; `KF-018` remains a separate pre-existing legacy-report compatibility defect.
+- Roadmap state: `EV-01` and `TR-14` are closed; `EV-02` is the single active/next executable step. `BR-05` is closed, while `BR-06`, EV-00's residual cost-policy decisions, and EV-01b's per-source terms decisions remain `NEEDS_HUMAN`. `BR-04B`–`BR-04E` remain dependency-gated successors. `DI-01` remains merged and closed through canonical commit `ce5e44a`; its shared migration and production release remain separately gated. `SC-05` and UX-01's independent authenticated-production recheck remain `NEEDS_HUMAN`; `KF-018` remains a separate pre-existing legacy-report compatibility defect.
 
 ## BR-04 Release Observation
 

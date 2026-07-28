@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Next executable step: `EV-02` — implement the ADR-0011 evidence/price schema safely (additive migrations + resolver read-API + idempotent backfill on disposable MySQL). Its dependencies `EV-01` and `TR-14` are both `CLOSED`; shared/production application remains separately human-gated. In parallel and still `NEEDS_HUMAN`: EV-00's residual cost-consultant tier-mapping sign-off, EV-01b's per-source BR-06 terms decisions, and `BR-06` professional pack approvals.
+- Active/next executable step: `EV-02` — implement the ADR-0011 evidence/price schema safely (additive migrations + resolver read-API + idempotent backfill on disposable MySQL). Its dependencies `EV-01` and `TR-14` are both `CLOSED`; shared/production application remains separately human-gated. In parallel and still `NEEDS_HUMAN`: EV-00's residual cost-consultant tier-mapping sign-off, EV-01b's per-source BR-06 terms decisions, and `BR-06` professional pack approvals.
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -726,7 +726,7 @@ Rules:
 
 ### EV-02 — Implement evidence and price schema safely
 
-- Status: `READY` (next executable step; both dependencies `CLOSED`)
+- Status: `ACTIVE` (started 2026-07-28 on `codex/ev-02-evidence-price-schema`)
 - Class / priority: Schema/data / P1
 - Dependencies: `EV-01` (`CLOSED`), `TR-14` (`CLOSED`)
 - Human gate: Schema shape is approved via ADR-0011; shared/production-database apply still requires separate authorization.
