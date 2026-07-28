@@ -11,45 +11,68 @@ import {
   rollbackEv02LegacyBackfill,
   type Ev02BackfillManifest,
 } from "../server/engines/material-pricing/backfill";
+import { resolveEv02BackfillExecutionTarget } from "../server/engines/material-pricing/backfill-execution-target";
+import { assertEv02ProductionSchemaContract } from "../server/engines/material-pricing/backfill-schema-contract";
 
 const args = new Set(process.argv.slice(2));
 const apply = args.has("--apply");
 const rollback = args.has("--rollback");
-const manifestIndex = process.argv.indexOf("--manifest");
-const manifestPath =
-  manifestIndex >= 0 ? process.argv[manifestIndex + 1] : undefined;
-if (apply && rollback) throw new Error("Choose --apply or --rollback, not both");
+function valueAfter(flag: string): string | undefined {
+  const index = process.argv.indexOf(flag);
+  return index >= 0 ? process.argv[index + 1] : undefined;
+}
+const manifestPath = valueAfter("--manifest");
+const productionTarget = valueAfter("--production-target");
+const expectedMigrationSha256 = valueAfter("--expected-migration-sha256");
+const approvalRef = valueAfter("--approval-ref");
+const wrapperAttestation = valueAfter("--wrapper-attestation");
+if (apply && rollback)
+  throw new Error("Choose --apply or --rollback, not both");
 if ((apply || rollback) && !manifestPath) {
   throw new Error("--apply and --rollback require --manifest <path>");
 }
 
 const databaseUrl = process.env.DATABASE_URL;
 const target = inspectDatabaseTarget(databaseUrl);
-if (target.class !== "safe-loopback" || !target.canonical) {
-  throw new Error("EV-02 backfill accepts only a disposable loopback MySQL target");
-}
-if (
-  !target.database ||
-  !/^(miyar_auth_test|miyar_test_)/.test(target.database)
-) {
-  throw new Error(
-    "EV-02 backfill target must use a disposable miyar_auth_test* or miyar_test_* database"
-  );
-}
-initializeDatabaseSafety("migrate", { loadDotenv: false });
-const connection = await mysql.createConnection(databaseUrl!);
+const executionTarget = resolveEv02BackfillExecutionTarget({
+  connectionTarget: target,
+  productionTarget,
+  expectedMigrationSha256,
+  approvalRef,
+  databaseApproval: process.env.MIYAR_DATABASE_APPROVAL,
+  wrapperAttestation,
+  environmentAttestation: process.env.EV02_PLANETSCALE_WRAPPER_ATTESTATION,
+});
+initializeDatabaseSafety("migrate", {
+  loadDotenv: false,
+  databaseUrl: executionTarget.safetyDatabaseUrl,
+  approval: executionTarget.databaseApproval,
+});
+const connection = await mysql.createConnection({
+  uri: databaseUrl!,
+  connectTimeout: 15_000,
+});
 try {
+  if (executionTarget.production) {
+    await assertEv02ProductionSchemaContract(connection);
+  }
   await connection.beginTransaction();
   if (rollback) {
     const manifest = JSON.parse(
       readFileSync(manifestPath!, "utf8")
     ) as Ev02BackfillManifest;
-    await rollbackEv02LegacyBackfill(connection, manifest, target.canonical);
+    await rollbackEv02LegacyBackfill(
+      connection,
+      manifest,
+      executionTarget.manifestTarget
+    );
     await connection.commit();
-    console.log(`[ev02-backfill] rollback PASS target=${target.canonical}`);
+    console.log(
+      `[ev02-backfill] rollback PASS target=${executionTarget.manifestTarget}`
+    );
   } else {
     const manifest = await applyEv02LegacyBackfill(connection, {
-      databaseTarget: target.canonical,
+      databaseTarget: executionTarget.manifestTarget,
       now: new Date(),
     });
     if (apply) {
@@ -61,12 +84,12 @@ try {
       // database commit must never leave applied links without a manifest.
       await connection.commit();
       console.log(
-        `[ev02-backfill] apply PASS target=${target.canonical} products=${manifest.insertedProductIds.length} specifications=${manifest.insertedSpecificationIds.length} governedValues=${manifest.insertedBenchmarkProposalIds.length} unresolved=${manifest.unresolved.length}`
+        `[ev02-backfill] apply PASS target=${executionTarget.manifestTarget} products=${manifest.insertedProductIds.length} specifications=${manifest.insertedSpecificationIds.length} governedValues=${manifest.insertedBenchmarkProposalIds.length} unresolved=${manifest.unresolved.length}`
       );
     } else {
       await connection.rollback();
       console.log(
-        `[ev02-backfill] dry-run PASS target=${target.canonical} products=${manifest.insertedProductIds.length} specifications=${manifest.insertedSpecificationIds.length} governedValues=${manifest.insertedBenchmarkProposalIds.length} unresolved=${manifest.unresolved.length}`
+        `[ev02-backfill] dry-run PASS target=${executionTarget.manifestTarget} products=${manifest.insertedProductIds.length} specifications=${manifest.insertedSpecificationIds.length} governedValues=${manifest.insertedBenchmarkProposalIds.length} unresolved=${manifest.unresolved.length}`
       );
     }
   }

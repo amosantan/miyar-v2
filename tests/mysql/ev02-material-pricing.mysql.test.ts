@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import mysql from "mysql2/promise";
 
 import { initializeDatabaseSafety } from "../../server/_core/database-safety";
@@ -20,6 +20,7 @@ import {
   applyEv02LegacyBackfill,
   rollbackEv02LegacyBackfill,
 } from "../../server/engines/material-pricing/backfill";
+import { assertEv02ProductionSchemaContract } from "../../server/engines/material-pricing/backfill-schema-contract";
 import { resolveGovernedMaterialValue } from "../../server/engines/material-pricing/resolver";
 import { buildProductIdentityKey } from "../../server/engines/material-pricing/policy";
 
@@ -46,6 +47,9 @@ async function truncateFixtures() {
   await pool.query("set foreign_key_checks=1");
 }
 
+beforeAll(async () =>
+  assertEv02ProductionSchemaContract(pool as unknown as mysql.Connection)
+);
 beforeEach(truncateFixtures);
 afterAll(async () => pool.end());
 
@@ -469,7 +473,10 @@ describe("EV-02 disposable MySQL evidence and price schema", () => {
       priceTypical: "120.00",
       captureDate: new Date("2026-07-28T00:00:00Z"),
     };
-    const second = await upsertPublicEvidenceObservation(secondInput, assessment);
+    const second = await upsertPublicEvidenceObservation(
+      secondInput,
+      assessment
+    );
     expect(second.id).not.toBe(first.id);
     expect(second.created).toBe(false);
     await expect(
@@ -521,8 +528,20 @@ describe("EV-02 disposable MySQL evidence and price schema", () => {
        (7101,?,'Tenant Brand','SHARED-SKU','Tenant A','floors','manual'),
        (7102,?,'Tenant Brand','SHARED-SKU','Tenant B','floors','manual')`,
       [
-        buildProductIdentityKey(["org", 7101, "brand-code", "Tenant Brand", "SHARED-SKU"]),
-        buildProductIdentityKey(["org", 7102, "brand-code", "Tenant Brand", "SHARED-SKU"]),
+        buildProductIdentityKey([
+          "org",
+          7101,
+          "brand-code",
+          "Tenant Brand",
+          "SHARED-SKU",
+        ]),
+        buildProductIdentityKey([
+          "org",
+          7102,
+          "brand-code",
+          "Tenant Brand",
+          "SHARED-SKU",
+        ]),
       ]
     );
     await expect(
@@ -563,7 +582,9 @@ describe("EV-02 disposable MySQL evidence and price schema", () => {
     const [before] = await pool.query<mysql.RowDataPacket[]>(
       "select id,price_aed_min,price_aed_max from material_library order by id"
     );
-    const beforeHash = createHash("sha256").update(JSON.stringify(before)).digest("hex");
+    const beforeHash = createHash("sha256")
+      .update(JSON.stringify(before))
+      .digest("hex");
 
     const connection = await pool.getConnection();
     let first;
@@ -640,10 +661,7 @@ describe("EV-02 disposable MySQL evidence and price schema", () => {
       await connection.rollback();
       await pool.execute(
         "update benchmark_proposals set proposedP50=? where id=?",
-        [
-          first.insertedBenchmarks[0].p50,
-          first.insertedBenchmarkProposalIds[0],
-        ]
+        [first.insertedBenchmarks[0].p50, first.insertedBenchmarkProposalIds[0]]
       );
 
       await connection.beginTransaction();
@@ -668,7 +686,9 @@ describe("EV-02 disposable MySQL evidence and price schema", () => {
     const [after] = await pool.query<mysql.RowDataPacket[]>(
       "select id,price_aed_min,price_aed_max from material_library order by id"
     );
-    expect(createHash("sha256").update(JSON.stringify(after)).digest("hex")).toBe(beforeHash);
+    expect(
+      createHash("sha256").update(JSON.stringify(after)).digest("hex")
+    ).toBe(beforeHash);
     expect(after).toHaveLength(before.length);
   });
 });
