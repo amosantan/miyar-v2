@@ -607,3 +607,14 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: Guarded disposable-MySQL tests exercise successful restore/reapplication and inject post-backfill references that make rollback refuse without partial mutation; the full EV-02 MySQL suite passes 51/51 and preserves the representative legacy numeric hashes/counts.
 - Reuse rule: Treat rollback as a new write transaction against current state. A manifest identifies owned changes; it does not authorize deletion. Validate every inbound dependency and expected fingerprint first, then mutate atomically or not at all.
 - Supersedes / related: Extends `LES-016` (provider-safe recovery evidence) and `LES-046` (evidence artifacts are part of the change surface).
+
+### LES-054 — Rehearse data migrations at provider transaction limits and production shape
+
+- Date / roadmap step: 2026-07-28 / `EV-02`
+- Context: The reference EV-02 backfill passed disposable MySQL but performed one or more SQL round trips per legacy row.
+- Observed: The first PlanetScale production dry-run was safely rolled back after Vitess terminated the transaction at its hard 20-second limit. The failure appeared only with the real 2,957-row corpus and provider proxy.
+- Cause: Small representative fixtures proved correctness but not the operational complexity of the algorithm. An O(N) query pattern can remain invisible on local fixtures while exceeding a managed-provider transaction budget.
+- Fix or decision: Replace per-row production apply/rollback with bounded set-based statements while preserving the reference policies and manifest contract. Add an exact production-shape disposable rehearsal, explicit `<20s` assertions for both directions, fail-closed rollback branch tests, a final dry-run from the merged commit, and a write-quiescence gate for production rollback.
+- Proof: Guarded MySQL passes 53/53, including 2,957 products/links, 242 governed values, 43 unresolved rows, exact odd-cent midpoint, full rollback, and zero-state restoration in 627 ms locally. The merged production dry-run passed with the same counts; apply succeeded; the second dry-run inserted zero rows; the legacy numeric hash stayed unchanged.
+- Reuse rule: For any provider-bound migration, correctness fixtures are necessary but insufficient. Rehearse the real row-count shape and both forward/recovery paths under a bound stricter than the provider limit before production apply.
+- Supersedes / related: Extends `LES-016`, `LES-046`, and `LES-053`.

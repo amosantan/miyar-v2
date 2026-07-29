@@ -9,7 +9,7 @@
 - Base: canonical `origin/main` at `2bce6a94fb779c0f968169689125bda92dae1eed`
 - Classification: Schema / data (P1)
 - Dependencies: `EV-01` (`CLOSED`, ADR-0011) and `TR-14` (`CLOSED`) — both satisfied.
-- Human gates: the schema shape is approved via ADR-0011; **shared/production-database application remains separately human-gated** and must stop at `NEEDS_HUMAN` until an exact-target approval is recorded (the EV-00/EV-01b precedent).
+- Human gates: schema shape approved via ADR-0011; exact-target PlanetScale migration 0061 and production backfill approved by Amro Saleh on 2026-07-28 and completed against `amr-saleh-hotmail/miyar-v2/main`.
 - Completed: 2026-07-28
 
 ## Goal
@@ -52,6 +52,6 @@ Implement the ADR-0011 evidence/price-observation model as a safe, additive, exp
 
 - Canonical treatments are fixed by ADR-0011 §5: VAT-exclusive; `supply_only`/`supply_and_install` never mixed; emirate geography; the approved source ladder (quote › official stat › consultancy › market-obs benchmark › retail-only sanity › assumption); waste excluded; 3-year observation retention.
 - Any ADR-0011 §7 ruling may still be amended by a superseding ADR before implementation locks it in.
-- Local evidence: `pnpm check`; focused policy/resolver coverage 11/11; DB-free suite 1,662 passed with 22 skipped across 125 passed files and one skipped file; guarded disposable-MySQL suite 51/51 across 10 files with 82 hash-pinned files current; authorization inventory 389/0; database-safety audit 130 entrypoints, two exact generated-bundle allowlist entries, zero findings; production build and bundle budgets; critical workflow certification; migration/diff review; and independent MIYAR Sol review all pass.
-- Migration `0061` and the backfill were exercised only against disposable loopback MySQL. No PlanetScale/shared/production write occurred.
-- Production migration/backfill application remains `NEEDS_HUMAN`. `EV-03` is the next executable step and owns calculation-consumer cutover.
+- Release evidence: migration SHA-256 `06ce9d537ed5593252234ed44271a5f50ff202b8f67adc3c20ab3fb1ba1691aa` deployed additively through PlanetScale requests #10–#15 after successful backup `lts2fnegcfej`; all requests are `complete`. PR #52 merged the PlanetScale bulk apply/rollback path as `7dbddf2` after hosted CI and independent MIYAR Sol review passed.
+- Production backfill applied at `2026-07-28T20:34:26.493Z`: 2,957 products, 24 specifications, 242 unknown-scope governed assumptions, 2,957 legacy links, and 43 explicit insufficiencies (37 unknown unit basis; six incomplete price ranges). A second dry-run inserted zero rows. All links resolve, duplicate/dangling checks are zero, and the 285-row legacy numeric SHA-256 remains `4857602ad093bfb3fe54f095b03cd1ebc8a1fd88f3c3fdffd2d7542f8c8ba31a`.
+- Recovery manifest: owner-only `/Users/amrosaleh/.miyar/recovery/ev02-production-backfill-20260728.json`; production rollback additionally requires a verified write-quiescent window. `EV-03` remains the next executable step and owns calculation-consumer cutover.
