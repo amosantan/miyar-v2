@@ -3,16 +3,19 @@ import { dirname, isAbsolute } from "node:path";
 import process from "node:process";
 
 import mysql, { type RowDataPacket } from "mysql2/promise";
+import { drizzle } from "drizzle-orm/mysql2";
 
 import {
   assertEv03MigrationSchema,
   normalizeEv03ConnectionUrlForInspection,
 } from "../server/engines/material-pricing/ev03-identity-backfill";
 import {
+  assertDatabaseAccess,
   initializeDatabaseSafety,
   inspectDatabaseTarget,
 } from "../server/_core/database-safety";
 import { resolveGovernedMaterialPriceSnapshotsForRolloutEvidence } from "../server/engines/material-pricing/material-resolution";
+import { createGlobalMaterialResolutionEvidenceDataSource } from "../server/db/material-pricing";
 import {
   assertMaterialPricingComparisonEvidence,
   buildMaterialPricingComparisonEvidence,
@@ -39,11 +42,21 @@ const executionTarget = resolveEv03RolloutComparisonExecutionTarget({
   expectedMigrationSha256,
   providerAttestation,
   environmentAttestation: process.env.EV03_PLANETSCALE_WRAPPER_ATTESTATION,
+  databaseApproval: process.env.MIYAR_DATABASE_APPROVAL,
 });
-initializeDatabaseSafety("integration-test", {
-  loadDotenv: false,
-  databaseUrl: inspectionDatabaseUrl,
-});
+if (executionTarget.production) {
+  initializeDatabaseSafety("migrate", {
+    loadDotenv: false,
+    databaseUrl: inspectionDatabaseUrl,
+    approval: executionTarget.databaseApproval,
+    providerProxyDatabaseTarget: executionTarget.evidenceTarget,
+  });
+} else {
+  initializeDatabaseSafety("integration-test", {
+    loadDotenv: false,
+    databaseUrl: inspectionDatabaseUrl,
+  });
+}
 
 function assertProductionEvidencePath(path: string | undefined): string {
   if (!path || !isAbsolute(path)) {
@@ -102,10 +115,29 @@ const ELIGIBLE_EV02_LINKED_ASSUMPTIONS_SQL = `
     and bp.recommendation='publish'
   order by ml.id`;
 
-const connection = await mysql.createConnection({
-  uri: databaseUrl!,
-  connectTimeout: 15_000,
-});
+async function createProductionReader() {
+  assertDatabaseAccess("migrate");
+  const connection = await mysql.createConnection({
+    uri: databaseUrl!,
+    connectTimeout: 15_000,
+  });
+  assertDatabaseAccess("migrate");
+  return { connection, evidenceDatabase: drizzle(connection) };
+}
+
+async function createDisposableReader() {
+  assertDatabaseAccess("integration-test");
+  const connection = await mysql.createConnection({
+    uri: databaseUrl!,
+    connectTimeout: 15_000,
+  });
+  assertDatabaseAccess("integration-test");
+  return { connection, evidenceDatabase: drizzle(connection) };
+}
+
+const { connection, evidenceDatabase } = executionTarget.production
+  ? await createProductionReader()
+  : await createDisposableReader();
 try {
   if (executionTarget.production) {
     await assertEv03MigrationSchema(connection);
@@ -127,17 +159,20 @@ try {
   }
   const asOf = new Date();
   const snapshots =
-    await resolveGovernedMaterialPriceSnapshotsForRolloutEvidence({
-      references: legacyRanges.map(range => range.reference),
-      // The evidence-only resolver uses dedicated global product/proposal
-      // queries; organization zero is never treated as a tenant scope.
-      organizationId: 0,
-      priceScope: "supply_only",
-      requestedGeography: "uae",
-      asOf,
-      allowLegacyUnknownScope: true,
-      evidencePurpose: "ev03-full-eligible-comparison",
-    });
+    await resolveGovernedMaterialPriceSnapshotsForRolloutEvidence(
+      {
+        references: legacyRanges.map(range => range.reference),
+        // The evidence-only resolver uses dedicated global product/proposal
+        // queries; organization zero is never treated as a tenant scope.
+        organizationId: 0,
+        priceScope: "supply_only",
+        requestedGeography: "uae",
+        asOf,
+        allowLegacyUnknownScope: true,
+        evidencePurpose: "ev03-full-eligible-comparison",
+      },
+      createGlobalMaterialResolutionEvidenceDataSource(evidenceDatabase)
+    );
   const [rowsAfterResolution] = await connection.query<EligibleRow[]>({
     sql: ELIGIBLE_EV02_LINKED_ASSUMPTIONS_SQL,
     timeout: 30_000,

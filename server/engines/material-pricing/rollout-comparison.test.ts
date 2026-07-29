@@ -93,6 +93,13 @@ describe("EV-03 legacy → compare → governed evidence", () => {
     expect(wrapper).toContain('"deploy-request"');
     expect(wrapper).toContain('"connect"');
     expect(wrapper).toContain('"reader"');
+    expect(wrapper).toContain(
+      "databaseApproval !== `migrate@${EV03_PRODUCTION_DATABASE_TARGET}`"
+    );
+    expect(wrapper).toContain("MIYAR_DATABASE_APPROVAL: databaseApproval");
+    expect(wrapper).not.toContain(
+      "MIYAR_DATABASE_APPROVAL: `migrate@${EV03_PRODUCTION_DATABASE_TARGET}`"
+    );
     expect(wrapper).toContain("randomBytes(32)");
     expect(wrapper).toContain("OPERATION_TIMEOUT_MS");
     expect(wrapper).not.toContain("result.stderr");
@@ -103,6 +110,9 @@ describe("EV-03 legacy → compare → governed evidence", () => {
     );
     expect(inner).toContain('flag: "wx", mode: 0o600');
     expect(inner).toContain("assertEv03MigrationSchema(connection)");
+    expect(inner).toContain(
+      "createGlobalMaterialResolutionEvidenceDataSource(evidenceDatabase)"
+    );
     expect(inner).toContain(
       "assertMaterialPricingComparisonEvidence(evidence)"
     );
@@ -118,10 +128,13 @@ describe("EV-03 legacy → compare → governed evidence", () => {
       expectedMigrationSha256: EV03_MIGRATION_SHA256,
       providerAttestation,
       environmentAttestation: providerAttestation,
+      databaseApproval: `migrate@${EV03_PRODUCTION_DATABASE_TARGET}`,
     };
     expect(resolveEv03RolloutComparisonExecutionTarget(approved)).toEqual({
       production: true,
       evidenceTarget: EV03_PRODUCTION_DATABASE_TARGET,
+      safetyDatabaseUrl: `mysql://${EV03_PRODUCTION_DATABASE_TARGET}`,
+      databaseApproval: `migrate@${EV03_PRODUCTION_DATABASE_TARGET}`,
     });
     expect(() =>
       resolveEv03RolloutComparisonExecutionTarget({
@@ -149,6 +162,12 @@ describe("EV-03 legacy → compare → governed evidence", () => {
         productionTarget: "amr-saleh-hotmail/miyar-v2/preview",
       })
     ).toThrow("must be exactly");
+    expect(() =>
+      resolveEv03RolloutComparisonExecutionTarget({
+        ...approved,
+        databaseApproval: undefined,
+      })
+    ).toThrow("REMOTE_APPROVAL_REQUIRED");
   });
 
   it("preserves the disposable-loopback comparison default", () => {
@@ -161,6 +180,7 @@ describe("EV-03 legacy → compare → governed evidence", () => {
     ).toEqual({
       production: false,
       evidenceTarget: "127.0.0.1:3317/miyar_test_ev03_comparison",
+      safetyDatabaseUrl: "mysql://127.0.0.1:3317/miyar_test_ev03_comparison",
     });
   });
 
@@ -205,7 +225,10 @@ describe("EV-03 legacy → compare → governed evidence", () => {
     expect(dbSource).toContain("isNull(benchmarkProposals.supplierQuoteId)");
     expect(dbSource).toContain("isNull(products.orgId)");
     expect(resolutionSource).toContain(
-      "resolveGovernedMaterialPriceSnapshots(input, { globalOnly: true })"
+      "evidenceDataSource?: GlobalMaterialResolutionEvidenceDataSource"
+    );
+    expect(resolutionSource).toContain(
+      "globalOnly: true,\n    evidenceDataSource,"
     );
   });
 

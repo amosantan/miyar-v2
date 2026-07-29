@@ -13,6 +13,7 @@ import {
 import { governedMaterialLibrarySnapshot } from "../../../tests/fixtures/material-price-snapshots";
 import {
   attachPaintCoverageProfiles,
+  resolveGovernedMaterialPriceSnapshotsForRolloutEvidence,
   resolveMaterialPriceSnapshots,
   resolveMaterialPriceSnapshotsFromRows,
   resolveProjectMaterialPriceGeography,
@@ -112,6 +113,53 @@ function resolve(
 }
 
 describe("EV-03 material resolution facade", () => {
+  it("uses the explicitly supplied reader data source for rollout evidence", async () => {
+    const calls: string[] = [];
+    const snapshots =
+      await resolveGovernedMaterialPriceSnapshotsForRolloutEvidence(
+        {
+          references: [{ source: "material_library", legacyId: 7 }],
+          organizationId: 0,
+          priceScope: "supply_only",
+          requestedGeography: "uae",
+          asOf: AS_OF,
+          allowLegacyUnknownScope: true,
+          evidencePurpose: "ev03-full-eligible-comparison",
+        },
+        {
+          async listIdentities() {
+            calls.push("identities");
+            return [IDENTITY];
+          },
+          async listSpecifications() {
+            calls.push("specifications");
+            return [UAE_SPEC];
+          },
+          async listCandidates() {
+            calls.push("candidates");
+            return [candidate()];
+          },
+          async listCoverageProfiles() {
+            calls.push("coverage");
+            return [];
+          },
+        }
+      );
+    expect(calls).toEqual([
+      "identities",
+      "specifications",
+      "candidates",
+      "coverage",
+    ]);
+    expect(snapshots[0]).toMatchObject({
+      state: "resolved",
+      productId: 70,
+      priceMin: "100.00",
+      priceMid: "120.00",
+      priceMax: "140.00",
+    });
+  });
+
   it("serves legacy in legacy/compare and governed only after cutover selection", () => {
     const governed = resolve({
       candidates: [
@@ -270,27 +318,25 @@ describe("EV-03 material resolution facade", () => {
     };
     let recorded: MaterialPricingRuntimeComparisonEvidence | undefined;
     const selected = selectMaterialPricingRolloutSnapshots({
-        mode: "compare",
-        gate: { mode: "compare", evidence },
-        requested: [
-          { source: "material_library", legacyId: 7 },
-          { source: "materials_catalog", legacyId: 99 },
-        ],
-        governed: [resolve(), governedCatalog],
-        legacyRows: [legacyRow],
-        requestedGeography: "uae",
-        priceScope: "supply_only",
-        asOf: AS_OF,
-        recordComparison: value => {
-          recorded = value;
-        },
-      });
+      mode: "compare",
+      gate: { mode: "compare", evidence },
+      requested: [
+        { source: "material_library", legacyId: 7 },
+        { source: "materials_catalog", legacyId: 99 },
+      ],
+      governed: [resolve(), governedCatalog],
+      legacyRows: [legacyRow],
+      requestedGeography: "uae",
+      priceScope: "supply_only",
+      asOf: AS_OF,
+      recordComparison: value => {
+        recorded = value;
+      },
+    });
     expect(selected[1]).toEqual(governedCatalog);
     expect(recorded).toMatchObject({
       comparisonRowCount: 1,
-      comparisons: [
-        { reference: { source: "material_library", legacyId: 7 } },
-      ],
+      comparisons: [{ reference: { source: "material_library", legacyId: 7 } }],
     });
   });
 

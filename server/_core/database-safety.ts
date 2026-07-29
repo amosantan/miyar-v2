@@ -69,6 +69,7 @@ export type DatabaseSafetyInput = {
   vercelUrl?: string;
   approval?: string;
   deploymentDatabaseTarget?: string;
+  providerProxyDatabaseTarget?: string;
 };
 
 export type InitializeDatabaseSafetyOptions = Partial<Omit<DatabaseSafetyInput, "operation">> & {
@@ -295,6 +296,32 @@ export function evaluateDatabaseAccess(input: DatabaseSafetyInput): DatabaseDeci
       ? decision(true, resolved.profile, input.operation, resolved.trustedDeployment, target, "DATABASE_DISABLED")
       : decision(false, resolved.profile, input.operation, resolved.trustedDeployment, target, "DATABASE_TARGET_REQUIRED");
   }
+  if (input.providerProxyDatabaseTarget !== undefined) {
+    const proxyTarget = inspectDatabaseTarget(`mysql://${input.providerProxyDatabaseTarget}`);
+    const approval = parseApproval(input.approval);
+    if (
+      input.operation !== "migrate" ||
+      resolved.profile !== "local" ||
+      target.class !== "safe-loopback" ||
+      proxyTarget.class !== "remote-shared" ||
+      !proxyTarget.canonical ||
+      target.database !== proxyTarget.database
+    ) {
+      return decision(false, resolved.profile, input.operation, resolved.trustedDeployment, target, "REMOTE_APPROVAL_INVALID");
+    }
+    if (!input.approval) {
+      return decision(false, resolved.profile, input.operation, resolved.trustedDeployment, target, "REMOTE_APPROVAL_REQUIRED");
+    }
+    if (!approval) {
+      return decision(false, resolved.profile, input.operation, resolved.trustedDeployment, target, "REMOTE_APPROVAL_INVALID");
+    }
+    if (approval.target !== proxyTarget.canonical) {
+      return decision(false, resolved.profile, input.operation, resolved.trustedDeployment, target, "REMOTE_APPROVAL_MISMATCH");
+    }
+    return approval.operations.has(input.operation)
+      ? decision(true, resolved.profile, input.operation, resolved.trustedDeployment, target, "REMOTE_APPROVAL_ALLOWED")
+      : decision(false, resolved.profile, input.operation, resolved.trustedDeployment, target, "REMOTE_APPROVAL_INVALID");
+  }
   if (target.class === "safe-loopback") {
     const safeName = resolved.profile === "test"
       ? target.database?.startsWith("miyar_test") || target.database?.startsWith("miyar_auth_test")
@@ -361,6 +388,7 @@ function buildRuntimeContext(
     approval: options.approval ?? spawnedSafetyEnvironment.MIYAR_DATABASE_APPROVAL,
     deploymentDatabaseTarget:
       options.deploymentDatabaseTarget ?? spawnedSafetyEnvironment.MIYAR_DEPLOYMENT_DATABASE_TARGET,
+    providerProxyDatabaseTarget: options.providerProxyDatabaseTarget,
   };
   delete process.env.MIYAR_DATABASE_APPROVAL;
   return Object.freeze(context);

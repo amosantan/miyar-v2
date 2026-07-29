@@ -6,6 +6,7 @@ import process from "node:process";
 
 import {
   EV03_MIGRATION_SHA256,
+  EV03_PRODUCTION_DATABASE_TARGET,
   EV03_PRODUCTION_TARGET,
 } from "../server/engines/material-pricing/ev03-identity-backfill";
 import {
@@ -94,6 +95,12 @@ if (!outputPath) {
   throw new Error("Production EV-03 comparison requires --output");
 }
 assertSecureEvidencePath(outputPath);
+const databaseApproval = process.env.MIYAR_DATABASE_APPROVAL;
+if (databaseApproval !== `migrate@${EV03_PRODUCTION_DATABASE_TARGET}`) {
+  throw new Error(
+    "Production EV-03 comparison requires the exact externally supplied database approval binding"
+  );
+}
 const deployRequests = (valueAfter("--deploy-requests") ?? "")
   .split(",")
   .filter(Boolean);
@@ -179,6 +186,7 @@ const child = spawn(
     stdio: ["ignore", "pipe", "pipe"],
     env: providerEnvironment({
       EV03_PLANETSCALE_WRAPPER_ATTESTATION: nonce,
+      MIYAR_DATABASE_APPROVAL: databaseApproval,
     }),
   }
 );

@@ -19,6 +19,8 @@ import type {
 } from "../../shared/material-pricing";
 import { getDb } from "../db";
 
+type MaterialPricingDatabase = NonNullable<Awaited<ReturnType<typeof getDb>>>;
+
 export type GovernedValueCandidate = {
   id: number;
   specId: number;
@@ -114,11 +116,14 @@ export type ApprovedPaintCoverageProfileRow = {
   lineageValid?: boolean;
 };
 
-export async function listApprovedPaintCoverageProfiles(input: {
-  productIds: number[];
-  asOf: Date;
-}): Promise<ApprovedPaintCoverageProfileRow[]> {
-  const db = await getDb();
+export async function listApprovedPaintCoverageProfiles(
+  input: {
+    productIds: number[];
+    asOf: Date;
+  },
+  database?: MaterialPricingDatabase
+): Promise<ApprovedPaintCoverageProfileRow[]> {
+  const db = database ?? (await getDb());
   if (!db) throw new Error("DB not available");
   const productIds = Array.from(new Set(input.productIds));
   if (productIds.length === 0) return [];
@@ -176,12 +181,15 @@ export async function listApprovedPaintCoverageProfiles(input: {
     }));
 }
 
-async function listMaterialResolutionIdentitiesWithScope(input: {
-  materialLibraryIds?: number[];
-  materialCatalogIds?: number[];
-  globalOnly: boolean;
-}): Promise<MaterialResolutionIdentityRow[]> {
-  const db = await getDb();
+async function listMaterialResolutionIdentitiesWithScope(
+  input: {
+    materialLibraryIds?: number[];
+    materialCatalogIds?: number[];
+    globalOnly: boolean;
+  },
+  database?: MaterialPricingDatabase
+): Promise<MaterialResolutionIdentityRow[]> {
+  const db = database ?? (await getDb());
   if (!db) throw new Error("DB not available");
   const rows: MaterialResolutionIdentityRow[] = [];
   const libraryIds = Array.from(new Set(input.materialLibraryIds ?? []));
@@ -359,13 +367,16 @@ export async function listLegacyCompatibilityPriceRows(
   return Array.from(unique.values());
 }
 
-export async function listMaterialResolutionSpecifications(input: {
-  categories: string[];
-  finishLevels: string[];
-  unitBases: PriceUnitBasis[];
-  geographies: UaePriceGeography[];
-}): Promise<MaterialResolutionSpecificationRow[]> {
-  const db = await getDb();
+export async function listMaterialResolutionSpecifications(
+  input: {
+    categories: string[];
+    finishLevels: string[];
+    unitBases: PriceUnitBasis[];
+    geographies: UaePriceGeography[];
+  },
+  database?: MaterialPricingDatabase
+): Promise<MaterialResolutionSpecificationRow[]> {
+  const db = database ?? (await getDb());
   if (!db) throw new Error("DB not available");
   if (
     input.categories.length === 0 ||
@@ -394,12 +405,15 @@ export async function listMaterialResolutionSpecifications(input: {
     );
 }
 
-async function listGovernedValueCandidatesForSpecificationsWithScope(input: {
-  specIds: number[];
-  organizationId?: number;
-  globalOnly: boolean;
-}): Promise<GovernedValueCandidate[]> {
-  const db = await getDb();
+async function listGovernedValueCandidatesForSpecificationsWithScope(
+  input: {
+    specIds: number[];
+    organizationId?: number;
+    globalOnly: boolean;
+  },
+  database?: MaterialPricingDatabase
+): Promise<GovernedValueCandidate[]> {
+  const db = database ?? (await getDb());
   if (!db) throw new Error("DB not available");
   const specIds = Array.from(new Set(input.specIds));
   if (specIds.length === 0) return [];
@@ -546,6 +560,38 @@ async function listGovernedValueCandidatesForSpecificationsWithScope(input: {
             : (quoteSupersededAt.get(row.supplierQuoteId) ?? null),
       };
     });
+}
+
+export function createGlobalMaterialResolutionEvidenceDataSource(
+  database: MaterialPricingDatabase
+) {
+  return {
+    listIdentities: (input: {
+      materialLibraryIds?: number[];
+      materialCatalogIds?: number[];
+    }) =>
+      listMaterialResolutionIdentitiesWithScope(
+        { ...input, globalOnly: true },
+        database
+      ),
+    listSpecifications: (input: {
+      categories: string[];
+      finishLevels: string[];
+      unitBases: PriceUnitBasis[];
+      geographies: UaePriceGeography[];
+    }) => listMaterialResolutionSpecifications(input, database),
+    listCandidates: (input: { specIds: number[] }) =>
+      listGovernedValueCandidatesForSpecificationsWithScope(
+        {
+          ...input,
+          organizationId: undefined,
+          globalOnly: true,
+        },
+        database
+      ),
+    listCoverageProfiles: (input: { productIds: number[]; asOf: Date }) =>
+      listApprovedPaintCoverageProfiles(input, database),
+  };
 }
 
 export async function listGovernedValueCandidatesForSpecifications(input: {
