@@ -30,6 +30,11 @@ function numberValue(record: JsonRecord | null, key: string): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
+function nullableNumberValue(record: JsonRecord | null, key: string): number | null {
+  const value = record?.[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
 function booleanValue(record: JsonRecord | null, key: string): boolean {
   return record?.[key] === true;
 }
@@ -138,13 +143,13 @@ export default function DesignBrief() {
   };
   const mqiRaw = asRecord(budgetRaw?.mqiSummary);
   const mqiSummary = mqiRaw && {
-    totalFinishCostMin: numberValue(mqiRaw, "totalFinishCostMin"), totalFinishCostMid: numberValue(mqiRaw, "totalFinishCostMid"),
-    totalFinishCostMax: numberValue(mqiRaw, "totalFinishCostMax"), qualityLabel: textValue(mqiRaw, "qualityLabel"),
+    totalFinishCostMin: nullableNumberValue(mqiRaw, "totalFinishCostMin"), totalFinishCostMid: nullableNumberValue(mqiRaw, "totalFinishCostMid"),
+    totalFinishCostMax: nullableNumberValue(mqiRaw, "totalFinishCostMax"), qualityLabel: textValue(mqiRaw, "qualityLabel"),
     costBasisLabel: textValue(mqiRaw, "costBasisLabel"), unpricedAllocationCount: numberValue(mqiRaw, "unpricedAllocationCount"),
     budgetUtilizationPct: typeof mqiRaw.budgetUtilizationPct === "number" ? mqiRaw.budgetUtilizationPct : null,
     isOverBudget: booleanValue(mqiRaw, "isOverBudget"), overBudgetByAed: numberValue(mqiRaw, "overBudgetByAed"),
     roomBreakdown: recordList(mqiRaw, "roomBreakdown").map((room) => ({
-      roomName: textValue(room, "roomName"), roomCostMin: numberValue(room, "roomCostMin"), roomCostMax: numberValue(room, "roomCostMax"),
+      roomName: textValue(room, "roomName"), roomCostMin: nullableNumberValue(room, "roomCostMin"), roomCostMax: nullableNumberValue(room, "roomCostMax"),
     })),
     topMaterials: recordList(mqiRaw, "topMaterials").map((material) => ({
       materialName: textValue(material, "materialName"), totalAreaM2: numberValue(material, "totalAreaM2"),
@@ -449,15 +454,15 @@ export default function DesignBrief() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                       <p className="text-xs text-muted-foreground">Finish Cost (Min)</p>
-                      <p className="font-medium">AED {Math.round(mqiSummary.totalFinishCostMin).toLocaleString()}</p>
+                      <p className="font-medium">{mqiSummary.totalFinishCostMin === null ? "Insufficient" : `AED ${Math.round(mqiSummary.totalFinishCostMin).toLocaleString()}`}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Finish Cost (Mid)</p>
-                      <p className="font-medium text-lg">AED {Math.round(mqiSummary.totalFinishCostMid).toLocaleString()}</p>
+                      <p className="font-medium text-lg">{mqiSummary.totalFinishCostMid === null ? "Insufficient" : `AED ${Math.round(mqiSummary.totalFinishCostMid).toLocaleString()}`}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Finish Cost (Max)</p>
-                      <p className="font-medium">AED {Math.round(mqiSummary.totalFinishCostMax).toLocaleString()}</p>
+                      <p className="font-medium">{mqiSummary.totalFinishCostMax === null ? "Insufficient" : `AED ${Math.round(mqiSummary.totalFinishCostMax).toLocaleString()}`}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Quality Label</p>
@@ -471,7 +476,7 @@ export default function DesignBrief() {
                       )}
                       {mqiSummary.unpricedAllocationCount > 0 && (
                         <span className="text-xs text-amber-600 dark:text-amber-400">
-                          {mqiSummary.unpricedAllocationCount} allocation{mqiSummary.unpricedAllocationCount === 1 ? "" : "s"} unpriced — excluded from totals
+                          {mqiSummary.unpricedAllocationCount} allocation{mqiSummary.unpricedAllocationCount === 1 ? "" : "s"} unresolved — aggregate total unavailable
                         </span>
                       )}
                     </div>
@@ -509,11 +514,15 @@ export default function DesignBrief() {
                             <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                               <div
                                 className="h-full bg-primary/60 rounded-full"
-                                style={{ width: `${Math.min(100, ((room.roomCostMax || 0) / (mqiSummary.totalFinishCostMax || 1)) * 100)}%` }}
+                                style={{ width: `${room.roomCostMax !== null && mqiSummary.totalFinishCostMax
+                                  ? Math.min(100, (room.roomCostMax / mqiSummary.totalFinishCostMax) * 100)
+                                  : 0}%` }}
                               />
                             </div>
                             <span className="text-xs text-muted-foreground w-40 text-right">
-                              AED {Math.round(room.roomCostMin).toLocaleString()} – {Math.round(room.roomCostMax).toLocaleString()}
+                              {room.roomCostMin === null || room.roomCostMax === null
+                                ? "Insufficient"
+                                : `AED ${Math.round(room.roomCostMin).toLocaleString()} – ${Math.round(room.roomCostMax).toLocaleString()}`}
                             </span>
                           </div>
                         ))}
@@ -680,7 +689,9 @@ export default function DesignBrief() {
                 {mqiSummary && (
                   <div>
                     <h4 className="font-semibold mb-1">8. MQI Cost Intelligence</h4>
-                    <p className="text-muted-foreground">Finish cost: AED {Math.round(mqiSummary.totalFinishCostMin).toLocaleString()} – {Math.round(mqiSummary.totalFinishCostMax).toLocaleString()} · {mqiSummary.roomBreakdown?.length || 0} rooms · {mqiSummary.qualityLabel}{mqiSummary.budgetUtilizationPct != null ? ` · ${mqiSummary.budgetUtilizationPct.toFixed(0)}% budget utilization` : ''}</p>
+                    <p className="text-muted-foreground">Finish cost: {mqiSummary.totalFinishCostMin === null || mqiSummary.totalFinishCostMax === null
+                      ? "Insufficient"
+                      : `AED ${Math.round(mqiSummary.totalFinishCostMin).toLocaleString()} – ${Math.round(mqiSummary.totalFinishCostMax).toLocaleString()}`} · {mqiSummary.roomBreakdown?.length || 0} rooms · {mqiSummary.qualityLabel}{mqiSummary.budgetUtilizationPct != null ? ` · ${mqiSummary.budgetUtilizationPct.toFixed(0)}% budget utilization` : ''}</p>
                   </div>
                 )}
               </CardContent>

@@ -833,6 +833,7 @@ export type FormData = {
   ctx02Scale: string;
   ctx03Gfa: number | null;
   ctx04Location: string;
+  materialPriceGeography: string | null;
   dldAreaId: number | null;
   dldAreaName: string;
   projectPurpose: string;
@@ -908,6 +909,7 @@ export function ProjectForm({ initialData, fieldConfidence, fieldReasoning, onSu
     ctx02Scale: "Medium",
     ctx03Gfa: null,
     ctx04Location: "Secondary",
+    materialPriceGeography: null,
     dldAreaId: null,
     dldAreaName: "",
     projectPurpose: "sell_ready",
@@ -1190,6 +1192,30 @@ export function ProjectForm({ initialData, fieldConfidence, fieldReasoning, onSu
                   />
                   <p className="text-[10px] text-muted-foreground">
                     Select the DLD-registered area for competitor intelligence and market comparison
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Material Price Geography</Label>
+                  <Select
+                    value={form.materialPriceGeography ?? "uae"}
+                    onValueChange={(v) => set("materialPriceGeography", v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="uae">UAE (default)</SelectItem>
+                      <SelectItem value="dubai">Dubai</SelectItem>
+                      <SelectItem value="abu_dhabi">Abu Dhabi</SelectItem>
+                      <SelectItem value="sharjah">Sharjah</SelectItem>
+                      <SelectItem value="ajman">Ajman</SelectItem>
+                      <SelectItem value="umm_al_quwain">Umm Al Quwain</SelectItem>
+                      <SelectItem value="ras_al_khaimah">Ras Al Khaimah</SelectItem>
+                      <SelectItem value="fujairah">Fujairah</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground">
+                    Used only for governed material pricing; location tier and DLD area are never treated as emirates.
                   </p>
                 </div>
                 <div className="space-y-2">

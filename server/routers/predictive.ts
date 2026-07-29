@@ -8,18 +8,27 @@ import { TRPCError } from "@trpc/server";
 import * as db from "../db";
 import { getPricingArea } from "../engines/area-utils";
 import {
+  insufficientCostRangePrediction,
   predictCostRange,
   predictOutcome,
   projectScenarioCost,
 } from "../engines/predictive";
 import { matchScoreMatrixToPatterns } from "../engines/learning/pattern-extractor";
 import type {
-  EvidenceDataPoint,
-  TrendDataPoint,
   ComparableOutcome,
+  CostRangePrediction,
 } from "../engines/predictive";
 import { requireProjectForOrg } from "../_core/project-access";
 import { ORGANIZATION_CORPUS_POLICY_VERSION } from "../../shared/data-corpus";
+import { MATERIAL_RESOLUTION_POLICY_VERSION } from "../../shared/material-calculations";
+import { resolveProjectMaterialPriceGeography } from "../engines/material-pricing/material-resolution";
+
+function unavailableGovernedMaterialCostRange(): CostRangePrediction {
+  return insufficientCostRangePrediction({
+    reason:
+      "No governed product/specification population is available for this predictive category",
+  });
+}
 
 export const predictiveRouter = router({
   /**
@@ -35,70 +44,19 @@ export const predictiveRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const project = await requireProjectForOrg(input.projectId, ctx.orgId);
-
-      const [projectEvidence, organizationEvidence, publicEvidence, trends] =
-        await Promise.all([
-          db.listOrganizationEvidenceRecords(ctx.orgId, {
-            projectId: input.projectId,
-            category: input.category,
-            limit: 500,
-          }),
-          db.listOrganizationEvidenceRecords(ctx.orgId, {
-            category: input.category,
-            limit: 1000,
-          }),
-          db.listPublicCorpusEvidence({
-            category: input.category,
-            limit: 1000,
-          }),
-          db.getTrendSnapshotsForOrg(ctx.orgId, {
-            category: input.category,
-            limit: 10,
-          }),
-        ]);
-
-      // Transform to EvidenceDataPoint format
-      const toDataPoint = (e: any): EvidenceDataPoint => ({
-        priceMin: Number(e.priceMin) || 0,
-        priceTypical: Number(e.priceTypical) || 0,
-        priceMax: Number(e.priceMax) || 0,
-        unit: e.unit || "sqm",
-        reliabilityGrade: e.reliabilityGrade,
-        confidenceScore: e.confidenceScore,
-        captureDate: e.captureDate,
-        category: e.category,
-        geography: project.ctx04Location || "UAE",
-      });
-
-      const evidence = projectEvidence.map(toDataPoint);
-      const uaeWideEvidence = [...organizationEvidence, ...publicEvidence].map(
-        toDataPoint
+      const requestedGeography = resolveProjectMaterialPriceGeography(
+        project.materialPriceGeography
       );
-      const trendData: TrendDataPoint[] = trends.map((t: any) => ({
-        category: t.category,
-        direction: t.direction,
-        percentChange: Number(t.percentChange) || 0,
-        confidence: t.confidence,
-      }));
-
-      const prediction = predictCostRange(evidence, trendData, {
-        category: input.category,
-        geography: input.geography || project.ctx04Location || undefined,
-        uaeWideEvidence,
-      });
+      const prediction = unavailableGovernedMaterialCostRange();
       return {
         ...prediction,
-        status:
-          prediction.confidence === "insufficient"
-            ? ("insufficient_data" as const)
-            : ("ok" as const),
+        status: "insufficient_data" as const,
         corpusPolicyVersion: ORGANIZATION_CORPUS_POLICY_VERSION,
-        organizationSampleCount: organizationEvidence.length,
-        publicSampleCount: publicEvidence.length,
-        insufficiencyReason:
-          prediction.confidence === "insufficient"
-            ? ("below_minimum_sample" as const)
-            : undefined,
+        materialResolutionPolicyVersion: MATERIAL_RESOLUTION_POLICY_VERSION,
+        requestedGeography,
+        organizationSampleCount: 0,
+        publicSampleCount: 0,
+        insufficiencyReason: "no_governed_material_population" as const,
       };
     }),
 
@@ -246,8 +204,8 @@ export const predictiveRouter = router({
         trendDirection = (bestTrend as any).direction || "insufficient_data";
       }
 
-      // Phase 8: Vendor Bottom-Up Override check
-      let boardMaterialsCost: number | undefined;
+      // EV-03: board catalogue prices are browse-only estimates and cannot
+      // override predictive/scoring totals.
       let boardMaintenanceVariance = 0;
 
       const boards = await db.getMaterialBoardsByProject(input.projectId);
@@ -256,17 +214,11 @@ export const predictiveRouter = router({
         const activeBoard = boards[0];
         const boardMaterials = await db.getMaterialsByBoard(activeBoard.id);
 
-        let totalLow = 0;
-        let totalHigh = 0;
         let totalVariance = 0;
 
         for (const bm of boardMaterials) {
           const mat = await db.getMaterialById(bm.materialId);
           if (mat) {
-            const qty = Number(bm.quantity) || 1; // Needs strict BOQ quantity to be perfectly accurate
-            totalLow += (Number(mat.typicalCostLow) || 0) * qty;
-            totalHigh += (Number(mat.typicalCostHigh) || 0) * qty;
-
             // Base baseline assumes 5% (0.05). If material OPEX is higher, variance increases.
             const matMaint = parseFloat(
               String(mat.maintenanceFactor || "0.05")
@@ -275,8 +227,7 @@ export const predictiveRouter = router({
           }
         }
 
-        if (totalHigh > 0) {
-          boardMaterialsCost = (totalLow + totalHigh) / 2; // Pass the average cost to baseline
+        if (totalVariance !== 0) {
           boardMaintenanceVariance = totalVariance;
         }
       }
@@ -297,7 +248,6 @@ export const predictiveRouter = router({
         brandStandardConstraints: project.brandStandardConstraints,
         timelineFlexibility: project.timelineFlexibility,
         targetValueAdd: project.targetValueAdd,
-        boardMaterialsCost,
         boardMaintenanceVariance,
       });
       const organizationSampleCount = trends.filter(
@@ -321,22 +271,7 @@ export const predictiveRouter = router({
   /**
    * V4-13: Get UAE-wide cost ranges by market tier for analytics dashboard
    */
-  getUaeCostRanges: orgProcedure.query(async ({ ctx }) => {
-    const [organizationEvidence, publicEvidence, trends] = await Promise.all([
-      db.listOrganizationEvidenceRecords(ctx.orgId, { limit: 2000 }),
-      db.listPublicCorpusEvidence({ limit: 2000 }),
-      db.getTrendSnapshotsForOrg(ctx.orgId, { limit: 50 }),
-    ]);
-    const allEvidence = [...organizationEvidence, ...publicEvidence];
-
-    const tiers = [
-      "Economy",
-      "Mid",
-      "Upper-mid",
-      "Premium",
-      "Luxury",
-      "Ultra-luxury",
-    ];
+  getUaeCostRanges: orgProcedure.query(async () => {
     const categories = [
       "floors",
       "walls",
@@ -353,59 +288,28 @@ export const predictiveRouter = router({
       tier: string;
       category: string;
       prediction: ReturnType<typeof predictCostRange> & {
-        status: "ok" | "insufficient_data";
+        status: "insufficient_data";
         corpusPolicyVersion: string;
+        materialResolutionPolicyVersion: typeof MATERIAL_RESOLUTION_POLICY_VERSION;
         organizationSampleCount: number;
         publicSampleCount: number;
-        insufficiencyReason?: "below_minimum_sample";
+        insufficiencyReason: "no_governed_material_population";
       };
     }> = [];
 
     for (const category of categories) {
-      const catEvidence: EvidenceDataPoint[] = allEvidence
-        .filter((e: any) => e.category === category)
-        .map((e: any) => ({
-          priceMin: Number(e.priceMin) || 0,
-          priceTypical: Number(e.priceTypical) || 0,
-          priceMax: Number(e.priceMax) || 0,
-          unit: e.unit || "sqm",
-          reliabilityGrade: e.reliabilityGrade,
-          confidenceScore: e.confidenceScore,
-          captureDate: e.captureDate,
-          category: e.category,
-          geography: "UAE",
-        }));
-
-      const catTrends: TrendDataPoint[] = trends
-        .filter((t: any) => t.category === category)
-        .map((t: any) => ({
-          category: t.category,
-          direction: t.direction,
-          percentChange: Number(t.percentChange) || 0,
-          confidence: t.confidence,
-        }));
-
-      const prediction = predictCostRange(catEvidence, catTrends, { category });
+      const prediction = unavailableGovernedMaterialCostRange();
       results.push({
         tier: "All",
         category,
         prediction: {
           ...prediction,
-          status:
-            prediction.confidence === "insufficient"
-              ? ("insufficient_data" as const)
-              : ("ok" as const),
+          status: "insufficient_data" as const,
           corpusPolicyVersion: ORGANIZATION_CORPUS_POLICY_VERSION,
-          organizationSampleCount: organizationEvidence.filter(
-            (e: any) => e.category === category
-          ).length,
-          publicSampleCount: publicEvidence.filter(
-            (e: any) => e.category === category
-          ).length,
-          insufficiencyReason:
-            prediction.confidence === "insufficient"
-              ? ("below_minimum_sample" as const)
-              : undefined,
+          materialResolutionPolicyVersion: MATERIAL_RESOLUTION_POLICY_VERSION,
+          organizationSampleCount: 0,
+          publicSampleCount: 0,
+          insufficiencyReason: "no_governed_material_population" as const,
         },
       });
     }

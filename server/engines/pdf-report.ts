@@ -673,7 +673,12 @@ function renderBoardCard(board: BoardAnnexBoard, locale: ReportLocale): string {
       <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px;">
         <div style="text-align:center;">
           <div style="font-size:8px; color:#666; text-transform:uppercase;">${reportCopy(locale, "resolvedItemCostRange")}</div>
-          <div style="font-size:12px; font-weight:700; color:#0f3460;">${summary.estimatedCostLow.toLocaleString()} – ${summary.estimatedCostHigh.toLocaleString()} ${escapeHtml(summary.currency)}</div>
+          <div style="font-size:12px; font-weight:700; color:#0f3460;">${
+            summary.estimatedCostLow === null ||
+            summary.estimatedCostHigh === null
+              ? reportCopy(locale, "notAvailable")
+              : `${summary.estimatedCostLow.toLocaleString()} – ${summary.estimatedCostHigh.toLocaleString()} ${escapeHtml(summary.currency)}`
+          }</div>
         </div>
         <div style="text-align:center;">
           <div style="font-size:8px; color:#666; text-transform:uppercase;">${reportCopy(locale, "resolvedItemLongestLead")}</div>
@@ -760,7 +765,7 @@ function renderWorkflowReconciliation(
         noGroups: "لا توجد مجموعات تخصيص مخزنة.",
         allGroups: "جميع المجموعات بنسبة 100%",
         allSurfaces: "جميع المساحات مطابقة للصيغة",
-        costs: "تكلفة المواد من مكتبة المواد",
+        costs: "تكلفة المواد المحكومة",
         minimum: "الحد الأدنى",
         midpoint: "المتوسط",
         maximum: "الحد الأعلى",
@@ -769,13 +774,13 @@ function renderWorkflowReconciliation(
         source: "المصدر",
         sourceTables: "جداول المصدر",
         costBasis: "أساس التكلفة",
-        assumptionNote: "أسعار مرجعية داخلية من MIYAR وليست ملاحظات سوقية",
+        assumptionNote: "افتراض قديم بنطاق غير معروف",
         basisCounts: "صفوف المواد (افتراض / ملاحظة)",
       }
     : {
         heading: "Workflow, Space & MQI Reconciliation",
         description:
-          "Deterministic reconciliation of stored project, space-programme, material-allocation, and material-library values.",
+          "Deterministic reconciliation of stored project and allocation values with governed material-price snapshots.",
         projectFitOut: "Project fit-out area",
         roomFitOut: "Fit-out room total",
         variance: "Area variance",
@@ -805,7 +810,7 @@ function renderWorkflowReconciliation(
         noGroups: "No stored allocation groups.",
         allGroups: "All groups at 100%",
         allSurfaces: "All surfaces match formula",
-        costs: "Material-library cost reconciliation",
+        costs: "Governed material-cost reconciliation",
         minimum: "Minimum",
         midpoint: "Midpoint",
         maximum: "Maximum",
@@ -814,7 +819,7 @@ function renderWorkflowReconciliation(
         source: "Source",
         sourceTables: "Source tables",
         costBasis: "Cost basis",
-        assumptionNote: "internal MIYAR reference catalogue prices, not market observations",
+        assumptionNote: "legacy scope-unknown assumption",
         basisCounts: "material rows (assumption / observed)",
       };
   const number = (value: number) =>
@@ -822,6 +827,8 @@ function renderWorkflowReconciliation(
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
+  const money = (value: number | null) =>
+    value === null ? copy.unavailable : `${reconciliation.materialCosts.currency} ${number(value)}`;
   const areaStatus =
     reconciliation.spaceProgram.reconciles === null
       ? copy.unavailable
@@ -881,13 +888,13 @@ function renderWorkflowReconciliation(
   <table>
     <tr><th>${copy.minimum}</th><th>${copy.midpoint}</th><th>${copy.maximum}</th><th>${copy.priceCoverage}</th></tr>
     <tr>
-      <td>${reconciliation.materialCosts.currency} ${number(reconciliation.materialCosts.min)}</td>
-      <td>${reconciliation.materialCosts.currency} ${number(reconciliation.materialCosts.mid)}</td>
-      <td>${reconciliation.materialCosts.currency} ${number(reconciliation.materialCosts.max)}</td>
+      <td>${money(reconciliation.materialCosts.min)}</td>
+      <td>${money(reconciliation.materialCosts.mid)}</td>
+      <td>${money(reconciliation.materialCosts.max)}</td>
       <td>${reconciliation.materialCosts.pricedAllocationCount}/${reconciliation.allocations.rowCount} · ${reconciliation.materialCosts.unpricedAllocationCount} ${copy.unpriced} · ${reconciliation.materialCosts.allAllocationsPriced ? copy.pass : copy.fail}</td>
     </tr>
   </table>
-  ${reconciliation.materialCosts.basis ? `<p style="font-size:8px; color:#777;">${copy.costBasis}: ${dynamicText(reconciliation.materialCosts.basis.label)}${reconciliation.materialCosts.basis.observedRowCount === 0 ? ` — ${copy.assumptionNote}` : ""} · ${reconciliation.materialCosts.basis.assumptionRowCount} / ${reconciliation.materialCosts.basis.observedRowCount} ${copy.basisCounts} · ${dynamicText(reconciliation.materialCosts.basis.policyVersion)}</p>` : ""}
+  ${reconciliation.materialCosts.basis ? `<p style="font-size:8px; color:#777;">${copy.costBasis}: ${dynamicText(reconciliation.materialCosts.basis.label)} · ${reconciliation.materialCosts.basis.assumptionRowCount} / ${reconciliation.materialCosts.basis.observedRowCount} ${copy.basisCounts} · ${dynamicText(reconciliation.materialCosts.basis.policyVersion)}</p>` : ""}
   <p style="font-size:8px; color:#777;">${copy.source}: ${dynamicText(reconciliation.materialCosts.source)} · ${copy.sourceTables}: ${dynamicText(reconciliation.sourceTables.join(", "))} · ${dynamicText(reconciliation.version)}</p>
 </div>
 `;

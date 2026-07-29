@@ -71,10 +71,11 @@ describe("Digital Twin – Result Structure", () => {
         expect(loadSum).toBeLessThan(result.operationalEnergy * 1.05);
     });
 
-    it("returns 31-point lifecycle timeline (years 0-30)", () => {
-        expect(result.lifecycle).toHaveLength(31);
-        expect(result.lifecycle[0].year).toBe(0);
-        expect(result.lifecycle[30].year).toBe(30);
+    it("withholds the lifecycle timeline until governed material prices resolve", () => {
+        expect(result.lifecycle).toEqual([]);
+        expect(result.lifecycleCostResolutionState).toBe("insufficient");
+        expect(result.lifecycleCost30yr).toBeNull();
+        expect(result.lifecycleCostPerSqm).toBeNull();
     });
 
     it("lifecycle cumulative cost is monotonically increasing", () => {
@@ -85,13 +86,9 @@ describe("Digital Twin – Result Structure", () => {
         }
     });
 
-    it("year 0 has construction cost, subsequent years have 0", () => {
-        expect(result.lifecycle[0].constructionCost).toBeGreaterThan(0);
-        expect(result.lifecycle[0].maintenanceCost).toBe(0);
-        expect(result.lifecycle[0].energyCost).toBe(0);
-        for (let i = 1; i < result.lifecycle.length; i++) {
-            expect(result.lifecycle[i].constructionCost).toBe(0);
-        }
+    it("does not invent a construction cost from hard-coded material rates", () => {
+        expect(result.lifecycle).toEqual([]);
+        expect(result.lifecycleCost30yr).toBeNull();
     });
 
     it("sub-scores are all 0-100", () => {
@@ -178,10 +175,13 @@ describe("Digital Twin – Location Impact", () => {
 // ─── Spec Level Impact ──────────────────────────────────────────────────────
 
 describe("Digital Twin – Spec Level", () => {
-    it("luxury has higher lifecycle cost than economy", () => {
+    it("keeps lifecycle cost insufficient for every spec level without governed prices", () => {
         const economy = computeDigitalTwin({ ...BASE_CONFIG, specLevel: "economy" });
         const luxury = computeDigitalTwin({ ...BASE_CONFIG, specLevel: "luxury" });
-        expect(luxury.lifecycleCost30yr).toBeGreaterThan(economy.lifecycleCost30yr);
+        expect(economy.lifecycleCost30yr).toBeNull();
+        expect(luxury.lifecycleCost30yr).toBeNull();
+        expect(economy.lifecycleCostResolutionState).toBe("insufficient");
+        expect(luxury.lifecycleCostResolutionState).toBe("insufficient");
     });
 
     it("premium has higher energy than economy", () => {

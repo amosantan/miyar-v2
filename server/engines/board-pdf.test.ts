@@ -61,10 +61,19 @@ describe("V4-06: Board Composer V2 — computeBoardSummary", () => {
   it("handles empty items array", () => {
     const summary = computeBoardSummary([]);
     expect(summary.totalItems).toBe(0);
-    expect(summary.estimatedCostLow).toBe(0);
-    expect(summary.estimatedCostHigh).toBe(0);
+    expect(summary.estimatedCostLow).toBeNull();
+    expect(summary.estimatedCostHigh).toBeNull();
     expect(summary.longestLeadTimeDays).toBe(0);
     expect(summary.criticalPathItems).toEqual([]);
+  });
+
+  it("does not sum a partial browse-only catalog estimate", () => {
+    const summary = computeBoardSummary([
+      sampleItems[0],
+      { ...sampleItems[1], costLow: null, costHigh: null },
+    ]);
+    expect(summary.estimatedCostLow).toBeNull();
+    expect(summary.estimatedCostHigh).toBeNull();
   });
 });
 
@@ -230,7 +239,8 @@ describe("V4-06: Board PDF HTML Generation", () => {
       summary,
       rfqLines,
     });
-    expect(html).toContain("RFQ-Ready Procurement Schedule");
+    expect(html).toContain("Concept Schedule — Not RFQ-Ready");
+    expect(html).toContain("not RFQ-ready or eligible for issued totals");
     expect(html).toContain("Calacatta Marble");
   });
 
@@ -243,7 +253,7 @@ describe("V4-06: Board PDF HTML Generation", () => {
       rfqLines,
     });
     expect(html).toContain("Total Items");
-    expect(html).toContain("Estimated Cost Range");
+    expect(html).toContain("Browse-only Catalog Estimate");
     expect(html).toContain("Longest Lead Time");
   });
 
@@ -322,7 +332,7 @@ describe("V4-06: Board Annex in PDF Reports", () => {
       expect(html).toContain("Master Suite Board");
       expect(html).toContain("Complete board — the linked item is resolved");
       expect(html).toContain("1 of 1 items resolved");
-      expect(html).toContain("Resolved-item Cost Range");
+      expect(html).toContain("Browse-only Catalog Estimate (excluded from issued totals)");
       expect(html).toContain("1,000 – 2,500 AED");
     }
   });
@@ -360,8 +370,8 @@ describe("V4-06: Board Annex in PDF Reports", () => {
     for (const html of renderBoth(boardAnnex)) {
       expect(html).toContain("Partial board — 1 of 3 linked items resolved");
       expect(html).toContain("2 unresolved items are excluded from the figures below");
-      expect(html).toContain("Any figures shown are calculated only from resolved catalog items");
-      expect(html).toContain("Resolved-item Cost Range");
+      expect(html).toContain("2 unresolved items are excluded from the figures below");
+      expect(html).toContain("Browse-only Catalog Estimate (excluded from issued totals)");
       expect(html).not.toContain("No material boards have been created");
     }
   });

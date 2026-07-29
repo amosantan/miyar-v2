@@ -10,12 +10,30 @@ import {
 import { requireProjectForOrg } from "../_core/project-access";
 import { requireProjectResourceForOrg } from "../_core/resource-access";
 import * as db from "../db";
-import { evaluate, computeROI, type EvaluationConfig } from "../engines/scoring";
+import {
+  evaluate,
+  computeROI,
+  type EvaluationConfig,
+} from "../engines/scoring";
 import { runSensitivityAnalysis } from "../engines/sensitivity";
-import { generateValidationSummary, generateDesignBrief, generateFullReport } from "../engines/report";
+import {
+  generateValidationSummary,
+  generateDesignBrief,
+  generateFullReport,
+} from "../engines/report";
 import { generateReportHTML, type PDFReportInput } from "../engines/pdf-report";
-import { buildBoardAnnexData, type BoardAnnexData } from "../engines/board-annex";
-import { buildWorkflowSpaceMqiReconciliation } from "../engines/report-reconciliation";
+import {
+  buildBoardAnnexData,
+  type BoardAnnexData,
+} from "../engines/board-annex";
+import {
+  buildWorkflowSpaceMqiReconciliation,
+  type WorkflowSpaceMqiReconciliation,
+} from "../engines/report-reconciliation";
+import {
+  resolveMaterialPriceSnapshots,
+  resolveProjectMaterialPriceGeography,
+} from "../engines/material-pricing/material-resolution";
 import { generateDesignBrief as generateNewDesignBrief } from "../engines/design-brief";
 import { storageGet, storagePut } from "../storage";
 import { nanoid } from "nanoid";
@@ -32,9 +50,17 @@ import { computeRoi, type RoiInputs } from "../engines/roi";
 import { computeFiveLens } from "../engines/five-lens";
 import { computeDerivedFeatures } from "../engines/intelligence";
 import { getPricingArea } from "../engines/area-utils";
-import { SCENARIO_TEMPLATES, getScenarioTemplate, solveConstraints, type Constraint } from "../engines/scenario-templates";
+import {
+  SCENARIO_TEMPLATES,
+  getScenarioTemplate,
+  solveConstraints,
+  type Constraint,
+} from "../engines/scenario-templates";
 import { dispatchWebhook } from "../engines/webhook";
-import { generateInsights, type InsightInput } from "../engines/analytics/insight-generator";
+import {
+  generateInsights,
+  type InsightInput,
+} from "../engines/analytics/insight-generator";
 import { generateAutonomousDesignBrief } from "../engines/autonomous/document-generator";
 import {
   cleanupRejectedUpload,
@@ -42,6 +68,111 @@ import {
 } from "../_core/upload-compensation";
 import { readValidatedProjectMedia } from "../_core/project-media";
 import { resolveSpaceEfficiencyEvidence } from "../engines/space-evidence";
+import { buildGovernedBoardSummary } from "./design-boards";
+
+export function isIssuedFullReportMaterialCoverageComplete(
+  reconciliation: WorkflowSpaceMqiReconciliation | undefined,
+  rooms: readonly { roomCode: string; isFitOut: boolean }[] = []
+): boolean {
+  if (!reconciliation) return false;
+  const { materialCosts, allocations } = reconciliation;
+  const { coverage } = materialCosts;
+  const actualGroups = new Set(
+    allocations.groups
+      .filter(group =>
+        ["floor", "walls", "ceiling"].includes(group.element)
+      )
+      .map(group => `${group.roomId}\u0000${group.element}`)
+  );
+  const requiredGroups =
+    rooms.length === 0
+      ? new Set(actualGroups)
+      : new Set(
+          rooms
+            .filter(room => room.isFitOut)
+            .flatMap(room =>
+              ["floor", "walls", "ceiling"].map(
+                element => `${room.roomCode}\u0000${element}`
+              )
+            )
+        );
+  return (
+    requiredGroups.size > 0 &&
+    actualGroups.size === requiredGroups.size &&
+    Array.from(requiredGroups).every(key => actualGroups.has(key)) &&
+    allocations.rowCount > 0 &&
+    allocations.groupCount > 0 &&
+    allocations.allGroupsPass100Pct &&
+    allocations.allGroupsSurfaceReconcile &&
+    reconciliation.spaceProgram.reconciles === true &&
+    coverage.state === "complete" &&
+    coverage.totalItemCount === allocations.rowCount &&
+    coverage.pricedItemCount === coverage.totalItemCount &&
+    coverage.insufficientItemCount === 0 &&
+    materialCosts.allAllocationsPriced &&
+    materialCosts.pricedAllocationCount === allocations.rowCount &&
+    materialCosts.unpricedAllocationCount === 0 &&
+    materialCosts.min !== null &&
+    materialCosts.mid !== null &&
+    materialCosts.max !== null &&
+    materialCosts.min > 0 &&
+    materialCosts.mid > 0 &&
+    materialCosts.max > 0 &&
+    materialCosts.min <= materialCosts.mid &&
+    materialCosts.mid <= materialCosts.max
+  );
+}
+
+type GovernedBoardSummary = ReturnType<typeof buildGovernedBoardSummary>;
+
+export function isGovernedBoardPricingCompleteForScoring(
+  summary: GovernedBoardSummary
+): boolean {
+  return (
+    summary.coverage.state === "complete" &&
+    summary.coverage.totalItemCount > 0 &&
+    summary.coverage.pricedItemCount === summary.coverage.totalItemCount &&
+    summary.coverage.insufficientItemCount === 0 &&
+    summary.totalAedMin !== null &&
+    summary.totalAedMid !== null &&
+    summary.totalAedMax !== null
+  );
+}
+
+async function applyGovernedBoardCostForScoring(input: {
+  projectId: number;
+  organizationId: number;
+  materialPriceGeography: unknown;
+  scoringInputs: ProjectInputs;
+}): Promise<void> {
+  const boards = await db.getMaterialBoardsByProject(input.projectId);
+  if (boards.length === 0) return;
+
+  const activeBoard = boards[0];
+  const rows = await db.getMaterialsByBoard(activeBoard.id);
+  const resolverAsOf = new Date();
+  const snapshots = await resolveMaterialPriceSnapshots({
+    references: rows.map(row => ({
+      source: "materials_catalog" as const,
+      legacyId: row.materialId,
+    })),
+    organizationId: input.organizationId,
+    priceScope: "supply_only",
+    requestedGeography: resolveProjectMaterialPriceGeography(
+      input.materialPriceGeography
+    ),
+    asOf: resolverAsOf,
+    allowLegacyUnknownScope: true,
+  });
+  const summary = buildGovernedBoardSummary({ rows, snapshots });
+  if (!isGovernedBoardPricingCompleteForScoring(summary)) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: "PROJECT_BOARD_PRICING_INSUFFICIENT",
+    });
+  }
+  input.scoringInputs.boardMaterialsCost = summary.totalAedMid!;
+}
 
 /**
  * Build evaluation config that respects the Logic Registry.
@@ -49,7 +180,9 @@ import { resolveSpaceEfficiencyEvidence } from "../engines/space-evidence";
  * This ensures the scoring engine uses the weights configured in the Logic Registry admin UI.
  */
 async function buildEvalConfig(
-  modelVersion: NonNullable<Awaited<ReturnType<typeof db.getActiveModelVersion>>>,
+  modelVersion: NonNullable<
+    Awaited<ReturnType<typeof db.getActiveModelVersion>>
+  >,
   expectedCost: number,
   benchmarkCount: number,
   overrideRate = 0
@@ -94,44 +227,91 @@ const unitMixItemSchema = z.object({
 
 const villaSpaceSchema = z.object({
   floor: z.string(),
-  rooms: z.array(z.object({
-    name: z.string(),
-    areaSqm: z.number().min(0),
-  })),
+  rooms: z.array(
+    z.object({
+      name: z.string(),
+      areaSqm: z.number().min(0),
+    })
+  ),
 });
 
 const nullableNumberInput = (schema: z.ZodNumber) =>
-  z.preprocess(
-    value =>
-      typeof value === "string" && value.trim() !== "" ? Number(value) : value,
-    schema.nullable()
-  ).optional();
+  z
+    .preprocess(
+      value =>
+        typeof value === "string" && value.trim() !== ""
+          ? Number(value)
+          : value,
+      schema.nullable()
+    )
+    .optional();
 
 export const projectInputSchema = z.object({
   name: z.string().min(1).max(255),
-  description: z.string().nullable().optional().transform(value => value ?? undefined),
-  ctx01Typology: z.enum(["Residential", "Mixed-use", "Hospitality", "Office", "Villa", "Gated Community", "Villa Development"]).default("Residential"),
+  description: z
+    .string()
+    .nullable()
+    .optional()
+    .transform(value => value ?? undefined),
+  ctx01Typology: z
+    .enum([
+      "Residential",
+      "Mixed-use",
+      "Hospitality",
+      "Office",
+      "Villa",
+      "Gated Community",
+      "Villa Development",
+    ])
+    .default("Residential"),
   ctx02Scale: z.enum(["Small", "Medium", "Large"]).default("Medium"),
   ctx03Gfa: nullableNumberInput(z.number()),
   // V4 — Fit-out area fields
   totalFitoutArea: nullableNumberInput(z.number()),
   totalNonFinishArea: nullableNumberInput(z.number()),
-  projectArchetype: z.enum(["residential_multi", "office", "single_villa", "hospitality", "community"]).optional(),
+  projectArchetype: z
+    .enum([
+      "residential_multi",
+      "office",
+      "single_villa",
+      "hospitality",
+      "community",
+    ])
+    .optional(),
   officeFitoutCategory: z.enum(["catA", "catB"]).optional(),
   officeCustomRatio: nullableNumberInput(z.number().min(0).max(100)),
-  ctx04Location: z.enum(["Prime", "Secondary", "Emerging"]).default("Secondary"),
+  ctx04Location: z
+    .enum(["Prime", "Secondary", "Emerging"])
+    .default("Secondary"),
+  materialPriceGeography: z
+    .enum([
+      "dubai",
+      "abu_dhabi",
+      "sharjah",
+      "ajman",
+      "umm_al_quwain",
+      "ras_al_khaimah",
+      "fujairah",
+      "uae",
+    ])
+    .nullable()
+    .optional(),
   ctx05Horizon: z.enum(["0-12m", "12-24m", "24-36m", "36m+"]).default("12-24m"),
   str01BrandClarity: z.number().min(1).max(5).default(3),
   str02Differentiation: z.number().min(1).max(5).default(3),
   str03BuyerMaturity: z.number().min(1).max(5).default(3),
-  mkt01Tier: z.enum(["Mid", "Upper-mid", "Luxury", "Ultra-luxury"]).default("Upper-mid"),
+  mkt01Tier: z
+    .enum(["Mid", "Upper-mid", "Luxury", "Ultra-luxury"])
+    .default("Upper-mid"),
   mkt02Competitor: z.number().min(1).max(5).default(3),
   mkt03Trend: z.number().min(1).max(5).default(3),
   fin01BudgetCap: nullableNumberInput(z.number()),
   fin02Flexibility: z.number().min(1).max(5).default(3),
   fin03ShockTolerance: z.number().min(1).max(5).default(3),
   fin04SalesPremium: z.number().min(1).max(5).default(3),
-  des01Style: z.enum(["Modern", "Contemporary", "Minimal", "Classic", "Fusion", "Other"]).default("Modern"),
+  des01Style: z
+    .enum(["Modern", "Contemporary", "Minimal", "Classic", "Fusion", "Other"])
+    .default("Modern"),
   des02MaterialLevel: z.number().min(1).max(5).default(3),
   des03Complexity: z.number().min(1).max(5).default(3),
   des04Experience: z.number().min(1).max(5).default(3),
@@ -145,23 +325,68 @@ export const projectInputSchema = z.object({
   add03DashboardExport: z.boolean().default(true),
 
   // V5: Concrete Analytics Inputs
-  developerType: z.enum(["Master Developer", "Private/Boutique", "Institutional Investor"]).optional(),
-  targetDemographic: z.enum(["HNWI", "Families", "Young Professionals", "Investors"]).optional(),
-  salesStrategy: z.enum(["Sell Off-Plan", "Sell on Completion", "Build-to-Rent"]).optional(),
+  developerType: z
+    .enum(["Master Developer", "Private/Boutique", "Institutional Investor"])
+    .optional(),
+  targetDemographic: z
+    .enum(["HNWI", "Families", "Young Professionals", "Investors"])
+    .optional(),
+  salesStrategy: z
+    .enum(["Sell Off-Plan", "Sell on Completion", "Build-to-Rent"])
+    .optional(),
   competitiveDensity: z.enum(["Low", "Moderate", "Saturated"]).optional(),
-  projectUsp: z.enum(["Location/Views", "Amenities/Facilities", "Price/Value", "Design/Architecture"]).optional(),
+  projectUsp: z
+    .enum([
+      "Location/Views",
+      "Amenities/Facilities",
+      "Price/Value",
+      "Design/Architecture",
+    ])
+    .optional(),
   targetYield: z.enum(["< 5%", "5-7%", "7-9%", "> 9%"]).optional(),
-  procurementStrategy: z.enum(["Turnkey", "Traditional", "Construction Management"]).optional(),
-  amenityFocus: z.enum(["Wellness/Spa", "F&B/Social", "Minimal/Essential", "Business/Co-working"]).optional(),
-  techIntegration: z.enum(["Basic", "Smart Home Ready", "Fully Integrated"]).optional(),
-  materialSourcing: z.enum(["Local", "European", "Asian", "Global Mix"]).optional(),
-  handoverCondition: z.enum(["Shell & Core", "Category A", "Category B", "Fully Furnished"]).optional(),
-  brandedStatus: z.enum(["Unbranded", "Hospitality Branded", "Fashion/Automotive Branded"]).optional(),
-  salesChannel: z.enum(["Local Brokerage", "International Roadshows", "Direct to VIP"]).optional(),
-  lifecycleFocus: z.enum(["Short-term Resale", "Medium-term Hold", "Long-term Retention"]).optional(),
-  brandStandardConstraints: z.enum(["High Flexibility", "Moderate Guidelines", "Strict Vendor List"]).optional(),
-  timelineFlexibility: z.enum(["Highly Flexible", "Moderate Contingency", "Fixed / Zero Tolerance"]).optional(),
-  targetValueAdd: z.enum(["Max Capital Appreciation", "Max Rental Yield", "Balanced Return", "Brand Flagship / Trophy"]).optional(),
+  procurementStrategy: z
+    .enum(["Turnkey", "Traditional", "Construction Management"])
+    .optional(),
+  amenityFocus: z
+    .enum([
+      "Wellness/Spa",
+      "F&B/Social",
+      "Minimal/Essential",
+      "Business/Co-working",
+    ])
+    .optional(),
+  techIntegration: z
+    .enum(["Basic", "Smart Home Ready", "Fully Integrated"])
+    .optional(),
+  materialSourcing: z
+    .enum(["Local", "European", "Asian", "Global Mix"])
+    .optional(),
+  handoverCondition: z
+    .enum(["Shell & Core", "Category A", "Category B", "Fully Furnished"])
+    .optional(),
+  brandedStatus: z
+    .enum(["Unbranded", "Hospitality Branded", "Fashion/Automotive Branded"])
+    .optional(),
+  salesChannel: z
+    .enum(["Local Brokerage", "International Roadshows", "Direct to VIP"])
+    .optional(),
+  lifecycleFocus: z
+    .enum(["Short-term Resale", "Medium-term Hold", "Long-term Retention"])
+    .optional(),
+  brandStandardConstraints: z
+    .enum(["High Flexibility", "Moderate Guidelines", "Strict Vendor List"])
+    .optional(),
+  timelineFlexibility: z
+    .enum(["Highly Flexible", "Moderate Contingency", "Fixed / Zero Tolerance"])
+    .optional(),
+  targetValueAdd: z
+    .enum([
+      "Max Capital Appreciation",
+      "Max Rental Yield",
+      "Balanced Return",
+      "Brand Flagship / Trophy",
+    ])
+    .optional(),
 
   unitMix: z.array(unitMixItemSchema).optional(),
   villaSpaces: z.array(villaSpaceSchema).optional(),
@@ -169,11 +394,15 @@ export const projectInputSchema = z.object({
   // DLD integration fields
   dldAreaId: z.number().nullable().optional(),
   dldAreaName: z.string().optional(),
-  projectPurpose: z.enum(["sell_offplan", "sell_ready", "rent", "mixed"]).default("sell_ready"),
+  projectPurpose: z
+    .enum(["sell_offplan", "sell_ready", "rent", "mixed"])
+    .default("sell_ready"),
   // City & Sustainability Certification
   city: z.enum(["Dubai", "Abu Dhabi"]).default("Dubai"),
   sustainCertTarget: z.string().default("silver"),
-  inputProvenance: z.record(z.string(), z.enum(INPUT_PROVENANCE_STATUSES)).optional(),
+  inputProvenance: z
+    .record(z.string(), z.enum(INPUT_PROVENANCE_STATUSES))
+    .optional(),
 });
 
 function projectToInputs(p: any): ProjectInputs {
@@ -198,7 +427,8 @@ function projectToInputs(p: any): ProjectInputs {
     des02MaterialLevel: p.des02MaterialLevel ?? 3,
     des03Complexity: p.des03Complexity ?? 3,
     des04Experience: p.des04Experience ?? 3,
-    des05Sustainability: p.des05Sustainability ?? tierToDes05(p.sustainCertTarget || "silver"),
+    des05Sustainability:
+      p.des05Sustainability ?? tierToDes05(p.sustainCertTarget || "silver"),
     exe01SupplyChain: p.exe01SupplyChain ?? 3,
     exe02Contractor: p.exe02Contractor ?? 3,
     exe03Approvals: p.exe03Approvals ?? 2,
@@ -251,12 +481,12 @@ export const projectRouter = router({
           ...p,
           latestScore: latest
             ? {
-              compositeScore: Number(latest.compositeScore),
-              rasScore: Number(latest.rasScore),
-              confidenceScore: Number(latest.confidenceScore),
-              decisionStatus: latest.decisionStatus,
-              computedAt: latest.computedAt,
-            }
+                compositeScore: Number(latest.compositeScore),
+                rasScore: Number(latest.rasScore),
+                confidenceScore: Number(latest.confidenceScore),
+                decisionStatus: latest.decisionStatus,
+                computedAt: latest.computedAt,
+              }
             : null,
         };
       })
@@ -286,11 +516,20 @@ export const projectRouter = router({
         userId: ctx.user.id,
         orgId: ctx.orgId,
         status: "draft",
-        ctx03Gfa: input.ctx03Gfa ? String(input.ctx03Gfa) as any : null,
-        totalFitoutArea: input.totalFitoutArea ? String(input.totalFitoutArea) as any : null,
-        totalNonFinishArea: input.totalNonFinishArea ? String(input.totalNonFinishArea) as any : null,
-        fin01BudgetCap: input.fin01BudgetCap ? String(input.fin01BudgetCap) as any : null,
-        officeCustomRatio: input.officeCustomRatio != null ? String(input.officeCustomRatio) as any : null,
+        ctx03Gfa: input.ctx03Gfa ? (String(input.ctx03Gfa) as any) : null,
+        totalFitoutArea: input.totalFitoutArea
+          ? (String(input.totalFitoutArea) as any)
+          : null,
+        totalNonFinishArea: input.totalNonFinishArea
+          ? (String(input.totalNonFinishArea) as any)
+          : null,
+        fin01BudgetCap: input.fin01BudgetCap
+          ? (String(input.fin01BudgetCap) as any)
+          : null,
+        officeCustomRatio:
+          input.officeCustomRatio != null
+            ? (String(input.officeCustomRatio) as any)
+            : null,
       });
       await db.createAuditLog({
         userId: ctx.user.id,
@@ -299,15 +538,21 @@ export const projectRouter = router({
         entityId: result.id,
       });
       // Dispatch webhook
-      dispatchWebhook("project.created", { projectId: result.id, name: input.name, tier: input.mkt01Tier }).catch(() => { });
+      dispatchWebhook("project.created", {
+        projectId: result.id,
+        name: input.name,
+        tier: input.mkt01Tier,
+      }).catch(() => {});
       return result;
     }),
 
   confirmInputs: orgMutationProcedure
-    .input(z.object({
-      id: z.number(),
-      fields: z.array(z.enum(EVALUATION_REQUIRED_FIELDS)).min(1),
-    }))
+    .input(
+      z.object({
+        id: z.number(),
+        fields: z.array(z.enum(EVALUATION_REQUIRED_FIELDS)).min(1),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
       const project = await requireProjectForOrg(input.id, ctx.orgId);
       const existing = createInitialProvenance(
@@ -315,7 +560,11 @@ export const projectRouter = router({
       );
       for (const field of input.fields) {
         const value = (project as any)[field];
-        if (value === null || value === undefined || (typeof value === "string" && !value.trim())) {
+        if (
+          value === null ||
+          value === undefined ||
+          (typeof value === "string" && !value.trim())
+        ) {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: `${field} must have a value before it can be confirmed`,
@@ -323,7 +572,11 @@ export const projectRouter = router({
         }
         existing[field] = "confirmed";
       }
-      if (!(await db.updateProjectForOrg(input.id, ctx.orgId, { inputProvenance: existing }))) {
+      if (
+        !(await db.updateProjectForOrg(input.id, ctx.orgId, {
+          inputProvenance: existing,
+        }))
+      ) {
         await requireProjectForOrg(input.id, ctx.orgId);
       }
       await db.createAuditLog({
@@ -333,7 +586,10 @@ export const projectRouter = router({
         entityId: input.id,
         details: { fields: input.fields },
       });
-      return getProjectReadiness({ ...project, inputProvenance: existing } as unknown as Record<string, unknown>);
+      return getProjectReadiness({
+        ...project,
+        inputProvenance: existing,
+      } as unknown as Record<string, unknown>);
     }),
 
   update: orgMutationProcedure
@@ -367,7 +623,15 @@ export const projectRouter = router({
       // GFA, fit-out, and non-finish area are explicit professional/project
       // inputs. MIYAR_GEOM_V1 owns room-floor polygons only and must not block,
       // infer, or overwrite these separate measurement bases.
-      if (!(await db.updateProjectForOrg(id, ctx.orgId, updateData))) {
+      const updated =
+        data.materialPriceGeography !== undefined
+          ? await db.updateProjectAndInvalidateMaterialPricingForOrg(
+              id,
+              ctx.orgId,
+              updateData
+            )
+          : await db.updateProjectForOrg(id, ctx.orgId, updateData);
+      if (!updated) {
         await requireProjectForOrg(id, ctx.orgId);
       }
       await db.createAuditLog({
@@ -386,7 +650,10 @@ export const projectRouter = router({
       await requireProjectForOrg(input.id, ctx.orgId);
       if (!(await db.deleteProjectForOrg(input.id, ctx.orgId))) {
         await requireProjectForOrg(input.id, ctx.orgId);
-        throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Resource not found",
+        });
       }
       await db.createAuditLog({
         userId: ctx.user.id,
@@ -401,7 +668,9 @@ export const projectRouter = router({
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
       const project = await requireProjectForOrg(input.id, ctx.orgId);
-      const readiness = getProjectReadiness(project as unknown as Record<string, unknown>);
+      const readiness = getProjectReadiness(
+        project as unknown as Record<string, unknown>
+      );
       if (!readiness.canEvaluate) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
@@ -414,6 +683,12 @@ export const projectRouter = router({
       if (!modelVersion) throw new Error("No active model version found");
 
       const inputs = projectToInputs(project);
+      await applyGovernedBoardCostForScoring({
+        projectId: input.id,
+        organizationId: ctx.orgId,
+        materialPriceGeography: project.materialPriceGeography,
+        scoringInputs: inputs,
+      });
 
       let expectedCost = await db.getExpectedCost(
         inputs.ctx01Typology,
@@ -426,35 +701,32 @@ export const projectRouter = router({
         const dldBenchmark = await db.getDldAreaBenchmark(project.dldAreaId);
         if (dldBenchmark?.recommendedFitoutMid) {
           expectedCost = Number(dldBenchmark.recommendedFitoutMid);
-          console.log(`[Evaluate] Using DLD fitout benchmark: ${expectedCost} AED/sqm for area ${project.dldAreaName || project.dldAreaId}`);
+          console.log(
+            `[Evaluate] Using DLD fitout benchmark: ${expectedCost} AED/sqm for area ${project.dldAreaName || project.dldAreaId}`
+          );
         }
       }
 
-      // Phase 8: Fetch real-world material costs from tied boards to override budgets
+      // EV-03: board catalogue prices are browse-only estimates. They may
+      // contribute non-price maintenance context, but never scoring totals.
       const boards = await db.getMaterialBoardsByProject(input.id);
       if (boards && boards.length > 0) {
         const activeBoard = boards[0];
         const boardMaterials = await db.getMaterialsByBoard(activeBoard.id);
 
-        let totalLow = 0;
-        let totalHigh = 0;
         let totalVariance = 0;
 
         for (const bm of boardMaterials) {
           const mat = await db.getMaterialById(bm.materialId);
           if (mat) {
-            const qty = Number(bm.quantity) || 1;
-            totalLow += (Number(mat.typicalCostLow) || 0) * qty;
-            totalHigh += (Number(mat.typicalCostHigh) || 0) * qty;
-            const matMaint = parseFloat(String(mat.maintenanceFactor || "0.05"));
+            const matMaint = parseFloat(
+              String(mat.maintenanceFactor || "0.05")
+            );
             totalVariance += (matMaint - 0.05) * 100;
           }
         }
-
-        if (totalHigh > 0) {
-          inputs.boardMaterialsCost = (totalLow + totalHigh) / 2;
+        if (totalVariance !== 0) {
           inputs.boardMaintenanceVariance = totalVariance;
-          console.log(`[Evaluate] Using vendor cost override: ${inputs.boardMaterialsCost} AED for project ${input.id}`);
         }
       }
 
@@ -467,20 +739,26 @@ export const projectRouter = router({
       // Phase 9: Inject space efficiency from floor plan analysis
       if (project.floorPlanAnalysis) {
         try {
-          const { benchmarkSpaceRatios } = await import("../engines/design/space-benchmarking");
-          const analysis = typeof project.floorPlanAnalysis === "string"
-            ? JSON.parse(project.floorPlanAnalysis)
-            : project.floorPlanAnalysis;
+          const { benchmarkSpaceRatios } = await import(
+            "../engines/design/space-benchmarking"
+          );
+          const analysis =
+            typeof project.floorPlanAnalysis === "string"
+              ? JSON.parse(project.floorPlanAnalysis)
+              : project.floorPlanAnalysis;
 
           // Get DLD area context for data-backed recommendations
-          let areaNameForBench = project.dldAreaName || inputs.ctx04Location || "Dubai";
+          let areaNameForBench =
+            project.dldAreaName || inputs.ctx04Location || "Dubai";
           let transCount = 0;
           let saleP50: number | null = null;
           if (project.dldAreaId) {
             const dldBench = await db.getDldAreaBenchmark(project.dldAreaId);
             if (dldBench) {
               areaNameForBench = dldBench.areaNameEn || areaNameForBench;
-              transCount = dldBench.saleTransactionCount ? Number(dldBench.saleTransactionCount) : 0;
+              transCount = dldBench.saleTransactionCount
+                ? Number(dldBench.saleTransactionCount)
+                : 0;
               saleP50 = dldBench.saleP50 ? Number(dldBench.saleP50) : null;
             }
           }
@@ -494,7 +772,9 @@ export const projectRouter = router({
           inputs.spaceEfficiencyScore = spaceResult.overallEfficiencyScore;
           inputs.spaceCriticalCount = spaceResult.totalCritical;
           inputs.spaceEfficiencyEvidence = spaceResult.evidence;
-          console.log(`[Evaluate] Space efficiency: ${spaceResult.overallEfficiencyScore}/100, ${spaceResult.totalCritical} critical deviations`);
+          console.log(
+            `[Evaluate] Space efficiency: ${spaceResult.overallEfficiencyScore}/100, ${spaceResult.totalCritical} critical deviations`
+          );
 
           // Phase 9 Gap 6: Space-critical tenant insight
           if (spaceResult.totalCritical >= 2) {
@@ -505,38 +785,58 @@ export const projectRouter = router({
                 spaceResult.evidence.transactionCount > 0;
               const criticalRooms = spaceResult.recommendations
                 .filter(r => r.severity === "critical")
-                .map(r => `${r.roomName} (${r.currentPercent}% vs ${r.benchmarkPercent}% benchmark)`)
+                .map(
+                  r =>
+                    `${r.roomName} (${r.currentPercent}% vs ${r.benchmarkPercent}% benchmark)`
+                )
                 .join(", ");
-              await db.insertProjectInsightForOrg({
-                projectId: input.id,
-                insightType: "positioning_gap",
-                severity: "warning",
-                title: `Space Planning: ${spaceResult.totalCritical} Critical Deviations`,
-                body: hasDldAreaContext
-                  ? `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside MIYAR ratio guidelines: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100. DLD transaction count is shown separately as area context and does not calibrate the guideline.`
-                  : `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside MIYAR UAE space benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.`,
-                actionableRecommendation: hasDldAreaContext
-                  ? "Review floor plan allocations in Space Planner against the MIYAR ratio guideline; treat DLD records as separate area context."
-                  : "Review floor plan allocations in Space Planner against the MIYAR UAE space benchmark.",
-                dataPoints: { spaceResult },
-              }, ctx.orgId);
+              await db.insertProjectInsightForOrg(
+                {
+                  projectId: input.id,
+                  insightType: "positioning_gap",
+                  severity: "warning",
+                  title: `Space Planning: ${spaceResult.totalCritical} Critical Deviations`,
+                  body: hasDldAreaContext
+                    ? `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside MIYAR ratio guidelines: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100. DLD transaction count is shown separately as area context and does not calibrate the guideline.`
+                    : `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside MIYAR UAE space benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.`,
+                  actionableRecommendation: hasDldAreaContext
+                    ? "Review floor plan allocations in Space Planner against the MIYAR ratio guideline; treat DLD records as separate area context."
+                    : "Review floor plan allocations in Space Planner against the MIYAR UAE space benchmark.",
+                  dataPoints: { spaceResult },
+                },
+                ctx.orgId
+              );
             } catch (alertErr) {
-              console.warn("[Phase9] Space insight creation failed (non-blocking):", alertErr);
+              console.warn(
+                "[Phase9] Space insight creation failed (non-blocking):",
+                alertErr
+              );
             }
           }
         } catch (e) {
-          console.warn("[Evaluate] Space benchmarking failed (non-blocking):", e);
+          console.warn(
+            "[Evaluate] Space benchmarking failed (non-blocking):",
+            e
+          );
         }
       }
 
       // V4-11: Check if we have enough evidence for evidence-backed cost
-      const evidenceRecords = await db.listOrganizationEvidenceRecords(ctx.orgId, {
-        projectId: input.id,
-        limit: 500,
-      });
-      const budgetFitMethod = evidenceRecords.length >= 20 ? "evidence_backed" : "benchmark_static";
+      const evidenceRecords = await db.listOrganizationEvidenceRecords(
+        ctx.orgId,
+        {
+          projectId: input.id,
+          limit: 500,
+        }
+      );
+      const budgetFitMethod =
+        evidenceRecords.length >= 20 ? "evidence_backed" : "benchmark_static";
 
-      const config = await buildEvalConfig(modelVersion, expectedCost, benchmarks.length);
+      const config = await buildEvalConfig(
+        modelVersion,
+        expectedCost,
+        benchmarks.length
+      );
 
       const scoreResult = evaluate(inputs, config);
 
@@ -569,11 +869,17 @@ export const projectRouter = router({
       // Compute and store project intelligence
       try {
         const allBenchmarks = await db.getAllBenchmarkData();
-        const allScores = (await db.getComparableScoreMatricesForOrg(ctx.orgId))
-          .map((row: any) => row.scoreMatrix);
+        const allScores = (
+          await db.getComparableScoreMatricesForOrg(ctx.orgId)
+        ).map((row: any) => row.scoreMatrix);
         const latestMatrix = await db.getScoreMatrixById(matrixResult.id);
         if (latestMatrix) {
-          const derived = computeDerivedFeatures(project as any, latestMatrix as any, allBenchmarks as any, allScores as any);
+          const derived = computeDerivedFeatures(
+            project as any,
+            latestMatrix as any,
+            allBenchmarks as any,
+            allScores as any
+          );
           await db.createProjectIntelligence({
             projectId: input.id,
             scoreMatrixId: matrixResult.id,
@@ -623,7 +929,12 @@ export const projectRouter = router({
         const biasAlerts = detectBiases(inputs, scoreResult, biasCtx);
 
         if (biasAlerts.length > 0) {
-          const severityMap: Record<string, number> = { low: 1, medium: 2, high: 3, critical: 4 };
+          const severityMap: Record<string, number> = {
+            low: 1,
+            medium: 2,
+            high: 3,
+            critical: 4,
+          };
           await db.createBiasAlerts(
             biasAlerts.map(alert => ({
               projectId: input.id,
@@ -651,17 +962,21 @@ export const projectRouter = router({
             );
           }
 
-          console.log(`[V11] Detected ${biasAlerts.length} cognitive bias(es) for project ${input.id}`);
+          console.log(
+            `[V11] Detected ${biasAlerts.length} cognitive bias(es) for project ${input.id}`
+          );
         }
       } catch (e) {
         console.warn("[V11] Bias detection failed (non-blocking):", e);
       }
 
-      if (!(await db.updateProjectForOrg(input.id, ctx.orgId, {
-        status: "evaluated",
-        modelVersionId: modelVersion.id,
-        benchmarkVersionId: activeBV?.id ?? null,
-      }))) {
+      if (
+        !(await db.updateProjectForOrg(input.id, ctx.orgId, {
+          status: "evaluated",
+          modelVersionId: modelVersion.id,
+          benchmarkVersionId: activeBV?.id ?? null,
+        }))
+      ) {
         await requireProjectForOrg(input.id, ctx.orgId);
       }
 
@@ -670,7 +985,10 @@ export const projectRouter = router({
         action: "project.evaluate",
         entityType: "score_matrix",
         entityId: matrixResult.id,
-        details: { compositeScore: scoreResult.compositeScore, decisionStatus: scoreResult.decisionStatus },
+        details: {
+          compositeScore: scoreResult.compositeScore,
+          decisionStatus: scoreResult.decisionStatus,
+        },
         benchmarkVersionId: activeBV?.id,
       });
 
@@ -681,16 +999,20 @@ export const projectRouter = router({
         compositeScore: scoreResult.compositeScore,
         decisionStatus: scoreResult.decisionStatus,
         riskScore: scoreResult.riskScore,
-      }).catch(() => { });
+      }).catch(() => {});
 
       // V3-09: Generate project insights after evaluation
       try {
-        const trendSnaps = await db.getTrendSnapshotsForOrg(ctx.orgId, { limit: 50 });
+        const trendSnaps = await db.getTrendSnapshotsForOrg(ctx.orgId, {
+          limit: 50,
+        });
         const trends = trendSnaps.map((s: any) => ({
           metric: s.metric,
           category: s.category,
           direction: s.direction || "stable",
-          percentChange: s.percentChange ? parseFloat(String(s.percentChange)) : null,
+          percentChange: s.percentChange
+            ? parseFloat(String(s.percentChange))
+            : null,
           confidence: s.confidence || "low",
           currentMA: s.currentMA ? parseFloat(String(s.currentMA)) : null,
           previousMA: s.previousMA ? parseFloat(String(s.previousMA)) : null,
@@ -707,23 +1029,30 @@ export const projectRouter = router({
           },
         };
 
-        const insights = await generateInsights(insightInput, { enrichWithLLM: true });
+        const insights = await generateInsights(insightInput, {
+          enrichWithLLM: true,
+        });
 
         for (const insight of insights) {
-          await db.insertProjectInsightForOrg({
-            projectId: input.id,
-            insightType: insight.type as any,
-            severity: insight.severity,
-            title: insight.title,
-            body: insight.body,
-            actionableRecommendation: insight.actionableRecommendation,
-            confidenceScore: String(insight.confidenceScore),
-            triggerCondition: insight.triggerCondition,
-            dataPoints: insight.dataPoints,
-          }, ctx.orgId);
+          await db.insertProjectInsightForOrg(
+            {
+              projectId: input.id,
+              insightType: insight.type as any,
+              severity: insight.severity,
+              title: insight.title,
+              body: insight.body,
+              actionableRecommendation: insight.actionableRecommendation,
+              confidenceScore: String(insight.confidenceScore),
+              triggerCondition: insight.triggerCondition,
+              dataPoints: insight.dataPoints,
+            },
+            ctx.orgId
+          );
         }
 
-        console.log(`[V3-09] Generated ${insights.length} insights for project ${input.id}`);
+        console.log(
+          `[V3-09] Generated ${insights.length} insights for project ${input.id}`
+        );
       } catch (e) {
         console.warn("[V3-09] Insight generation failed (non-blocking):", e);
       }
@@ -731,25 +1060,39 @@ export const projectRouter = router({
       // Phase C.1+C.2: DLD Market Positioning + Over/Under-Spec Detection
       let dldMarketPosition = null;
       if (project.dldAreaId) {
-        const { computeMarketPosition } = await import("../engines/dld-analytics");
+        const { computeMarketPosition } = await import(
+          "../engines/dld-analytics"
+        );
         const dldBench = await db.getDldAreaBenchmark(project.dldAreaId);
         if (dldBench?.saleP50) {
           const fitoutCost = Number(project.fin01BudgetCap || expectedCost);
-          const tierMap: Record<string, string> = { "Entry": "economy", "Mid": "mid", "Upper-mid": "premium", "Luxury": "luxury", "Ultra-luxury": "ultra_luxury" };
+          const tierMap: Record<string, string> = {
+            Entry: "economy",
+            Mid: "mid",
+            "Upper-mid": "premium",
+            Luxury: "luxury",
+            "Ultra-luxury": "ultra_luxury",
+          };
           dldMarketPosition = computeMarketPosition(
             fitoutCost,
             Number(dldBench.saleP50),
             tierMap[inputs.mkt01Tier] || "mid",
             dldBench.saleP25 ? Number(dldBench.saleP25) : undefined,
-            dldBench.saleP75 ? Number(dldBench.saleP75) : undefined,
+            dldBench.saleP75 ? Number(dldBench.saleP75) : undefined
           );
           if (dldMarketPosition.riskFlag) {
-            console.log(`[Evaluate] DLD Spec Risk: ${dldMarketPosition.riskFlag} — ${dldMarketPosition.riskMessage}`);
+            console.log(
+              `[Evaluate] DLD Spec Risk: ${dldMarketPosition.riskFlag} — ${dldMarketPosition.riskMessage}`
+            );
           }
         }
       }
 
-      return { scoreMatrixId: matrixResult.id, ...scoreResult, dldMarketPosition };
+      return {
+        scoreMatrixId: matrixResult.id,
+        ...scoreResult,
+        dldMarketPosition,
+      };
     }),
 
   getScores: orgProcedure
@@ -773,15 +1116,27 @@ export const projectRouter = router({
       if (latestSnapshot) {
         const savedEvidence = resolveSpaceEfficiencyEvidence(latestSnapshot);
         const savedScore = Number(latestSnapshot.spaceEfficiencyScore);
-        if (Number.isFinite(savedScore)) inputs.spaceEfficiencyScore = savedScore;
-        inputs.spaceEfficiencyEvidence = savedEvidence.status === "legacy_unknown"
-          ? undefined
-          : savedEvidence;
+        if (Number.isFinite(savedScore))
+          inputs.spaceEfficiencyScore = savedScore;
+        inputs.spaceEfficiencyEvidence =
+          savedEvidence.status === "legacy_unknown" ? undefined : savedEvidence;
       }
-      const expectedCost = await db.getExpectedCost(inputs.ctx01Typology, inputs.ctx04Location, inputs.mkt01Tier);
-      const benchmarks = await db.getBenchmarks(inputs.ctx01Typology, inputs.ctx04Location, inputs.mkt01Tier);
+      const expectedCost = await db.getExpectedCost(
+        inputs.ctx01Typology,
+        inputs.ctx04Location,
+        inputs.mkt01Tier
+      );
+      const benchmarks = await db.getBenchmarks(
+        inputs.ctx01Typology,
+        inputs.ctx04Location,
+        inputs.mkt01Tier
+      );
 
-      const config = await buildEvalConfig(modelVersion, expectedCost, benchmarks.length);
+      const config = await buildEvalConfig(
+        modelVersion,
+        expectedCost,
+        benchmarks.length
+      );
 
       return runSensitivityAnalysis(inputs, config);
     }),
@@ -798,16 +1153,20 @@ export const projectRouter = router({
 
       // Get active ROI config
       const roiConfig = await db.getActiveRoiConfig();
-      const coefficients = roiConfig ? {
-        hourlyRate: Number(roiConfig.hourlyRate),
-        reworkCostPct: Number(roiConfig.reworkCostPct),
-        tenderIterationCost: Number(roiConfig.tenderIterationCost),
-        designCycleCost: Number(roiConfig.designCycleCost),
-        budgetVarianceMultiplier: Number(roiConfig.budgetVarianceMultiplier),
-        timeAccelerationWeeks: roiConfig.timeAccelerationWeeks ?? 6,
-        conservativeMultiplier: Number(roiConfig.conservativeMultiplier),
-        aggressiveMultiplier: Number(roiConfig.aggressiveMultiplier),
-      } : undefined;
+      const coefficients = roiConfig
+        ? {
+            hourlyRate: Number(roiConfig.hourlyRate),
+            reworkCostPct: Number(roiConfig.reworkCostPct),
+            tenderIterationCost: Number(roiConfig.tenderIterationCost),
+            designCycleCost: Number(roiConfig.designCycleCost),
+            budgetVarianceMultiplier: Number(
+              roiConfig.budgetVarianceMultiplier
+            ),
+            timeAccelerationWeeks: roiConfig.timeAccelerationWeeks ?? 6,
+            conservativeMultiplier: Number(roiConfig.conservativeMultiplier),
+            aggressiveMultiplier: Number(roiConfig.aggressiveMultiplier),
+          }
+        : undefined;
 
       const roiInputs: RoiInputs = {
         compositeScore: Number(latest.compositeScore),
@@ -819,9 +1178,13 @@ export const projectRouter = router({
         materialLevel: project.des02MaterialLevel || 3,
         tier: project.mkt01Tier || "Upper-mid",
         horizon: project.ctx05Horizon || "12-24m",
-        spaceEfficiencyScore: Number((latest.inputSnapshot as any)?.spaceEfficiencyScore) || undefined,
+        spaceEfficiencyScore:
+          Number((latest.inputSnapshot as any)?.spaceEfficiencyScore) ||
+          undefined,
         spaceEfficiencyEvidence: (() => {
-          const evidence = resolveSpaceEfficiencyEvidence(latest.inputSnapshot as any);
+          const evidence = resolveSpaceEfficiencyEvidence(
+            latest.inputSnapshot as any
+          );
           return evidence.status === "legacy_unknown" ? undefined : evidence;
         })(),
       };
@@ -835,10 +1198,14 @@ export const projectRouter = router({
         if (dldBench) {
           dldContext = {
             areaName: project.dldAreaName || dldBench.areaNameEn,
-            grossYield: dldBench.grossYield ? Number(dldBench.grossYield) : null,
+            grossYield: dldBench.grossYield
+              ? Number(dldBench.grossYield)
+              : null,
             saleP50: dldBench.saleP50 ? Number(dldBench.saleP50) : null,
             projectPurpose: project.projectPurpose || "sell_ready",
-            fitoutMid: dldBench.recommendedFitoutMid ? Number(dldBench.recommendedFitoutMid) : null,
+            fitoutMid: dldBench.recommendedFitoutMid
+              ? Number(dldBench.recommendedFitoutMid)
+              : null,
           };
         }
       }
@@ -876,10 +1243,12 @@ export const projectRouter = router({
   }),
 
   applyScenarioTemplate: orgHeavyMutationProcedure
-    .input(z.object({
-      projectId: z.number(),
-      templateKey: z.string(),
-    }))
+    .input(
+      z.object({
+        projectId: z.number(),
+        templateKey: z.string(),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
       const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
@@ -889,52 +1258,68 @@ export const projectRouter = router({
       // Create scenario with template overrides
       const baseInputs = projectToInputs(project);
       const scenarioInputs = { ...baseInputs, ...template.overrides };
+      await applyGovernedBoardCostForScoring({
+        projectId: input.projectId,
+        organizationId: ctx.orgId,
+        materialPriceGeography: project.materialPriceGeography,
+        scoringInputs: scenarioInputs,
+      });
 
       const modelVersion = await db.getActiveModelVersion();
       if (!modelVersion) throw new Error("No active model version");
 
-      // Phase 8: Fetch real-world material costs from tied boards to override budgets
+      // EV-03: board catalogue prices remain browse-only estimates.
       const boards = await db.getMaterialBoardsByProject(input.projectId);
       if (boards && boards.length > 0) {
         const activeBoard = boards[0];
         const boardMaterials = await db.getMaterialsByBoard(activeBoard.id);
 
-        let totalLow = 0;
-        let totalHigh = 0;
         let totalVariance = 0;
 
         for (const bm of boardMaterials) {
           const mat = await db.getMaterialById(bm.materialId);
           if (mat) {
-            const qty = Number(bm.quantity) || 1;
-            totalLow += (Number(mat.typicalCostLow) || 0) * qty;
-            totalHigh += (Number(mat.typicalCostHigh) || 0) * qty;
-            const matMaint = parseFloat(String(mat.maintenanceFactor || "0.05"));
+            const matMaint = parseFloat(
+              String(mat.maintenanceFactor || "0.05")
+            );
             totalVariance += (matMaint - 0.05) * 100;
           }
         }
-
-        if (totalHigh > 0) {
-          scenarioInputs.boardMaterialsCost = (totalLow + totalHigh) / 2;
+        if (totalVariance !== 0) {
           scenarioInputs.boardMaintenanceVariance = totalVariance;
         }
       }
 
-      const expectedCost = await db.getExpectedCost(scenarioInputs.ctx01Typology, scenarioInputs.ctx04Location, scenarioInputs.mkt01Tier);
-      const benchmarks = await db.getBenchmarks(scenarioInputs.ctx01Typology, scenarioInputs.ctx04Location, scenarioInputs.mkt01Tier);
+      const expectedCost = await db.getExpectedCost(
+        scenarioInputs.ctx01Typology,
+        scenarioInputs.ctx04Location,
+        scenarioInputs.mkt01Tier
+      );
+      const benchmarks = await db.getBenchmarks(
+        scenarioInputs.ctx01Typology,
+        scenarioInputs.ctx04Location,
+        scenarioInputs.mkt01Tier
+      );
 
-      const config = await buildEvalConfig(modelVersion, expectedCost, benchmarks.length);
+      const config = await buildEvalConfig(
+        modelVersion,
+        expectedCost,
+        benchmarks.length
+      );
 
       const scoreResult = evaluate(scenarioInputs as ProjectInputs, config);
 
-      const result = await db.createScenarioRecordForOrg({
-        projectId: input.projectId,
-        name: template.name,
-        description: template.description,
-        variableOverrides: template.overrides,
-        isTemplate: true,
-        templateKey: input.templateKey,
-      }, ctx.orgId);
+      const result = await db.createScenarioRecordForOrg(
+        {
+          projectId: input.projectId,
+          name: template.name,
+          description: template.description,
+          variableOverrides: template.overrides,
+          isTemplate: true,
+          templateKey: input.templateKey,
+        },
+        ctx.orgId
+      );
       if (!result) {
         await requireProjectForOrg(input.projectId, ctx.orgId);
         throw new Error("Failed to create scenario");
@@ -945,7 +1330,10 @@ export const projectRouter = router({
         action: "scenario.template_applied",
         entityType: "scenario",
         entityId: result.id,
-        details: { templateKey: input.templateKey, score: scoreResult.compositeScore },
+        details: {
+          templateKey: input.templateKey,
+          score: scoreResult.compositeScore,
+        },
       });
 
       return { id: result.id, ...scoreResult, tradeoffs: template.tradeoffs };
@@ -953,14 +1341,22 @@ export const projectRouter = router({
 
   // ─── V2: Constraint Solver ────────────────────────────────────────
   solveConstraints: orgMutationProcedure
-    .input(z.object({
-      projectId: z.number(),
-      constraints: z.array(z.object({
-        variable: z.string(),
-        operator: z.enum(["eq", "gte", "lte", "in"]),
-        value: z.union([z.number(), z.string(), z.array(z.union([z.number(), z.string()]))]),
-      })),
-    }))
+    .input(
+      z.object({
+        projectId: z.number(),
+        constraints: z.array(
+          z.object({
+            variable: z.string(),
+            operator: z.enum(["eq", "gte", "lte", "in"]),
+            value: z.union([
+              z.number(),
+              z.string(),
+              z.array(z.union([z.number(), z.string()])),
+            ]),
+          })
+        ),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
       const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
@@ -970,23 +1366,37 @@ export const projectRouter = router({
 
   // ─── V2: Enhanced Report Generation ───────────────────────────────
   generateReport: orgHeavyMutationProcedure
-    .input(z.object({
-      projectId: z.number(),
-      reportType: z.enum(["validation_summary", "design_brief", "full_report", "autonomous_design_brief"]),
-      locale: z.enum(["en", "ar"]).default("en"),
-    }))
+    .input(
+      z.object({
+        projectId: z.number(),
+        reportType: z.enum([
+          "validation_summary",
+          "design_brief",
+          "full_report",
+          "autonomous_design_brief",
+        ]),
+        locale: z.enum(["en", "ar"]).default("en"),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
       const project = await requireProjectForOrg(input.projectId, ctx.orgId);
 
       // Issued report types that make board assertions must acquire one truthful,
       // organization-scoped snapshot before scoring, AI work, storage, audit, or
       // webhook side effects. A retrieval failure is not equivalent to no boards.
-      const requiresBoardAnnex = input.reportType === "design_brief" || input.reportType === "full_report";
-      let reportBoardSnapshot: Awaited<ReturnType<typeof db.getReportBoardSnapshotForOrg>> | null = null;
+      const requiresBoardAnnex =
+        input.reportType === "design_brief" ||
+        input.reportType === "full_report";
+      let reportBoardSnapshot: Awaited<
+        ReturnType<typeof db.getReportBoardSnapshotForOrg>
+      > | null = null;
       let boardAnnex: BoardAnnexData | undefined;
       if (requiresBoardAnnex) {
         try {
-          reportBoardSnapshot = await db.getReportBoardSnapshotForOrg(input.projectId, ctx.orgId);
+          reportBoardSnapshot = await db.getReportBoardSnapshotForOrg(
+            input.projectId,
+            ctx.orgId
+          );
           boardAnnex = buildBoardAnnexData(reportBoardSnapshot);
         } catch (error) {
           console.error("[Report] Board annex retrieval failed", {
@@ -1002,62 +1412,73 @@ export const projectRouter = router({
       }
 
       const scores = await db.getScoreMatricesByProject(input.projectId);
-      if (scores.length === 0) throw new Error("No scores available. Evaluate first.");
+      if (scores.length === 0)
+        throw new Error("No scores available. Evaluate first.");
       const latest = scores[0];
 
       const inputs = projectToInputs(project);
       const modelVersion = await db.getActiveModelVersion();
       if (!modelVersion) throw new Error("No active model version");
 
-      // Phase 8: Fetch real-world material costs from tied boards to override budgets
+      // EV-03: preserve board items for presentation and maintenance context,
+      // but never use catalogue estimates as authoritative report totals.
       let boardMaterials: Array<any> = [];
       if (reportBoardSnapshot && reportBoardSnapshot.length > 0) {
         const activeBoard = reportBoardSnapshot[0];
         boardMaterials = activeBoard.resolvedItems.map((item: any) => ({
-              materialId: item.materialId,
-              quantity: item.quantity,
-              material: {
-                typicalCostLow: item.costLow,
-                typicalCostHigh: item.costHigh,
-                maintenanceFactor: item.maintenanceFactor,
-              },
-            }));
+          materialId: item.materialId,
+          quantity: item.quantity,
+          material: {
+            maintenanceFactor: item.maintenanceFactor,
+          },
+        }));
       } else if (!reportBoardSnapshot) {
-        const legacyBoards = await db.getMaterialBoardsByProject(input.projectId);
+        const legacyBoards = await db.getMaterialBoardsByProject(
+          input.projectId
+        );
         if (legacyBoards.length > 0) {
-          boardMaterials = (await db.getMaterialsByBoard(legacyBoards[0].id)).map(item => ({
-              ...item,
-              material: null,
-            }));
+          boardMaterials = (
+            await db.getMaterialsByBoard(legacyBoards[0].id)
+          ).map(item => ({
+            ...item,
+            material: null,
+          }));
         }
       }
 
       if (boardMaterials.length > 0) {
-        let totalLow = 0;
-        let totalHigh = 0;
         let totalVariance = 0;
 
         for (const bm of boardMaterials) {
-          const mat = bm.material ?? await db.getMaterialById(bm.materialId);
+          const mat = bm.material ?? (await db.getMaterialById(bm.materialId));
           if (mat) {
-            const qty = Number(bm.quantity) || 1;
-            totalLow += (Number(mat.typicalCostLow) || 0) * qty;
-            totalHigh += (Number(mat.typicalCostHigh) || 0) * qty;
-            const matMaint = parseFloat(String((mat as any).maintenanceFactor ?? "0.05"));
+            const matMaint = parseFloat(
+              String((mat as any).maintenanceFactor ?? "0.05")
+            );
             totalVariance += (matMaint - 0.05) * 100;
           }
         }
-
-        if (totalHigh > 0) {
-          inputs.boardMaterialsCost = (totalLow + totalHigh) / 2;
+        if (totalVariance !== 0) {
           inputs.boardMaintenanceVariance = totalVariance;
         }
       }
 
-      const expectedCost = await db.getExpectedCost(inputs.ctx01Typology, inputs.ctx04Location, inputs.mkt01Tier);
-      const benchmarks = await db.getBenchmarks(inputs.ctx01Typology, inputs.ctx04Location, inputs.mkt01Tier);
+      const expectedCost = await db.getExpectedCost(
+        inputs.ctx01Typology,
+        inputs.ctx04Location,
+        inputs.mkt01Tier
+      );
+      const benchmarks = await db.getBenchmarks(
+        inputs.ctx01Typology,
+        inputs.ctx04Location,
+        inputs.mkt01Tier
+      );
 
-      const config = await buildEvalConfig(modelVersion, expectedCost, benchmarks.length);
+      const config = await buildEvalConfig(
+        modelVersion,
+        expectedCost,
+        benchmarks.length
+      );
 
       const scoreResult = {
         dimensions: {
@@ -1082,9 +1503,13 @@ export const projectRouter = router({
 
       const sensitivityInputs = {
         ...inputs,
-        spaceEfficiencyScore: Number((latest.inputSnapshot as any)?.spaceEfficiencyScore) || undefined,
+        spaceEfficiencyScore:
+          Number((latest.inputSnapshot as any)?.spaceEfficiencyScore) ||
+          undefined,
         spaceEfficiencyEvidence: (() => {
-          const evidence = resolveSpaceEfficiencyEvidence(latest.inputSnapshot as any);
+          const evidence = resolveSpaceEfficiencyEvidence(
+            latest.inputSnapshot as any
+          );
           return evidence.status === "legacy_unknown" ? undefined : evidence;
         })(),
       };
@@ -1092,19 +1517,27 @@ export const projectRouter = router({
 
       // V2: Compute 5-lens and ROI for full reports
       const allBenchmarks = await db.getAllBenchmarkData();
-      const fiveLens = computeFiveLens(project as any, latest as any, allBenchmarks as any);
+      const fiveLens = computeFiveLens(
+        project as any,
+        latest as any,
+        allBenchmarks as any
+      );
 
       const roiConfig = await db.getActiveRoiConfig();
-      const coefficients = roiConfig ? {
-        hourlyRate: Number(roiConfig.hourlyRate),
-        reworkCostPct: Number(roiConfig.reworkCostPct),
-        tenderIterationCost: Number(roiConfig.tenderIterationCost),
-        designCycleCost: Number(roiConfig.designCycleCost),
-        budgetVarianceMultiplier: Number(roiConfig.budgetVarianceMultiplier),
-        timeAccelerationWeeks: roiConfig.timeAccelerationWeeks ?? 6,
-        conservativeMultiplier: Number(roiConfig.conservativeMultiplier),
-        aggressiveMultiplier: Number(roiConfig.aggressiveMultiplier),
-      } : undefined;
+      const coefficients = roiConfig
+        ? {
+            hourlyRate: Number(roiConfig.hourlyRate),
+            reworkCostPct: Number(roiConfig.reworkCostPct),
+            tenderIterationCost: Number(roiConfig.tenderIterationCost),
+            designCycleCost: Number(roiConfig.designCycleCost),
+            budgetVarianceMultiplier: Number(
+              roiConfig.budgetVarianceMultiplier
+            ),
+            timeAccelerationWeeks: roiConfig.timeAccelerationWeeks ?? 6,
+            conservativeMultiplier: Number(roiConfig.conservativeMultiplier),
+            aggressiveMultiplier: Number(roiConfig.aggressiveMultiplier),
+          }
+        : undefined;
 
       const roiInputs: RoiInputs = {
         compositeScore: Number(latest.compositeScore),
@@ -1116,51 +1549,170 @@ export const projectRouter = router({
         materialLevel: project.des02MaterialLevel || 3,
         tier: project.mkt01Tier || "Upper-mid",
         horizon: project.ctx05Horizon || "12-24m",
-        spaceEfficiencyScore: Number((latest.inputSnapshot as any)?.spaceEfficiencyScore) || undefined,
+        spaceEfficiencyScore:
+          Number((latest.inputSnapshot as any)?.spaceEfficiencyScore) ||
+          undefined,
         spaceEfficiencyEvidence: (() => {
-          const evidence = resolveSpaceEfficiencyEvidence(latest.inputSnapshot as any);
+          const evidence = resolveSpaceEfficiencyEvidence(
+            latest.inputSnapshot as any
+          );
           return evidence.status === "legacy_unknown" ? undefined : evidence;
         })(),
       };
       const roiResult = computeRoi(roiInputs, coefficients);
 
       // Build ROI for legacy report format
-      const roi = input.reportType === "full_report"
-        ? computeROI(inputs, scoreResult.compositeScore, 150000)
-        : undefined;
+      const roi =
+        input.reportType === "full_report"
+          ? computeROI(inputs, scoreResult.compositeScore, 150000)
+          : undefined;
 
       let reportData;
-      let designArtifacts:
-        Parameters<typeof db.createReportArtifactsForOrg>[0]["designArtifacts"];
+      const reportMaterialAsOf = new Date();
+      let reportStoredRooms:
+        | Awaited<ReturnType<typeof db.getSpaceProgramRooms>>
+        | undefined;
+      let reportStoredAllocations:
+        | Awaited<ReturnType<typeof db.getMaterialAllocations>>
+        | undefined;
+      let designArtifacts: Parameters<
+        typeof db.createReportArtifactsForOrg
+      >[0]["designArtifacts"];
       if (input.reportType === "validation_summary") {
-        reportData = generateValidationSummary(project.name, project.id, inputs, scoreResult, sensitivity);
-      } else if (input.reportType === "design_brief") {
-        const { buildDesignVocabulary } = await import("../engines/design/vocabulary");
-        const { buildSpaceProgram } = await import("../engines/design/space-program");
-        const { buildFinishSchedule } = await import("../engines/design/finish-schedule");
-        const { buildColorPalette } = await import("../engines/design/color-palette");
-        const { buildRFQPack } = await import("../engines/design/rfq-generator");
-        const { buildDMComplianceChecklist } = await import("../engines/design/dm-compliance");
+        reportData = generateValidationSummary(
+          project.name,
+          project.id,
+          inputs,
+          scoreResult,
+          sensitivity
+        );
+      } else if (
+        input.reportType === "design_brief" ||
+        input.reportType === "full_report"
+      ) {
+        const { buildDesignVocabulary } = await import(
+          "../engines/design/vocabulary"
+        );
+        const { buildSpaceProgram } = await import(
+          "../engines/design/space-program"
+        );
+        const { buildColorPalette } = await import(
+          "../engines/design/color-palette"
+        );
+        const {
+          buildRFQPackFromAllocations,
+          expectedCanonicalRfqMaterialLineCount,
+        } = await import("../engines/design/rfq-generator");
+        const { buildDMComplianceChecklist } = await import(
+          "../engines/design/dm-compliance"
+        );
 
         const vocab = buildDesignVocabulary(project);
-        const { totalFitoutBudgetAed, rooms } = buildSpaceProgram(project);
-        // ADR-0009: finish schedule and RFQ match on material_library's
-        // category/tier/style vocabulary; the former materials_catalog rows
-        // matched almost nothing and priced lines at zero.
+        const { totalFitoutBudgetAed } = buildSpaceProgram(project);
+        [reportStoredRooms, reportStoredAllocations] = await Promise.all([
+          db.getSpaceProgramRooms(input.projectId, ctx.orgId),
+          db.getMaterialAllocations(input.projectId, ctx.orgId),
+        ]);
+        const reportRfqRooms = reportStoredRooms
+          .filter(room => room.isFitOut)
+          .map(room => ({ id: room.roomCode, name: room.roomName }));
+        // Finish scheduling uses material identity/display metadata. RFQ rates
+        // come only from one governed supply-and-install snapshot batch for
+        // this authorized report operation.
         const materials = await db.getMaterialLibrary();
-        const finishSchedule = buildFinishSchedule(project, vocab, rooms, materials);
-        const colorPalette = await buildColorPalette(project, vocab);
+        const authorizedDesignProject = {
+          ...project,
+          organizationId: ctx.orgId,
+        };
+        const rfqPriceSnapshots = await resolveMaterialPriceSnapshots({
+          references: Array.from(
+            new Set(
+              reportStoredAllocations
+                .map(allocation => allocation.materialLibraryId)
+                .filter((id): id is number => id !== null)
+            )
+          ).map(legacyId => ({
+            source: "material_library" as const,
+            legacyId,
+          })),
+          organizationId: ctx.orgId,
+          priceScope: "supply_and_install",
+          requestedGeography: resolveProjectMaterialPriceGeography(
+            project.materialPriceGeography
+          ),
+          asOf: reportMaterialAsOf,
+          allowLegacyUnknownScope: true,
+        });
+        const finishSchedule = reportStoredAllocations.map(allocation => ({
+          projectId: project.id,
+          organizationId: ctx.orgId,
+          roomId: allocation.roomId,
+          roomName: allocation.roomName,
+          element:
+            allocation.element === "walls"
+              ? ("wall_primary" as const)
+              : allocation.element,
+          materialLibraryId: allocation.materialLibraryId,
+          productId: allocation.productId,
+          specId: allocation.specId,
+          identityState:
+            allocation.productId !== null && allocation.specId !== null
+              ? ("resolved" as const)
+              : ("unresolved" as const),
+          overrideSpec: null,
+          notes:
+            "Canonical identity and quantity originate from the persisted MQI allocation.",
+        }));
+        const colorPalette = await buildColorPalette(
+          authorizedDesignProject,
+          vocab
+        );
         const complianceChecklist = buildDMComplianceChecklist(
           project.id,
           ctx.orgId,
           project
         );
-        const rfqPack = buildRFQPack(
+        const rfqPack = buildRFQPackFromAllocations(
           project.id,
           ctx.orgId,
-          finishSchedule,
-          rooms,
-          materials
+          reportStoredAllocations,
+          materials,
+          rfqPriceSnapshots,
+          reportRfqRooms
+        );
+        const materialRfqLines = rfqPack.filter(
+          line => line.lineKind === "material"
+        );
+        const issuedRfqIsComplete =
+          materialRfqLines.length ===
+            expectedCanonicalRfqMaterialLineCount(
+              reportStoredAllocations,
+              reportRfqRooms
+            ) &&
+          materialRfqLines.length > 0 &&
+          rfqPack.every(
+            line =>
+              line.resolutionState === "resolved" &&
+              line.totalAedMin !== null &&
+              line.totalAedMax !== null &&
+              Number.isFinite(line.totalAedMin) &&
+              Number.isFinite(line.totalAedMax)
+          );
+        if (!issuedRfqIsComplete) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "REPORT_RFQ_PRICING_INSUFFICIENT",
+          });
+        }
+        const rfqMin = Number(
+          rfqPack
+            .reduce((total, line) => total + line.totalAedMin!, 0)
+            .toFixed(2)
+        );
+        const rfqMax = Number(
+          rfqPack
+            .reduce((total, line) => total + line.totalAedMax!, 0)
+            .toFixed(2)
         );
         designArtifacts = {
           finishSchedule,
@@ -1170,32 +1722,70 @@ export const projectRouter = router({
             projectId: project.id,
             version: 1,
             createdBy: ctx.user.id,
-            projectIdentity: { name: project.name, location: project.ctx04Location },
+            projectIdentity: {
+              name: project.name,
+              location: project.ctx04Location,
+            },
             designNarrative: {
               positioningStatement:
                 colorPalette.geminiRationale || "Curated aesthetic alignment.",
             },
             materialSpecifications: { vocab, finishSchedule },
             boqFramework: { coreAllocations: [] },
-            detailedBudget: { totalFitoutBudgetAed, rfqMin: 0, rfqMax: 0 },
-            designerInstructions: { deliverablesChecklist: complianceChecklist },
+            detailedBudget: { totalFitoutBudgetAed, rfqMin, rfqMax },
+            designerInstructions: {
+              deliverablesChecklist: complianceChecklist,
+            },
           },
-          rfqItems: rfqPack,
+          // Drizzle decimal insert fields are string-typed while the RFQ
+          // engine preserves its established numeric presentation contract.
+          rfqItems: rfqPack as unknown as NonNullable<
+            Parameters<
+              typeof db.createReportArtifactsForOrg
+            >[0]["designArtifacts"]
+          >["rfqItems"],
         };
 
-        // Output legacy format for the PDF template to continue working seamlessly
-        reportData = generateDesignBrief(project.name, project.id, inputs, scoreResult, sensitivity);
+        // Preserve the established presentation payload while both issued
+        // report types persist the same governed RFQ artifact contract.
+        reportData =
+          input.reportType === "design_brief"
+            ? generateDesignBrief(
+                project.name,
+                project.id,
+                inputs,
+                scoreResult,
+                sensitivity
+              )
+            : generateFullReport(
+                project.name,
+                project.id,
+                inputs,
+                scoreResult,
+                sensitivity,
+                roi!
+              );
       } else if (input.reportType === "autonomous_design_brief") {
-        const mdContent = await generateAutonomousDesignBrief(project.id, input.locale);
+        const mdContent = await generateAutonomousDesignBrief(
+          project.id,
+          input.locale
+        );
         reportData = {
           reportType: "autonomous_design_brief",
           generatedAt: new Date().toISOString(),
           projectName: project.name,
           projectId: project.id,
-          content: mdContent
+          content: mdContent,
         };
       } else {
-        reportData = generateFullReport(project.name, project.id, inputs, scoreResult, sensitivity, roi!);
+        reportData = generateFullReport(
+          project.name,
+          project.id,
+          inputs,
+          scoreResult,
+          sensitivity,
+          roi!
+        );
       }
 
       // Get active benchmark version for tracking
@@ -1209,40 +1799,78 @@ export const projectRouter = router({
       // Get evidence references linked to this project
       let evidenceRefs: NonNullable<PDFReportInput["evidenceRefs"]> = [];
       try {
-        const allEvidence = await db.listOrganizationEvidenceRecords(ctx.orgId, {
-          projectId: input.projectId,
-        });
+        const allEvidence = await db.listOrganizationEvidenceRecords(
+          ctx.orgId,
+          {
+            projectId: input.projectId,
+            presentationSafe: true,
+          }
+        );
         if (allEvidence.length > 0) {
-          evidenceRefs = allEvidence
-            .map((e: any) => ({
-              title: e.title || e.itemName,
-              sourceUrl: e.sourceUrl || undefined,
-              category: e.category || undefined,
-              reliabilityGrade: e.reliabilityGrade || undefined,
-              captureDate: e.captureDate ? String(e.captureDate) : undefined,
-              confidenceStatus: !e.currentConfidenceAssessmentId || !e.confidencePolicyVersion
+          evidenceRefs = allEvidence.map((e: any) => ({
+            title: e.title || e.itemName,
+            sourceUrl: e.sourceUrl || undefined,
+            category: e.category || undefined,
+            reliabilityGrade: e.reliabilityGrade || undefined,
+            captureDate: e.captureDate ? String(e.captureDate) : undefined,
+            confidenceStatus:
+              !e.currentConfidenceAssessmentId || !e.confidencePolicyVersion
                 ? "legacy_unknown"
                 : e.confidencePolicyVersion === "manual-asserted-confidence-v1"
                   ? "asserted"
                   : "computed",
-              confidencePolicyVersion: e.confidencePolicyVersion || undefined,
-            }));
+            confidencePolicyVersion: e.confidencePolicyVersion || undefined,
+          }));
         }
-      } catch { /* evidence refs are optional */ }
+      } catch {
+        /* evidence refs are optional */
+      }
 
       let workflowReconciliation: PDFReportInput["workflowReconciliation"];
       if (input.reportType === "full_report") {
-        const [storedRooms, storedAllocations, materialLibrary] = await Promise.all([
-          db.getSpaceProgramRooms(input.projectId, ctx.orgId),
-          db.getMaterialAllocations(input.projectId, ctx.orgId),
-          db.getMaterialLibrary(),
-        ]);
+        const storedRooms =
+          reportStoredRooms ??
+          (await db.getSpaceProgramRooms(input.projectId, ctx.orgId));
+        const storedAllocations =
+          reportStoredAllocations ??
+          (await db.getMaterialAllocations(input.projectId, ctx.orgId));
+        const materialLibraryIds = Array.from(
+          new Set(
+            storedAllocations
+              .map(allocation => allocation.materialLibraryId)
+              .filter((id): id is number => id !== null)
+          )
+        );
+        const priceSnapshots = await resolveMaterialPriceSnapshots({
+          references: materialLibraryIds.map(legacyId => ({
+            source: "material_library" as const,
+            legacyId,
+          })),
+          organizationId: ctx.orgId,
+          requestedGeography: resolveProjectMaterialPriceGeography(
+            project.materialPriceGeography
+          ),
+          priceScope: "supply_only",
+          asOf: reportMaterialAsOf,
+          allowLegacyUnknownScope: true,
+        });
         workflowReconciliation = buildWorkflowSpaceMqiReconciliation({
           projectFitOutAreaM2: project.totalFitoutArea,
           rooms: storedRooms,
           allocations: storedAllocations,
-          materialLibrary,
+          priceSnapshots,
         });
+        if (
+          !isIssuedFullReportMaterialCoverageComplete(
+            workflowReconciliation,
+            storedRooms
+          )
+        ) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "REPORT_MATERIAL_PRICING_INSUFFICIENT",
+          });
+        }
       }
 
       const pdfInput: PDFReportInput = {
@@ -1261,10 +1889,19 @@ export const projectRouter = router({
         evidenceRefs,
         boardAnnex,
         workflowReconciliation,
-        autonomousContent: input.reportType === "autonomous_design_brief" ? (reportData as any).content : undefined,
-        designBrief: input.reportType === "design_brief" || input.reportType === "full_report"
-          ? generateNewDesignBrief({ name: project.name, description: project.description }, inputs, scoreResult)
-          : undefined,
+        autonomousContent:
+          input.reportType === "autonomous_design_brief"
+            ? (reportData as any).content
+            : undefined,
+        designBrief:
+          input.reportType === "design_brief" ||
+          input.reportType === "full_report"
+            ? generateNewDesignBrief(
+                { name: project.name, description: project.description },
+                inputs,
+                scoreResult
+              )
+            : undefined,
       };
       const html = generateReportHTML(input.reportType, pdfInput);
 
@@ -1276,7 +1913,10 @@ export const projectRouter = router({
         storageKey = result.persistent ? result.key : null;
         fileUrl = result.url;
       } catch (e) {
-        console.warn("[Report] S3 upload failed, storing HTML content inline:", e);
+        console.warn(
+          "[Report] S3 upload failed, storing HTML content inline:",
+          e
+        );
       }
 
       let persistence;
@@ -1284,6 +1924,10 @@ export const projectRouter = router({
         persistence = await db.createReportArtifactsForOrg({
           projectId: input.projectId,
           orgId: ctx.orgId,
+          expectedMaterialPricingRevision:
+            designArtifacts === undefined
+              ? undefined
+              : project.materialPricingRevision,
           report: {
             projectId: input.projectId,
             scoreMatrixId: latest.id,
@@ -1310,7 +1954,10 @@ export const projectRouter = router({
       if (!persistence) {
         if (storageKey) await cleanupRejectedUpload(storageKey);
         await requireProjectForOrg(input.projectId, ctx.orgId);
-        throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Resource not found",
+        });
       }
 
       await db.createAuditLog({
@@ -1318,7 +1965,10 @@ export const projectRouter = router({
         action: "report.generate",
         entityType: "report",
         entityId: input.projectId,
-        details: { reportType: input.reportType, stored: Boolean(storageKey || fileUrl) },
+        details: {
+          reportType: input.reportType,
+          stored: Boolean(storageKey || fileUrl),
+        },
         benchmarkVersionId: activeBV?.id,
       });
 
@@ -1329,14 +1979,15 @@ export const projectRouter = router({
         reportType: input.reportType,
         stored: Boolean(storageKey || fileUrl),
         compositeScore: scoreResult.compositeScore,
-      }).catch(() => { });
+      }).catch(() => {});
 
       return {
         ...reportData,
         locale: input.locale,
         fileUrl,
         fiveLens: input.reportType === "full_report" ? fiveLens : undefined,
-        roiNarrative: input.reportType === "full_report" ? roiResult : undefined,
+        roiNarrative:
+          input.reportType === "full_report" ? roiResult : undefined,
       };
     }),
 
@@ -1345,29 +1996,33 @@ export const projectRouter = router({
     .query(async ({ ctx, input }) => {
       await requireProjectForOrg(input.projectId, ctx.orgId);
       const reports = await db.getReportsByProject(input.projectId);
-      return Promise.all(reports.map(async report => {
-        const { storageKey, ...publicReport } = report;
-        if (!storageKey) return publicReport;
-        try {
-          const signed = await storageGet(storageKey);
-          return { ...publicReport, fileUrl: signed.url };
-        } catch (error) {
-          console.warn("[Report] Failed to refresh stored report URL", {
-            reportId: report.id,
-            error: error instanceof Error ? error.message : String(error),
-          });
-          return publicReport;
-        }
-      }));
+      return Promise.all(
+        reports.map(async report => {
+          const { storageKey, ...publicReport } = report;
+          if (!storageKey) return publicReport;
+          try {
+            const signed = await storageGet(storageKey);
+            return { ...publicReport, fileUrl: signed.url };
+          } catch (error) {
+            console.warn("[Report] Failed to refresh stored report URL", {
+              reportId: report.id,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            return publicReport;
+          }
+        })
+      );
     }),
 
   // ─── V4: Area Verification Gate ───────────────────────────────────────────
 
   extractAreas: orgHeavyMutationProcedure
-    .input(z.object({
-      projectId: z.number(),
-      assetId: z.number(),
-    }))
+    .input(
+      z.object({
+        projectId: z.number(),
+        assetId: z.number(),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
       const project = await requireProjectForOrg(input.projectId, ctx.orgId);
       const { resource: asset } = await requireProjectResourceForOrg(
@@ -1379,41 +2034,61 @@ export const projectRouter = router({
         }
       );
       if (asset.projectId !== project.id) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Resource not found",
+        });
       }
-      if (!asset.storagePath) throw new TRPCError({ code: "BAD_REQUEST", message: "Asset has no stored media" });
+      if (!asset.storagePath)
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Asset has no stored media",
+        });
 
       // Create pending extraction record
-      const extraction = await db.createPdfExtractionForOrg({
-        projectId: input.projectId,
-        assetId: input.assetId,
-        extractionMethod: "vision_ai",
-        status: "pending",
-      }, ctx.orgId);
+      const extraction = await db.createPdfExtractionForOrg(
+        {
+          projectId: input.projectId,
+          assetId: input.assetId,
+          extractionMethod: "vision_ai",
+          status: "pending",
+        },
+        ctx.orgId
+      );
       if (!extraction) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Resource not found",
+        });
       }
 
       try {
-        const { extractRoomsFromMedia } = await import("../engines/pdf-extraction");
-        const media = await readValidatedProjectMedia(asset, "project.area-extraction");
-
-        const result = await extractRoomsFromMedia(
-          media,
-          {
-            typology: project.ctx01Typology || undefined,
-            gfa: getPricingArea(project) || undefined,
-            archetype: (project as any).projectArchetype || undefined,
-          }
+        const { extractRoomsFromMedia } = await import(
+          "../engines/pdf-extraction"
+        );
+        const media = await readValidatedProjectMedia(
+          asset,
+          "project.area-extraction"
         );
 
+        const result = await extractRoomsFromMedia(media, {
+          typology: project.ctx01Typology || undefined,
+          gfa: getPricingArea(project) || undefined,
+          archetype: (project as any).projectArchetype || undefined,
+        });
+
         // Update extraction with results
-        if (!(await db.updatePdfExtractionForOrg(extraction.id, ctx.orgId, {
-          status: "extracted",
-          extractedRooms: result.rooms,
-          totalExtractedArea: String(result.totalArea),
-        }))) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        if (
+          !(await db.updatePdfExtractionForOrg(extraction.id, ctx.orgId, {
+            status: "extracted",
+            extractedRooms: result.rooms,
+            totalExtractedArea: String(result.totalArea),
+          }))
+        ) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Resource not found",
+          });
         }
 
         await db.createAuditLog({
@@ -1445,12 +2120,14 @@ export const projectRouter = router({
     }),
 
   verifyAreas: orgMutationProcedure
-    .input(z.object({
-      projectId: z.number(),
-      extractionId: z.number(),
-      action: z.enum(["verify", "reject"]),
-      adjustedTotalArea: z.number().optional(),
-    }))
+    .input(
+      z.object({
+        projectId: z.number(),
+        extractionId: z.number(),
+        action: z.enum(["verify", "reject"]),
+        adjustedTotalArea: z.number().optional(),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
       const project = await requireProjectForOrg(input.projectId, ctx.orgId);
       const { resource: extraction } = await requireProjectResourceForOrg(
@@ -1462,19 +2139,28 @@ export const projectRouter = router({
         }
       );
       if (extraction.projectId !== project.id) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Resource not found",
+        });
       }
 
       if (input.action === "verify") {
-        const verifiedArea = input.adjustedTotalArea ?? Number(extraction.totalExtractedArea);
-        if (!(await db.verifyPdfExtractionForOrg(
-          input.extractionId,
-          input.projectId,
-          ctx.orgId,
-          ctx.user.id,
-          verifiedArea
-        ))) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        const verifiedArea =
+          input.adjustedTotalArea ?? Number(extraction.totalExtractedArea);
+        if (
+          !(await db.verifyPdfExtractionForOrg(
+            input.extractionId,
+            input.projectId,
+            ctx.orgId,
+            ctx.user.id,
+            verifiedArea
+          ))
+        ) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Resource not found",
+          });
         }
 
         await db.createAuditLog({
@@ -1492,12 +2178,17 @@ export const projectRouter = router({
         return { success: true, verifiedArea };
       } else {
         // Reject extraction
-        if (!(await db.updatePdfExtractionForOrg(input.extractionId, ctx.orgId, {
-          status: "rejected",
-          verifiedBy: ctx.user.id,
-          verifiedAt: new Date(),
-        }))) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+        if (
+          !(await db.updatePdfExtractionForOrg(input.extractionId, ctx.orgId, {
+            status: "rejected",
+            verifiedBy: ctx.user.id,
+            verifiedAt: new Date(),
+          }))
+        ) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Resource not found",
+          });
         }
 
         await db.createAuditLog({

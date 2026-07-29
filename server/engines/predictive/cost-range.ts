@@ -26,24 +26,66 @@ export interface TrendDataPoint {
   confidence: "high" | "medium" | "low" | "insufficient";
 }
 
-export interface CostRangePrediction {
-  p15: number;
-  p50: number;
-  p85: number;
-  p95: number;
+interface CostRangePredictionBase {
   unit: string;
   currency: string;
-  trendAdjustment: number; // percentage, e.g. +5.2 means +5.2%
+  trendAdjustment: number;
   trendDirection: "rising" | "falling" | "stable" | "insufficient_data";
-  confidence: "high" | "medium" | "low" | "insufficient";
   dataPointCount: number;
   gradeACount: number;
   fallbackUsed: boolean;
   fallbackReason?: string;
+}
+
+export interface ResolvedCostRangePrediction extends CostRangePredictionBase {
+  p15: number;
+  p50: number;
+  p85: number;
+  p95: number;
+  confidence: "high" | "medium" | "low";
   adjustedP15?: number;
   adjustedP50?: number;
   adjustedP85?: number;
   adjustedP95?: number;
+}
+
+export interface InsufficientCostRangePrediction extends CostRangePredictionBase {
+  p15: null;
+  p50: null;
+  p85: null;
+  p95: null;
+  confidence: "insufficient";
+  adjustedP15?: null;
+  adjustedP50?: null;
+  adjustedP85?: null;
+  adjustedP95?: null;
+}
+
+export type CostRangePrediction =
+  | ResolvedCostRangePrediction
+  | InsufficientCostRangePrediction;
+
+export function insufficientCostRangePrediction(input?: {
+  unit?: string;
+  reason?: string;
+  dataPointCount?: number;
+  gradeACount?: number;
+}): InsufficientCostRangePrediction {
+  return {
+    p15: null,
+    p50: null,
+    p85: null,
+    p95: null,
+    unit: input?.unit ?? "AED/sqm",
+    currency: "AED",
+    trendAdjustment: 0,
+    trendDirection: "insufficient_data",
+    confidence: "insufficient",
+    dataPointCount: input?.dataPointCount ?? 0,
+    gradeACount: input?.gradeACount ?? 0,
+    fallbackUsed: false,
+    fallbackReason: input?.reason ?? "Insufficient governed material-price data",
+  };
 }
 
 /**
@@ -141,19 +183,12 @@ export function predictCostRange(
   // If still insufficient, return insufficient result
   if (filtered.length < 3) {
     return {
-      p15: 0,
-      p50: 0,
-      p85: 0,
-      p95: 0,
-      unit: "AED/sqm",
-      currency: "AED",
-      trendAdjustment: 0,
-      trendDirection: "insufficient_data",
-      confidence: "insufficient",
-      dataPointCount: filtered.length,
-      gradeACount: filtered.filter(e => e.reliabilityGrade === "A").length,
+      ...insufficientCostRangePrediction({
+        dataPointCount: filtered.length,
+        gradeACount: filtered.filter(e => e.reliabilityGrade === "A").length,
+        reason: fallbackReason || "Insufficient data for prediction",
+      }),
       fallbackUsed,
-      fallbackReason: fallbackReason || "Insufficient data for prediction",
     };
   }
 
@@ -194,6 +229,13 @@ export function predictCostRange(
 
   const gradeACount = filtered.filter(e => e.reliabilityGrade === "A").length;
   const confidence = determineConfidence(filtered.length, gradeACount);
+  if (confidence === "insufficient") {
+    return insufficientCostRangePrediction({
+      dataPointCount: filtered.length,
+      gradeACount,
+      reason: "Insufficient data for prediction",
+    });
+  }
 
   // Apply trend adjustment to get adjusted values
   const factor = 1 + (trendAdjustment / 100);

@@ -5,52 +5,30 @@
  */
 
 import type { ProjectInputs } from "../../shared/miyar-types";
-import type { CategoryPricing } from "./pricing-engine";
 import { getPricingArea } from "./area-utils";
 import type { SpaceBenchmarkResult } from "./design/space-benchmarking";
 import type { MaterialQuantityResult } from "./design/material-quantity-engine";
 
-export interface PricingAnalytics {
-  /** Weighted average AED/m² across all specified material types */
-  costPerSqmAvg: number;
-  /** Total estimated fitout cost in AED (costPerSqmAvg * GFA) */
-  totalFitoutCostAed: number;
+export interface SustainabilityAnalytics {
   /** Total estimated carbon footprint (kg CO²) */
   totalCarbonKg: number;
+  /** Weighted average carbon intensity for the matched material area. */
+  avgCarbonIntensityKgPerM2: number;
   /** Weighted average maintenance factor (1–5 scale) */
   avgMaintenanceFactor: number;
   /** Sustainability grade A–E derived from avg carbon intensity */
   sustainabilityGrade: string;
+  /** Share of the requested area covered by usable sustainability constants. */
+  coveragePct: number;
   /** Per-material type breakdown */
   materialBreakdown: {
     materialType: string;
     allocatedSqm: number;
-    costPerSqm: number;
-    lineCostAed: number;
+    carbonIntensityKgPerM2: number;
     carbonKg: number;
     maintenanceFactor: number;
   }[];
-  /**
-   * Source of the structural pricing analytics. ADR-0009 (audit F8): the
-   * union formerly advertised "live_benchmarks" | "project_budget" | "none",
-   * but this analytic is produced from material_constants only and no code
-   * path ever assigned another value — the type now states reality. The
-   * live-benchmark path is disclosed separately via detailedBudget.costBasis
-   * and the cost-band labels.
-   */
-  pricingSource: "material_constants";
-  /** Estimated sales premium AED from design tier */
-  designPremiumAed: number;
-  /** Premium % for market tier */
-  designPremiumPct: number;
-  /** Fitout-to-sale price ratio (Phase B.3 — DLD integration) */
-  fitoutRatio: number | null;
-  /** Over/under-specification warning */
-  overSpecWarning: string | null;
-  /** Source of sale price data */
-  salePriceSource: "dld_transactions" | "hardcoded_fallback";
-  /** Area median sale price AED/sqm used for calculation */
-  areaSalePricePerSqm: number;
+  sustainabilitySource: "material_constants";
 }
 
 export interface DesignBriefData {
@@ -88,6 +66,9 @@ export interface DesignBriefData {
       percentage: number;
       estimatedCostLabel: string;
       notes: string;
+      materialLibraryId?: number;
+      explicitQuantity?: number;
+      explicitQuantityUnit?: "sqm" | "lm" | "piece" | "pack" | "litre";
     }[];
   };
   detailedBudget: {
@@ -118,8 +99,10 @@ export interface DesignBriefData {
       importDependencies: string[];
     };
   };
-  /** Phase 3: Structural cost analytics from material_constants */
-  pricingAnalytics?: PricingAnalytics;
+  /** Sustainability-only analytics from material_constants. */
+  sustainabilityAnalytics?: SustainabilityAnalytics;
+  /** Legacy persistence compatibility; material_constants never populate it. */
+  pricingAnalytics?: undefined;
   /** Phase 9: Space allocation analysis from floor plan + DLD benchmarks */
   spaceAllocation?: {
     efficiencyScore: number;
@@ -131,20 +114,20 @@ export interface DesignBriefData {
   };
   /** Phase C: MQI cost summary — bottom-up finish costs from material allocations */
   mqiSummary?: {
-    totalFinishCostMin: number;
-    totalFinishCostMax: number;
-    totalFinishCostMid: number;
+    totalFinishCostMin: number | null;
+    totalFinishCostMax: number | null;
+    totalFinishCostMid: number | null;
     budgetCapAed: number | null;
     budgetUtilizationPct: number | null;
     isOverBudget: boolean;
     overBudgetByAed: number;
     qualityLabel: string;
-    /** ADR-0009: provenance basis label of the priced library rows ("MIYAR assumption", …). */
+    /** Provenance basis label, including explicit legacy scope-unknown compatibility where used. */
     costBasisLabel?: string;
     /** ADR-0009: allocation slices with no resolvable priced library row. */
     unpricedAllocationCount?: number;
-    roomBreakdown: { roomId: string; roomName: string; roomCostMin: number; roomCostMax: number }[];
-    topMaterials: { materialName: string; totalAreaM2: number; totalCostMin: number; totalCostMax: number; pctOfTotalSurface: number }[];
+    roomBreakdown: { roomId: string; roomName: string; roomCostMin: number | null; roomCostMax: number | null }[];
+    topMaterials: { materialName: string; totalAreaM2: number; totalCostMin: number | null; totalCostMax: number | null; pctOfTotalSurface: number }[];
     generatedAt: string;
   };
 }
@@ -243,7 +226,7 @@ const BOQ_DISTRIBUTION: Record<string, { category: string; percentage: number; n
   ]
 };
 
-// Maps market tier to typical primary material types in material_constants
+// Maps market tier to representative material types for sustainability analysis.
 const TIER_MATERIAL_TYPES: Record<string, string[]> = {
   "Mid": ["concrete", "ceramic", "paint"],
   "Upper-mid": ["concrete", "stone", "paint", "glass"],
@@ -251,16 +234,13 @@ const TIER_MATERIAL_TYPES: Record<string, string[]> = {
   "Ultra-luxury": ["stone", "glass", "steel", "aluminum", "wood"],
 };
 
-const TIER_PREMIUM_PCT: Record<string, number> = {
-  "Entry": 0, "Mid": 3, "Upper-mid": 8, "Luxury": 18, "Ultra-luxury": 30,
-};
-
 export function generateDesignBrief(
   project: { name: string; description: string | null },
   inputs: ProjectInputs,
   scoreResult: { compositeScore: number; decisionStatus: string; dimensions: Record<string, number> },
-  livePricing?: Record<string, CategoryPricing>,
-  materialConstants?: Array<{ materialType: string; costPerM2: string | number; carbonIntensity: string | number; maintenanceFactor: string | number }>,
+  /** Reserved compatibility slot. Legacy category pricing is forbidden. */
+  _legacyPricing?: never,
+  materialConstants?: Array<{ materialType: string; carbonIntensity: string | number; maintenanceFactor: string | number }>,
   /** Phase B.3: DLD area median sale price AED/sqm. If provided, replaces hardcoded 25K fallback. */
   areaSalePricePerSqm?: number,
   /** Phase B.3: Project purpose — affects material quality & durability recommendations */
@@ -294,19 +274,11 @@ export function generateDesignBrief(
   const budget = inputs.fin01BudgetCap ? Number(inputs.fin01BudgetCap) : null;
   const totalBudgetCap = budget && gfa ? budget * gfa : null;
 
-  // Determine cost band from configured benchmark observations when available,
-  // otherwise fall back to the existing static bands.
+  // A design brief has no product/specification quantity model of its own.
+  // Material pricing therefore comes only from its governed MQI summary; the
+  // general budget input remains a user-supplied constraint, not market price.
   let costBand = "Standard (Fit-out)";
-  let dynamicCostPerSqm: number | null = null;
-  if (livePricing && Object.keys(livePricing).length > 0) {
-    // Bottom-up: sum weighted means across all available categories
-    const totalPerSqm = Object.values(livePricing).reduce((sum, cp) => sum + cp.weightedMean, 0);
-    dynamicCostPerSqm = totalPerSqm;
-    if (totalPerSqm > 8000) costBand = "Ultra-Premium Luxury (Indicative benchmark estimate)";
-    else if (totalPerSqm > 4500) costBand = "Premium High-End (Indicative benchmark estimate)";
-    else if (totalPerSqm > 2500) costBand = "Upper-Standard Modern (Indicative benchmark estimate)";
-    else costBand = "Standard Fit-out (Indicative benchmark estimate)";
-  } else if (budget) {
+  if (budget) {
     if (budget > 8000) costBand = "Ultra-Premium Luxury";
     else if (budget > 4500) costBand = "Premium High-End";
     else if (budget > 2500) costBand = "Upper-Standard Modern";
@@ -391,49 +363,14 @@ export function generateDesignBrief(
   veNotes.push("Continuously evaluate sub-contractor BOQs against the MIYAR budget cap during the tender phase.");
   if (gfa && gfa > 2000) veNotes.push("Leverage the large floor plate for bulk discount negotiations on flooring and ceiling tiles.");
 
-  // BOQ Math — Bottom-up from live pricing when available, top-down fallback
+  // BOQ allocations use the explicit project budget constraint. They do not
+  // invent category rates or read legacy benchmark/category prices.
   const distroList = BOQ_DISTRIBUTION[inputs.ctx01Typology] || BOQ_DISTRIBUTION.Commercial;
-
-  // Map BOQ distribution categories to evidence categories for live pricing lookup
-  const boqToEvidenceCat: Record<string, string[]> = {
-    "Civil & MEP Works (Flooring, Ceilings, Partitions)": ["floors", "ceilings", "walls"],
-    "Civil & MEP Works (Partitions, HVAC, Data)": ["floors", "ceilings", "walls"],
-    "Civil & MEP Works": ["floors", "ceilings", "walls"],
-    "Fixed Joinery (Kitchens, Wardrobes, Doors)": ["joinery"],
-    "Feature Joinery & Reception": ["joinery"],
-    "Fixed Joinery & Millwork": ["joinery"],
-    "Sanitaryware & Wet Areas": ["sanitary"],
-    "Sanitaryware & Specialized Equipment": ["sanitary"],
-    "Pantry & Washrooms": ["sanitary", "kitchen"],
-    "FF&E (Loose Furniture, Lighting, Art)": ["ffe", "lighting"],
-    "FF&E (Custom Furniture, Drapery, Rugs)": ["ffe", "lighting"],
-    "Workstations & Loose Furniture": ["ffe"],
-  };
 
   const coreAllocations = distroList.map((d) => {
     let estCostStr = "TBD";
-    let usedLive = false;
 
-    if (livePricing && gfa) {
-      // Try bottom-up: sum average costs for each mapped evidence category
-      const mappedCats = boqToEvidenceCat[d.category] || [];
-      let catSqmCost = 0;
-      let matched = 0;
-      for (const ec of mappedCats) {
-        if (livePricing[ec]) {
-          catSqmCost += livePricing[ec].weightedMean;
-          matched++;
-        }
-      }
-      if (matched > 0) {
-        const catTotal = catSqmCost * gfa;
-        estCostStr = `AED ${Math.round(catTotal).toLocaleString()} (indicative benchmark estimate)`;
-        usedLive = true;
-      }
-    }
-
-    // Fallback: top-down from budget cap
-    if (!usedLive && totalBudgetCap) {
+    if (totalBudgetCap) {
       const catTotal = (d.percentage / 100) * totalBudgetCap;
       estCostStr = `AED ${Math.round(catTotal).toLocaleString()}`;
     }
@@ -442,94 +379,77 @@ export function generateDesignBrief(
       category: d.category,
       percentage: d.percentage,
       estimatedCostLabel: estCostStr,
-      notes: usedLive
-        ? `${d.notes} [Pricing basis: configured benchmark observations; verify source and observation date before use]`
-        : d.notes,
+      notes: d.notes,
     };
   });
 
-  // ─── Phase 3: Compute pricingAnalytics from material_constants ───────────────
-  let pricingAnalytics: PricingAnalytics | undefined;
+  // ─── Phase 3: Sustainability analytics from material_constants ──────────────
+  let sustainabilityAnalytics: SustainabilityAnalytics | undefined;
   if (materialConstants && materialConstants.length > 0 && gfa) {
-    const constLookup = new Map(materialConstants.map(c => [c.materialType, c]));
+    const constLookup = new Map(
+      materialConstants.flatMap(c => {
+        const carbonIntensity = Number(c.carbonIntensity);
+        const maintenanceFactor = Number(c.maintenanceFactor);
+        if (
+          c.carbonIntensity === "" ||
+          c.maintenanceFactor === "" ||
+          !Number.isFinite(carbonIntensity) ||
+          carbonIntensity < 0 ||
+          !Number.isFinite(maintenanceFactor) ||
+          maintenanceFactor <= 0
+        ) {
+          return [];
+        }
+        return [[
+          c.materialType,
+          { carbonIntensity, maintenanceFactor },
+        ] as const];
+      })
+    );
     const tierTypes = TIER_MATERIAL_TYPES[tier] || TIER_MATERIAL_TYPES["Upper-mid"];
-    // Distribute GFA equally across tier-relevant material types present in constants
+    // Distribute GFA across the tier model, leaving missing constants uncovered.
     const matchedTypes = tierTypes.filter(t => constLookup.has(t));
-    const sqmPerType = matchedTypes.length > 0 ? gfa / matchedTypes.length : 0;
+    const sqmPerType = tierTypes.length > 0 ? gfa / tierTypes.length : 0;
+    const matchedAreaM2 = sqmPerType * matchedTypes.length;
 
-    let totalCostAed = 0;
     let totalCarbonKg = 0;
     let weightedMaintenanceSum = 0;
-    const materialBreakdown: PricingAnalytics["materialBreakdown"] = [];
+    const materialBreakdown: SustainabilityAnalytics["materialBreakdown"] = [];
 
     for (const mt of matchedTypes) {
       const c = constLookup.get(mt)!;
-      const costPerSqm = Number(c.costPerM2 ?? 0);
-      const carbonIntensity = Number(c.carbonIntensity ?? 0);
-      const maintenanceFactor = Number(c.maintenanceFactor ?? 3);
-      const lineCost = costPerSqm * sqmPerType;
+      const { carbonIntensity, maintenanceFactor } = c;
       const lineCarbonKg = carbonIntensity * sqmPerType;
-      totalCostAed += lineCost;
       totalCarbonKg += lineCarbonKg;
       weightedMaintenanceSum += maintenanceFactor * sqmPerType;
       materialBreakdown.push({
         materialType: mt,
         allocatedSqm: Math.round(sqmPerType),
-        costPerSqm,
-        lineCostAed: Math.round(lineCost),
+        carbonIntensityKgPerM2: carbonIntensity,
         carbonKg: Math.round(lineCarbonKg),
         maintenanceFactor,
       });
     }
 
-    const costPerSqmAvg = matchedTypes.length > 0 ? totalCostAed / gfa : 0;
-    const avgMaintenanceFactor = gfa > 0 && matchedTypes.length > 0 ? weightedMaintenanceSum / gfa : 3;
-    const avgCarbonPerSqm = gfa > 0 ? totalCarbonKg / gfa : 0;
-    const sustainabilityGrade =
-      avgCarbonPerSqm < 30 ? "A" :
-        avgCarbonPerSqm < 60 ? "B" :
-          avgCarbonPerSqm < 100 ? "C" :
-            avgCarbonPerSqm < 150 ? "D" : "E";
+    if (matchedAreaM2 > 0) {
+      const avgMaintenanceFactor = weightedMaintenanceSum / matchedAreaM2;
+      const avgCarbonPerSqm = totalCarbonKg / matchedAreaM2;
+      const sustainabilityGrade =
+        avgCarbonPerSqm < 30 ? "A" :
+          avgCarbonPerSqm < 60 ? "B" :
+            avgCarbonPerSqm < 100 ? "C" :
+              avgCarbonPerSqm < 150 ? "D" : "E";
 
-    const designPremiumPct = TIER_PREMIUM_PCT[tier] ?? 8;
-    // Phase B.3: Use DLD area median if available, else fallback to 25K/sqm
-    const baseSalePrice = areaSalePricePerSqm ?? 25000;
-    const salePriceSource: "dld_transactions" | "hardcoded_fallback" = areaSalePricePerSqm ? "dld_transactions" : "hardcoded_fallback";
-    const designPremiumAed = Math.round(gfa * baseSalePrice * designPremiumPct / 100);
-
-    // Fitout-to-sale ratio analysis
-    const fitoutRatio = baseSalePrice > 0 ? costPerSqmAvg / baseSalePrice : null;
-    const FITOUT_RATIOS: Record<string, { min: number; max: number }> = {
-      "Mid": { min: 0.08, max: 0.12 },
-      "Upper-mid": { min: 0.12, max: 0.18 },
-      "Luxury": { min: 0.18, max: 0.28 },
-      "Ultra-luxury": { min: 0.25, max: 0.35 },
-    };
-    const ratioLimits = FITOUT_RATIOS[tier] ?? { min: 0.12, max: 0.18 };
-    let overSpecWarning: string | null = null;
-    if (fitoutRatio !== null) {
-      if (fitoutRatio > ratioLimits.max) {
-        overSpecWarning = `⚠️ Fitout at ${(fitoutRatio * 100).toFixed(0)}% of sale price exceeds ${tier} norm of ${(ratioLimits.max * 100)}%. Consider reducing specification.`;
-      } else if (fitoutRatio < ratioLimits.min) {
-        overSpecWarning = `⚠️ Fitout at ${(fitoutRatio * 100).toFixed(0)}% of sale price is below ${tier} minimum of ${(ratioLimits.min * 100)}%. May not meet buyer expectations.`;
-      }
+      sustainabilityAnalytics = {
+        totalCarbonKg: Math.round(totalCarbonKg),
+        avgCarbonIntensityKgPerM2: Math.round(avgCarbonPerSqm * 10) / 10,
+        avgMaintenanceFactor: Math.round(avgMaintenanceFactor * 10) / 10,
+        sustainabilityGrade,
+        coveragePct: Math.round((matchedTypes.length / tierTypes.length) * 100),
+        materialBreakdown,
+        sustainabilitySource: "material_constants",
+      };
     }
-
-    pricingAnalytics = {
-      costPerSqmAvg: Math.round(costPerSqmAvg),
-      totalFitoutCostAed: Math.round(totalCostAed),
-      totalCarbonKg: Math.round(totalCarbonKg),
-      avgMaintenanceFactor: Math.round(avgMaintenanceFactor * 10) / 10,
-      sustainabilityGrade,
-      materialBreakdown,
-      pricingSource: "material_constants",
-      designPremiumAed,
-      designPremiumPct,
-      fitoutRatio,
-      overSpecWarning,
-      salePriceSource,
-      areaSalePricePerSqm: baseSalePrice,
-    };
   }
 
   return {
@@ -565,14 +485,10 @@ export function generateDesignBrief(
       coreAllocations,
     },
     detailedBudget: {
-      costPerSqmTarget: dynamicCostPerSqm
-        ? `AED ${Math.round(dynamicCostPerSqm).toLocaleString()}/sqm (indicative benchmark estimate)`
-        : budget ? `AED ${budget.toLocaleString()}/sqm` : "Not specified",
+      costPerSqmTarget: budget ? `AED ${budget.toLocaleString()}/sqm` : "Not specified",
       totalBudgetCap: totalBudgetCap ? `AED ${totalBudgetCap.toLocaleString()}` : "Not specified",
       costBand,
-      costBasis: dynamicCostPerSqm !== null
-        ? "configured_benchmarks" as const
-        : budget
+      costBasis: budget
           ? "budget_cap" as const
           : "static_default" as const,
       flexibilityLevel: flexMap[inputs.fin02Flexibility] || flexMap[3],
@@ -613,7 +529,7 @@ export function generateDesignBrief(
         importDependencies: importDeps,
       }
     },
-    pricingAnalytics,
+    sustainabilityAnalytics,
     // Phase 9: Space allocation section
     ...(floorPlanAnalysis && spaceBenchmark ? {
       spaceAllocation: {

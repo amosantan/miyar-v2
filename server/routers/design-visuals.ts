@@ -96,9 +96,6 @@ export const designVisualsRouter = router({
               category: mat.category,
               tier: mat.tier,
               supplierName: mat.supplierName,
-              costUnit: mat.costUnit,
-              costLow: Number(mat.typicalCostLow) || 0,
-              costHigh: Number(mat.typicalCostHigh) || 0,
               embodiedCarbon: mat.embodiedCarbon
                 ? parseFloat(String(mat.embodiedCarbon))
                 : null,
@@ -373,9 +370,6 @@ export const designVisualsRouter = router({
               category: mat.category,
               tier: mat.tier,
               supplierName: mat.supplierName,
-              costUnit: mat.costUnit,
-              costLow: Number(mat.typicalCostLow) || 0,
-              costHigh: Number(mat.typicalCostHigh) || 0,
               embodiedCarbon: mat.embodiedCarbon
                 ? parseFloat(String(mat.embodiedCarbon))
                 : null,

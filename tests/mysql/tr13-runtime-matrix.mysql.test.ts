@@ -9,6 +9,10 @@ import type { TrpcContext } from "../../server/_core/context";
 import { initializeDatabaseSafety } from "../../server/_core/database-safety";
 import { PUBLIC_SHARE_HEADERS } from "../../server/_core/public-share-headers";
 import { resetPublicRateLimitForTests } from "../../server/_core/rate-limit";
+import {
+  tr13GovernedPricingEnvironment,
+  tr13GovernedSnapshotFromLiveRow,
+} from "../fixtures/workflows/tr13-workflow-fixtures";
 
 // The application factories import the normal serve bootstrap. This Vitest-only
 // replacement keeps the test under the explicitly initialized integration-test
@@ -24,6 +28,45 @@ if (!connectionString) {
 }
 const pool = mysql.createPool(connectionString);
 
+async function configureGovernedPricingFromLiveEligibleSet(): Promise<void> {
+  const [rows] = await pool.query<any[]>(
+    `select ml.id as legacyId, ml.price_aed_min as priceMin,
+            ml.price_aed_max as priceMax, bp.productId,
+            bp.specId as specificationId, bp.id as benchmarkProposalId,
+            bp.benchmarkVersionId,
+            coalesce(bv.versionTag, 'legacy-unversioned-benchmark') as benchmarkVersion,
+            bp.provenancePolicyVersion, s.unitBasis, s.geography
+     from material_library ml
+     join benchmark_proposals bp
+       on bp.legacyMaterialLibraryId=ml.id and bp.productId=ml.product_id
+     join specification s on s.id=bp.specId
+     left join benchmark_versions bv on bv.id=bp.benchmarkVersionId
+     where ml.price_aed_min is not null and ml.price_aed_max is not null
+       and bp.productId is not null
+       and bp.sourceKind='assumption'
+       and bp.sourceLadderRung='assumption'
+       and bp.orgId is null and bp.priceScope is null
+       and bp.keyPolicyVersion='ev02-backfill-v1'
+       and bp.status='approved' and bp.recommendation='publish'
+     order by ml.id`
+  );
+  Object.assign(
+    process.env,
+    tr13GovernedPricingEnvironment(
+      process.env,
+      rows.map(row => ({
+        reference: {
+          source: "material_library" as const,
+          legacyId: Number(row.legacyId),
+        },
+        priceMin: String(row.priceMin),
+        priceMax: String(row.priceMax),
+      })),
+      rows.map(tr13GovernedSnapshotFromLiveRow)
+    )
+  );
+}
+
 const ID = {
   org: 14_001,
   admin: 14_101,
@@ -35,6 +78,27 @@ const ID = {
   affordableFloor: 14_703,
   affordableWall: 14_704,
   affordableCeiling: 14_705,
+  joinery: 14_706,
+  premiumFloorProduct: 14_711,
+  affordableFloorProduct: 14_712,
+  affordableWallProduct: 14_713,
+  affordableCeilingProduct: 14_714,
+  joineryProduct: 14_715,
+  premiumFloorSpec: 14_721,
+  affordableFloorSpec: 14_722,
+  affordableWallSpec: 14_723,
+  affordableCeilingSpec: 14_724,
+  joinerySpec: 14_725,
+  premiumFloorProposal: 14_731,
+  affordableFloorProposal: 14_732,
+  affordableWallProposal: 14_733,
+  affordableCeilingProposal: 14_734,
+  premiumFloorInstallProposal: 14_735,
+  affordableFloorInstallProposal: 14_736,
+  affordableWallInstallProposal: 14_737,
+  affordableCeilingInstallProposal: 14_738,
+  joineryInstallProposal: 14_739,
+  joineryProposal: 14_740,
   benchmark: 14_801,
   logic: 14_901,
 } as const;
@@ -47,9 +111,11 @@ const EXPECTED_RECONCILIATION = {
   fitOutAreaM2: 20,
   roomAreaM2: 20,
   allocationPct: 100,
-  lockedAllocationCount: 1,
+  allocationCount: 7,
+  lockedAllocationCount: 2,
   manualRoomCount: 2,
-  costAed: { min: 2494.7, mid: 3143.38, max: 3792.05 },
+  costAed: { min: 2894.7, mid: 3643.38, max: 4392.05 },
+  priceCoverage: { priced: 7, unpriced: 0, state: "complete" },
 } as const;
 
 const adminUser: NonNullable<TrpcContext["user"]> = {
@@ -185,11 +251,13 @@ function reportSnapshot(html: string) {
   expect(html).toContain("Workflow, Space & MQI Reconciliation");
   expect(html).toContain("0.00 m² · PASS");
   expect(html).toContain("2 / 2 / 2");
-  expect(html).toContain("6 / 6");
+  expect(html).toContain(
+    `${EXPECTED_RECONCILIATION.allocationCount} / ${EXPECTED_RECONCILIATION.allocationCount}`
+  );
   expect(html).toMatch(/100\.00%<\/td>[\s\S]{0,300}>PASS<\/td>/);
-  expect(html).toContain("AED 2,494.70");
-  expect(html).toContain("AED 3,143.38");
-  expect(html).toContain("AED 3,792.05");
+  expect(html).toContain(
+    `${EXPECTED_RECONCILIATION.priceCoverage.priced}/${EXPECTED_RECONCILIATION.allocationCount} · 0 unpriced · PASS`
+  );
   expect(html).not.toMatch(/share[_-]?token|tr13-runtime-active-token/i);
   return { renderInputFingerprint, reconciliation: EXPECTED_RECONCILIATION };
 }
@@ -234,11 +302,41 @@ async function clearOwnedFixture(): Promise<void> {
     ID.benchmark,
   ]);
   await pool.query("delete from model_versions where id = ?", [ID.model]);
-  await pool.query("delete from material_library where id in (?, ?, ?, ?)", [
+  await pool.query(
+    "delete from benchmark_proposals where id in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    [
+      ID.premiumFloorProposal,
+      ID.affordableFloorProposal,
+      ID.affordableWallProposal,
+      ID.affordableCeilingProposal,
+      ID.premiumFloorInstallProposal,
+      ID.affordableFloorInstallProposal,
+      ID.affordableWallInstallProposal,
+      ID.affordableCeilingInstallProposal,
+      ID.joineryInstallProposal,
+      ID.joineryProposal,
+    ]
+  );
+  await pool.query("delete from material_library where id in (?, ?, ?, ?, ?)", [
     ID.materialLibrary,
     ID.affordableFloor,
     ID.affordableWall,
     ID.affordableCeiling,
+    ID.joinery,
+  ]);
+  await pool.query("delete from product where id in (?, ?, ?, ?, ?)", [
+    ID.premiumFloorProduct,
+    ID.affordableFloorProduct,
+    ID.affordableWallProduct,
+    ID.affordableCeilingProduct,
+    ID.joineryProduct,
+  ]);
+  await pool.query("delete from specification where id in (?, ?, ?, ?, ?)", [
+    ID.premiumFloorSpec,
+    ID.affordableFloorSpec,
+    ID.affordableWallSpec,
+    ID.affordableCeilingSpec,
+    ID.joinerySpec,
   ]);
 }
 
@@ -304,15 +402,215 @@ async function seedBaseFixture(): Promise<void> {
     [ID.evidence, ID.project, ID.org]
   );
   await pool.query(
-    `insert into material_library
-      (id, category, tier, style, product_code, product_name, brand, supplier_name, unit_label, price_aed_min, price_aed_max, is_active)
+    `insert into product
+      (id, identityKey, productName, canonicalCategory, createdVia, createdBy)
      values
-      (?, 'flooring', 'premium', 'modern', 'TR13-RUNTIME-STONE', 'TR-13 Runtime Stone', 'Synthetic', 'Synthetic Supplier', 'sqm', 100, 150, true),
-      (?, 'flooring', 'affordable', 'modern', 'TR13-RUNTIME-FLOOR-C', 'TR-13 Runtime Grade C Floor', 'Synthetic', 'Synthetic Supplier', 'sqm', 50, 80, true),
-      (?, 'wall_paint', 'affordable', 'modern', 'TR13-RUNTIME-WALL-C', 'TR-13 Runtime Grade C Wall', 'Synthetic', 'Synthetic Supplier', 'sqm', 10, 15, true),
-      (?, 'ceiling', 'affordable', 'modern', 'TR13-RUNTIME-CEILING-C', 'TR-13 Runtime Grade C Ceiling', 'Synthetic', 'Synthetic Supplier', 'sqm', 20, 30, true)`,
-    [ID.materialLibrary, ID.affordableFloor, ID.affordableWall, ID.affordableCeiling]
+      (?, 'tr13-runtime-premium-floor', 'TR-13 Runtime Stone', 'floors', 'manual', ?),
+      (?, 'tr13-runtime-affordable-floor', 'TR-13 Runtime Grade C Floor', 'floors', 'manual', ?),
+      (?, 'tr13-runtime-affordable-wall', 'TR-13 Runtime Grade C Wall', 'walls', 'manual', ?),
+      (?, 'tr13-runtime-affordable-ceiling', 'TR-13 Runtime Grade C Ceiling', 'ceilings', 'manual', ?),
+      (?, 'tr13-runtime-joinery', 'TR-13 Runtime Joinery', 'joinery', 'manual', ?)`,
+    [
+      ID.premiumFloorProduct,
+      ID.admin,
+      ID.affordableFloorProduct,
+      ID.admin,
+      ID.affordableWallProduct,
+      ID.admin,
+      ID.affordableCeilingProduct,
+      ID.admin,
+      ID.joineryProduct,
+      ID.admin,
+    ]
   );
+  await pool.query(
+    `insert into specification
+      (id, specKey, category, finishLevel, unitBasis, geography, policyVersion)
+     values
+      (?, 'tr13-runtime:floors:premium:per_sqm:uae', 'floors', 'premium', 'per_sqm', 'uae', 'tr13-fixture-v3'),
+      (?, 'tr13-runtime:floors:basic:per_sqm:uae', 'floors', 'basic', 'per_sqm', 'uae', 'tr13-fixture-v3'),
+      (?, 'tr13-runtime:walls:basic:per_sqm:uae', 'walls', 'basic', 'per_sqm', 'uae', 'tr13-fixture-v3'),
+      (?, 'tr13-runtime:ceilings:basic:per_sqm:uae', 'ceilings', 'basic', 'per_sqm', 'uae', 'tr13-fixture-v3'),
+      (?, 'tr13-runtime:joinery:basic:per_lm:uae', 'joinery', 'basic', 'per_lm', 'uae', 'tr13-fixture-v3')`,
+    [
+      ID.premiumFloorSpec,
+      ID.affordableFloorSpec,
+      ID.affordableWallSpec,
+      ID.affordableCeilingSpec,
+      ID.joinerySpec,
+    ]
+  );
+  await pool.query(
+    `insert into material_library
+      (id, product_id, category, tier, style, product_code, product_name, brand, supplier_name, unit_label, price_aed_min, price_aed_max, is_active)
+     values
+      (?, ?, 'flooring', 'premium', 'modern', 'TR13-RUNTIME-STONE', 'TR-13 Runtime Stone', 'Synthetic', 'Synthetic Supplier', 'sqm', 100, 150, true),
+      (?, ?, 'flooring', 'affordable', 'modern', 'TR13-RUNTIME-FLOOR-C', 'TR-13 Runtime Grade C Floor', 'Synthetic', 'Synthetic Supplier', 'sqm', 50, 80, true),
+      (?, ?, 'wall_paint', 'affordable', 'modern', 'TR13-RUNTIME-WALL-C', 'TR-13 Runtime Grade C Wall', 'Synthetic', 'Synthetic Supplier', 'sqm', 10, 15, true),
+      (?, ?, 'ceiling', 'affordable', 'modern', 'TR13-RUNTIME-CEILING-C', 'TR-13 Runtime Grade C Ceiling', 'Synthetic', 'Synthetic Supplier', 'sqm', 20, 30, true),
+      (?, ?, 'joinery', 'affordable', 'modern', 'TR13-RUNTIME-JOINERY', 'TR-13 Runtime Joinery', 'Synthetic', 'Synthetic Supplier', 'lm', 200, 300, true)`,
+    [
+      ID.materialLibrary,
+      ID.premiumFloorProduct,
+      ID.affordableFloor,
+      ID.affordableFloorProduct,
+      ID.affordableWall,
+      ID.affordableWallProduct,
+      ID.affordableCeiling,
+      ID.affordableCeilingProduct,
+      ID.joinery,
+      ID.joineryProduct,
+    ]
+  );
+  await pool.query(
+    `insert into benchmark_proposals
+      (id, benchmarkKey, specId, productId, sourceKind, sourceLadderRung,
+       legacyMaterialLibraryId, sourceLabel, priceConfidence,
+       provenancePolicyVersion, keyPolicyVersion, proposedP25, proposedP50,
+       proposedP75, weightedMean, evidenceCount, sourceDiversity,
+       reliabilityDist, recencyDist, confidenceScore, recommendation, status,
+       reviewedBy, reviewedAt, createdAt)
+     values
+      (?, 'tr13-runtime:floors:premium:per_sqm:uae', ?, ?, 'assumption', 'assumption', ?, 'TR-13 legacy fixture assumption', 'assumption', 'tr13-fixture-v3', 'ev02-backfill-v1', 100, 125, 150, 125, 1, 1, JSON_OBJECT('legacy', 1), JSON_OBJECT('legacy', 1), 100, 'publish', 'approved', ?, '2026-01-02', '2026-01-02'),
+      (?, 'tr13-runtime:floors:basic:per_sqm:uae', ?, ?, 'assumption', 'assumption', ?, 'TR-13 legacy fixture assumption', 'assumption', 'tr13-fixture-v3', 'ev02-backfill-v1', 50, 65, 80, 65, 1, 1, JSON_OBJECT('legacy', 1), JSON_OBJECT('legacy', 1), 100, 'publish', 'approved', ?, '2026-01-02', '2026-01-02'),
+      (?, 'tr13-runtime:walls:basic:per_sqm:uae', ?, ?, 'assumption', 'assumption', ?, 'TR-13 legacy fixture assumption', 'assumption', 'tr13-fixture-v3', 'ev02-backfill-v1', 10, 12.5, 15, 12.5, 1, 1, JSON_OBJECT('legacy', 1), JSON_OBJECT('legacy', 1), 100, 'publish', 'approved', ?, '2026-01-02', '2026-01-02'),
+      (?, 'tr13-runtime:ceilings:basic:per_sqm:uae', ?, ?, 'assumption', 'assumption', ?, 'TR-13 legacy fixture assumption', 'assumption', 'tr13-fixture-v3', 'ev02-backfill-v1', 20, 25, 30, 25, 1, 1, JSON_OBJECT('legacy', 1), JSON_OBJECT('legacy', 1), 100, 'publish', 'approved', ?, '2026-01-02', '2026-01-02')`,
+    [
+      ID.premiumFloorProposal,
+      ID.premiumFloorSpec,
+      ID.premiumFloorProduct,
+      ID.materialLibrary,
+      ID.admin,
+      ID.affordableFloorProposal,
+      ID.affordableFloorSpec,
+      ID.affordableFloorProduct,
+      ID.affordableFloor,
+      ID.admin,
+      ID.affordableWallProposal,
+      ID.affordableWallSpec,
+      ID.affordableWallProduct,
+      ID.affordableWall,
+      ID.admin,
+      ID.affordableCeilingProposal,
+      ID.affordableCeilingSpec,
+      ID.affordableCeilingProduct,
+      ID.affordableCeiling,
+      ID.admin,
+    ]
+  );
+  await pool.query(
+    `insert into benchmark_proposals
+      (id, benchmarkKey, specId, productId, priceScope, sourceKind,
+       sourceLadderRung, sourceLabel, priceConfidence,
+       provenancePolicyVersion, keyPolicyVersion, proposedP25, proposedP50,
+       proposedP75, weightedMean, evidenceCount, sourceDiversity,
+       reliabilityDist, recencyDist, confidenceScore, recommendation, status,
+       reviewedBy, reviewedAt, createdAt)
+     values
+      (?, 'tr13-runtime:rfq:floors:premium:per_sqm:uae', ?, ?, 'supply_and_install', 'assumption', 'assumption', 'TR-13 governed supply-and-install fixture', 'assumption', 'tr13-fixture-v3', 'tr13-rfq-supply-and-install-v1', 100, 125, 150, 125, 1, 1, JSON_OBJECT('synthetic', 1), JSON_OBJECT('synthetic', 1), 100, 'publish', 'approved', ?, '2026-01-02', '2026-01-02'),
+      (?, 'tr13-runtime:rfq:floors:basic:per_sqm:uae', ?, ?, 'supply_and_install', 'assumption', 'assumption', 'TR-13 governed supply-and-install fixture', 'assumption', 'tr13-fixture-v3', 'tr13-rfq-supply-and-install-v1', 50, 65, 80, 65, 1, 1, JSON_OBJECT('synthetic', 1), JSON_OBJECT('synthetic', 1), 100, 'publish', 'approved', ?, '2026-01-02', '2026-01-02'),
+      (?, 'tr13-runtime:rfq:walls:basic:per_sqm:uae', ?, ?, 'supply_and_install', 'assumption', 'assumption', 'TR-13 governed supply-and-install fixture', 'assumption', 'tr13-fixture-v3', 'tr13-rfq-supply-and-install-v1', 10, 12.5, 15, 12.5, 1, 1, JSON_OBJECT('synthetic', 1), JSON_OBJECT('synthetic', 1), 100, 'publish', 'approved', ?, '2026-01-02', '2026-01-02'),
+      (?, 'tr13-runtime:rfq:ceilings:basic:per_sqm:uae', ?, ?, 'supply_and_install', 'assumption', 'assumption', 'TR-13 governed supply-and-install fixture', 'assumption', 'tr13-fixture-v3', 'tr13-rfq-supply-and-install-v1', 20, 25, 30, 25, 1, 1, JSON_OBJECT('synthetic', 1), JSON_OBJECT('synthetic', 1), 100, 'publish', 'approved', ?, '2026-01-02', '2026-01-02'),
+      (?, 'tr13-runtime:rfq:joinery:basic:per_lm:uae', ?, ?, 'supply_and_install', 'assumption', 'assumption', 'TR-13 governed supply-and-install fixture', 'assumption', 'tr13-fixture-v3', 'tr13-rfq-supply-and-install-v1', 200, 250, 300, 250, 1, 1, JSON_OBJECT('synthetic', 1), JSON_OBJECT('synthetic', 1), 100, 'publish', 'approved', ?, '2026-01-02', '2026-01-02'),
+      (?, 'tr13-runtime:mqi:joinery:basic:per_lm:uae', ?, ?, 'supply_only', 'assumption', 'assumption', 'TR-13 governed supply-only fixture', 'assumption', 'tr13-fixture-v3', 'tr13-mqi-supply-only-v1', 200, 250, 300, 250, 1, 1, JSON_OBJECT('synthetic', 1), JSON_OBJECT('synthetic', 1), 100, 'publish', 'approved', ?, '2026-01-02', '2026-01-02')`,
+    [
+      ID.premiumFloorInstallProposal,
+      ID.premiumFloorSpec,
+      ID.premiumFloorProduct,
+      ID.admin,
+      ID.affordableFloorInstallProposal,
+      ID.affordableFloorSpec,
+      ID.affordableFloorProduct,
+      ID.admin,
+      ID.affordableWallInstallProposal,
+      ID.affordableWallSpec,
+      ID.affordableWallProduct,
+      ID.admin,
+      ID.affordableCeilingInstallProposal,
+      ID.affordableCeilingSpec,
+      ID.affordableCeilingProduct,
+      ID.admin,
+      ID.joineryInstallProposal,
+      ID.joinerySpec,
+      ID.joineryProduct,
+      ID.admin,
+      ID.joineryProposal,
+      ID.joinerySpec,
+      ID.joineryProduct,
+      ID.admin,
+    ]
+  );
+  const [rfqProposalRows] = await pool.query<any[]>(
+    `select id, priceScope, status, proposedP25 as low, proposedP50 as mid, proposedP75 as high
+     from benchmark_proposals
+     where id in (?, ?, ?, ?, ?, ?)
+     order by id`,
+    [
+      ID.premiumFloorInstallProposal,
+      ID.affordableFloorInstallProposal,
+      ID.affordableWallInstallProposal,
+      ID.affordableCeilingInstallProposal,
+      ID.joineryInstallProposal,
+      ID.joineryProposal,
+    ]
+  );
+  expect(
+    rfqProposalRows.map(row => ({
+      ...row,
+      low: Number(row.low),
+      mid: Number(row.mid),
+      high: Number(row.high),
+    }))
+  ).toEqual([
+    {
+      id: ID.premiumFloorInstallProposal,
+      priceScope: "supply_and_install",
+      status: "approved",
+      low: 100,
+      mid: 125,
+      high: 150,
+    },
+    {
+      id: ID.affordableFloorInstallProposal,
+      priceScope: "supply_and_install",
+      status: "approved",
+      low: 50,
+      mid: 65,
+      high: 80,
+    },
+    {
+      id: ID.affordableWallInstallProposal,
+      priceScope: "supply_and_install",
+      status: "approved",
+      low: 10,
+      mid: 12.5,
+      high: 15,
+    },
+    {
+      id: ID.affordableCeilingInstallProposal,
+      priceScope: "supply_and_install",
+      status: "approved",
+      low: 20,
+      mid: 25,
+      high: 30,
+    },
+    {
+      id: ID.joineryInstallProposal,
+      priceScope: "supply_and_install",
+      status: "approved",
+      low: 200,
+      mid: 250,
+      high: 300,
+    },
+    {
+      id: ID.joineryProposal,
+      priceScope: "supply_only",
+      status: "approved",
+      low: 200,
+      mid: 250,
+      high: 300,
+    },
+  ]);
   await pool.query(
     `insert into space_program_rooms
       (projectId, organizationId, roomCode, roomName, category, sqm, source, isFitOut, fitOutOverridden, finishGrade, priority, budgetPct, sortOrder, blockName, blockTypology)
@@ -332,20 +630,82 @@ async function seedBaseFixture(): Promise<void> {
       (?, ?, 'MBR', 'Runtime Bedroom', 'walls', ?, 'TR-13 Runtime Grade C Wall', 100, 30.53, 10, 15, 305.30, 457.95, 'Synthetic Grade C allocation', false),
       (?, ?, 'MBR', 'Runtime Bedroom', 'ceiling', ?, 'TR-13 Runtime Grade C Ceiling', 100, 9.5, 20, 30, 190, 285, 'Synthetic Grade C allocation', false)`,
     [
-      ID.project, ID.org, ID.materialLibrary,
-      ID.project, ID.org, ID.affordableWall,
-      ID.project, ID.org, ID.affordableCeiling,
-      ID.project, ID.org, ID.affordableFloor,
-      ID.project, ID.org, ID.affordableWall,
-      ID.project, ID.org, ID.affordableCeiling,
+      ID.project,
+      ID.org,
+      ID.materialLibrary,
+      ID.project,
+      ID.org,
+      ID.affordableWall,
+      ID.project,
+      ID.org,
+      ID.affordableCeiling,
+      ID.project,
+      ID.org,
+      ID.affordableFloor,
+      ID.project,
+      ID.org,
+      ID.affordableWall,
+      ID.project,
+      ID.org,
+      ID.affordableCeiling,
     ]
   );
+  await pool.query(
+    `insert into material_allocations
+      (projectId, organizationId, roomId, roomName, element,
+       materialLibraryId, materialName, allocationPct, surfaceAreaM2,
+       explicitQuantity, explicitQuantityUnit, unitCostMin, unitCostMax,
+       totalCostMin, totalCostMax, productId, specId, benchmarkProposalId,
+       resolutionState, resolvedPriceScope, requestedGeography,
+       resolvedGeography, resolvedUnitBasis, resolutionAsOf,
+       resolverPolicyVersion, quantityPolicyVersion, quantityConversionInputs,
+       aiReasoning, isLocked)
+     values
+      (?, ?, 'MBR', 'Runtime Bedroom', 'joinery', ?,
+       'TR-13 Runtime Joinery', 100, 0, 2, 'lm', 200, 300, 400, 600,
+       ?, ?, ?, 'resolved', 'supply_only', 'uae', 'uae', 'per_lm',
+       '2026-01-02', 'ev03-material-resolution-v1', 'ev03-direct-unit-v1',
+       JSON_OBJECT('explicitQuantity', 2, 'explicitQuantityUnit', 'lm'),
+       'Synthetic locked canonical joinery allocation', true)`,
+    [
+      ID.project,
+      ID.org,
+      ID.joinery,
+      ID.joineryProduct,
+      ID.joinerySpec,
+      ID.joineryProposal,
+    ]
+  );
+  const [lockedJoineryRows] = await pool.query<any[]>(
+    `select materialLibraryId, explicitQuantity, explicitQuantityUnit,
+            productId, specId, benchmarkProposalId, totalCostMin, totalCostMax
+     from material_allocations
+     where projectId = ? and roomId = 'MBR' and element = 'joinery'
+       and isLocked = true`,
+    [ID.project]
+  );
+  expect({
+    ...lockedJoineryRows[0],
+    explicitQuantity: Number(lockedJoineryRows[0]?.explicitQuantity),
+    totalCostMin: Number(lockedJoineryRows[0]?.totalCostMin),
+    totalCostMax: Number(lockedJoineryRows[0]?.totalCostMax),
+  }).toEqual({
+    materialLibraryId: ID.joinery,
+    explicitQuantity: 2,
+    explicitQuantityUnit: "lm",
+    productId: ID.joineryProduct,
+    specId: ID.joinerySpec,
+    benchmarkProposalId: ID.joineryProposal,
+    totalCostMin: 400,
+    totalCostMax: 600,
+  });
   await pool.query(
     `insert into space_recommendations
       (project_id, org_id, room_id, room_name, sqm, style_direction, color_scheme, material_package, budget_allocation, budget_breakdown, ai_rationale, special_notes, alternatives)
      values (?, ?, 'LVG', 'Runtime Living', 10, 'Synthetic Modern', 'Warm neutral', '[]', 10000, '[]', 'Synthetic recommendation', '[]', '[]')`,
     [ID.project, ID.org]
   );
+  await configureGovernedPricingFromLiveEligibleSet();
 }
 
 async function resetProfileState(): Promise<void> {

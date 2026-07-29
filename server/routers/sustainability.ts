@@ -78,7 +78,8 @@ export const sustainabilityRouter = router({
                     carbonPerSqm: String(result.carbonPerSqm),
                     operationalEnergy: String(result.operationalEnergy),
                     energyPerSqm: String(result.energyPerSqm),
-                    lifecycleCost30yr: String(result.lifecycleCost30yr),
+                    lifecycleCost30yr: null,
+                    lifecycleCostResolutionState: "insufficient",
                     carbonBreakdown: result.carbonBreakdown,
                     lifecycle: result.lifecycle,
                     config: result.config,
@@ -89,7 +90,8 @@ export const sustainabilityRouter = router({
                     grade: result.sustainabilityGrade,
                     embodiedCarbon: String(result.totalEmbodiedCarbon),
                     operationalEnergy: String(result.operationalEnergy),
-                    lifecycleCost: String(result.lifecycleCost30yr),
+                    lifecycleCost: null,
+                    lifecycleCostResolutionState: "insufficient",
                     carbonPerSqm: String(result.carbonPerSqm),
                     energyRating: result.energyRating == null
                         ? null

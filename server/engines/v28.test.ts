@@ -149,6 +149,58 @@ describe("Design Brief Generator", () => {
     const brief = generateDesignBrief({ name: "Green", description: null }, sustainInputs, scoreResult);
     expect(brief.materialSpecifications.sustainabilityMandate).toContain("High Priority");
   });
+
+  it("uses material constants only for sustainability analytics", () => {
+    const brief = generateDesignBrief(
+      { name: "Sustainable", description: null },
+      baseInputs,
+      scoreResult,
+      undefined,
+      [
+        {
+          materialType: "stone",
+          carbonIntensity: 80,
+          maintenanceFactor: 4,
+          costPerM2: 987654,
+        },
+        {
+          materialType: "glass",
+          carbonIntensity: 40,
+          maintenanceFactor: 2,
+          costPerM2: 123456,
+        },
+      ]
+    );
+
+    expect(brief.pricingAnalytics).toBeUndefined();
+    expect(brief.sustainabilityAnalytics).toMatchObject({
+      totalCarbonKg: 15_000_000,
+      avgCarbonIntensityKgPerM2: 60,
+      avgMaintenanceFactor: 3,
+      sustainabilityGrade: "C",
+      coveragePct: 50,
+      sustainabilitySource: "material_constants",
+    });
+    expect(brief.sustainabilityAnalytics?.materialBreakdown).toEqual([
+      {
+        materialType: "stone",
+        allocatedSqm: 125_000,
+        carbonIntensityKgPerM2: 80,
+        carbonKg: 10_000_000,
+        maintenanceFactor: 4,
+      },
+      {
+        materialType: "glass",
+        allocatedSqm: 125_000,
+        carbonIntensityKgPerM2: 40,
+        carbonKg: 5_000_000,
+        maintenanceFactor: 2,
+      },
+    ]);
+    expect(JSON.stringify(brief.sustainabilityAnalytics)).not.toMatch(
+      /cost|price|fitout/i
+    );
+  });
 });
 
 /* ─── Board Composer Tests ─── */
@@ -185,7 +237,8 @@ describe("Board Composer", () => {
   it("handles empty board", () => {
     const summary = computeBoardSummary([]);
     expect(summary.totalItems).toBe(0);
-    expect(summary.estimatedCostLow).toBe(0);
+    expect(summary.estimatedCostLow).toBeNull();
+    expect(summary.estimatedCostHigh).toBeNull();
     expect(summary.longestLeadTimeDays).toBe(0);
     expect(summary.criticalPathItems).toHaveLength(0);
   });

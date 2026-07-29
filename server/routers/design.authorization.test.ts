@@ -219,6 +219,65 @@ describe("design router authorization", () => {
     expect(mocks.db.getProjectById).not.toHaveBeenCalled();
   });
 
+  it("returns sustainability coverage without material-constant cost claims", async () => {
+    mocks.db.getMaterialConstants.mockResolvedValue([
+      {
+        materialType: "stone",
+        carbonIntensity: "80",
+        maintenanceFactor: "4",
+        costPerM2: "999999",
+      },
+    ]);
+    const caller = designRouter.createCaller(contexts.orgA);
+
+    const result = await caller.calculateSpec({
+      items: [
+        { materialType: "stone", areaM2: 10 },
+        { materialType: "unknown", areaM2: 10 },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      totalCarbonKg: 800,
+      avgCarbonIntensityKgPerM2: 80,
+      avgMaintenanceFactor: 4,
+      sustainabilityGrade: "C",
+      requestedAreaM2: 20,
+      matchedAreaM2: 10,
+      coveragePct: 50,
+      costAvailability: "governed_pricing_required",
+    });
+    expect(result.breakdown[1]).toMatchObject({
+      materialType: "unknown",
+      carbonIntensityKgPerM2: null,
+      carbonKg: null,
+      maintenanceFactor: null,
+      matched: false,
+    });
+    expect(JSON.stringify(result)).not.toMatch(
+      /costPerM2|lineCostAed|totalCostAed|costPerM2Avg|999999/
+    );
+  });
+
+  it("returns null sustainability totals when no constants match", async () => {
+    const caller = designRouter.createCaller(contexts.orgA);
+
+    const result = await caller.calculateSpec({
+      items: [{ materialType: "unknown", areaM2: 25 }],
+    });
+
+    expect(result).toMatchObject({
+      totalCarbonKg: null,
+      avgCarbonIntensityKgPerM2: null,
+      avgMaintenanceFactor: null,
+      sustainabilityGrade: null,
+      requestedAreaM2: 25,
+      matchedAreaM2: 0,
+      coveragePct: 0,
+      costAvailability: "governed_pricing_required",
+    });
+  });
+
   it("allows same-organization project reads", async () => {
     const caller = designRouter.createCaller(contexts.orgA);
 

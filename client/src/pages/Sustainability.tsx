@@ -384,8 +384,8 @@ function SustainabilityContent() {
                                             <TrendingUp className="h-4 w-4" />
                                             <span className="text-xs">30yr Lifecycle</span>
                                         </div>
-                                        <p className="text-lg font-semibold">AED {fmt(result.lifecycleCost30yr)}</p>
-                                        <p className="text-[10px] text-muted-foreground">{fmt(result.lifecycleCostPerSqm)} AED/m²</p>
+                                        <p className="text-lg font-semibold">Insufficient</p>
+                                        <p className="text-[10px] text-muted-foreground">Governed product/specification pricing is required</p>
                                     </CardContent>
                                 </Card>
                                 <Card>

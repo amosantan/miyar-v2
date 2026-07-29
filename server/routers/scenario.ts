@@ -406,19 +406,30 @@ export const scenarioRouter = router({
       const { runMonteCarloSimulation } = await import("../engines/predictive/monte-carlo");
 
       // Extract cost and project params
-      const baseCost = Number(project.fin01BudgetCap || 0);
-      const gfa = getPricingArea(project) || 500;
+      const baseCost = Number(project.fin01BudgetCap);
+      const gfa = getPricingArea(project);
+      if (
+        !Number.isFinite(baseCost) ||
+        baseCost <= 0 ||
+        !Number.isFinite(gfa) ||
+        gfa <= 0
+      ) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "MONTE_CARLO_COST_INPUTS_INSUFFICIENT",
+        });
+      }
       const trendPct = 3;
       const marketCond = (project as any).marketCondition || "balanced";
 
       const result = runMonteCarloSimulation({
-        baseCostPerSqm: baseCost > 0 ? baseCost / gfa : 2500,
+        baseCostPerSqm: baseCost / gfa,
         gfa,
         trendAnnualPct: trendPct,
         trendVolatility: input.trendVolatility,
         marketCondition: marketCond,
         horizonMonths: input.horizonMonths,
-        budgetCap: baseCost > 0 ? baseCost : undefined,
+        budgetCap: baseCost,
         iterations: input.iterations,
         costVolatilityPct: input.costVolatilityPct,
       });

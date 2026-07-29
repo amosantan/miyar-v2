@@ -5,7 +5,93 @@
  * records the isolated certification seeder creates; they are not customer data and
  * must not be substituted for numeric scoring or stored-report evidence.
  */
-export const TR13_WORKFLOW_FIXTURE_VERSION = "tr13-workflow-fixtures-v2";
+import {
+  buildMaterialPricingComparisonEvidence,
+  type LegacyPriceRange,
+} from "../../../server/engines/material-pricing/rollout-comparison";
+import { exactDecimalMidpoint } from "../../../server/engines/material-pricing/policy";
+import type { MaterialPriceSnapshot } from "../../../shared/material-calculations";
+
+export const TR13_WORKFLOW_FIXTURE_VERSION = "tr13-workflow-fixtures-v3";
+
+function tr13GovernedRolloutEvidence(
+  legacyRanges: readonly LegacyPriceRange[],
+  snapshots: readonly MaterialPriceSnapshot[]
+) {
+  return buildMaterialPricingComparisonEvidence({
+    legacyRanges,
+    snapshots,
+    generatedAt: new Date("2026-01-02T00:00:00.000Z"),
+  });
+}
+
+export function tr13GovernedSnapshotFromLiveRow(row: {
+  legacyId: number | string;
+  productId: number | string;
+  specificationId: number | string;
+  benchmarkProposalId: number | string;
+  benchmarkVersionId: number | string | null;
+  benchmarkVersion: string | null;
+  provenancePolicyVersion: string;
+  unitBasis: "per_piece" | "per_pack" | "per_sqm" | "per_lm" | "per_litre";
+  geography: "dubai" | "abu_dhabi" | "sharjah" | "ajman" | "umm_al_quwain" | "ras_al_khaimah" | "fujairah" | "uae";
+  priceMin: string | number;
+  priceMax: string | number;
+}): MaterialPriceSnapshot {
+  const priceMin = String(row.priceMin);
+  const priceMax = String(row.priceMax);
+  const midpoint = exactDecimalMidpoint(priceMin, priceMax);
+  return {
+    state: "resolved",
+    policyVersion: "ev03-material-resolution-v1",
+    reference: {
+      source: "material_library",
+      legacyId: Number(row.legacyId),
+    },
+    productId: Number(row.productId),
+    specificationId: Number(row.specificationId),
+    benchmarkProposalId: Number(row.benchmarkProposalId),
+    benchmarkVersionId:
+      row.benchmarkVersionId === null ? null : Number(row.benchmarkVersionId),
+    resolverAsOf: "2026-01-02T00:00:00.000Z",
+    requestedGeography: "uae",
+    resolvedGeography: row.geography,
+    usedUaeFallback: false,
+    requestedPriceScope: "supply_only",
+    resolvedPriceScope: "legacy_unknown",
+    currency: "AED",
+    unitBasis: row.unitBasis,
+    priceMin,
+    priceMid: midpoint,
+    priceMax,
+    weightedMean: midpoint,
+    provenance: {
+      sourceLadderRung: "assumption",
+      sourceLabel: "Legacy scope-unknown assumption",
+      provenancePolicyVersion: row.provenancePolicyVersion,
+      benchmarkVersion:
+        row.benchmarkVersion ?? "legacy-unversioned-benchmark",
+      compatibilityFallback: true,
+    },
+  };
+}
+
+/** Synthetic, integrity-valid governed mode for isolated TR-13 certification. */
+export function tr13GovernedPricingEnvironment(
+  base: NodeJS.ProcessEnv,
+  legacyRanges: readonly LegacyPriceRange[],
+  snapshots: readonly MaterialPriceSnapshot[]
+): NodeJS.ProcessEnv {
+  const evidence = tr13GovernedRolloutEvidence(legacyRanges, snapshots);
+  return {
+    ...base,
+    MIYAR_EV03_PRICING_MODE: "governed",
+    MIYAR_EV03_ROLLOUT_EVIDENCE_JSON: JSON.stringify(evidence),
+    MIYAR_EV03_GOVERNED_CUTOVER_APPROVAL_REF:
+      "user-approved:2026-01-02:ev03-governed-cutover",
+    MIYAR_EV03_GOVERNED_EVIDENCE_SHA256: evidence.evidenceDigest,
+  };
+}
 
 /**
  * Canonical governed records for the guarded real-MySQL certification journey.
@@ -34,18 +120,65 @@ export const TR13_MYSQL_CRITICAL_FIXTURE = {
     affordableFloor: 13_703,
     affordableWall: 13_704,
     affordableCeiling: 13_705,
+    joinery: 13_706,
+    premiumFloorProduct: 13_711,
+    affordableFloorProduct: 13_712,
+    affordableWallProduct: 13_713,
+    affordableCeilingProduct: 13_714,
+    joineryProduct: 13_715,
+    premiumFloorSpec: 13_721,
+    affordableFloorSpec: 13_722,
+    affordableWallSpec: 13_723,
+    affordableCeilingSpec: 13_724,
+    joinerySpec: 13_725,
+    premiumFloorProposal: 13_731,
+    affordableFloorProposal: 13_732,
+    affordableWallProposal: 13_733,
+    affordableCeilingProposal: 13_734,
+    premiumFloorInstallProposal: 13_735,
+    affordableFloorInstallProposal: 13_736,
+    affordableWallInstallProposal: 13_737,
+    affordableCeilingInstallProposal: 13_738,
+    joineryInstallProposal: 13_739,
+    joineryProposal: 13_740,
     benchmark: 13_801,
     logic: 13_901,
   },
   organizations: {
-    primary: { name: "TR-13 Synthetic Primary", slug: "tr13-synthetic-primary" },
-    foreign: { name: "TR-13 Synthetic Foreign", slug: "tr13-synthetic-foreign" },
+    primary: {
+      name: "TR-13 Synthetic Primary",
+      slug: "tr13-synthetic-primary",
+    },
+    foreign: {
+      name: "TR-13 Synthetic Foreign",
+      slug: "tr13-synthetic-foreign",
+    },
   },
   users: {
-    admin: { name: "TR13 Admin", email: "tr13-admin@example.invalid", org: "primary", membership: "admin" },
-    member: { name: "TR13 Member", email: "tr13-member@example.invalid", org: "primary", membership: "member" },
-    viewer: { name: "TR13 Viewer", email: "tr13-viewer@example.invalid", org: "primary", membership: "viewer" },
-    foreign: { name: "TR13 Foreign", email: "tr13-foreign@example.invalid", org: "foreign", membership: "admin" },
+    admin: {
+      name: "TR13 Admin",
+      email: "tr13-admin@example.invalid",
+      org: "primary",
+      membership: "admin",
+    },
+    member: {
+      name: "TR13 Member",
+      email: "tr13-member@example.invalid",
+      org: "primary",
+      membership: "member",
+    },
+    viewer: {
+      name: "TR13 Viewer",
+      email: "tr13-viewer@example.invalid",
+      org: "primary",
+      membership: "viewer",
+    },
+    foreign: {
+      name: "TR13 Foreign",
+      email: "tr13-foreign@example.invalid",
+      org: "foreign",
+      membership: "admin",
+    },
   },
   versions: {
     model: {
@@ -56,41 +189,170 @@ export const TR13_MYSQL_CRITICAL_FIXTURE = {
     logic: { name: "tr13-synthetic-logic-v1", date: "2026-01-01" },
   },
   benchmark: {
-    typology: "Residential", location: "Prime", marketTier: "Upper-mid",
-    materialLevel: 3, roomType: "General", low: 300, mid: 400, high: 500, year: 2026,
+    typology: "Residential",
+    location: "Prime",
+    marketTier: "Upper-mid",
+    materialLevel: 3,
+    roomType: "General",
+    low: 300,
+    mid: 400,
+    high: 500,
+    year: 2026,
   },
   project: {
-    name: "TR-13 Synthetic Residence", description: "Synthetic only", status: "evaluated",
-    typology: "Residential", scale: "Medium", gfa: 100, fitOutArea: 20,
-    location: "Prime", horizon: "12-24m", city: "Dubai", marketTier: "Upper-mid",
-    budgetCap: 1000, style: "Modern",
-    provenance: { ctx01Typology: "explicit", ctx03Gfa: "explicit", fin01BudgetCap: "explicit" },
+    name: "TR-13 Synthetic Residence",
+    description: "Synthetic only",
+    status: "evaluated",
+    typology: "Residential",
+    scale: "Medium",
+    gfa: 100,
+    fitOutArea: 20,
+    location: "Prime",
+    horizon: "12-24m",
+    city: "Dubai",
+    marketTier: "Upper-mid",
+    budgetCap: 1000,
+    style: "Modern",
+    provenance: {
+      ctx01Typology: "explicit",
+      ctx03Gfa: "explicit",
+      fin01BudgetCap: "explicit",
+    },
   },
   foreignProject: { name: "TR-13 Foreign Project", fitOutArea: 100 },
-  score: { dimensions: { sa: 80, ff: 70, mp: 75, ds: 78, er: 72 }, composite: 75, risk: 25, ras: 75, confidence: 90 },
+  score: {
+    dimensions: { sa: 80, ff: 70, mp: 75, ds: 78, er: 72 },
+    composite: 75,
+    risk: 25,
+    ras: 75,
+    confidence: 90,
+  },
   evidence: {
-    recordId: "TR13-EVIDENCE-001", category: "floors", itemName: "Synthetic stone evidence",
-    unit: "sqm", sourceUrl: "https://example.invalid/tr13-evidence", date: "2026-01-01",
-    reliability: "A", confidence: 90, confidentiality: "internal", corpusScope: "organization",
+    recordId: "TR13-EVIDENCE-001",
+    category: "floors",
+    itemName: "Supplier Q-SECRET contact secret@supplier.invalid",
+    unit: "sqm",
+    sourceUrl: "https://supplier.invalid/quote/Q-SECRET?contact=private",
+    date: "2026-01-01",
+    reliability: "A",
+    confidence: 90,
+    confidentiality: "internal",
+    corpusScope: "organization",
   },
   materials: {
-    catalog: { name: "TR-13 Synthetic Stone", category: "stone", tier: "premium", low: 100, high: 150, unit: "AED/sqm", supplier: "Synthetic Supplier" },
+    catalog: {
+      name: "TR-13 Synthetic Stone",
+      category: "stone",
+      tier: "premium",
+      low: 100,
+      high: 150,
+      unit: "AED/sqm",
+      supplier: "Synthetic Supplier",
+    },
     library: [
-      { id: "materialLibrary", category: "flooring", tier: "premium", code: "TR13-STONE", name: "TR-13 Synthetic Stone", low: 100, high: 150 },
-      { id: "affordableFloor", category: "flooring", tier: "affordable", code: "TR13-FLOOR-C", name: "TR-13 Synthetic Grade C Floor", low: 50, high: 80 },
-      { id: "affordableWall", category: "wall_paint", tier: "affordable", code: "TR13-WALL-C", name: "TR-13 Synthetic Grade C Wall", low: 10, high: 15 },
-      { id: "affordableCeiling", category: "ceiling", tier: "affordable", code: "TR13-CEILING-C", name: "TR-13 Synthetic Grade C Ceiling", low: 20, high: 30 },
+      {
+        id: "materialLibrary",
+        category: "flooring",
+        tier: "premium",
+        code: "TR13-STONE",
+        name: "TR-13 Synthetic Stone",
+        low: 100,
+        high: 150,
+      },
+      {
+        id: "affordableFloor",
+        category: "flooring",
+        tier: "affordable",
+        code: "TR13-FLOOR-C",
+        name: "TR-13 Synthetic Grade C Floor",
+        low: 50,
+        high: 80,
+      },
+      {
+        id: "affordableWall",
+        category: "wall_paint",
+        tier: "affordable",
+        code: "TR13-WALL-C",
+        name: "TR-13 Synthetic Grade C Wall",
+        low: 10,
+        high: 15,
+      },
+      {
+        id: "affordableCeiling",
+        category: "ceiling",
+        tier: "affordable",
+        code: "TR13-CEILING-C",
+        name: "TR-13 Synthetic Grade C Ceiling",
+        low: 20,
+        high: 30,
+      },
+      {
+        id: "joinery",
+        category: "joinery",
+        tier: "affordable",
+        code: "TR13-JOINERY",
+        name: "TR-13 Synthetic Joinery",
+        low: 200,
+        high: 300,
+      },
     ],
   },
   rooms: [
-    { code: "LVG", name: "Synthetic Living", category: "living", sqm: 10, grade: "B", priority: "high", budgetPct: 0.5, sortOrder: 0 },
-    { code: "MBR", name: "Synthetic Bedroom", category: "bedroom", sqm: 10, grade: "A", priority: "high", budgetPct: 0.5, sortOrder: 1 },
+    {
+      code: "LVG",
+      name: "Synthetic Living",
+      category: "living",
+      sqm: 10,
+      grade: "B",
+      priority: "high",
+      budgetPct: 0.5,
+      sortOrder: 0,
+    },
+    {
+      code: "MBR",
+      name: "Synthetic Bedroom",
+      category: "bedroom",
+      sqm: 10,
+      grade: "A",
+      priority: "high",
+      budgetPct: 0.5,
+      sortOrder: 1,
+    },
   ],
-  lockedAllocation: { roomCode: "LVG", element: "floor", material: "materialLibrary", pct: 100, area: 10, low: 100, high: 150, totalLow: 1000, totalHigh: 1500 },
+  lockedAllocation: {
+    roomCode: "LVG",
+    element: "floor",
+    material: "materialLibrary",
+    pct: 100,
+    area: 10,
+    low: 100,
+    high: 150,
+    totalLow: 1000,
+    totalHigh: 1500,
+  },
+  lockedJoineryAllocation: {
+    roomCode: "MBR",
+    element: "joinery",
+    material: "joinery",
+    pct: 100,
+    area: 0,
+    explicitQuantity: 2,
+    explicitQuantityUnit: "lm",
+    low: 200,
+    high: 300,
+    totalLow: 400,
+    totalHigh: 600,
+  },
   reconciliation: {
-    fitOutAreaM2: 20, roomAreaM2: 20, allocationPct: 100,
-    roomCount: 2, allocationCount: 6, lockedAllocationCount: 1, manualRoomCount: 2,
-    costAed: { min: 2_494.7, mid: 3_143.38, max: 3_792.05 },
+    fitOutAreaM2: 20,
+    roomAreaM2: 20,
+    allocationPct: 100,
+    roomCount: 2,
+    allocationCount: 7,
+    lockedAllocationCount: 2,
+    manualRoomCount: 2,
+    costAed: { min: 2894.7, mid: 3643.38, max: 4392.05 },
+    priceCoverage: { priced: 7, unpriced: 0, state: "complete" },
     allocationSurfacesMatchFormula: true,
   },
 } as const;

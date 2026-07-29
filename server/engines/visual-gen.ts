@@ -29,9 +29,6 @@ export interface BoardMaterialSpec {
   category: string;
   tier: string;
   supplierName: string | null;
-  costUnit: string | null;
-  costLow: number;
-  costHigh: number;
   embodiedCarbon: number | null;
   maintenanceFactor: number | null;
   brandStandardApproval: string | null;

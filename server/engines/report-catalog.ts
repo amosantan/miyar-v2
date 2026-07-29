@@ -145,10 +145,10 @@ const EN_COPY = {
   boardResolvedCount: "{resolved} of {linked} items resolved",
   boardItemIs: "item is",
   boardItemsAre: "items are",
-  resolvedItemCostRange: "Resolved-item Cost Range",
+  resolvedItemCostRange: "Browse-only Catalog Estimate (excluded from issued totals)",
   resolvedItemLongestLead: "Resolved-item Longest Lead",
   resolvedCriticalItems: "Resolved Critical Items",
-  materialBoardAnnexDescription: "Board availability and resolution are shown explicitly. Any figures shown are calculated only from resolved catalog items. Full RFQ-ready procurement schedules are available via the Board Composer export.",
+  materialBoardAnnexDescription: "Board availability is shown explicitly. Catalog figures are browse-only estimates, are excluded from scoring and issued totals, and are not RFQ-ready until a governed specification and value resolve.",
   noMaterialBoards: "No material boards have been created for this project. Use the Board Composer to build material boards with cost estimates and RFQ-ready procurement schedules.",
 } as const;
 
@@ -283,10 +283,10 @@ const AR_COPY: Record<ReportCopyKey, string> = {
   boardResolvedCount: "تم حل {resolved} من أصل {linked} عناصر",
   boardItemIs: "عنصر",
   boardItemsAre: "عناصر",
-  resolvedItemCostRange: "نطاق تكلفة العناصر المحلولة",
+  resolvedItemCostRange: "تقدير الكتالوج للاستعراض فقط (مستبعد من الإجماليات الصادرة)",
   resolvedItemLongestLead: "أطول مهلة للعناصر المحلولة",
   resolvedCriticalItems: "العناصر الحرجة المحلولة",
-  materialBoardAnnexDescription: "يتم عرض توفر اللوحات وحالة حل عناصرها بوضوح. تُحسب الأرقام المعروضة فقط من عناصر الكتالوج التي تم حلها. تتوفر جداول شراء كاملة جاهزة لطلب عروض الأسعار عبر تصدير أداة إنشاء اللوحات.",
+  materialBoardAnnexDescription: "يتم عرض توفر اللوحات بوضوح. أرقام الكتالوج تقديرية وللاستعراض فقط، ولا تدخل في التقييم أو الإجماليات الصادرة، ولا تصبح جاهزة لطلب عروض الأسعار قبل حل مواصفة وقيمة محكومة.",
   noMaterialBoards: "لم يتم إنشاء لوحات مواد لهذا المشروع. استخدم أداة إنشاء اللوحات لبناء لوحات مواد تتضمن تقديرات التكلفة وجداول شراء جاهزة لطلب عروض الأسعار.",
 };
 

@@ -144,6 +144,28 @@ export function resolveGovernedMaterialValueFromCandidates(
   if (selected.sourceLadderRung === "retail_sanity") {
     throw new Error("Retail sanity rows cannot resolve authoritatively");
   }
+  const p25 = Number(selected.p25);
+  const p50 = Number(selected.p50);
+  const p75 = Number(selected.p75);
+  const weightedMean = Number(selected.weightedMean);
+  if (
+    !Number.isFinite(p25) ||
+    !Number.isFinite(p50) ||
+    !Number.isFinite(p75) ||
+    !Number.isFinite(weightedMean) ||
+    p25 <= 0 ||
+    p50 <= 0 ||
+    p75 <= 0 ||
+    weightedMean <= 0 ||
+    p25 > p50 ||
+    p50 > p75
+  ) {
+    return {
+      status: "insufficient",
+      reason: "no_governed_value",
+      retailSanityBand: diagnosticBand,
+    };
+  }
   const value: ResolvedGovernedMaterialValue["value"] = {
     benchmarkProposalId: selected.id,
     benchmarkVersionId: selected.benchmarkVersionId,

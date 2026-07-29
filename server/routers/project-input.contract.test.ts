@@ -8,14 +8,25 @@ describe("project input compatibility", () => {
       description: null,
       ctx03Gfa: "12500.5",
       fin01BudgetCap: "850",
+      materialPriceGeography: "dubai",
     });
     expect(result.description).toBeUndefined();
     expect(result.ctx03Gfa).toBe(12500.5);
     expect(result.fin01BudgetCap).toBe(850);
+    expect(result.materialPriceGeography).toBe("dubai");
   });
 
   it("still rejects non-numeric strings", () => {
     expect(() => projectInputSchema.parse({ name: "Invalid", ctx03Gfa: "twelve" }))
       .toThrow();
+  });
+
+  it("rejects descriptive market labels as price geography", () => {
+    expect(() =>
+      projectInputSchema.parse({
+        name: "No inferred emirate",
+        materialPriceGeography: "Prime",
+      })
+    ).toThrow();
   });
 });

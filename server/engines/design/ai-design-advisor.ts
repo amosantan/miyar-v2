@@ -30,7 +30,7 @@ const materialSchema = z.object({
     element: z.string(),
     productName: z.string(),
     brand: z.string(),
-    priceRange: z.string(),
+    priceRange: z.string().optional(),
     rationale: z.string(),
 });
 
@@ -40,7 +40,7 @@ const kitchenSchema = z.object({
     cabinetStyle: z.string(),
     cabinetFinish: z.string(),
     countertopMaterial: z.string(),
-    countertopPriceRange: z.string(),
+    countertopPriceRange: z.string().optional(),
     backsplash: z.string(),
     sinkType: z.string(),
     applianceLevel: z.enum(["standard", "premium", "professional"]),
@@ -219,7 +219,7 @@ ${dldContext}` : ""}
 For EACH space, provide:
 1. **styleDirection** — A specific design direction (e.g., "Warm minimalism with brass accents and limestone textures")
 2. **colorScheme** — Specific colors (e.g., "Warm sand #D4C5A9, Charcoal #3A3A3A, Brass #B8860B")
-3. **materials** — For each element (floor, wall_primary, wall_feature, ceiling, joinery, hardware), recommend a specific product with brand and price range
+3. **materials** — For each element (floor, wall_primary, wall_feature, ceiling, joinery, hardware), recommend a specific product and brand; do not invent prices
 4. **budgetBreakdown** — % allocation per element within the room
 5. **rationale** — Why this style fits the project context
 6. **specialNotes** — Tips for the interior designer
@@ -232,7 +232,7 @@ For BATHROOM spaces (${BATHROOM_ROOMS.join(", ")}), also provide bathroomSpec wi
 - showerType, vanityStyle, vanityWidth, tilePattern, wallTile, floorTile
 - fixtureFinish, fixtureBrand, mirrorType, luxuryFeatures
 
-Match materials to the "${inputs.mkt01Tier}" market tier. Use UAE-available brands and realistic AED pricing.
+Match materials to the "${inputs.mkt01Tier}" market tier. Use UAE-available brands. Numerical pricing is resolved separately by deterministic governed code.
 
 Respond in JSON format matching GeminiDesignResponse schema:
 {
@@ -260,7 +260,7 @@ function buildMaterialSummary(materials: any[], inputs: ProjectInputs): string {
     return Object.entries(grouped)
         .map(([cat, items]) => {
             const list = items.map(m =>
-                `  • ${m.productName} (${m.brand}) — ${m.tier} — ${m.priceAedMin || "?"}–${m.priceAedMax || "?"} AED/${m.unitLabel}`
+                `  • ${m.productName} (${m.brand}) — ${m.tier} — ${m.unitLabel}`
             ).join("\n");
             return `**${cat}**:\n${list}`;
         })
@@ -289,7 +289,6 @@ function buildMarketIntelSummary(recentEvidence: any[], inputs: ProjectInputs): 
         if (e.designStyle) line += ` (${e.designStyle})`;
         if (e.finishLevel) line += ` [${e.finishLevel} finish]`;
         if (e.brandsMentioned && e.brandsMentioned.length > 0) line += ` — brands: ${e.brandsMentioned.join(", ")}`;
-        if (e.priceMin || e.priceMax) line += ` — Price: ${e.priceMin || "?"}-${e.priceMax || "?"} ${e.unit || "AED"}`;
         return line;
     }).join("\n");
 }
@@ -387,9 +386,7 @@ function mapAIResponseToRecommendations(
                 brand: libraryMatch?.brand || m.brand,
                 category: libraryMatch?.category || m.element,
                 element: m.element,
-                priceRangeAed: libraryMatch
-                    ? `${libraryMatch.priceAedMin}–${libraryMatch.priceAedMax} AED/${libraryMatch.unitLabel}`
-                    : m.priceRange,
+                priceRangeAed: "Governed price required",
                 aiRationale: m.rationale,
             };
         });
@@ -409,6 +406,7 @@ function mapAIResponseToRecommendations(
             const tierMult = TIER_PRICE_MULTIPLIERS[inputs.mkt01Tier] || 1.0;
             kitchenSpec = {
                 ...aiSpace.kitchenSpec,
+                countertopPriceRange: "Governed price required",
                 estimatedCostAed: Math.round(roomBudget * 0.6 * tierMult),
             };
         }

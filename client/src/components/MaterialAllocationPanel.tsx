@@ -114,14 +114,23 @@ export default function MaterialAllocationPanel({ projectId }: Props) {
         );
     }
 
-    // Compute totals from room data
-    const totalCostMin = data.rooms.reduce((sum: number, r: any) =>
-        sum + r.elements.reduce((s: number, e: any) =>
-            s + e.allocations.reduce((a: number, al: any) => a + (al.totalCostMin || 0), 0), 0), 0);
-    const totalCostMax = data.rooms.reduce((sum: number, r: any) =>
-        sum + r.elements.reduce((s: number, e: any) =>
-            s + e.allocations.reduce((a: number, al: any) => a + (al.totalCostMax || 0), 0), 0), 0);
-    const totalCostMid = (totalCostMin + totalCostMax) / 2;
+    // An unresolved allocation invalidates the aggregate; it is never AED 0.
+    const allAllocations = data.rooms.flatMap((room: any) =>
+        room.elements.flatMap((element: any) => element.allocations)
+    );
+    const aggregateComplete = allAllocations.length > 0 && allAllocations.every(
+        (allocation: any) =>
+            allocation.totalCostMin !== null && allocation.totalCostMax !== null
+    );
+    const totalCostMin = aggregateComplete
+        ? allAllocations.reduce((sum: number, allocation: any) => sum + Number(allocation.totalCostMin), 0)
+        : null;
+    const totalCostMax = aggregateComplete
+        ? allAllocations.reduce((sum: number, allocation: any) => sum + Number(allocation.totalCostMax), 0)
+        : null;
+    const totalCostMid = totalCostMin !== null && totalCostMax !== null
+        ? (totalCostMin + totalCostMax) / 2
+        : null;
     const hasLocked = data.rooms.some((r: any) =>
         r.elements.some((e: any) => e.allocations.some((a: any) => a.isLocked)));
 
@@ -140,18 +149,24 @@ export default function MaterialAllocationPanel({ projectId }: Props) {
                     <CardContent className="pt-4 pb-3 text-center">
                         <p className="text-xs text-muted-foreground mb-1">Finish Cost (Est.)</p>
                         <p className="text-2xl font-bold text-miyar-emerald">
-                            {fmtAed(totalCostMid)}
+                            {totalCostMid === null ? "Insufficient" : fmtAed(totalCostMid)}
                         </p>
-                        <p className="text-[10px] text-muted-foreground">AED</p>
+                        <p className="text-[10px] text-muted-foreground">
+                            {totalCostMid === null ? "Resolve all material prices" : "AED"}
+                        </p>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardContent className="pt-4 pb-3 text-center">
                         <p className="text-xs text-muted-foreground mb-1">Cost Range</p>
                         <p className="text-lg font-semibold text-foreground">
-                            {fmtAed(totalCostMin)} – {fmtAed(totalCostMax)}
+                            {totalCostMin === null || totalCostMax === null
+                                ? "Insufficient"
+                                : `${fmtAed(totalCostMin)} – ${fmtAed(totalCostMax)}`}
                         </p>
-                        <p className="text-[10px] text-muted-foreground">AED min–max</p>
+                        <p className="text-[10px] text-muted-foreground">
+                            {totalCostMin === null ? "Resolve all material prices" : "AED min–max"}
+                        </p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -216,17 +231,21 @@ export default function MaterialAllocationPanel({ projectId }: Props) {
             {/* Room Accordions */}
             {data.rooms.map((room: any) => {
                 const isExpanded = expandedRooms.has(room.roomId);
-                const roomCostMin = room.elements.reduce(
-                    (s: number, e: any) =>
-                        s + e.allocations.reduce((a: number, al: any) => a + (al.totalCostMin || 0), 0),
-                    0
+                const roomAllocations = room.elements.flatMap((element: any) => element.allocations);
+                const roomComplete = roomAllocations.length > 0 && roomAllocations.every(
+                    (allocation: any) =>
+                        allocation.totalCostMin !== null
+                        && allocation.totalCostMax !== null
                 );
-                const roomCostMax = room.elements.reduce(
-                    (s: number, e: any) =>
-                        s + e.allocations.reduce((a: number, al: any) => a + (al.totalCostMax || 0), 0),
-                    0
-                );
-                const roomCostMid = (roomCostMin + roomCostMax) / 2;
+                const roomCostMin = roomComplete
+                    ? roomAllocations.reduce((sum: number, allocation: any) => sum + Number(allocation.totalCostMin), 0)
+                    : null;
+                const roomCostMax = roomComplete
+                    ? roomAllocations.reduce((sum: number, allocation: any) => sum + Number(allocation.totalCostMax), 0)
+                    : null;
+                const roomCostMid = roomCostMin !== null && roomCostMax !== null
+                    ? (roomCostMin + roomCostMax) / 2
+                    : null;
 
                 return (
                     <Card key={room.roomId}>
@@ -251,7 +270,7 @@ export default function MaterialAllocationPanel({ projectId }: Props) {
                             </div>
                             <div className="flex items-center gap-3">
                                 <span className="text-sm font-semibold text-miyar-emerald">
-                                    {fmtAed(roomCostMid)} AED
+                                    {roomCostMid === null ? "Insufficient" : `${fmtAed(roomCostMid)} AED`}
                                 </span>
                                 <span className="text-[10px] text-muted-foreground">
                                     {room.elements.reduce(
@@ -319,8 +338,9 @@ export default function MaterialAllocationPanel({ projectId }: Props) {
                                                                     {alloc.surfaceAreaM2?.toFixed(1)} m²
                                                                 </span>
                                                                 <span className="text-[10px] text-muted-foreground">
-                                                                    {fmtAed(alloc.totalCostMin || 0)}–
-                                                                    {fmtAed(alloc.totalCostMax || 0)} AED
+                                                                    {alloc.totalCostMin === null || alloc.totalCostMax === null
+                                                                        ? "Insufficient"
+                                                                        : `${fmtAed(Number(alloc.totalCostMin))}–${fmtAed(Number(alloc.totalCostMax))} AED`}
                                                                 </span>
                                                             </div>
                                                         </div>

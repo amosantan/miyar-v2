@@ -43,7 +43,7 @@ describe("TR-11 truthful public claims", () => {
     for (const forbidden of [
       "Live market benchmarks", "DLD-Backed Recommendations", "(Market-Verified)",
     ]) expect(generatedOutputFiles.toLowerCase()).not.toContain(forbidden.toLowerCase());
-    expect(generatedOutputFiles).toContain("indicative benchmark estimate");
+    expect(generatedOutputFiles).toContain("Browse-only catalog estimate");
     expect(generatedOutputFiles).toContain("MIYAR Ratio Guidance:");
   });
 

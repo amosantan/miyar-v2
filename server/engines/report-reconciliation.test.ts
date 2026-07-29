@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { MATERIAL_RESOLUTION_POLICY_VERSION } from "../../shared/material-calculations";
+import { governedMaterialLibrarySnapshot } from "../../tests/fixtures/material-price-snapshots";
 import { buildWorkflowSpaceMqiReconciliation } from "./report-reconciliation";
 
 describe("workflow/space/MQI report reconciliation", () => {
@@ -66,9 +68,9 @@ describe("workflow/space/MQI report reconciliation", () => {
           isLocked: false,
         },
       ],
-      materialLibrary: [
-        { id: 1, priceAedMin: "100.00", priceAedMax: "200.00" },
-        { id: 2, priceAedMin: "50.00", priceAedMax: "150.00" },
+      priceSnapshots: [
+        governedMaterialLibrarySnapshot({ legacyId: 1, priceMin: 100, priceMax: 200 }),
+        governedMaterialLibrarySnapshot({ legacyId: 2, priceMin: 50, priceMax: 150 }),
       ],
     });
 
@@ -103,16 +105,23 @@ describe("workflow/space/MQI report reconciliation", () => {
     });
     expect(result.materialCosts).toEqual({
       currency: "AED",
-      source: "material_library.priceAedMin/priceAedMax",
+      source: "EV-02 governed material-price resolver",
       pricedAllocationCount: 3,
       unpricedAllocationCount: 0,
       allAllocationsPriced: true,
       min: 2600,
       mid: 4100,
       max: 5600,
+      coverage: {
+        state: "complete",
+        totalItemCount: 3,
+        pricedItemCount: 3,
+        insufficientItemCount: 0,
+        reasons: {},
+      },
       basis: {
-        policyVersion: "material-library-provenance-v1",
-        label: "MIYAR assumption",
+        policyVersion: MATERIAL_RESOLUTION_POLICY_VERSION,
+        label: "Legacy scope-unknown assumption",
         assumptionRowCount: 2,
         observedRowCount: 0,
       },
@@ -132,7 +141,7 @@ describe("workflow/space/MQI report reconciliation", () => {
         surfaceAreaM2: "20.00",
         isLocked: false,
       }],
-      materialLibrary: [],
+      priceSnapshots: [],
     });
 
     expect(result.spaceProgram.reconciles).toBeNull();
@@ -153,9 +162,13 @@ describe("workflow/space/MQI report reconciliation", () => {
       pricedAllocationCount: 0,
       unpricedAllocationCount: 1,
       allAllocationsPriced: false,
-      min: 0,
-      mid: 0,
-      max: 0,
+      min: null,
+      mid: null,
+      max: null,
+      coverage: {
+        state: "insufficient",
+        reasons: { identity_not_found: 1 },
+      },
     });
   });
 
@@ -164,12 +177,18 @@ describe("workflow/space/MQI report reconciliation", () => {
       projectFitOutAreaM2: 0,
       rooms: [],
       allocations: [],
-      materialLibrary: [],
+      priceSnapshots: [],
     });
 
     expect(result.allocations.allGroupsPass100Pct).toBe(false);
     expect(result.allocations.allGroupsSurfaceReconcile).toBe(false);
     expect(result.materialCosts.allAllocationsPriced).toBe(false);
+    expect(result.materialCosts.coverage).toMatchObject({
+      state: "insufficient",
+      totalItemCount: 0,
+      pricedItemCount: 0,
+      insufficientItemCount: 0,
+    });
   });
 
   it("fails the allocation-surface check when stored area is stale", () => {
@@ -194,7 +213,9 @@ describe("workflow/space/MQI report reconciliation", () => {
         surfaceAreaM2: 9,
         isLocked: false,
       }],
-      materialLibrary: [{ id: 1, priceAedMin: 100, priceAedMax: 150 }],
+      priceSnapshots: [
+        governedMaterialLibrarySnapshot({ legacyId: 1, priceMin: 100, priceMax: 150 }),
+      ],
     });
 
     expect(result.allocations.groups[0]).toMatchObject({

@@ -618,3 +618,99 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Proof: Guarded MySQL passes 53/53, including 2,957 products/links, 242 governed values, 43 unresolved rows, exact odd-cent midpoint, full rollback, and zero-state restoration in 627 ms locally. The merged production dry-run passed with the same counts; apply succeeded; the second dry-run inserted zero rows; the legacy numeric hash stayed unchanged.
 - Reuse rule: For any provider-bound migration, correctness fixtures are necessary but insufficient. Rehearse the real row-count shape and both forward/recovery paths under a bound stricter than the provider limit before production apply.
 - Supersedes / related: Extends `LES-016`, `LES-046`, and `LES-053`.
+
+### LES-055 — Empty aggregates must never pass completeness by vacuous truth
+
+- Date / step: 2026-07-29 / EV-03
+- Symptom: An `every(...)` completeness check can return true for an empty
+  material allocation set, making missing inputs look complete.
+- Cause: Collection logic encoded row validity but omitted the independent
+  requirement that at least one eligible allocation exist.
+- Fix: Model empty, invalid-percentage, partial, and complete states explicitly;
+  totals remain nullable unless coverage is complete.
+- Proof: MQI regression tests cover empty allocations, invalid percentages,
+  partial resolution, and no-zero behavior in the database-free suite.
+- Reuse rule: Every aggregate completeness predicate must test both non-empty
+  coverage and per-row validity; never infer completeness from `every()` alone.
+
+### LES-056 — A rollout gate must control the value served, not only validate configuration
+
+- Date / step: 2026-07-29 / EV-03
+- Symptom: A nominal legacy/compare/governed flag validated evidence but still
+  returned governed results in all modes.
+- Cause: The gate guarded entry to one calculation instead of selecting the
+  authoritative result for the operation.
+- Fix: Legacy and compare serve the byte-equal legacy-compatible value; compare
+  additionally records and verifies the full safe evidence set; governed alone
+  serves governed snapshots and requires an approval reference plus evidence
+  digest.
+- Proof: Rollout tests assert the returned result in every mode, and guarded
+  MySQL proves 242/242 eligible assumptions equal with zero differences.
+- Reuse rule: Test rollout modes by their externally consumed result and side
+  effects, not merely by accepted environment variables.
+
+### LES-057 — Static authority inventories must include indirect helper reads
+
+- Date / step: 2026-07-29 / EV-03
+- Symptom: A calculation path can avoid a forbidden column syntactically while
+  reaching it through a shared helper.
+- Cause: A file-name or direct-property search does not describe the call graph
+  that supplies authoritative numbers.
+- Fix: Keep an explicit allowlist for compatibility/backfill boundaries and
+  inventory every production calculation entrypoint plus the helpers it calls.
+- Proof: `check:material-price-authority` covers 15 calculation paths and passes
+  only with legacy numeric reads confined to named compatibility/backfill code.
+- Reuse rule: Authority gates must follow indirect data flow to the source, and
+  every exception must be narrow, named, and tested.
+
+### LES-058 — Persist resolver output only behind a source revision and geography CAS
+
+- Date / step: 2026-07-29 / EV-03
+- Symptom: A long-running bulk MQI operation could resolve against one project
+  geography/revision and persist after either input changed.
+- Cause: The replacement transaction locked the project but did not compare the
+  locked source fields with the values captured before resolution.
+- Fix: Capture both material-pricing revision and explicit price geography,
+  then compare them under the project lock before replacing allocations; reject
+  the whole write on either mismatch.
+- Proof: Unit coverage asserts the expected CAS inputs, and a two-connection
+  disposable-MySQL test changes the source during resolution and proves the
+  replacement returns false without altering prior allocations.
+- Reuse rule: Any asynchronous calculation persisted from mutable source data
+  must carry an explicit source fingerprint or revision into the write
+  transaction and compare it under lock before mutation.
+
+### LES-059 — A legacy foreign key is not canonical identity until the joined row exists
+
+- Date / step: 2026-07-29 / EV-03
+- Symptom: A left join could return a legacy product ID even when no canonical
+  product row existed, allowing an orphan link to appear canonical.
+- Cause: The query projected the legacy foreign-key column rather than the
+  joined canonical row's ID and category.
+- Fix: Project identity and category from the joined canonical product, then
+  fail closed when the row is absent, private to another organization, or
+  category-incompatible with the requested material.
+- Proof: Unit and disposable-MySQL tests cover orphan library/catalog links,
+  private products, and category mismatches.
+- Reuse rule: Authorization and identity derived through an optional join must
+  use fields from the joined authoritative row; never treat the source foreign
+  key alone as proof that the target exists or is eligible.
+
+### LES-060 — Enum evolution must agree across migration, schema, snapshot, and writers
+
+- Date / step: 2026-07-29 / EV-03
+- Symptom: The TypeScript schema admitted a new finish-schedule element while
+  migration 0062 and its snapshot retained the older enum, and a live report
+  path already emitted the new value.
+- Cause: The consumer and schema evolved together, but the generated migration
+  omitted the corresponding backward-compatible enum expansion.
+- Fix: Preserve every existing enum member and explicitly append the new member
+  in the migration; align the Drizzle schema, snapshot, pinned migration digest,
+  and a source-level regression contract.
+- Proof: The exact migration applied from scratch in the guarded disposable
+  MySQL suite (65/65), while TypeScript, the 1,774/22 DB-free suite, build, and
+  workflow certification passed.
+- Reuse rule: Treat an enum change as a four-surface contract: live writers,
+  migration SQL, declared schema, and generated snapshot must match. Prove
+  expansion against the previous schema and never remove legacy members inside
+  an additive compatibility step.

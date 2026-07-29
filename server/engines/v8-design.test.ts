@@ -2,8 +2,53 @@ import { describe, it, expect } from "vitest";
 import { buildDesignVocabulary } from "./design/vocabulary";
 import { buildSpaceProgram } from "./design/space-program";
 import { buildRFQPack } from "./design/rfq-generator";
+import { buildFinishSchedule } from "./design/finish-schedule";
+import {
+    MATERIAL_RESOLUTION_POLICY_VERSION,
+    type GovernedMaterialPriceSnapshot,
+} from "../../shared/material-calculations";
 
 describe("V8 Design Intelligence Engines", () => {
+    it("creates new finish rows with explicit canonical identity state", () => {
+        const schedule = buildFinishSchedule(
+            { id: 7, organizationId: 5 },
+            {
+                materialTier: "premium",
+                paletteKey: "warm_minimalism",
+                finishTone: "Warm Neutrals",
+                sustainNote: "Baseline",
+                ceilingType: "Simple",
+                joinery: "Oak",
+                hardwareFinish: "Brass",
+            } as any,
+            [{
+                id: "LVG",
+                name: "Living",
+                sqm: 20,
+                budgetPct: 1,
+                priority: "high",
+                finishGrade: "A",
+            }],
+            [{
+                id: 11,
+                productId: 101,
+                category: "flooring",
+                tier: "premium",
+                style: "minimalist",
+                notes: null,
+            }]
+        );
+        const floor = schedule.find(item => item.element === "floor");
+        expect(floor).toMatchObject({
+            materialLibraryId: 11,
+            productId: 101,
+            specId: null,
+            identityState: "unresolved",
+        });
+        expect(schedule.every(item => item.identityState !== "legacy_unverified"))
+            .toBe(true);
+    });
+
     it("determines deterministic vocabulary from inputs", () => {
         const project = {
             fin01BudgetCap: "400",
@@ -48,10 +93,38 @@ describe("V8 Design Intelligence Engines", () => {
             { roomId: "LVG", element: "floor", materialLibraryId: 1 }
         ];
         const materials = [
-            { id: 1, category: "flooring", tier: "premium", style: "all", priceAedMin: 150.50, priceAedMax: 200.75 }
+            { id: 1, category: "flooring", tier: "premium", style: "all", productName: "Premium Floor" }
         ];
+        const priceSnapshot: GovernedMaterialPriceSnapshot = {
+            state: "resolved",
+            policyVersion: MATERIAL_RESOLUTION_POLICY_VERSION,
+            reference: { source: "material_library", legacyId: 1 },
+            productId: 10,
+            specificationId: 20,
+            benchmarkProposalId: 30,
+            benchmarkVersionId: 40,
+            resolverAsOf: "2026-07-29T12:00:00.000Z",
+            requestedGeography: "uae",
+            resolvedGeography: "uae",
+            usedUaeFallback: false,
+            requestedPriceScope: "supply_and_install",
+            resolvedPriceScope: "supply_and_install",
+            currency: "AED",
+            unitBasis: "per_sqm",
+            priceMin: "150.50",
+            priceMid: "175.625",
+            priceMax: "200.75",
+            weightedMean: "175.625",
+            provenance: {
+                sourceLadderRung: "assumption",
+                sourceLabel: "MIYAR assumption",
+                provenancePolicyVersion: "test-v1",
+                benchmarkVersion: "test-v1",
+                compatibilityFallback: false,
+            },
+        };
 
-        const rfq = buildRFQPack(1, 1, finishSchedule, rooms, materials);
+        const rfq = buildRFQPack(1, 1, finishSchedule, rooms, materials, [priceSnapshot]);
 
         const floorLine = rfq.find(r => r.sectionNo === 1 && r.itemCode === "FL-LVG");
         expect(floorLine).toBeDefined();

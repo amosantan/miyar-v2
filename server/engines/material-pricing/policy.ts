@@ -47,6 +47,14 @@ const LIBRARY_TIER_MAP: Readonly<Record<string, MaterialFinishLevel>> = {
   ultra: "ultra_luxury",
 };
 
+const CATALOG_TIER_MAP: Readonly<Record<string, MaterialFinishLevel>> = {
+  economy: "basic",
+  mid: "standard",
+  premium: "premium",
+  luxury: "luxury",
+  ultra_luxury: "ultra_luxury",
+};
+
 const LADDER_PRIORITY: Readonly<Record<SourceLadderRung, number>> = {
   supplier_quote: 0,
   official_statistic: 1,
@@ -72,6 +80,12 @@ export function materialLibraryTierToFinish(
   tier: string
 ): MaterialFinishLevel | null {
   return LIBRARY_TIER_MAP[tier] ?? null;
+}
+
+export function materialCatalogTierToFinish(
+  tier: string
+): MaterialFinishLevel | null {
+  return CATALOG_TIER_MAP[tier] ?? null;
 }
 
 export function normalizeUnitBasis(

@@ -50,7 +50,11 @@ describe("EV-02 governed value resolver", () => {
       [
         candidate({ id: 1, sourceLadderRung: "assumption" }),
         candidate({ id: 2, sourceLadderRung: "official_statistic" }),
-        candidate({ id: 3, sourceLadderRung: "official_statistic", productId: 20 }),
+        candidate({
+          id: 3,
+          sourceLadderRung: "official_statistic",
+          productId: 20,
+        }),
       ]
     );
     expect(result).toMatchObject({
@@ -65,16 +69,21 @@ describe("EV-02 governed value resolver", () => {
         candidate({ id: 1 }),
         candidate({ id: 2 }),
       ])
-    ).toMatchObject({ status: "insufficient", reason: "ambiguous_governed_value" });
+    ).toMatchObject({
+      status: "insufficient",
+      reason: "ambiguous_governed_value",
+    });
   });
 
   it("keeps retail values diagnostic and never authoritative", () => {
     const retail = candidate({ sourceLadderRung: "retail_sanity" });
-    expect(resolveGovernedMaterialValueFromCandidates(input, [retail])).toEqual({
-      status: "insufficient",
-      reason: "only_retail_sanity",
-      retailSanityBand: { p25: "90.00", p50: "100.00", p75: "110.00" },
-    });
+    expect(resolveGovernedMaterialValueFromCandidates(input, [retail])).toEqual(
+      {
+        status: "insufficient",
+        reason: "only_retail_sanity",
+        retailSanityBand: { p25: "90.00", p50: "100.00", p75: "110.00" },
+      }
+    );
   });
 
   it("separates explicit price scopes and gates legacy unknown scope", () => {
@@ -83,8 +92,9 @@ describe("EV-02 governed value resolver", () => {
       sourceLadderRung: "assumption",
       priceScope: null,
     });
-    expect(resolveGovernedMaterialValueFromCandidates(input, [legacy]))
-      .toMatchObject({ status: "insufficient", reason: "legacy_scope_unknown" });
+    expect(
+      resolveGovernedMaterialValueFromCandidates(input, [legacy])
+    ).toMatchObject({ status: "insufficient", reason: "legacy_scope_unknown" });
     expect(
       resolveGovernedMaterialValueFromCandidates(
         { ...input, allowLegacyUnknownScope: true },
@@ -146,8 +156,9 @@ describe("EV-02 governed value resolver", () => {
     const futureProposal = candidate({
       effectiveAt: new Date("2026-07-29T00:00:00Z"),
     });
-    expect(resolveGovernedMaterialValueFromCandidates(input, [futureProposal]))
-      .toMatchObject({ status: "insufficient" });
+    expect(
+      resolveGovernedMaterialValueFromCandidates(input, [futureProposal])
+    ).toMatchObject({ status: "insufficient" });
 
     const futureQuote = candidate({
       sourceLadderRung: "supplier_quote",
@@ -190,6 +201,23 @@ describe("EV-02 governed value resolver", () => {
     ).toMatchObject({
       status: "resolved",
       value: { benchmarkProposalId: 2 },
+    });
+  });
+
+  it.each([
+    { p25: "0.00", p50: "100.00", p75: "110.00" },
+    { p25: "-1.00", p50: "100.00", p75: "110.00" },
+    { p25: "120.00", p50: "100.00", p75: "110.00" },
+    { p25: "90.00", p50: "120.00", p75: "110.00" },
+    { weightedMean: "NaN" },
+  ])("rejects invalid authoritative price bands: %o", invalidBand => {
+    expect(
+      resolveGovernedMaterialValueFromCandidates(input, [
+        candidate(invalidBand),
+      ])
+    ).toMatchObject({
+      status: "insufficient",
+      reason: "no_governed_value",
     });
   });
 });

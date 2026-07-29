@@ -20,8 +20,8 @@ export interface BoardPdfItem {
   name: string;
   category: string;
   tier: string;
-  costLow: number;
-  costHigh: number;
+  costLow: number | null;
+  costHigh: number | null;
   costUnit: string;
   leadTimeDays: number;
   leadTimeBand: string;
@@ -52,25 +52,25 @@ export interface BoardPdfInput {
 
 const BOARD_COPY = {
   en: {
-    boardSummary: "Board Summary", totalItems: "Total Items", estimatedCostRange: "Estimated Cost Range",
+    boardSummary: "Board Summary", totalItems: "Total Items", estimatedCostRange: "Browse-only Catalog Estimate",
     longestLeadTime: "Longest Lead Time", criticalPathItems: "Critical Path Items", tierDistribution: "Tier Distribution",
-    categoryDistribution: "Category Distribution", materialTiles: "Material Tiles", rfqSchedule: "RFQ-Ready Procurement Schedule",
-    material: "Material", specification: "Specification", quantity: "Quantity", unit: "Unit", costLow: "Cost Low (AED)",
-    costHigh: "Cost High (AED)", lead: "Lead", supplier: "Supplier", costRange: "Cost Range", leadTime: "Lead Time",
+    categoryDistribution: "Category Distribution", materialTiles: "Material Tiles", rfqSchedule: "Concept Schedule — Not RFQ-Ready",
+    material: "Material", specification: "Specification", quantity: "Quantity", unit: "Unit", costLow: "Browse Low (AED)",
+    costHigh: "Browse High (AED)", lead: "Lead", supplier: "Supplier", costRange: "Browse Estimate", leadTime: "Lead Time",
     costBand: "Cost Band", criticalLeadBand: "critical", generatedNotice: "This document is auto-generated. All cost estimates are indicative and subject to supplier confirmation.",
   },
   ar: {
-    boardSummary: "ملخص اللوحة", totalItems: "إجمالي العناصر", estimatedCostRange: "نطاق التكلفة التقديرية",
+    boardSummary: "ملخص اللوحة", totalItems: "إجمالي العناصر", estimatedCostRange: "تقدير الكتالوج للاستعراض فقط",
     longestLeadTime: "أطول مدة توريد", criticalPathItems: "عناصر المسار الحرج", tierDistribution: "توزيع الشرائح",
-    categoryDistribution: "توزيع الفئات", materialTiles: "بطاقات المواد", rfqSchedule: "جدول الشراء الجاهز لطلب عروض الأسعار",
-    material: "المادة", specification: "المواصفة", quantity: "الكمية", unit: "الوحدة", costLow: "أقل تكلفة (درهم)",
-    costHigh: "أعلى تكلفة (درهم)", lead: "مدة التوريد", supplier: "المورّد", costRange: "نطاق التكلفة", leadTime: "مدة التوريد",
+    categoryDistribution: "توزيع الفئات", materialTiles: "بطاقات المواد", rfqSchedule: "جدول مبدئي — غير جاهز لطلب عروض الأسعار",
+    material: "المادة", specification: "المواصفة", quantity: "الكمية", unit: "الوحدة", costLow: "تقدير أدنى للاستعراض (درهم)",
+    costHigh: "تقدير أعلى للاستعراض (درهم)", lead: "مدة التوريد", supplier: "المورّد", costRange: "تقدير للاستعراض", leadTime: "مدة التوريد",
     costBand: "شريحة التكلفة", criticalLeadBand: "حرج", generatedNotice: "تم إنشاء هذا المستند آلياً. جميع تقديرات التكلفة استرشادية وتخضع لتأكيد المورّد.",
   },
 } as const;
 
-function finite(value: number): number | null {
-  return Number.isFinite(value) ? value : null;
+function finite(value: number | null): number | null {
+  return value !== null && Number.isFinite(value) ? value : null;
 }
 
 function text(value: unknown): string {
@@ -79,6 +79,10 @@ function text(value: unknown): string {
 
 function number(value: number, locale: ReportLocale): string {
   return formatReportNumber(value, locale);
+}
+
+function browseNumber(value: number | null, locale: ReportLocale): string {
+  return value === null ? "—" : number(value, locale);
 }
 
 function tierColor(tier: string): string {
@@ -156,7 +160,7 @@ export function generateBoardPdfHtml(input: BoardPdfInput): string {
     <div class="tile-header"><span class="tile-num">${number(index + 1, locale)}</span><span class="tile-name">${text(item.name)}</span><span class="tier-badge" style="background:${tierColor(item.tier)}">${text(item.tier.replace(/_/g, " "))}</span></div>
     <div class="tile-body">
       <div class="tile-row"><span class="tile-label">${c("category")}</span>${text(item.category)}</div>
-      <div class="tile-row"><span class="tile-label">${labels.costRange}</span><span>${number(item.costLow, locale)} – ${number(item.costHigh, locale)} ${text(item.costUnit)}</span></div>
+      <div class="tile-row"><span class="tile-label">${labels.costRange}</span><span>${browseNumber(item.costLow, locale)} – ${browseNumber(item.costHigh, locale)} ${text(item.costUnit)}</span></div>
       <div class="tile-row"><span class="tile-label">${labels.leadTime}</span><span style="color:${leadBadgeColor(item.leadTimeBand)}">${number(item.leadTimeDays, locale)}d (${item.leadTimeBand === "critical" ? labels.criticalLeadBand : text(item.leadTimeBand)})</span></div>
       <div class="tile-row"><span class="tile-label">${labels.supplier}</span>${text(item.supplierName)}</div>
       ${item.quantity ? `<div class="tile-row"><span class="tile-label">${labels.quantity}</span><span>${text(item.quantity)} ${text(item.unitOfMeasure ?? "")}</span></div>` : ""}
@@ -165,7 +169,7 @@ export function generateBoardPdfHtml(input: BoardPdfInput): string {
       ${item.notes ? `<div class="tile-notes">${text(item.notes)}</div>` : ""}
     </div></div>`).join("");
 
-  const rfqRows = rfqLines.map(line => `<tr><td>${number(line.lineNo, locale)}</td><td class="font-medium">${text(line.materialName)}</td><td>${text(line.category)}</td><td>${text(line.specification)}</td><td>${text(line.quantity)}</td><td>${text(line.unit)}</td><td class="text-end">${number(line.estimatedUnitCostLow, locale)}</td><td class="text-end">${number(line.estimatedUnitCostHigh, locale)}</td><td>${number(line.leadTimeDays, locale)}d</td><td>${text(line.supplierSuggestion)}</td><td>${text(line.notes)}</td></tr>`).join("");
+  const rfqRows = rfqLines.map(line => `<tr><td>${number(line.lineNo, locale)}</td><td class="font-medium">${text(line.materialName)}</td><td>${text(line.category)}</td><td>${text(line.specification)}</td><td>${text(line.quantity)}</td><td>${text(line.unit)}</td><td class="text-end">${browseNumber(line.estimatedUnitCostLow, locale)}</td><td class="text-end">${browseNumber(line.estimatedUnitCostHigh, locale)}</td><td>${number(line.leadTimeDays, locale)}d</td><td>${text(line.supplierSuggestion)}</td><td>${text(line.notes)}</td></tr>`).join("");
   const tierRows = Object.entries(summary.tierDistribution).map(([tier, count]) => `<div class="dist-item"><span class="dist-badge" style="background:${tierColor(tier)}">${text(tier.replace(/_/g, " "))}</span><span class="dist-count">${number(count, locale)}</span></div>`).join("");
   const categoryRows = Object.entries(summary.categoryDistribution).map(([category, count]) => `<div class="dist-item"><span class="dist-label">${text(category)}</span><span class="dist-count">${number(count, locale)}</span></div>`).join("");
   const criticalItems = summary.criticalPathItems.map(item => `<div class="critical-item">${text(item)}</div>`).join("");
@@ -178,6 +182,6 @@ export function generateBoardPdfHtml(input: BoardPdfInput): string {
     .tile-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:12px 0; } .tile-card { border:1px solid #e0e0e0; border-radius:6px; overflow:hidden; break-inside:avoid; } .tile-header { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#f8f9fa; border-block-end:1px solid #e0e0e0; } .tile-num { font-weight:700; background:#e8f4fd; border-radius:50%; inline-size:20px; block-size:20px; display:flex; align-items:center; justify-content:center; flex-shrink:0; } .tile-name { font-weight:600; flex:1; } .tier-badge,.dist-badge { font-size:8px; color:#fff; padding:1px 6px; border-radius:3px; text-transform:uppercase; } .tile-body { padding:8px 10px; } .tile-row { display:flex; justify-content:space-between; gap:8px; padding-block:2px; border-block-end:1px dotted #f0f0f0; } .tile-label,.dist-label { color:#666; font-weight:500; } .tile-spec { color:#0f3460; background:#e8f4fd; padding:4px 6px; border-radius:3px; margin-block-start:4px; font-style:italic; } .tile-notes { color:#888; margin-block-start:3px; } .cost-band-badge { background:#fef3c7; color:#92400e; padding-inline:4px; border-radius:2px; font-weight:600; }
     table { width:100%; border-collapse:collapse; margin:10px 0; font-size:9px; } th { background:#0f3460; color:#fff; padding:6px 8px; font-weight:600; } td { padding:5px 8px; border-block-end:1px solid #e0e0e0; } tr:nth-child(even) td { background:#f8f9fa; } .text-end { text-align:end; } .font-medium { font-weight:600; } .dist-grid { display:flex; gap:16px; margin:8px 0; flex-wrap:wrap; } .dist-item { display:flex; align-items:center; gap:6px; } .dist-count { font-weight:700; color:#0f3460; } .critical-item { background:#fef2f2; border-inline-start:3px solid #dc2626; padding:4px 8px; margin-block:3px; color:#991b1b; } .render-meta { margin:10px auto; max-inline-size:620px; padding:8px 10px; border:1px solid #d0d7de; background:#f0f4f8; font-size:8px; text-align:start; overflow-wrap:anywhere; } .closing { break-inside:avoid-page; page-break-inside:avoid; } .footer { margin-block-start:12px; padding-block-start:10px; border-block-start:1px solid #e0e0e0; font-size:8px; color:#999; text-align:center; break-before:avoid-page; page-break-before:avoid; }
   </style></head><body><div class="cover"><div class="logo">MIYAR</div><h1>${c("materialBoard")}</h1><h2>${text(boardName)}</h2><div class="project">${text(projectName)}</div><div class="date">${text(formatReportDateTime(context.generatedAt, locale))}</div><div class="confidential">${c("confidentialInternalOnly")}</div>${renderMetadata(context, locale)}</div>
-  <div class="section"><h2>${labels.boardSummary}</h2><div class="summary-grid"><div class="summary-card"><div class="label">${labels.totalItems}</div><div class="value">${number(summary.totalItems, locale)}</div></div><div class="summary-card"><div class="label">${labels.estimatedCostRange}</div><div class="value" style="font-size:14px">${number(summary.estimatedCostLow, locale)} – ${number(summary.estimatedCostHigh, locale)}</div><div class="sub">${text(summary.currency)}</div></div><div class="summary-card"><div class="label">${labels.longestLeadTime}</div><div class="value">${number(summary.longestLeadTimeDays, locale)}d</div></div><div class="summary-card"><div class="label">${labels.criticalPathItems}</div><div class="value">${number(summary.criticalPathItems.length, locale)}</div></div></div><h3>${labels.tierDistribution}</h3><div class="dist-grid">${tierRows}</div><h3>${labels.categoryDistribution}</h3><div class="dist-grid">${categoryRows}</div>${summary.criticalPathItems.length > 0 ? `<h3>${labels.criticalPathItems}</h3><div>${criticalItems}</div>` : ""}</div>
+  <div class="section"><h2>${labels.boardSummary}</h2><div class="summary-grid"><div class="summary-card"><div class="label">${labels.totalItems}</div><div class="value">${number(summary.totalItems, locale)}</div></div><div class="summary-card"><div class="label">${labels.estimatedCostRange}</div><div class="value" style="font-size:14px">${browseNumber(summary.estimatedCostLow, locale)} – ${browseNumber(summary.estimatedCostHigh, locale)}</div><div class="sub">${text(summary.currency)}</div></div><div class="summary-card"><div class="label">${labels.longestLeadTime}</div><div class="value">${number(summary.longestLeadTimeDays, locale)}d</div></div><div class="summary-card"><div class="label">${labels.criticalPathItems}</div><div class="value">${number(summary.criticalPathItems.length, locale)}</div></div></div><h3>${labels.tierDistribution}</h3><div class="dist-grid">${tierRows}</div><h3>${labels.categoryDistribution}</h3><div class="dist-grid">${categoryRows}</div>${summary.criticalPathItems.length > 0 ? `<h3>${labels.criticalPathItems}</h3><div>${criticalItems}</div>` : ""}</div>
   <div class="section"><h2>${labels.materialTiles}</h2><div class="tile-grid">${tileCards}</div></div><div class="closing"><div class="section"><h2>${labels.rfqSchedule}</h2><table><thead><tr><th>#</th><th>${labels.material}</th><th>${c("category")}</th><th>${labels.specification}</th><th>${labels.quantity}</th><th>${labels.unit}</th><th class="text-end">${labels.costLow}</th><th class="text-end">${labels.costHigh}</th><th>${labels.lead}</th><th>${labels.supplier}</th><th>${c("notes")}</th></tr></thead><tbody>${rfqRows}</tbody></table></div><div class="footer">MIYAR · ${c("materialBoard")} · ${text(formatReportDateTime(context.generatedAt, locale))}<br>${labels.generatedNotice}</div></div></body></html>`;
 }
