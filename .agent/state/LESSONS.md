@@ -734,3 +734,23 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
   every later use-site assertion must normalize through the same narrow
   function and must still compare the current target against the approved
   upstream binding.
+
+### LES-062 — Production comparison evidence must be quarantined until independently bound
+
+- Date / step: 2026-07-29 / EV-03
+- Symptom: A child comparison process could write the requested final evidence
+  path before the wrapper had validated its exit, completion record, file
+  permissions, JSON shape, and digest binding.
+- Cause: The producer and accepting wrapper shared one final pathname, so
+  wrapper rejection did not itself prove that no apparently trusted artifact
+  remained.
+- Fix: Give the child a random owner-only staging pathname in the same secure
+  directory; validate every acceptance condition there; promote with a
+  non-overwriting same-filesystem hard link; remove staging on every exit.
+- Proof: The executable fake-provider test writes staged output and exits
+  nonzero, while the wrapper returns nonzero and leaves the evidence directory
+  empty. The reviewed production attempt promoted exactly one 0600 artifact
+  only after 242/242 equality.
+- Reuse rule: A producer must never receive the trusted final evidence path.
+  Promotion is a separate acceptance act after process, structure, permission,
+  and cryptographic binding checks.

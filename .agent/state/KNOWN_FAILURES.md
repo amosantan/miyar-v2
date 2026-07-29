@@ -173,7 +173,7 @@ Policy-enforced human interaction gates are not repository failures and remain i
 
 ## KF-020 — EV-03 production comparison rejects the provider tunnel at final use
 
-- Status: OPEN
+- Status: CLOSED
 - Observed: 2026-07-29 during the authorized EV-03 production comparison on
   exact application SHA `b8302884b137a059c6440ae2914f95d26e2c7999`.
 - Command: governed `scripts/ev03-planetscale-rollout-comparison.ts` against
@@ -198,6 +198,16 @@ Policy-enforced human interaction gates are not repository failures and remain i
   gates and independent review; then run one explicitly reauthorized comparison
   that produces owner-only evidence with 242 eligible, 242 equal, zero
   different, and zero insufficient rows.
+- Closed evidence: PR #57 binds every final-use check to the complete normalized
+  provider target while retaining the captured raw URL only for `mysql2`, and
+  quarantines output until child/PASS/permission/JSON/digest validation
+  succeeds. Focused 85/85, disposable MySQL 65/65, DB-free 1,791/22, hosted
+  checks, independent MIYAR Sol, and Claude Opus passed. The single reset
+  production attempt then completed reader-only with 242 eligible, 242 equal,
+  zero different, and zero insufficient; evidence digest
+  `de7cbc67ce14f7973d371e70598b709db8eb4bcd148edbc7996bc4f29e00b29e`.
+  Compare observation and digest-bound governed deployment completed without a
+  browser or console regression.
 
 ## Handling Protocol
 

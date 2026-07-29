@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Active/next executable step: `EV-03` is `ACTIVE`. On 2026-07-29 the owner reset the comparison-safety retry budget for one bounded final-use URL-normalization remediation and one independently reviewed production comparison attempt. Migration 0062, the identity backfill, and the explicit legacy deployment are complete; production remains on `legacy` until valid 242/242 equality evidence exists. `EV-02` is `CLOSED`. In parallel and still `NEEDS_HUMAN`: EV-00's residual cost-consultant tier-mapping sign-off, EV-01b's per-source BR-06 terms decisions, and `BR-06` professional pack approvals.
+- Active/next executable step: `EV-04` is the single next executable roadmap step. `EV-03` is `CLOSED`: migration 0062 and the exact identity backfill completed, the independently reviewed comparison produced 242/242 equality, and digest-bound governed pricing is live on production. In parallel and still `NEEDS_HUMAN`: EV-00's residual cost-consultant tier-mapping sign-off, EV-01b's per-source BR-06 terms decisions, and `BR-06` professional pack approvals.
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -746,7 +746,7 @@ Rules:
 
 ### EV-03 — Consolidate material identity and calculation inputs
 
-- Status: `ACTIVE`
+- Status: `CLOSED`
 - Class / priority: Data/engine / P1
 - Dependencies: `EV-02`
 - Human gate: Mapping approval for ambiguous legacy categories/units.
@@ -799,24 +799,23 @@ Rules:
   `amr-saleh-hotmail/miyar-v2/main` target, ordered migration/backfill,
   comparison, digest-bound governed cutover, Git publication, merge, and
   deployment. Ambiguous mappings remain unapproved.
-- Partial production evidence: backup `aswg05nrzrpf`; additive migration 0062
+- Production evidence: backup `aswg05nrzrpf`; additive migration 0062
   deploy requests #16-#21 complete; 51 identity actions applied with 19
   explicit ineligible decisions and a zero-action idempotency pass; PRs #54 and
   #55 merged; production deployment `dpl_GVhZd9DmLSqVaQXKDumNpmvRQjS5` is
-  READY for exact SHA `b8302884`.
-- Blocker: the production comparison created no evidence because the final-use
-  safety assertion re-read PlanetScale's raw `mysql2://` tunnel URL after the
-  initial normalized inspection. The inspector accepts only `mysql://`, so the
-  comparison failed before connection/query. The provider role was reader,
-  the wrapper accepted no evidence, no rollout environment changed, and
-  production remains on `legacy`.
-- Retry reset: approved by Amro Saleh on 2026-07-29 for one bounded remediation
-  and one independently reviewed production comparison attempt.
-- Next executable action: implement the smallest remediation that normalizes
-  the final-use URL without weakening target-drift validation; add negative
-  scheme/environment/output tests; pass local, hosted, MIYAR Sol, and Claude
-  gates; then run the single authorized production comparison. Do not advance
-  EV-04 until EV-03 reaches a terminal state.
+  READY for exact SHA `b8302884`. Independently reviewed remediation PR #57
+  then merged as canonical `7621f28b`. The single authorized reader-only
+  comparison produced 242 eligible, 242 equal, zero different, and zero
+  insufficient with evidence digest
+  `de7cbc67ce14f7973d371e70598b709db8eb4bcd148edbc7996bc4f29e00b29e`.
+  Compare deployment `dpl_BAwXv3ZfWq2fTdhg2utZTekRxF27` and digest-bound
+  governed deployment `dpl_Dz49pMxpGZGGHmqVNK1PYBcnk3tY` are `READY`;
+  authenticated material-cost and console verification passed.
+- Closed: 2026-07-29
+- Terminal task state: `PASS`
+- Residual risk: 43 unresolved EV-02 rows remain explicitly ineligible; no
+  ambiguous mapping was approved. Legacy schema contraction remains a later
+  contract phase.
 
 ### EV-04 — Source coverage, freshness, and insufficiency SLA
 
