@@ -395,6 +395,55 @@ describe("enforcement and logging", () => {
     expect(mysqlMocks.createPool).not.toHaveBeenCalled();
   });
 
+  it("binds a provider loopback proxy to one externally approved remote migration target", () => {
+    const proxyUrl = "mysql://root@127.0.0.1:3317/miyar-v2";
+    const providerTarget = "aws.connect.psdb.cloud:3306/miyar-v2";
+    const approval = `migrate@${providerTarget}`;
+    const base = {
+      operation: "migrate" as const,
+      databaseUrl: proxyUrl,
+      runtimeProfile: "local",
+      approval,
+      providerProxyDatabaseTarget: providerTarget,
+    };
+    expect(evaluateDatabaseAccess(base)).toMatchObject({
+      allowed: true,
+      reasonCode: "REMOTE_APPROVAL_ALLOWED",
+    });
+    expect(evaluateDatabaseAccess({ ...base, operation: "serve" }).allowed).toBe(false);
+    expect(evaluateDatabaseAccess({ ...base, approval: undefined }).allowed).toBe(false);
+    expect(
+      evaluateDatabaseAccess({
+        ...base,
+        approval: "migrate@other.example:3306/miyar-v2",
+      }).allowed
+    ).toBe(false);
+    expect(
+      evaluateDatabaseAccess({
+        ...base,
+        providerProxyDatabaseTarget: "aws.connect.psdb.cloud:3306/other_database",
+      }).allowed
+    ).toBe(false);
+
+    resetDatabaseSafetyForTests();
+    process.env.DATABASE_URL = proxyUrl;
+    initializeDatabaseSafety("migrate", {
+      loadDotenv: false,
+      databaseUrl: proxyUrl,
+      runtimeProfile: "local",
+      nodeEnv: "development",
+      approval,
+      providerProxyDatabaseTarget: providerTarget,
+    });
+    expect(process.env.MIYAR_DATABASE_APPROVAL).toBeUndefined();
+    expect(assertDatabaseAccess("migrate")).toMatchObject({
+      allowed: true,
+      reasonCode: "REMOTE_APPROVAL_ALLOWED",
+    });
+    process.env.DATABASE_URL = "mysql://root@127.0.0.1:3317/other_database";
+    expect(() => assertDatabaseAccess("migrate")).toThrow(DatabaseSafetyError);
+  });
+
   it("defaults connection assertions to the database-free operation in Vitest", () => {
     resetDatabaseSafetyForTests();
     process.env.DATABASE_URL = testUrl;

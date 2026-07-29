@@ -10,7 +10,10 @@ import type {
   PriceScope,
   UaePriceGeography,
 } from "../../../shared/material-pricing";
-import type { DatabaseTarget } from "../../_core/database-safety";
+import {
+  evaluateDatabaseAccess,
+  type DatabaseTarget,
+} from "../../_core/database-safety";
 import {
   EV03_MIGRATION_SHA256,
   EV03_PRODUCTION_DATABASE_TARGET,
@@ -30,6 +33,8 @@ export type MaterialPricingRolloutMode = "legacy" | "compare" | "governed";
 export type Ev03RolloutComparisonExecutionTarget = {
   production: boolean;
   evidenceTarget: string;
+  safetyDatabaseUrl: string;
+  databaseApproval?: string;
 };
 
 export function resolveEv03RolloutComparisonExecutionTarget(input: {
@@ -38,6 +43,7 @@ export function resolveEv03RolloutComparisonExecutionTarget(input: {
   expectedMigrationSha256?: string;
   providerAttestation?: string;
   environmentAttestation?: string;
+  databaseApproval?: string;
 }): Ev03RolloutComparisonExecutionTarget {
   const target = input.connectionTarget;
   if (!input.productionTarget) {
@@ -51,7 +57,11 @@ export function resolveEv03RolloutComparisonExecutionTarget(input: {
         "EV-03 rollout comparison accepts only a disposable loopback test database by default"
       );
     }
-    return { production: false, evidenceTarget: target.canonical };
+    return {
+      production: false,
+      evidenceTarget: target.canonical,
+      safetyDatabaseUrl: `mysql://${target.canonical}`,
+    };
   }
   if (input.productionTarget !== EV03_PRODUCTION_TARGET) {
     throw new Error(
@@ -79,9 +89,24 @@ export function resolveEv03RolloutComparisonExecutionTarget(input: {
       "Production EV-03 comparison must use the wrapper-owned loopback PlanetScale proxy for miyar-v2"
     );
   }
+  const safetyDatabaseUrl = `mysql://${EV03_PRODUCTION_DATABASE_TARGET}`;
+  const decision = evaluateDatabaseAccess({
+    operation: "migrate",
+    databaseUrl: safetyDatabaseUrl,
+    runtimeProfile: "local",
+    nodeEnv: "production",
+    approval: input.databaseApproval,
+  });
+  if (!decision.allowed || decision.reasonCode !== "REMOTE_APPROVAL_ALLOWED") {
+    throw new Error(
+      `Production EV-03 comparison database approval rejected: ${decision.reasonCode}`
+    );
+  }
   return {
     production: true,
     evidenceTarget: EV03_PRODUCTION_DATABASE_TARGET,
+    safetyDatabaseUrl,
+    databaseApproval: input.databaseApproval,
   };
 }
 

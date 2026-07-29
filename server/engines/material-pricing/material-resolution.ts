@@ -408,9 +408,32 @@ type MaterialResolutionRequest = {
   allowLegacyUnknownScope?: boolean;
 };
 
+export type GlobalMaterialResolutionEvidenceDataSource = {
+  listIdentities(input: {
+    materialLibraryIds: number[];
+    materialCatalogIds: number[];
+  }): Promise<MaterialResolutionIdentityRow[]>;
+  listSpecifications(input: {
+    categories: string[];
+    finishLevels: string[];
+    unitBases: PriceUnitBasis[];
+    geographies: UaePriceGeography[];
+  }): Promise<MaterialResolutionSpecificationRow[]>;
+  listCandidates(input: {
+    specIds: number[];
+  }): Promise<GovernedValueCandidate[]>;
+  listCoverageProfiles(input: {
+    productIds: number[];
+    asOf: Date;
+  }): Promise<ApprovedPaintCoverageProfileRow[]>;
+};
+
 async function resolveGovernedMaterialPriceSnapshots(
   input: MaterialResolutionRequest,
-  options: { globalOnly: boolean } = { globalOnly: false }
+  options: {
+    globalOnly: boolean;
+    evidenceDataSource?: GlobalMaterialResolutionEvidenceDataSource;
+  } = { globalOnly: false }
 ): Promise<MaterialPriceSnapshot[]> {
   const materialLibraryIds = input.references
     .filter(reference => reference.source === "material_library")
@@ -418,20 +441,25 @@ async function resolveGovernedMaterialPriceSnapshots(
   const materialCatalogIds = input.references
     .filter(reference => reference.source === "materials_catalog")
     .map(reference => reference.legacyId);
-  const identities = await (options.globalOnly
-    ? listGlobalMaterialResolutionIdentities({
+  const identities = await (options.evidenceDataSource
+    ? options.evidenceDataSource.listIdentities({
         materialLibraryIds,
         materialCatalogIds,
       })
-    : listMaterialResolutionIdentities({
-        materialLibraryIds,
-        materialCatalogIds,
-      }));
+    : options.globalOnly
+      ? listGlobalMaterialResolutionIdentities({
+          materialLibraryIds,
+          materialCatalogIds,
+        })
+      : listMaterialResolutionIdentities({
+          materialLibraryIds,
+          materialCatalogIds,
+        }));
   const mapped = identities.map(mapIdentity);
   const geographies = Array.from(
     new Set<UaePriceGeography>([input.requestedGeography, "uae"])
   );
-  const specifications = await listMaterialResolutionSpecifications({
+  const specificationInput = {
     categories: Array.from(new Set(mapped.map(row => row.canonicalCategory))),
     finishLevels: Array.from(
       new Set(
@@ -448,15 +476,22 @@ async function resolveGovernedMaterialPriceSnapshots(
       )
     ),
     geographies,
-  });
-  const candidates = await (options.globalOnly
-    ? listGlobalGovernedValueCandidatesForSpecifications({
+  };
+  const specifications = await (options.evidenceDataSource
+    ? options.evidenceDataSource.listSpecifications(specificationInput)
+    : listMaterialResolutionSpecifications(specificationInput));
+  const candidates = await (options.evidenceDataSource
+    ? options.evidenceDataSource.listCandidates({
         specIds: specifications.map(specification => specification.id),
       })
-    : listGovernedValueCandidatesForSpecifications({
-        specIds: specifications.map(specification => specification.id),
-        organizationId: input.organizationId,
-      }));
+    : options.globalOnly
+      ? listGlobalGovernedValueCandidatesForSpecifications({
+          specIds: specifications.map(specification => specification.id),
+        })
+      : listGovernedValueCandidatesForSpecifications({
+          specIds: specifications.map(specification => specification.id),
+          organizationId: input.organizationId,
+        }));
   const snapshots = resolveMaterialPriceSnapshotsFromRows({
     ...input,
     identities,
@@ -468,14 +503,17 @@ async function resolveGovernedMaterialPriceSnapshots(
     snapshot =>
       snapshot.state === "resolved" && snapshot.unitBasis === "per_litre"
   );
-  const coverageProfiles = await listApprovedPaintCoverageProfiles({
+  const coverageInput = {
     productIds: litreSnapshots
       .map(snapshot =>
         snapshot.state === "resolved" ? snapshot.productId : undefined
       )
       .filter((productId): productId is number => productId !== undefined),
     asOf: input.asOf,
-  });
+  };
+  const coverageProfiles = await (options.evidenceDataSource
+    ? options.evidenceDataSource.listCoverageProfiles(coverageInput)
+    : listApprovedPaintCoverageProfiles(coverageInput));
   return attachPaintCoverageProfiles(snapshots, coverageProfiles);
 }
 
@@ -638,12 +676,16 @@ export function selectMaterialPricingRolloutSnapshots(input: {
 export async function resolveGovernedMaterialPriceSnapshotsForRolloutEvidence(
   input: MaterialResolutionRequest & {
     evidencePurpose: "ev03-full-eligible-comparison";
-  }
+  },
+  evidenceDataSource?: GlobalMaterialResolutionEvidenceDataSource
 ): Promise<MaterialPriceSnapshot[]> {
   if (input.evidencePurpose !== "ev03-full-eligible-comparison") {
     throw new Error("Invalid EV-03 rollout evidence purpose");
   }
-  return resolveGovernedMaterialPriceSnapshots(input, { globalOnly: true });
+  return resolveGovernedMaterialPriceSnapshots(input, {
+    globalOnly: true,
+    evidenceDataSource,
+  });
 }
 
 export async function resolveMaterialPriceSnapshots(
