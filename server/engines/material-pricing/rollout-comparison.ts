@@ -18,6 +18,7 @@ import {
   EV03_MIGRATION_SHA256,
   EV03_PRODUCTION_DATABASE_TARGET,
   EV03_PRODUCTION_TARGET,
+  normalizeEv03ConnectionUrlForInspection,
 } from "./ev03-identity-backfill";
 import { exactDecimalMidpoint } from "./policy";
 
@@ -36,6 +37,26 @@ export type Ev03RolloutComparisonExecutionTarget = {
   safetyDatabaseUrl: string;
   databaseApproval?: string;
 };
+
+export function assertEv03ComparisonConnectionTargetStable(input: {
+  initialDatabaseUrl: string | undefined;
+  currentDatabaseUrl: string | undefined;
+}): string {
+  const initialDatabaseUrl = normalizeEv03ConnectionUrlForInspection(
+    input.initialDatabaseUrl
+  );
+  const currentDatabaseUrl = normalizeEv03ConnectionUrlForInspection(
+    input.currentDatabaseUrl
+  );
+  if (
+    !initialDatabaseUrl ||
+    !currentDatabaseUrl ||
+    currentDatabaseUrl !== initialDatabaseUrl
+  ) {
+    throw new Error("EV-03 comparison database target changed after bootstrap");
+  }
+  return currentDatabaseUrl;
+}
 
 export function resolveEv03RolloutComparisonExecutionTarget(input: {
   connectionTarget: DatabaseTarget;

@@ -5,10 +5,7 @@ import process from "node:process";
 import mysql, { type RowDataPacket } from "mysql2/promise";
 import { drizzle } from "drizzle-orm/mysql2";
 
-import {
-  assertEv03MigrationSchema,
-  normalizeEv03ConnectionUrlForInspection,
-} from "../server/engines/material-pricing/ev03-identity-backfill";
+import { assertEv03MigrationSchema } from "../server/engines/material-pricing/ev03-identity-backfill";
 import {
   assertDatabaseAccess,
   initializeDatabaseSafety,
@@ -18,6 +15,7 @@ import { resolveGovernedMaterialPriceSnapshotsForRolloutEvidence } from "../serv
 import { createGlobalMaterialResolutionEvidenceDataSource } from "../server/db/material-pricing";
 import {
   assertMaterialPricingComparisonEvidence,
+  assertEv03ComparisonConnectionTargetStable,
   buildMaterialPricingComparisonEvidence,
   resolveEv03RolloutComparisonExecutionTarget,
   type LegacyPriceRange,
@@ -33,8 +31,13 @@ const productionTarget = valueAfter("--production-target");
 const expectedMigrationSha256 = valueAfter("--expected-migration-sha256");
 const providerAttestation = valueAfter("--provider-attestation");
 const databaseUrl = process.env.DATABASE_URL;
-const inspectionDatabaseUrl =
-  normalizeEv03ConnectionUrlForInspection(databaseUrl);
+const inspectionDatabaseUrl = assertEv03ComparisonConnectionTargetStable({
+  initialDatabaseUrl: databaseUrl,
+  currentDatabaseUrl: process.env.DATABASE_URL,
+});
+// mysql2/promise consumes the captured provider URL. Safety inspection accepts
+// only mysql://, so keep the process-visible final-use target normalized.
+process.env.DATABASE_URL = inspectionDatabaseUrl;
 const target = inspectDatabaseTarget(inspectionDatabaseUrl);
 const executionTarget = resolveEv03RolloutComparisonExecutionTarget({
   connectionTarget: target,
@@ -116,23 +119,34 @@ const ELIGIBLE_EV02_LINKED_ASSUMPTIONS_SQL = `
   order by ml.id`;
 
 async function createProductionReader() {
+  bindCurrentComparisonDatabaseTarget();
   assertDatabaseAccess("migrate");
   const connection = await mysql.createConnection({
     uri: databaseUrl!,
     connectTimeout: 15_000,
   });
+  bindCurrentComparisonDatabaseTarget();
   assertDatabaseAccess("migrate");
   return { connection, evidenceDatabase: drizzle(connection) };
 }
 
 async function createDisposableReader() {
+  bindCurrentComparisonDatabaseTarget();
   assertDatabaseAccess("integration-test");
   const connection = await mysql.createConnection({
     uri: databaseUrl!,
     connectTimeout: 15_000,
   });
+  bindCurrentComparisonDatabaseTarget();
   assertDatabaseAccess("integration-test");
   return { connection, evidenceDatabase: drizzle(connection) };
+}
+
+function bindCurrentComparisonDatabaseTarget(): void {
+  process.env.DATABASE_URL = assertEv03ComparisonConnectionTargetStable({
+    initialDatabaseUrl: databaseUrl,
+    currentDatabaseUrl: process.env.DATABASE_URL,
+  });
 }
 
 const { connection, evidenceDatabase } = executionTarget.production
