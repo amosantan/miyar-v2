@@ -171,6 +171,34 @@ Policy-enforced human interaction gates are not repository failures and remain i
 - Closed evidence: The harness now pipes both app-server streams, persists a redaction-sanitized `serial-node-browser-journey.log` in the evidence directory before any verdict, prints a sanitized failure tail, and `trpcRequest` failures carry status plus sanitized error envelopes. The journey asserts the approved contract on one UI-created project: legacy `spaceProgram.generate` refuses with 409 CONFLICT and materializes nothing; manual geometry preview → immutable draft → organization-admin `approve_as_canonical` selects two canonical rooms totalling 50 m²; `materialQuantity.generate` refuses with 412 PRECONDITION_FAILED; the canonical Space programme and Material cost screens render their approved states with no legacy generate control; brief, stored report, share, mobile read-only, revocation, and concealment legs are unchanged; the home→login transition is treated as an expected session transition. Two consecutive `pnpm certify:workflow` runs terminate `PASS` with strict cleanup, absent disposable database, and matching start/final provenance; `pnpm check` and `pnpm check:mysql-evidence` pass. See `LES-047`.
 - Release identity: PR #40 merged `4a7bea7` as canonical-main `8108268` on 2026-07-23 after passing hosted `lint-and-test`, `mysql-authorization`, and the Vercel preview build; GitHub production deployment `5568677902` reached `success` for the exact merge SHA, and root/login/API/share-concealment production smoke passed. The release changed tests, the certification harness, and documentation only.
 
+## KF-020 — EV-03 production comparison rejects the provider tunnel at final use
+
+- Status: OPEN
+- Observed: 2026-07-29 during the authorized EV-03 production comparison on
+  exact application SHA `b8302884b137a059c6440ae2914f95d26e2c7999`.
+- Command: governed `scripts/ev03-planetscale-rollout-comparison.ts` against
+  `amr-saleh-hotmail/miyar-v2/main`, deploy requests #16-#21, PlanetScale
+  reader role, and the exact external migrate approval binding.
+- Evidence: the wrapper exited nonzero and produced no evidence file. Static
+  postmortem shows `scripts/ev03-rollout-comparison.ts` normalizes
+  `DATABASE_URL` from `mysql2://` to `mysql://` for initial target inspection,
+  but both final-use `assertDatabaseAccess("migrate")` calls re-read raw
+  `process.env.DATABASE_URL`. `inspectDatabaseTarget` accepts only `mysql://`,
+  so the first final-use assertion rejects the provider tunnel before
+  connection or query. Independent MIYAR review confirmed the trace.
+- Impact: no trusted live equality evidence exists, so compare and governed
+  modes cannot be enabled. Production remains safely on the legacy path.
+- Owner: EV-03 comparison-safety remediation.
+- Retry state: the unchanged failure class exhausted its three-attempt budget.
+  No further production attempt is permitted without an explicit reset.
+- Exit criterion: preserve the final-use target-drift check while supplying the
+  explicitly normalized provider-loopback URL and bound upstream target; prove
+  raw-provider normalization, hostile environment drift rejection,
+  reader-only execution, and zero output on failure; pass focused/full safety
+  gates and independent review; then run one explicitly reauthorized comparison
+  that produces owner-only evidence with 242 eligible, 242 equal, zero
+  different, and zero insufficient rows.
+
 ## Handling Protocol
 
 1. Reproduce a failure before adding it.

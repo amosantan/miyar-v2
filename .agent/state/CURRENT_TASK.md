@@ -3,12 +3,12 @@
 - ID: EV-03
 - Roadmap step: `EV-03`
 - Title: Consolidate material identity and calculation inputs
-- Status: ACTIVE
+- Status: BLOCKED
 - Owner: Codex
 - Started: 2026-07-29
 - Base: canonical `origin/main` at `83cae7864204787b183e046cdfb7dfe8c2254c6a`
-- Worktree: `/Users/amrosaleh/Maiyar/miyar-v2-ev03-material-consolidation`
-- Branch: `codex/ev03-material-consolidation`
+- Worktree: `/Users/amrosaleh/Maiyar/miyar-v2-ev03-comparison-blocker`
+- Branch: `codex/ev03-comparison-blocker`
 - Classification: Critical — schema/data/engine/report/scoring cutover
 - Dependencies: `EV-02` (`CLOSED`, production migration/backfill `PASS`)
 
@@ -125,14 +125,36 @@ MQI, schedules, boards, scoring, RFQs, reports, PDF, and DOCX output.
 
 ## Next Authorized Action
 
-Complete the provider-bound release-runner remediation and re-certify the exact
-candidate. Then publish it for hosted review before the first shared write.
-The owner has authorized the ordered EV-03 release package for
-`amr-saleh-hotmail/miyar-v2/main`: backup, migration 0062, dry-run and
-fingerprint-bound identity backfill, recovery proof, explicit legacy
-deployment, live comparison evidence, compare observation, digest-bound
-governed cutover, Git publication, merge, and deployment. Production remains
-on the legacy path until those gates pass in order.
+`BLOCKED`: do not rerun the production comparison or change the rollout mode.
+The comparison-safety failure class exhausted its three-attempt budget. A new
+bounded remediation must preserve final-use validation while normalizing the
+PlanetScale `mysql2://` loopback URL at the final-use boundary, add hostile
+environment-drift and no-output-on-failure coverage, pass independent review,
+and receive an explicit retry-budget reset before another production attempt.
+The existing release authorization remains recorded, but it does not override
+the retry stop.
+
+## Production Release Evidence and Blocker
+
+- PR #54 merged the EV-03 application as `6df6f791`; PR #55 merged the
+  comparison-reader safety hotfix as `b8302884`. Hosted lint/test,
+  MySQL-authorization, and Vercel checks passed on the reviewed heads.
+- Restorable backup `aswg05nrzrpf` preceded additive migration 0062. PlanetScale
+  deploy requests #16-#21 are complete.
+- The production identity backfill applied 51 exact actions (45 allocations and
+  six board links), retained 19 explicit ineligible decisions, and a subsequent
+  dry-run produced zero actions. Owner-only recovery evidence remains under
+  `/Users/amrosaleh/.miyar/recovery`.
+- Vercel production deployment `dpl_GVhZd9DmLSqVaQXKDumNpmvRQjS5` is `READY`
+  for exact merge SHA `b8302884b137a059c6440ae2914f95d26e2c7999`.
+- The final production comparison exited nonzero and created no evidence file.
+  Static postmortem confirmed that initial inspection normalizes PlanetScale's
+  `mysql2://` tunnel URL, but `assertDatabaseAccess("migrate")` re-reads the raw
+  scheme at final use; `inspectDatabaseTarget` accepts only `mysql://`, so the
+  guard fails before connection or query.
+- Production remains safely on `legacy`: the provider connection was
+  reader-only, the wrapper accepts no evidence after a nonzero exit, and no
+  compare/governed environment mutation occurred.
 
 ## Approved Decisions
 

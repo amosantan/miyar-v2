@@ -714,3 +714,23 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
   migration SQL, declared schema, and generated snapshot must match. Prove
   expansion against the previous schema and never remove legacy members inside
   an additive compatibility step.
+
+### LES-061 — Final-use database guards must inspect the exact normalized connection target
+
+- Date / step: 2026-07-29 / EV-03
+- Symptom: A provider-bound production comparison passed its initial target
+  inspection but failed closed before opening the reader connection.
+- Cause: Initial inspection normalized PlanetScale's `mysql2://` URL to the
+  inspector's accepted `mysql://` scheme, while the final-use guard re-read the
+  raw environment value and classified the scheme as malformed.
+- Fix: Keep the final-use recheck, but feed it the same explicitly normalized
+  live connection target plus the separately bound upstream provider target.
+  Never solve this by removing the recheck or globally accepting arbitrary
+  alternate schemes.
+- Proof: Static trace from the failed production command and independent MIYAR
+  review identify the first final-use assertion as the pre-connection failure;
+  the wrapper created no evidence and production remained on legacy.
+- Reuse rule: When a safety boundary normalizes a provider connection string,
+  every later use-site assertion must normalize through the same narrow
+  function and must still compare the current target against the approved
+  upstream binding.

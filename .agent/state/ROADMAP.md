@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Active/next executable step: `EV-03` — authorize and execute the ordered shared/production release package for the locally implemented material consolidation: migration 0062 (additive changes plus a backward-compatible `lifecycleCost` nullability widening), dry-run identity backfill, recovery proof, compatibility deployment, complete comparison evidence, and a separately approved governed cutover. `EV-02` is `CLOSED`; migration 0061 and its governed legacy backfill are applied and verified on PlanetScale production. In parallel and still `NEEDS_HUMAN`: EV-00's residual cost-consultant tier-mapping sign-off, EV-01b's per-source BR-06 terms decisions, and `BR-06` professional pack approvals.
+- Active/next executable step: `EV-03` is `BLOCKED` after the production comparison-safety failure class exhausted its three-attempt budget. Migration 0062, the identity backfill, and the explicit legacy deployment are complete, but compare/governed cutover did not occur. The next bounded action is a separately reviewed final-use URL-normalization remediation and an explicit retry-budget reset; until then production remains on `legacy`. `EV-02` is `CLOSED`. In parallel and still `NEEDS_HUMAN`: EV-00's residual cost-consultant tier-mapping sign-off, EV-01b's per-source BR-06 terms decisions, and `BR-06` professional pack approvals.
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -746,7 +746,7 @@ Rules:
 
 ### EV-03 — Consolidate material identity and calculation inputs
 
-- Status: `ACTIVE`
+- Status: `BLOCKED`
 - Class / priority: Data/engine / P1
 - Dependencies: `EV-02`
 - Human gate: Mapping approval for ambiguous legacy categories/units.
@@ -799,9 +799,22 @@ Rules:
   `amr-saleh-hotmail/miyar-v2/main` target, ordered migration/backfill,
   comparison, digest-bound governed cutover, Git publication, merge, and
   deployment. Ambiguous mappings remain unapproved.
-- Next executable action: certify the provider-bound release runners, publish
-  the immutable candidate, and pass hosted review before the first shared
-  schema write.
+- Partial production evidence: backup `aswg05nrzrpf`; additive migration 0062
+  deploy requests #16-#21 complete; 51 identity actions applied with 19
+  explicit ineligible decisions and a zero-action idempotency pass; PRs #54 and
+  #55 merged; production deployment `dpl_GVhZd9DmLSqVaQXKDumNpmvRQjS5` is
+  READY for exact SHA `b8302884`.
+- Blocker: the production comparison created no evidence because the final-use
+  safety assertion re-read PlanetScale's raw `mysql2://` tunnel URL after the
+  initial normalized inspection. The inspector accepts only `mysql://`, so the
+  comparison failed before connection/query. The provider role was reader,
+  the wrapper accepted no evidence, no rollout environment changed, and
+  production remains on `legacy`.
+- Next executable action: after explicit retry-budget reset, implement the
+  smallest reviewed remediation that normalizes the final-use URL without
+  weakening target-drift validation; add negative scheme/environment/output
+  tests and independently review the exact patch before one new production
+  comparison attempt. Do not advance EV-04 while EV-03 is blocked.
 
 ### EV-04 — Source coverage, freshness, and insufficiency SLA
 
