@@ -17,7 +17,9 @@ describe("full-report reconciliation router contract", () => {
     expect(reconciliationStart).toBeGreaterThan(0);
     expect(report).toContain("db.getSpaceProgramRooms(input.projectId, ctx.orgId)");
     expect(report).toContain("db.getMaterialAllocations(input.projectId, ctx.orgId)");
-    expect(report).toContain("db.getMaterialLibrary()");
+    expect(report).toContain("resolveMaterialPriceSnapshots({");
+    expect(report).toContain('priceScope: "supply_only"');
+    expect(report).toContain("organizationId: ctx.orgId");
     expect(report).toContain("buildWorkflowSpaceMqiReconciliation({");
     expect(report).toContain("projectFitOutAreaM2: project.totalFitoutArea");
     expect(report).toContain("workflowReconciliation,");

@@ -434,7 +434,7 @@ function InvestorSummaryContent() {
                                     <>
                                         <Separator className="my-4" />
                                         <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                                            UAE Market Reference (AED/m²)
+                                            Sustainability Reference
                                         </p>
                                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                                             {(materialConstants ?? []).slice(0, 9).map((c: any) => (
@@ -442,7 +442,7 @@ function InvestorSummaryContent() {
                                                     className="flex items-center justify-between text-xs p-2 rounded-md bg-secondary/40">
                                                     <span className="capitalize text-foreground">{c.materialType}</span>
                                                     <span className="text-muted-foreground font-mono">
-                                                        {Number(c.costPerM2).toLocaleString()} AED
+                                                        {Number(c.carbonIntensity).toLocaleString()} kg CO₂e/m²
                                                     </span>
                                                 </div>
                                             ))}

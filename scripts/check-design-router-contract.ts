@@ -45,6 +45,27 @@ const APPROVED_INITIALIZER_CHANGES = new Set([
   // EV-00 / ADR-0009: the mkt01Tier→finish map moved to the versioned tier
   // policy (identical v1 values); operation and middleware are frozen.
   "design.generateBrief",
+  // EV-03: material_constants is sustainability-only; the procedure retains
+  // its global-governed middleware while removing legacy cost authority.
+  "design.calculateSpec",
+  // EV-03: investor export no longer renders material_constants.costPerM2;
+  // project authorization and operation shape remain frozen.
+  "design.exportInvestorPdf",
+  // EV-03: visual prompts no longer receive browse-only catalog prices as
+  // authoritative material direction; authorization and operation are frozen.
+  "design.generateRoomRender",
+  "design.generateVisual",
+  // EV-03: board reads expose canonical identity and the summary adds a
+  // resolver-backed supply-only projection; authorization/operation stay
+  // frozen.
+  "design.getBoard",
+  "design.boardSummary",
+  // EV-03: board PDF totals use resolver-backed supply-only projections and
+  // retain the existing board authorization and mutation contract.
+  "design.exportBoardPdf",
+  // EV-03: catalog recommendations expose browse-only nullable estimates and
+  // canonical identities; project authorization and query shape remain frozen.
+  "design.recommendMaterials",
 ]);
 const ACCESS_PRIMITIVES = [
   "designOrgMutationProcedure",

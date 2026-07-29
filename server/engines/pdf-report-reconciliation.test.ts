@@ -6,10 +6,11 @@ import {
   type PDFReportInput,
 } from "./pdf-report";
 import type { WorkflowSpaceMqiReconciliation } from "./report-reconciliation";
+import { MATERIAL_RESOLUTION_POLICY_VERSION } from "../../shared/material-calculations";
 
 const reconciliation: WorkflowSpaceMqiReconciliation = {
   version: "workflow-space-mqi-reconciliation-v1",
-  sourceTables: ["projects", "space_program_rooms", "material_allocations", "material_library"],
+  sourceTables: ["projects", "space_program_rooms", "material_allocations", "governed_material_values"],
   spaceProgram: {
     storedRoomCount: 3,
     fitOutRoomCount: 2,
@@ -48,16 +49,23 @@ const reconciliation: WorkflowSpaceMqiReconciliation = {
   },
   materialCosts: {
     currency: "AED",
-    source: "material_library.priceAedMin/priceAedMax",
+    source: "EV-02 governed material-price resolver",
     pricedAllocationCount: 3,
     unpricedAllocationCount: 0,
     allAllocationsPriced: true,
     min: 2600,
     mid: 4400,
     max: 6200,
+    coverage: {
+      state: "complete",
+      totalItemCount: 3,
+      pricedItemCount: 3,
+      insufficientItemCount: 0,
+      reasons: {},
+    },
     basis: {
-      policyVersion: "material-library-provenance-v1",
-      label: "MIYAR assumption",
+      policyVersion: MATERIAL_RESOLUTION_POLICY_VERSION,
+      label: "Legacy scope-unknown assumption",
       assumptionRowCount: 2,
       observedRowCount: 0,
     },
@@ -86,13 +94,12 @@ describe("full-report workflow reconciliation", () => {
     expect(html).toContain("30.00 m²");
     expect(html).toContain("100.00%");
     expect(html).toContain("AED 4,400.00");
-    expect(html).toContain("material_library.priceAedMin/priceAedMax");
-    expect(html).toContain("projects, space_program_rooms, material_allocations, material_library");
-    // ADR-0009: the cost-basis label renders with the assumption note and
+    expect(html).toContain("EV-02 governed material-price resolver");
+    expect(html).toContain("projects, space_program_rooms, material_allocations, governed_material_values");
+    // EV-03: the compatibility label itself renders without a duplicate note and
     // never uses the TR-11 forbidden claim wording.
     expect(html).toContain("Cost basis:");
-    expect(html).toContain("MIYAR assumption");
-    expect(html).toContain("internal MIYAR reference catalogue prices, not market observations");
+    expect(html.toLowerCase()).toContain("legacy scope-unknown assumption");
     expect(html).not.toContain("(Market-Verified)");
     expect(html).not.toContain("DLD-Backed Recommendations");
     expect(generateReportHTML("validation_summary", report)).not.toContain("sec-workflow-reconciliation");

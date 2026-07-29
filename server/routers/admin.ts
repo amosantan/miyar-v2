@@ -9,7 +9,7 @@ import {
 import { requireProjectForOrg } from "../_core/project-access";
 import * as db from "../db";
 import { computeDistributions, computeComplianceHeatmap, detectFailurePatterns, computeImprovementLevers, type PortfolioProject } from "../engines/portfolio";
-import { syncMaterialsWithBenchmarks, getLiveCategoryPricing } from "../engines/pricing-engine";
+import { syncBrowseOnlyCatalogEstimates, getBrowseOnlyCategoryEstimates } from "../engines/pricing-engine";
 import { seedBenchmarks } from "../engines/benchmark-seeder";
 import { generateSyntheticBenchmarks } from "../engines/synthetic-generator";
 
@@ -562,7 +562,7 @@ export const adminRouter = router({
   pricing: router({
     syncMaterials: adminProcedure
       .mutation(async ({ ctx }) => {
-        const result = await syncMaterialsWithBenchmarks();
+        const result = await syncBrowseOnlyCatalogEstimates();
         await db.createAuditLog({
           userId: ctx.user.id,
           action: "pricing.sync_materials",
@@ -572,13 +572,13 @@ export const adminRouter = router({
         return result;
       }),
 
-    previewLive: adminProcedure
+    previewBrowseEstimates: adminProcedure
       .input(z.object({
         finishLevel: z.enum(["basic", "standard", "premium", "luxury", "ultra_luxury"]).default("standard"),
       }).optional())
       .query(async ({ input }) => {
         const level = input?.finishLevel || "standard";
-        return getLiveCategoryPricing(level);
+        return getBrowseOnlyCategoryEstimates(level);
       }),
   }),
 

@@ -131,19 +131,39 @@ describe("TR-05 organization-isolated learning contracts", () => {
     expect(mocks.listPublicCorpusEvidence).not.toHaveBeenCalled();
   });
 
-  it("uses only organization and governed-public evidence for cost prediction", async () => {
+  it("fails closed until predictive inputs have governed product/specification prices", async () => {
     const caller = predictiveRouter.createCaller(context(101));
     const result = await caller.getCostRange({
       projectId: 11,
       category: "floors",
     });
-    expect(result.status).toBe("ok");
-    expect(result.p50).toBe(110);
-    expect(result.organizationSampleCount).toBe(3);
+    expect(result.status).toBe("insufficient_data");
+    expect(result.p50).toBeNull();
+    expect(result.requestedGeography).toBe("uae");
+    expect(result.insufficiencyReason).toBe(
+      "no_governed_material_population"
+    );
+    expect(result.organizationSampleCount).toBe(0);
     expect(result.publicSampleCount).toBe(0);
+    expect(mocks.listOrganizationEvidenceRecords).not.toHaveBeenCalled();
+    expect(mocks.listPublicCorpusEvidence).not.toHaveBeenCalled();
     expect(mocks.getAllScoreMatrices).not.toHaveBeenCalled();
     expect(mocks.listEvidenceRecords).not.toHaveBeenCalled();
     expect(mocks.getTrendSnapshots).not.toHaveBeenCalled();
+  });
+
+  it("uses the canonical EV-03 policy version for UAE-wide insufficiency", async () => {
+    const result = await predictiveRouter
+      .createCaller(context(101))
+      .getUaeCostRanges();
+    expect(result).toHaveLength(9);
+    expect(
+      result.every(
+        row =>
+          row.prediction.materialResolutionPolicyVersion ===
+          "ev03-material-resolution-v1"
+      )
+    ).toBe(true);
   });
 
   it("returns explicit insufficiency without cross-organization comparables", async () => {

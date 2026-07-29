@@ -27,6 +27,13 @@ import {
     buildQuantityCostSummary,
     type AllocationSlice,
 } from "../engines/design/material-quantity-engine";
+import {
+    resolveMaterialPriceSnapshots,
+    resolveProjectMaterialPriceGeography,
+} from "../engines/material-pricing/material-resolution";
+import {
+    resolveQuantityForUnitBasis,
+} from "../engines/material-pricing/quantity-policy";
 
 export const materialQuantityRouter = router({
     /**
@@ -119,6 +126,11 @@ export const materialQuantityRouter = router({
                         materialName: alloc.materialName,
                         percentage: Number(alloc.allocationPct),
                         reasoning: alloc.aiReasoning || "Locked by user",
+                        explicitQuantity:
+                            alloc.explicitQuantity === null
+                                ? null
+                                : Number(alloc.explicitQuantity),
+                        explicitQuantityUnit: alloc.explicitQuantityUnit,
                     });
                 }
             }
@@ -139,11 +151,35 @@ export const materialQuantityRouter = router({
                 lockedAllocations.length > 0 ? lockedAllocations : undefined
             );
 
-            // 7. Compute costs (pure math)
+            const resolverAsOf = new Date();
+            const materialReferences = Array.from(
+                new Set(
+                    allocationResult.rooms.flatMap(room =>
+                        [...room.floor, ...room.walls, ...room.ceiling, ...room.joinery]
+                            .map(slice => slice.materialLibraryId)
+                            .filter((id): id is number => id !== null)
+                    )
+                )
+            ).map(legacyId => ({
+                source: "material_library" as const,
+                legacyId,
+            }));
+            const priceSnapshots = await resolveMaterialPriceSnapshots({
+                references: materialReferences,
+                organizationId: orgId,
+                priceScope: "supply_only",
+                requestedGeography: resolveProjectMaterialPriceGeography(
+                    (project as any).materialPriceGeography
+                ),
+                asOf: resolverAsOf,
+                allowLegacyUnknownScope: true,
+            });
+
+            // 7. Compute costs from governed resolver snapshots (pure math)
             const costResult = buildQuantityCostSummary(
                 surfaces,
                 allocationResult,
-                materialLibrary as any,
+                priceSnapshots,
                 {
                     fin01BudgetCap: project.fin01BudgetCap
                         ? Number(project.fin01BudgetCap)
@@ -161,6 +197,9 @@ export const materialQuantityRouter = router({
                         const lockKey = `${room.roomId}:${element.element}`;
                         if (lockedGroupMap.has(lockKey)) continue;
 
+                        const snapshot = alloc.priceSnapshot;
+                        const resolvedSnapshot =
+                            snapshot?.state === "resolved" ? snapshot : null;
                         allocationsToInsert.push({
                             projectId: input.projectId,
                             organizationId: orgId,
@@ -168,6 +207,8 @@ export const materialQuantityRouter = router({
                             roomName: room.roomName,
                             element: element.element,
                             materialLibraryId: alloc.materialLibraryId,
+                            productId: alloc.productId,
+                            specId: alloc.specificationId,
                             materialName: alloc.materialName,
                             allocationPct: String(alloc.percentage),
                             surfaceAreaM2: String(alloc.actualAreaM2),
@@ -183,6 +224,38 @@ export const materialQuantityRouter = router({
                             totalCostMax: alloc.totalCostMax
                                 ? String(alloc.totalCostMax)
                                 : null,
+                            resolutionState: alloc.resolutionState,
+                            resolutionReason: alloc.resolutionReason ?? null,
+                            benchmarkProposalId:
+                                resolvedSnapshot?.benchmarkProposalId ?? null,
+                            resolvedPriceScope:
+                                resolvedSnapshot?.resolvedPriceScope ?? null,
+                            requestedGeography:
+                                snapshot?.requestedGeography ?? null,
+                            resolvedGeography:
+                                resolvedSnapshot?.resolvedGeography ?? null,
+                            resolvedUnitBasis:
+                                resolvedSnapshot?.unitBasis ?? null,
+                            resolutionAsOf: snapshot
+                                ? new Date(snapshot.resolverAsOf)
+                                : resolverAsOf,
+                            resolverPolicyVersion:
+                                snapshot?.policyVersion
+                                ?? "ev03-material-resolution-v1",
+                            benchmarkVersionId:
+                                resolvedSnapshot?.benchmarkVersionId ?? null,
+                            benchmarkVersion:
+                                resolvedSnapshot?.provenance.benchmarkVersion
+                                ?? null,
+                            provenancePolicyVersion:
+                                resolvedSnapshot?.provenance
+                                    .provenancePolicyVersion ?? null,
+                            presentationProvenance:
+                                resolvedSnapshot?.provenance ?? null,
+                            quantityPolicyVersion:
+                                alloc.quantityPolicyVersion,
+                            quantityConversionInputs:
+                                alloc.quantityConversionInputs,
                             aiReasoning: alloc.reasoning,
                             isLocked: false,
                         });
@@ -193,9 +266,20 @@ export const materialQuantityRouter = router({
             if (!(await db.replaceMaterialAllocationsForOrg(
                 input.projectId,
                 orgId,
-                allocationsToInsert
+                allocationsToInsert,
+                {
+                    materialPricingRevision:
+                        project.materialPricingRevision,
+                    materialPriceGeography:
+                        project.materialPriceGeography,
+                }
             ))) {
                 await requireProjectForOrg(input.projectId, orgId);
+                throw new TRPCError({
+                    code: "CONFLICT",
+                    message:
+                        "Material pricing inputs changed while quantities were generated. Retry with the current project geography.",
+                });
             }
 
             // boardMaterialsCost is computed at eval-time from RFQ/MQI data,
@@ -255,10 +339,17 @@ export const materialQuantityRouter = router({
                     materialName: alloc.materialName,
                     allocationPct: Number(alloc.allocationPct),
                     surfaceAreaM2: Number(alloc.surfaceAreaM2),
-                    unitCostMin: Number(alloc.unitCostMin) || 0,
-                    unitCostMax: Number(alloc.unitCostMax) || 0,
-                    totalCostMin: Number(alloc.totalCostMin) || 0,
-                    totalCostMax: Number(alloc.totalCostMax) || 0,
+                    explicitQuantity:
+                        alloc.explicitQuantity === null
+                            ? null
+                            : Number(alloc.explicitQuantity),
+                    explicitQuantityUnit: alloc.explicitQuantityUnit,
+                    unitCostMin: alloc.unitCostMin === null ? null : Number(alloc.unitCostMin),
+                    unitCostMax: alloc.unitCostMax === null ? null : Number(alloc.unitCostMax),
+                    totalCostMin: alloc.totalCostMin === null ? null : Number(alloc.totalCostMin),
+                    totalCostMax: alloc.totalCostMax === null ? null : Number(alloc.totalCostMax),
+                    resolutionState: alloc.resolutionState,
+                    resolutionReason: alloc.resolutionReason,
                     aiReasoning: alloc.aiReasoning,
                     isLocked: alloc.isLocked,
                 });
@@ -272,6 +363,177 @@ export const materialQuantityRouter = router({
         }),
 
     /**
+     * Adds the reviewed, explicit non-surface quantity needed for an issued
+     * joinery or sanitaryware line. Identity and organization are resolved on
+     * the server; callers cannot supply canonical IDs or provenance.
+     */
+    addExplicitAllocation: orgMutationProcedure
+        .input(
+            z.discriminatedUnion("element", [
+                z.object({
+                    projectId: z.number(),
+                    roomId: z.string().min(1).max(20),
+                    element: z.literal("joinery"),
+                    materialLibraryId: z.number().int().positive(),
+                    explicitQuantity: z.number().positive().refine(
+                        value =>
+                            Math.abs(value * 1000 - Math.round(value * 1000)) <
+                            1e-8,
+                        "Quantity supports at most three decimal places"
+                    ),
+                    explicitQuantityUnit: z.literal("lm"),
+                }),
+                z.object({
+                    projectId: z.number(),
+                    roomId: z.string().min(1).max(20),
+                    element: z.literal("sanitaryware"),
+                    materialLibraryId: z.number().int().positive(),
+                    explicitQuantity: z.number().int().positive(),
+                    explicitQuantityUnit: z.literal("piece"),
+                }),
+            ])
+        )
+        .mutation(async ({ input, ctx }) => {
+            const project = await requireProjectForOrg(
+                input.projectId,
+                ctx.orgId
+            );
+            const [rooms, materialLibrary] = await Promise.all([
+                db.getSpaceProgramRooms(input.projectId, ctx.orgId),
+                db.getMaterialLibrary(),
+            ]);
+            const room = rooms.find(
+                candidate => candidate.roomCode === input.roomId
+            );
+            const material = materialLibrary.find(
+                candidate => candidate.id === input.materialLibraryId
+            );
+            if (!room || !room.isFitOut || !material) {
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: "Resource not found",
+                });
+            }
+            if (material.category !== input.element) {
+                throw new TRPCError({
+                    code: "PRECONDITION_FAILED",
+                    message: "MATERIAL_CATEGORY_INCOMPATIBLE",
+                });
+            }
+            const resolverAsOf = new Date();
+            const explicitQuantity =
+                Math.round(input.explicitQuantity * 1000) / 1000;
+            const [snapshot] = await resolveMaterialPriceSnapshots({
+                references: [{
+                    source: "material_library",
+                    legacyId: material.id,
+                }],
+                organizationId: ctx.orgId,
+                priceScope: "supply_only",
+                requestedGeography: resolveProjectMaterialPriceGeography(
+                    project.materialPriceGeography
+                ),
+                asOf: resolverAsOf,
+                allowLegacyUnknownScope: true,
+            });
+            if (!snapshot || snapshot.state !== "resolved") {
+                if (
+                    snapshot?.state === "insufficient" &&
+                    snapshot.reason === "identity_not_found" &&
+                    snapshot.productId === undefined
+                ) {
+                    throw new TRPCError({
+                        code: "NOT_FOUND",
+                        message: "Resource not found",
+                    });
+                }
+                throw new TRPCError({
+                    code: "PRECONDITION_FAILED",
+                    message: "MATERIAL_PRICING_INSUFFICIENT",
+                });
+            }
+            const quantity = resolveQuantityForUnitBasis({
+                unitBasis: snapshot.unitBasis,
+                asOf: resolverAsOf,
+                explicitQuantity,
+                explicitQuantityUnit: input.explicitQuantityUnit,
+                paintCoverageProfile: snapshot.paintCoverageProfile
+                    ? { status: "approved", ...snapshot.paintCoverageProfile }
+                    : undefined,
+            });
+            if (quantity.state !== "resolved") {
+                throw new TRPCError({
+                    code: "PRECONDITION_FAILED",
+                    message: `MATERIAL_QUANTITY_INSUFFICIENT:${quantity.reason}`,
+                });
+            }
+            const totalMin = Math.round(
+                quantity.quantity * Number(snapshot.priceMin) * 100
+            ) / 100;
+            const totalMax = Math.round(
+                quantity.quantity * Number(snapshot.priceMax) * 100
+            ) / 100;
+            const created =
+                await db.createExplicitMaterialAllocationForOrg(
+                    input.projectId,
+                    ctx.orgId,
+                    {
+                        projectId: input.projectId,
+                        organizationId: ctx.orgId,
+                        roomId: room.roomCode,
+                        roomName: room.roomName,
+                        element: input.element,
+                        materialLibraryId: material.id,
+                        materialName: material.productName,
+                        allocationPct: "100",
+                        surfaceAreaM2: "0",
+                        explicitQuantity: String(explicitQuantity),
+                        explicitQuantityUnit: input.explicitQuantityUnit,
+                        unitCostMin: snapshot.priceMin,
+                        unitCostMax: snapshot.priceMax,
+                        totalCostMin: String(totalMin),
+                        totalCostMax: String(totalMax),
+                        productId: snapshot.productId,
+                        specId: snapshot.specificationId,
+                        benchmarkProposalId: snapshot.benchmarkProposalId,
+                        resolutionState: "resolved",
+                        resolutionReason: null,
+                        resolvedPriceScope: snapshot.resolvedPriceScope,
+                        requestedGeography: snapshot.requestedGeography,
+                        resolvedGeography: snapshot.resolvedGeography,
+                        resolvedUnitBasis: snapshot.unitBasis,
+                        resolutionAsOf: resolverAsOf,
+                        resolverPolicyVersion: snapshot.policyVersion,
+                        benchmarkVersionId: snapshot.benchmarkVersionId,
+                        benchmarkVersion:
+                            snapshot.provenance.benchmarkVersion,
+                        provenancePolicyVersion:
+                            snapshot.provenance.provenancePolicyVersion,
+                        presentationProvenance: snapshot.provenance,
+                        quantityPolicyVersion: quantity.policyVersion,
+                        quantityConversionInputs:
+                            quantity.conversionInputs,
+                        aiReasoning:
+                            "Explicit reviewed non-surface quantity.",
+                        isLocked: true,
+                    },
+                    {
+                        materialPricingRevision:
+                            project.materialPricingRevision,
+                        materialPriceGeography:
+                            project.materialPriceGeography,
+                    }
+                );
+            if (!created) {
+                throw new TRPCError({
+                    code: "CONFLICT",
+                    message: "Explicit allocation already exists",
+                });
+            }
+            return created;
+        }),
+
+    /**
      * updateAllocation — Edit a single allocation
      * Server-side recalculation of costs
      */
@@ -281,7 +543,19 @@ export const materialQuantityRouter = router({
                 allocationId: z.number(),
                 allocationPct: z.number().min(0).max(100),
                 surfaceAreaM2: z.number().min(0),
-            })
+                explicitQuantity: z.number().positive().optional(),
+                explicitQuantityUnit: z
+                    .enum(["sqm", "lm", "piece", "pack", "litre"])
+                    .optional(),
+            }).refine(
+                value =>
+                    (value.explicitQuantity === undefined) ===
+                    (value.explicitQuantityUnit === undefined),
+                {
+                    message:
+                        "Explicit quantity and unit must be supplied together",
+                }
+            )
         )
         .mutation(async ({ input, ctx }) => {
             await requireProjectOrgResourceForOrg(input.allocationId, ctx.orgId, {
@@ -294,6 +568,30 @@ export const materialQuantityRouter = router({
             if (!(await db.updateMaterialAllocationForOrg(input.allocationId, ctx.orgId, {
                 allocationPct: String(input.allocationPct),
                 surfaceAreaM2: String(input.surfaceAreaM2),
+                explicitQuantity:
+                    input.explicitQuantity === undefined
+                        ? null
+                        : String(input.explicitQuantity),
+                explicitQuantityUnit: input.explicitQuantityUnit ?? null,
+                unitCostMin: null,
+                unitCostMax: null,
+                totalCostMin: null,
+                totalCostMax: null,
+                benchmarkProposalId: null,
+                resolutionState: "insufficient",
+                resolutionReason: "quantity_required",
+                resolvedPriceScope: null,
+                requestedGeography: null,
+                resolvedGeography: null,
+                resolvedUnitBasis: null,
+                resolutionAsOf: null,
+                resolverPolicyVersion: null,
+                benchmarkVersionId: null,
+                benchmarkVersion: null,
+                provenancePolicyVersion: null,
+                presentationProvenance: null,
+                quantityPolicyVersion: null,
+                quantityConversionInputs: null,
             }))) {
                 await requireProjectOrgResourceForOrg(input.allocationId, ctx.orgId, {
                     lookupResource: db.getMaterialAllocationById,
@@ -422,13 +720,23 @@ export const materialQuantityRouter = router({
 
             try {
                 const prices = JSON.parse(text);
-                const minPrice = Number(prices.minPrice || prices.min || 0);
-                const maxPrice = Number(prices.maxPrice || prices.max || 0);
+                const parsedMin = Number(prices.minPrice ?? prices.min);
+                const parsedMax = Number(prices.maxPrice ?? prices.max);
+                const minPrice =
+                    Number.isFinite(parsedMin) && parsedMin > 0
+                        ? parsedMin
+                        : null;
+                const maxPrice =
+                    Number.isFinite(parsedMax) && parsedMax > 0
+                        ? parsedMax
+                        : null;
 
                 if (!(await db.updateMaterialSupplierSourceForOrg(input.sourceId, ctx.orgId, {
                     lastScrapedAt: new Date(),
-                    lastPriceAedMin: minPrice > 0 ? String(minPrice) : undefined,
-                    lastPriceAedMax: maxPrice > 0 ? String(maxPrice) : undefined,
+                    lastPriceAedMin:
+                        minPrice === null ? undefined : String(minPrice),
+                    lastPriceAedMax:
+                        maxPrice === null ? undefined : String(maxPrice),
                 }))) {
                     await requireOrgResourceForOrg(input.sourceId, ctx.orgId, {
                         lookupResource: db.getMaterialSupplierSourceById,

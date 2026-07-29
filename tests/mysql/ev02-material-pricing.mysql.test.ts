@@ -15,6 +15,9 @@ import {
   insertSupersedingPriceObservation,
   insertSupplierQuote,
   insertSupersedingSupplierQuote,
+  listApprovedPaintCoverageProfiles,
+  listGovernedValueCandidatesForSpecifications,
+  listMaterialResolutionIdentities,
 } from "../../server/db/material-pricing";
 import {
   applyEv02LegacyBackfill,
@@ -27,6 +30,8 @@ import {
 import { assertEv02ProductionSchemaContract } from "../../server/engines/material-pricing/backfill-schema-contract";
 import { resolveGovernedMaterialValue } from "../../server/engines/material-pricing/resolver";
 import { buildProductIdentityKey } from "../../server/engines/material-pricing/policy";
+import { resolveGovernedMaterialPriceSnapshotsForRolloutEvidence } from "../../server/engines/material-pricing/material-resolution";
+import { buildMaterialPricingComparisonEvidence } from "../../server/engines/material-pricing/rollout-comparison";
 
 initializeDatabaseSafety("integration-test", { loadDotenv: false });
 const url = process.env.DATABASE_URL;
@@ -38,7 +43,9 @@ const canonicalTarget = `${target.hostname}:${target.port || "3306"}/${target.pa
 async function truncateFixtures() {
   await pool.query("set foreign_key_checks=0");
   for (const table of [
+    "paint_coverage_profiles",
     "benchmark_proposals",
+    "benchmark_versions",
     "supplier_quote",
     "specification",
     "product",
@@ -111,6 +118,121 @@ async function insertGovernedValue(input: {
 }
 
 describe("EV-02 disposable MySQL evidence and price schema", () => {
+  it("treats orphan library and catalog product links as missing identities", async () => {
+    await pool.execute(
+      `insert into material_library
+       (category,tier,product_code,product_name,brand,supplier_name,unit_label,
+        product_id)
+       values
+       ('flooring','mid','ORPHAN-LIB','Orphan library','Brand','Supplier','sqm',
+        999991)`
+    );
+    await pool.execute(
+      `insert into materials_catalog
+       (name,category,tier,costUnit,productId)
+       values ('Orphan catalog','tile','mid','AED/sqm',999992)`
+    );
+    const [library] = await pool.query<mysql.RowDataPacket[]>(
+      "select id from material_library where product_id=999991"
+    );
+    const [catalog] = await pool.query<mysql.RowDataPacket[]>(
+      "select id from materials_catalog where productId=999992"
+    );
+    await expect(
+      listMaterialResolutionIdentities({
+        materialLibraryIds: [Number(library[0].id)],
+        materialCatalogIds: [Number(catalog[0].id)],
+      })
+    ).resolves.toEqual([
+      expect.objectContaining({
+        source: "material_library",
+        productId: null,
+        productOrgId: null,
+        productCanonicalCategory: null,
+      }),
+      expect.objectContaining({
+        source: "materials_catalog",
+        productId: null,
+        productOrgId: null,
+        productCanonicalCategory: null,
+      }),
+    ]);
+  });
+
+  it("uses the referenced benchmark version tag instead of the key policy version", async () => {
+    const specId = await insertSpec();
+    const [versionResult] = await pool.execute(
+      `insert into benchmark_versions
+       (versionTag,status,publishedAt,recordCount)
+       values ('governed-benchmark-2026-q3','published','2026-07-01',1)`
+    );
+    const benchmarkVersionId = Number(
+      (versionResult as { insertId: number }).insertId
+    );
+    await pool.execute(
+      `insert into benchmark_proposals
+       (benchmarkKey,specId,benchmarkVersionId,priceScope,sourceKind,
+        sourceLadderRung,keyPolicyVersion,provenancePolicyVersion,
+        proposedP25,proposedP50,proposedP75,weightedMean,evidenceCount,
+        sourceDiversity,reliabilityDist,recencyDist,confidenceScore,
+        recommendation,status,reviewedBy,reviewedAt,createdAt)
+       values ('floors:standard:per_sqm:uae',?,?,'supply_only','assumption',
+        'assumption','distinct-key-policy-v9','distinct-provenance-policy-v3',
+        '100.00','120.00','140.00','120.00',1,1,JSON_OBJECT('A',1),
+        JSON_OBJECT('recent',1),90,'publish','approved',9001,
+        '2026-07-20','2026-07-19')`,
+      [specId, benchmarkVersionId]
+    );
+
+    await expect(
+      listGovernedValueCandidatesForSpecifications({ specIds: [specId] })
+    ).resolves.toEqual([
+      expect.objectContaining({
+        benchmarkVersionId,
+        benchmarkVersion: "governed-benchmark-2026-q3",
+        provenancePolicyVersion: "distinct-provenance-policy-v3",
+      }),
+    ]);
+  });
+
+  it("preserves malformed approved paint profiles as fail-closed candidates", async () => {
+    await pool.execute(
+      `insert into paint_coverage_profiles
+       (id,productId,specId,coverageM2PerLitrePerCoat,coatCount,wastePct,
+        packSizesLitres,effectiveAt,policyVersion,sourceDocumentUrl,
+        sourceDocumentDigest,status,reviewedBy,reviewedAt,supersedesId)
+       values
+       (501,501,601,12,2,5,JSON_ARRAY(18,4,1),'2026-07-01','paint-v1',
+        'https://example.invalid/tds','bad-digest','approved',NULL,NULL,NULL),
+       (502,502,602,0,2,5,JSON_ARRAY(),'2026-07-01','paint-v1',
+        'https://example.invalid/tds',
+        'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        'approved',9001,'2026-07-02',NULL),
+       (503,503,603,12,2,5,JSON_ARRAY(18),'2026-07-01','paint-v1',
+        'https://example.invalid/tds',
+        'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        'approved',9001,'2026-07-02',503)`
+    );
+    const rows = await listApprovedPaintCoverageProfiles({
+      productIds: [501, 502, 503],
+      asOf: new Date("2026-07-28T00:00:00Z"),
+    });
+    expect(rows).toHaveLength(3);
+    expect(rows.find(row => row.id === 501)).toMatchObject({
+      reviewedBy: null,
+      reviewedAt: null,
+      lineageValid: true,
+    });
+    expect(rows.find(row => row.id === 502)).toMatchObject({
+      coverageM2PerLitrePerCoat: "0.000",
+      packSizesLitres: [],
+      lineageValid: true,
+    });
+    expect(rows.find(row => row.id === 503)).toMatchObject({
+      lineageValid: false,
+    });
+  });
+
   it("requires immutable human approval provenance for governed values", async () => {
     const specId = await insertSpec();
     const proposalData = {
@@ -825,10 +947,7 @@ describe("EV-02 disposable MySQL evidence and price schema", () => {
       ).rejects.toThrow("governed value");
       await pool.execute(
         "update benchmark_proposals set proposedP50=? where id=?",
-        [
-          first.insertedBenchmarks[0].p50,
-          first.insertedBenchmarkProposalIds[0],
-        ]
+        [first.insertedBenchmarks[0].p50, first.insertedBenchmarkProposalIds[0]]
       );
 
       await insertGovernedValue({
@@ -875,11 +994,7 @@ describe("EV-02 disposable MySQL evidence and price schema", () => {
       );
 
       await connection.beginTransaction();
-      await rollbackEv02LegacyBackfillBulk(
-        connection,
-        first,
-        canonicalTarget
-      );
+      await rollbackEv02LegacyBackfillBulk(connection, first, canonicalTarget);
       await connection.commit();
       const [rolledBackLinks] = await pool.query<mysql.RowDataPacket[]>(
         "select product_id from material_library order by id"
@@ -973,6 +1088,54 @@ describe("EV-02 disposable MySQL evidence and price schema", () => {
         proposedP50: "125.01",
         weightedMean: "125.01",
       });
+      const [eligibleRows] = await pool.query<mysql.RowDataPacket[]>(
+        `select ml.id as legacyId,ml.price_aed_min as priceMin,
+           ml.price_aed_max as priceMax
+         from material_library ml
+         inner join benchmark_proposals bp
+           on bp.legacyMaterialLibraryId=ml.id
+          and bp.productId=ml.product_id
+         where bp.sourceKind='assumption'
+           and bp.sourceLadderRung='assumption'
+           and bp.orgId is null
+           and bp.priceScope is null
+           and bp.keyPolicyVersion='ev02-backfill-v1'
+           and bp.status='approved'
+           and bp.recommendation='publish'
+         order by ml.id`
+      );
+      const rolloutClock = new Date("2026-07-29T12:00:00.000Z");
+      const legacyRanges = eligibleRows.map(row => ({
+        reference: {
+          source: "material_library" as const,
+          legacyId: Number(row.legacyId),
+        },
+        priceMin: String(row.priceMin),
+        priceMax: String(row.priceMax),
+      }));
+      const governedSnapshots =
+        await resolveGovernedMaterialPriceSnapshotsForRolloutEvidence({
+          references: legacyRanges.map(row => row.reference),
+          organizationId: 0,
+          priceScope: "supply_only",
+          requestedGeography: "uae",
+          asOf: rolloutClock,
+          allowLegacyUnknownScope: true,
+          evidencePurpose: "ev03-full-eligible-comparison",
+        });
+      const rolloutEvidence = buildMaterialPricingComparisonEvidence({
+        legacyRanges,
+        snapshots: governedSnapshots,
+        generatedAt: rolloutClock,
+      });
+      expect(rolloutEvidence).toMatchObject({
+        eligibleRowCount: 242,
+        comparisonRowCount: 242,
+        equalRowCount: 242,
+        differentRowCount: 0,
+        insufficientRowCount: 0,
+      });
+      expect(rolloutEvidence.evidenceDigest).toMatch(/^[a-f0-9]{64}$/);
 
       const rollbackStarted = performance.now();
       await connection.beginTransaction();

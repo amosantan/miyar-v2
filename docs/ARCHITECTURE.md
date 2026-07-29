@@ -213,6 +213,47 @@ Major data domains include:
 - Financial values must define currency and unit.
 - Schema changes follow `docs/runbooks/database-migration.md`.
 
+### Governed material identity and price path
+
+Material calculations identify a canonical `product` and `specification` and
+resolve price only through the server-internal EV-02 batch façade. The façade
+captures one operation clock, enforces global-or-same-organization visibility,
+tries an explicit project emirate and then UAE without blending candidates, and
+returns typed insufficiency instead of zero.
+
+Authoritative scopes are fixed by consumer: MQI and material/report summaries
+use `supply_only`; RFQs use `supply_and_install`; a report inherits its source
+calculation scope. Legacy unknown-scope assumptions are available only through
+an explicit, labelled compatibility mode. `material_library.priceAed*`,
+`materials_catalog.typicalCost*`, stored cost snapshots, and
+`material_constants.costPerM2` are not calculation authorities.
+
+Rollout is a server-start contract, not a client switch. `legacy` and `compare`
+serve the exact eligible EV-02 legacy-compatible value; compare additionally
+records a digest-bound, non-monetary and non-confidential difference envelope
+for the actual organization-filtered scope/geography request. `governed` alone
+serves governed snapshots and requires both complete golden evidence and an
+explicit owner approval reference. Predictive and learning material-cost
+surfaces do not consume raw `evidence_records`; until they have a governed
+product/specification population they return nullable typed insufficiency.
+
+Durable allocation and RFQ rows retain canonical identity, resolver clock and
+policy, geography, unit/scope, governed-value identity, completeness, and
+presentation-safe provenance. Full internal provenance is a separate type;
+public shares and reports cannot represent organization IDs, quote references,
+contacts, or confidential metadata. Issued artifacts are immutable; edits to
+material, specification, quantity/unit, or project price geography must
+re-resolve or clear non-issued provenance.
+
+Board catalog prices remain clearly labelled browse estimates. They cannot
+enter scoring, RFQs, or issued totals until a governed specification/value
+resolves. New board and finish-schedule links retain exact product identity
+when available and otherwise remain explicitly unresolved; governed board
+summaries use `supply_only`, one resolver clock, nullable totals, and safe
+provenance. Paint quantity follows ADR-0012: approved product profiles override
+the versioned 10 m²/L/coat, two-coat, 10% waste fallback, and purchasing rounds
+only to actual supplier pack sizes.
+
 ## Authentication and Authorization
 
 Authentication uses server-issued session/JWT behavior with cookie handling. Organization membership scopes protected data. Public sharing uses separate token-based read-only access.

@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Active/next executable step: `EV-03` — consolidate material identity and calculation inputs, cutting calculation consumers over to the EV-02 governed resolver without changing numerical policy. `EV-02` is `CLOSED`; migration 0061 and its governed legacy backfill are applied and verified on PlanetScale production. In parallel and still `NEEDS_HUMAN`: EV-00's residual cost-consultant tier-mapping sign-off, EV-01b's per-source BR-06 terms decisions, and `BR-06` professional pack approvals.
+- Active/next executable step: `EV-03` — authorize and execute the ordered shared/production release package for the locally implemented material consolidation: migration 0062 (additive changes plus a backward-compatible `lifecycleCost` nullability widening), dry-run identity backfill, recovery proof, compatibility deployment, complete comparison evidence, and a separately approved governed cutover. `EV-02` is `CLOSED`; migration 0061 and its governed legacy backfill are applied and verified on PlanetScale production. In parallel and still `NEEDS_HUMAN`: EV-00's residual cost-consultant tier-mapping sign-off, EV-01b's per-source BR-06 terms decisions, and `BR-06` professional pack approvals.
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -746,7 +746,7 @@ Rules:
 
 ### EV-03 — Consolidate material identity and calculation inputs
 
-- Status: `READY`
+- Status: `ACTIVE`
 - Class / priority: Data/engine / P1
 - Dependencies: `EV-02`
 - Human gate: Mapping approval for ambiguous legacy categories/units.
@@ -758,6 +758,50 @@ Rules:
 - Done when: MQI, schedules, boards, reports, and RFQs use the same canonical identities.
 - Verification: Golden quantity/cost reconciliation and legacy compatibility tests.
 - Expected artifacts: Canonical mapping and deterministic adapters.
+- Local implementation evidence: Fresh worktree from canonical `83cae786`;
+  internal resolution façade and truthful rollout modes; migration 0062 with
+  additive changes plus a backward-compatible `lifecycleCost` nullability
+  widening; identity-only backfill/recovery; governed paint quantities; explicit
+  project price geography; canonical MQI, board, RFQ, report, brief, predictive,
+  and digital-twin consumers; safe presentation provenance; nullable
+  complete/partial/insufficient aggregates; and static legacy-read/rate gates.
+  Focused resolver/RFQ/allocation regression 36/36, database-free 1,774/22,
+  and guarded disposable MySQL 65/65
+  (including all 242 eligible assumptions byte-equal), TypeScript,
+  authorization 390/0, database safety 138/2/0, material-price authority 16
+  paths, report 23/23, workflow, build,
+  bundle, TR-13 workflow/browser, public-browser, and diff gates pass.
+  The first final Sol pass found seven cross-layer blockers; predictive and
+  learning material prices now fail with nullable insufficiency until governed,
+  issued RFQs reject incomplete totals, new boards/schedules carry explicit
+  canonical state, locked/quantity provenance invalidates, private identities
+  are concealed, compare records request-specific sanitized differences, and
+  empty aggregates are insufficient. Authenticated form inspection
+  remains environment-gated; project geography and invalidation passed on real
+  disposable MySQL. A second Sol pass found and drove fixes for incomplete
+  full-report persistence, standalone RFQ lifecycle/invalidation, and exact
+  compatibility labelling. A deeper audit then drove source-CAS backfill locks,
+  RFQ pricing revisions and races, fail-closed malformed paint profiles,
+  complete report reconciliation gates, invalid-band rejection, and a
+  provider-bound production runner. Final follow-up work added bulk-MQI
+  revision/geography compare-and-swap and canonical joined-product
+  existence/category validation. A later Claude review caught
+  finish-schedule enum schema/migration drift; migration 0062 now preserves all
+  legacy wall variants and appends only `sanitaryware`, with schema, snapshot,
+  pinned digest, contract tests, fresh disposable MySQL, TypeScript, build, and
+  workflow evidence aligned. Subsequent production-runner hardening superseded
+  the earlier implementation-only approvals. The corrected tree passes focused
+  59/59, disposable MySQL 65/65, DB-free 1,784/22, TypeScript, audits, reports,
+  workflow, build, and bundle gates. The documentation-corrected exact tree
+  received `APPROVED / NO OBJECTION` from the independent MIYAR Sol reviewer
+  and `APPROVED_NO_OBJECTION` from Claude Opus.
+- Release authorization recorded 2026-07-29 for the exact
+  `amr-saleh-hotmail/miyar-v2/main` target, ordered migration/backfill,
+  comparison, digest-bound governed cutover, Git publication, merge, and
+  deployment. Ambiguous mappings remain unapproved.
+- Next executable action: certify the provider-bound release runners, publish
+  the immutable candidate, and pass hosted review before the first shared
+  schema write.
 
 ### EV-04 — Source coverage, freshness, and insufficiency SLA
 

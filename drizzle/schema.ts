@@ -246,6 +246,19 @@ export const projects = mysqlTable("projects", {
 
   // City & Sustainability Certification (Phase D — affects pricing, scoring, compliance)
   city: mysqlEnum("city", ["Dubai", "Abu Dhabi"]).default("Dubai"),
+  materialPriceGeography: mysqlEnum("materialPriceGeography", [
+    "dubai",
+    "abu_dhabi",
+    "sharjah",
+    "ajman",
+    "umm_al_quwain",
+    "ras_al_khaimah",
+    "fujairah",
+    "uae",
+  ]),
+  materialPricingRevision: int("material_pricing_revision")
+    .default(1)
+    .notNull(),
   sustainCertTarget: varchar("sustain_cert_target", { length: 50 }).default(
     "silver"
   ),
@@ -986,6 +999,52 @@ export const specifications = mysqlTable(
 export type Specification = typeof specifications.$inferSelect;
 export type InsertSpecification = typeof specifications.$inferInsert;
 
+export const paintCoverageProfiles = mysqlTable(
+  "paint_coverage_profiles",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    productId: int("productId").notNull(),
+    specId: int("specId").notNull(),
+    coverageM2PerLitrePerCoat: decimal("coverageM2PerLitrePerCoat", {
+      precision: 10,
+      scale: 3,
+    }).notNull(),
+    coatCount: int("coatCount").notNull(),
+    wastePct: decimal("wastePct", { precision: 6, scale: 3 }).notNull(),
+    packSizesLitres: json("packSizesLitres").notNull(),
+    effectiveAt: timestamp("effectiveAt").notNull(),
+    policyVersion: varchar("policyVersion", { length: 64 }).notNull(),
+    sourceDocumentUrl: text("sourceDocumentUrl").notNull(),
+    sourceDocumentDigest: varchar("sourceDocumentDigest", {
+      length: 128,
+    }).notNull(),
+    status: mysqlEnum("status", ["pending", "approved", "rejected"])
+      .default("pending")
+      .notNull(),
+    // Pending/rejected evidence may be unreviewed. The approved-value loader
+    // requires both fields and rejects invalid/future review clocks.
+    reviewedBy: int("reviewedBy"),
+    reviewedAt: timestamp("reviewedAt"),
+    supersedesId: int("supersedesId"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("paint_coverage_profiles_supersedes_unique").on(
+      table.supersedesId
+    ),
+    index("paint_coverage_profiles_resolution_idx").on(
+      table.productId,
+      table.specId,
+      table.status,
+      table.effectiveAt
+    ),
+  ]
+);
+
+export type PaintCoverageProfile = typeof paintCoverageProfiles.$inferSelect;
+export type InsertPaintCoverageProfile =
+  typeof paintCoverageProfiles.$inferInsert;
+
 export const supplierQuotes = mysqlTable(
   "supplier_quote",
   {
@@ -1016,10 +1075,7 @@ export const supplierQuotes = mysqlTable(
       table.quoteRef
     ),
     uniqueIndex("supplier_quote_supersedes_unique").on(table.supersedesId),
-    index("supplier_quote_org_validity_idx").on(
-      table.orgId,
-      table.validUntil
-    ),
+    index("supplier_quote_org_validity_idx").on(table.orgId, table.validUntil),
   ]
 );
 
@@ -1092,6 +1148,15 @@ export const materialsToBoards = mysqlTable("materials_to_boards", {
   id: int("id").autoincrement().primaryKey(),
   boardId: int("boardId").notNull(),
   materialId: int("materialId").notNull(),
+  productId: int("productId"),
+  specId: int("specId"),
+  identityState: mysqlEnum("identityState", [
+    "resolved",
+    "unresolved",
+    "legacy_unverified",
+  ])
+    .default("legacy_unverified")
+    .notNull(),
   quantity: decimal("quantity", { precision: 10, scale: 2 }),
   unitOfMeasure: varchar("unitOfMeasure", { length: 32 }),
   notes: text("notes"),
@@ -1533,114 +1598,116 @@ export type InsertBenchmarkSuggestion =
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ─── Source Registry (Stage 1) ──────────────────────────────────────────────
-export const sourceRegistry = mysqlTable("source_registry", {
-  id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  /**
-   * ADR-0009/EV-00 (audit F4/F5): stable connector key. Static connectors
-   * resolve their registry row by this slug (their sourceId); dynamic
-   * connectors resolve by numeric id. The former name-vs-sourceId join never
-   * matched, so freshness and evidence linkage were silently lost.
-   */
-  slug: varchar("slug", { length: 64 }),
-  url: text("url").notNull(),
-  sourceType: mysqlEnum("sourceType", [
-    "supplier_catalog",
-    "manufacturer_catalog",
-    "developer_brochure",
-    "industry_report",
-    "government_tender",
-    "procurement_portal",
-    "trade_publication",
-    "retailer_listing",
-    "aggregator",
-    "other",
-  ]).notNull(),
-  reliabilityDefault: mysqlEnum("reliabilityDefault", ["A", "B", "C"])
-    .default("B")
-    .notNull(),
-  isWhitelisted: boolean("isWhitelisted").default(true).notNull(),
-  region: varchar("region", { length: 64 }).default("UAE"),
-  notes: text("notes"),
-  addedBy: int("addedBy"),
-  isActive: boolean("isActive").default(true).notNull(),
-  lastSuccessfulFetch: timestamp("lastSuccessfulFetch"),
+export const sourceRegistry = mysqlTable(
+  "source_registry",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    name: varchar("name", { length: 255 }).notNull(),
+    /**
+     * ADR-0009/EV-00 (audit F4/F5): stable connector key. Static connectors
+     * resolve their registry row by this slug (their sourceId); dynamic
+     * connectors resolve by numeric id. The former name-vs-sourceId join never
+     * matched, so freshness and evidence linkage were silently lost.
+     */
+    slug: varchar("slug", { length: 64 }),
+    url: text("url").notNull(),
+    sourceType: mysqlEnum("sourceType", [
+      "supplier_catalog",
+      "manufacturer_catalog",
+      "developer_brochure",
+      "industry_report",
+      "government_tender",
+      "procurement_portal",
+      "trade_publication",
+      "retailer_listing",
+      "aggregator",
+      "other",
+    ]).notNull(),
+    reliabilityDefault: mysqlEnum("reliabilityDefault", ["A", "B", "C"])
+      .default("B")
+      .notNull(),
+    isWhitelisted: boolean("isWhitelisted").default(true).notNull(),
+    region: varchar("region", { length: 64 }).default("UAE"),
+    notes: text("notes"),
+    addedBy: int("addedBy"),
+    isActive: boolean("isActive").default(true).notNull(),
+    lastSuccessfulFetch: timestamp("lastSuccessfulFetch"),
 
-  // DFE Fields
-  scrapeConfig: json("scrapeConfig"),
-  scrapeSchedule: varchar("scrapeSchedule", { length: 64 }),
-  scrapeMethod: mysqlEnum("scrapeMethod", [
-    "html_llm",
-    "html_rules",
-    "json_api",
-    "rss_feed",
-    "csv_upload",
-    "email_forward",
-  ])
-    .default("html_llm")
-    .notNull(),
-  scrapeHeaders: json("scrapeHeaders"),
-  extractionHints: text("extractionHints"),
-  priceFieldMapping: json("priceFieldMapping"),
-  lastScrapedAt: timestamp("lastScrapedAt"),
-  lastScrapedStatus: mysqlEnum("lastScrapedStatus", [
-    "success",
-    "partial",
-    "failed",
-    "never",
-  ])
-    .default("never")
-    .notNull(),
-  lastRecordCount: int("lastRecordCount").default(0).notNull(),
-  consecutiveFailures: int("consecutiveFailures").default(0).notNull(),
-  requestDelayMs: int("requestDelayMs").default(2000).notNull(),
+    // DFE Fields
+    scrapeConfig: json("scrapeConfig"),
+    scrapeSchedule: varchar("scrapeSchedule", { length: 64 }),
+    scrapeMethod: mysqlEnum("scrapeMethod", [
+      "html_llm",
+      "html_rules",
+      "json_api",
+      "rss_feed",
+      "csv_upload",
+      "email_forward",
+    ])
+      .default("html_llm")
+      .notNull(),
+    scrapeHeaders: json("scrapeHeaders"),
+    extractionHints: text("extractionHints"),
+    priceFieldMapping: json("priceFieldMapping"),
+    lastScrapedAt: timestamp("lastScrapedAt"),
+    lastScrapedStatus: mysqlEnum("lastScrapedStatus", [
+      "success",
+      "partial",
+      "failed",
+      "never",
+    ])
+      .default("never")
+      .notNull(),
+    lastRecordCount: int("lastRecordCount").default(0).notNull(),
+    consecutiveFailures: int("consecutiveFailures").default(0).notNull(),
+    requestDelayMs: int("requestDelayMs").default(2000).notNull(),
 
-  /**
-   * EV-01b: e-commerce platform behind this source. When set alongside
-   * `scrapeMethod = "json_api"` the deterministic platform connector family
-   * handles acquisition instead of the LLM path. `null` means "not probed".
-   */
-  platform: mysqlEnum("platform", [
-    "shopify",
-    "woocommerce",
-    "magento",
-    "none",
-  ]),
-  /**
-   * EV-01b: mechanical enforcement of the BR-06 source-terms process. Robots
-   * permission is a technical signal, not a commercial licence — a connector
-   * refuses to acquire until a human records `approved` here. Every existing
-   * row defaults to `pending`, which is the truthful state: no terms decision
-   * has been recorded for any of them.
-   */
-  termsDecision: mysqlEnum("termsDecision", [
-    "pending",
-    "approved",
-    "rejected",
-  ])
-    .default("pending")
-    .notNull(),
-  /**
-   * EV-01b: what kind of price this source publishes. Retail listings are not
-   * trade rates and must not be presented as if they were; the proposal
-   * generator refuses to publish a benchmark keyed only on `retail_listed`
-   * evidence. `unknown` is the truthful default for unclassified rows.
-   */
-  priceClass: mysqlEnum("priceClass", [
-    "retail_listed",
-    "trade_quoted",
-    "official_statistic",
-    "consultancy_benchmark",
-    "unknown",
-  ])
-    .default("unknown")
-    .notNull(),
+    /**
+     * EV-01b: e-commerce platform behind this source. When set alongside
+     * `scrapeMethod = "json_api"` the deterministic platform connector family
+     * handles acquisition instead of the LLM path. `null` means "not probed".
+     */
+    platform: mysqlEnum("platform", [
+      "shopify",
+      "woocommerce",
+      "magento",
+      "none",
+    ]),
+    /**
+     * EV-01b: mechanical enforcement of the BR-06 source-terms process. Robots
+     * permission is a technical signal, not a commercial licence — a connector
+     * refuses to acquire until a human records `approved` here. Every existing
+     * row defaults to `pending`, which is the truthful state: no terms decision
+     * has been recorded for any of them.
+     */
+    termsDecision: mysqlEnum("termsDecision", [
+      "pending",
+      "approved",
+      "rejected",
+    ])
+      .default("pending")
+      .notNull(),
+    /**
+     * EV-01b: what kind of price this source publishes. Retail listings are not
+     * trade rates and must not be presented as if they were; the proposal
+     * generator refuses to publish a benchmark keyed only on `retail_listed`
+     * evidence. `unknown` is the truthful default for unclassified rows.
+     */
+    priceClass: mysqlEnum("priceClass", [
+      "retail_listed",
+      "trade_quoted",
+      "official_statistic",
+      "consultancy_benchmark",
+      "unknown",
+    ])
+      .default("unknown")
+      .notNull(),
 
-  addedAt: timestamp("addedAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-}, (table) => [
-  uniqueIndex("source_registry_slug_unique").on(table.slug),
-]);
+    addedAt: timestamp("addedAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [uniqueIndex("source_registry_slug_unique").on(table.slug)]
+);
 
 export type SourceRegistryEntry = typeof sourceRegistry.$inferSelect;
 export type InsertSourceRegistryEntry = typeof sourceRegistry.$inferInsert;
@@ -1719,7 +1786,9 @@ export const evidenceRecords = mysqlTable(
       "luxury",
       "ultra_luxury",
     ]),
-    modelSuggestedFinishLevel: varchar("modelSuggestedFinishLevel", { length: 32 }),
+    modelSuggestedFinishLevel: varchar("modelSuggestedFinishLevel", {
+      length: 32,
+    }),
     designStyle: varchar("designStyle", { length: 255 }),
     brandsMentioned: json("brandsMentioned"), // string[]
     materialSpec: text("materialSpec"),
@@ -1803,10 +1872,7 @@ export const evidenceRecords = mysqlTable(
       "fujairah",
       "uae",
     ]),
-    priceScope: mysqlEnum("priceScope", [
-      "supply_only",
-      "supply_and_install",
-    ]),
+    priceScope: mysqlEnum("priceScope", ["supply_only", "supply_and_install"]),
     deliveryIncluded: boolean("deliveryIncluded"),
     moqValue: decimal("moqValue", { precision: 12, scale: 3 }),
     moqUnit: varchar("moqUnit", { length: 32 }),
@@ -1937,93 +2003,100 @@ export type InsertEvidenceConfidenceAssessment =
   typeof evidenceConfidenceAssessments.$inferInsert;
 
 // ─── Benchmark Proposals (Stage 1) ──────────────────────────────────────────
-export const benchmarkProposals = mysqlTable("benchmark_proposals", {
-  id: int("id").autoincrement().primaryKey(),
-  benchmarkKey: varchar("benchmarkKey", { length: 255 }).notNull(), // category:finishLevel:unit
-  specId: int("specId"),
-  productId: int("productId"),
-  orgId: int("orgId"),
-  priceScope: mysqlEnum("priceScope", [
-    "supply_only",
-    "supply_and_install",
-  ]),
-  sourceKind: mysqlEnum("sourceKind", ["observed", "assumption"])
-    .default("observed")
-    .notNull(),
-  sourceLadderRung: mysqlEnum("sourceLadderRung", [
-    "supplier_quote",
-    "official_statistic",
-    "consultancy_benchmark",
-    "market_observation",
-    "retail_sanity",
-    "assumption",
-  ]),
-  benchmarkVersionId: int("benchmarkVersionId"),
-  supplierQuoteId: int("supplierQuoteId"),
-  supersedesId: int("supersedesId"),
-  legacyMaterialLibraryId: int("legacyMaterialLibraryId"),
-  sourceLabel: varchar("sourceLabel", { length: 255 }),
-  priceConfidence: mysqlEnum("priceConfidence", [
-    "assumption",
-    "indicative",
-    "quoted",
-  ]),
-  provenancePolicyVersion: varchar("provenancePolicyVersion", { length: 64 }),
-  // ADR-0009: distinguishes key eras — "legacy-v0" rows predate deterministic
-  // finish/category keying; new proposals stamp "benchmark-key-v2".
-  keyPolicyVersion: varchar("keyPolicyVersion", { length: 64 })
-    .default("legacy-v0")
-    .notNull(),
-  currentTypical: decimal("currentTypical", { precision: 12, scale: 2 }),
-  currentMin: decimal("currentMin", { precision: 12, scale: 2 }),
-  currentMax: decimal("currentMax", { precision: 12, scale: 2 }),
-  proposedP25: decimal("proposedP25", { precision: 12, scale: 2 }).notNull(),
-  proposedP50: decimal("proposedP50", { precision: 12, scale: 2 }).notNull(),
-  proposedP75: decimal("proposedP75", { precision: 12, scale: 2 }).notNull(),
-  weightedMean: decimal("weightedMean", { precision: 12, scale: 2 }).notNull(),
-  deltaPct: decimal("deltaPct", { precision: 8, scale: 2 }), // % change from current
-  evidenceCount: int("evidenceCount").notNull(),
-  sourceDiversity: int("sourceDiversity").notNull(),
-  reliabilityDist: json("reliabilityDist").notNull(), // { A: n, B: n, C: n }
-  recencyDist: json("recencyDist").notNull(), // { recent: n, mid: n, old: n }
-  /**
-   * EV-01b: what the proposed number is actually made of. A reviewer needs to
-   * see that a percentile came entirely from consumer retail listings, or from
-   * records whose price basis was never resolved, before approving it.
-   * Null on pre-existing proposals — they were never assessed for either.
-   */
-  priceClassDist: json("priceClassDist"), // { retail_listed: n, ... }
-  priceBasisDist: json("priceBasisDist"), // { per_sqm: n, unknown: n, ... }
-  confidenceScore: int("confidenceScore").notNull(), // 0-100
-  impactNotes: text("impactNotes"),
-  recommendation: mysqlEnum("recommendation", ["publish", "reject"]).notNull(),
-  rejectionReason: text("rejectionReason"),
-  // Review workflow
-  status: mysqlEnum("status", ["pending", "approved", "rejected"])
-    .default("pending")
-    .notNull(),
-  reviewerNotes: text("reviewerNotes"),
-  reviewedBy: int("reviewedBy"),
-  reviewedAt: timestamp("reviewedAt"),
-  // Snapshot linking
-  benchmarkSnapshotId: int("benchmarkSnapshotId"),
-  runId: varchar("runId", { length: 64 }),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-}, table => [
-  uniqueIndex("benchmark_proposals_supersedes_unique").on(table.supersedesId),
-  uniqueIndex("benchmark_proposals_legacy_library_unique").on(
-    table.legacyMaterialLibraryId
-  ),
-  index("benchmark_proposals_governed_resolver_idx").on(
-    table.specId,
-    table.orgId,
-    table.productId,
-    table.priceScope,
-    table.status,
-    table.recommendation
-  ),
-  index("benchmark_proposals_supplier_quote_idx").on(table.supplierQuoteId),
-]);
+export const benchmarkProposals = mysqlTable(
+  "benchmark_proposals",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    benchmarkKey: varchar("benchmarkKey", { length: 255 }).notNull(), // category:finishLevel:unit
+    specId: int("specId"),
+    productId: int("productId"),
+    orgId: int("orgId"),
+    priceScope: mysqlEnum("priceScope", ["supply_only", "supply_and_install"]),
+    sourceKind: mysqlEnum("sourceKind", ["observed", "assumption"])
+      .default("observed")
+      .notNull(),
+    sourceLadderRung: mysqlEnum("sourceLadderRung", [
+      "supplier_quote",
+      "official_statistic",
+      "consultancy_benchmark",
+      "market_observation",
+      "retail_sanity",
+      "assumption",
+    ]),
+    benchmarkVersionId: int("benchmarkVersionId"),
+    supplierQuoteId: int("supplierQuoteId"),
+    supersedesId: int("supersedesId"),
+    legacyMaterialLibraryId: int("legacyMaterialLibraryId"),
+    sourceLabel: varchar("sourceLabel", { length: 255 }),
+    priceConfidence: mysqlEnum("priceConfidence", [
+      "assumption",
+      "indicative",
+      "quoted",
+    ]),
+    provenancePolicyVersion: varchar("provenancePolicyVersion", { length: 64 }),
+    // ADR-0009: distinguishes key eras — "legacy-v0" rows predate deterministic
+    // finish/category keying; new proposals stamp "benchmark-key-v2".
+    keyPolicyVersion: varchar("keyPolicyVersion", { length: 64 })
+      .default("legacy-v0")
+      .notNull(),
+    currentTypical: decimal("currentTypical", { precision: 12, scale: 2 }),
+    currentMin: decimal("currentMin", { precision: 12, scale: 2 }),
+    currentMax: decimal("currentMax", { precision: 12, scale: 2 }),
+    proposedP25: decimal("proposedP25", { precision: 12, scale: 2 }).notNull(),
+    proposedP50: decimal("proposedP50", { precision: 12, scale: 2 }).notNull(),
+    proposedP75: decimal("proposedP75", { precision: 12, scale: 2 }).notNull(),
+    weightedMean: decimal("weightedMean", {
+      precision: 12,
+      scale: 2,
+    }).notNull(),
+    deltaPct: decimal("deltaPct", { precision: 8, scale: 2 }), // % change from current
+    evidenceCount: int("evidenceCount").notNull(),
+    sourceDiversity: int("sourceDiversity").notNull(),
+    reliabilityDist: json("reliabilityDist").notNull(), // { A: n, B: n, C: n }
+    recencyDist: json("recencyDist").notNull(), // { recent: n, mid: n, old: n }
+    /**
+     * EV-01b: what the proposed number is actually made of. A reviewer needs to
+     * see that a percentile came entirely from consumer retail listings, or from
+     * records whose price basis was never resolved, before approving it.
+     * Null on pre-existing proposals — they were never assessed for either.
+     */
+    priceClassDist: json("priceClassDist"), // { retail_listed: n, ... }
+    priceBasisDist: json("priceBasisDist"), // { per_sqm: n, unknown: n, ... }
+    confidenceScore: int("confidenceScore").notNull(), // 0-100
+    impactNotes: text("impactNotes"),
+    recommendation: mysqlEnum("recommendation", [
+      "publish",
+      "reject",
+    ]).notNull(),
+    rejectionReason: text("rejectionReason"),
+    // Review workflow
+    status: mysqlEnum("status", ["pending", "approved", "rejected"])
+      .default("pending")
+      .notNull(),
+    reviewerNotes: text("reviewerNotes"),
+    reviewedBy: int("reviewedBy"),
+    reviewedAt: timestamp("reviewedAt"),
+    // Snapshot linking
+    benchmarkSnapshotId: int("benchmarkSnapshotId"),
+    runId: varchar("runId", { length: 64 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("benchmark_proposals_supersedes_unique").on(table.supersedesId),
+    uniqueIndex("benchmark_proposals_legacy_library_unique").on(
+      table.legacyMaterialLibraryId
+    ),
+    index("benchmark_proposals_governed_resolver_idx").on(
+      table.specId,
+      table.orgId,
+      table.productId,
+      table.priceScope,
+      table.status,
+      table.recommendation
+    ),
+    index("benchmark_proposals_supplier_quote_idx").on(table.supplierQuoteId),
+  ]
+);
 
 export type BenchmarkProposal = typeof benchmarkProposals.$inferSelect;
 export type InsertBenchmarkProposal = typeof benchmarkProposals.$inferInsert;
@@ -2451,71 +2524,82 @@ export type NlQueryLog = typeof nlQueryLog.$inferSelect;
 export type InsertNlQueryLog = typeof nlQueryLog.$inferInsert;
 
 // ─── V8 - Design Intelligence Layer ───────────────────────────────────────
-export const materialLibrary = mysqlTable("material_library", {
-  id: int("id").primaryKey().autoincrement(),
-  productId: int("product_id"),
-  category: mysqlEnum("category", [
-    "flooring",
-    "wall_paint",
-    "wall_tile",
-    "ceiling",
-    "joinery",
-    "sanitaryware",
-    "fittings",
-    "lighting",
-    "hardware",
-    "specialty",
-  ]).notNull(),
-  tier: mysqlEnum("tier", ["affordable", "mid", "premium", "ultra"]).notNull(),
-  style: mysqlEnum("style", [
-    "modern",
-    "contemporary",
-    "classic",
-    "minimalist",
-    "arabesque",
-    "all",
-  ])
-    .default("all")
-    .notNull(),
-  productCode: varchar("product_code", { length: 100 }),
-  productName: varchar("product_name", { length: 300 }).notNull(),
-  brand: varchar("brand", { length: 150 }).notNull(),
-  supplierName: varchar("supplier_name", { length: 200 }).notNull(),
-  supplierLocation: varchar("supplier_location", { length: 200 }),
-  supplierPhone: varchar("supplier_phone", { length: 50 }),
-  unitLabel: varchar("unit_label", { length: 30 }).notNull(),
-  priceAedMin: decimal("price_aed_min", { precision: 10, scale: 2 }),
-  priceAedMax: decimal("price_aed_max", { precision: 10, scale: 2 }),
-  notes: text("notes"),
-  isActive: boolean("is_active").default(true).notNull(),
-  // ADR-0009 provenance: defaults label every pre-existing row an explicit
-  // MIYAR assumption; only a deliberate write may claim an observation.
-  sourceType: mysqlEnum("source_type", [
-    "miyar_assumption",
-    "supplier_quote",
-    "market_observation",
-    "manual_entry",
-  ])
-    .default("miyar_assumption")
-    .notNull(),
-  sourceLabel: varchar("source_label", { length: 255 })
-    .default("MIYAR assumption")
-    .notNull(),
-  sourceUrl: varchar("source_url", { length: 500 }),
-  priceObservedAt: date("price_observed_at"),
-  priceConfidence: mysqlEnum("price_confidence", [
-    "assumption",
-    "indicative",
-    "quoted",
-  ])
-    .default("assumption")
-    .notNull(),
-  provenancePolicyVersion: varchar("provenance_policy_version", { length: 64 })
-    .default("material-library-provenance-v1")
-    .notNull(),
-}, (table) => [
-  uniqueIndex("material_library_product_code_unique").on(table.productCode),
-]);
+export const materialLibrary = mysqlTable(
+  "material_library",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    productId: int("product_id"),
+    category: mysqlEnum("category", [
+      "flooring",
+      "wall_paint",
+      "wall_tile",
+      "ceiling",
+      "joinery",
+      "sanitaryware",
+      "fittings",
+      "lighting",
+      "hardware",
+      "specialty",
+    ]).notNull(),
+    tier: mysqlEnum("tier", [
+      "affordable",
+      "mid",
+      "premium",
+      "ultra",
+    ]).notNull(),
+    style: mysqlEnum("style", [
+      "modern",
+      "contemporary",
+      "classic",
+      "minimalist",
+      "arabesque",
+      "all",
+    ])
+      .default("all")
+      .notNull(),
+    productCode: varchar("product_code", { length: 100 }),
+    productName: varchar("product_name", { length: 300 }).notNull(),
+    brand: varchar("brand", { length: 150 }).notNull(),
+    supplierName: varchar("supplier_name", { length: 200 }).notNull(),
+    supplierLocation: varchar("supplier_location", { length: 200 }),
+    supplierPhone: varchar("supplier_phone", { length: 50 }),
+    unitLabel: varchar("unit_label", { length: 30 }).notNull(),
+    priceAedMin: decimal("price_aed_min", { precision: 10, scale: 2 }),
+    priceAedMax: decimal("price_aed_max", { precision: 10, scale: 2 }),
+    notes: text("notes"),
+    isActive: boolean("is_active").default(true).notNull(),
+    // ADR-0009 provenance: defaults label every pre-existing row an explicit
+    // MIYAR assumption; only a deliberate write may claim an observation.
+    sourceType: mysqlEnum("source_type", [
+      "miyar_assumption",
+      "supplier_quote",
+      "market_observation",
+      "manual_entry",
+    ])
+      .default("miyar_assumption")
+      .notNull(),
+    sourceLabel: varchar("source_label", { length: 255 })
+      .default("MIYAR assumption")
+      .notNull(),
+    sourceUrl: varchar("source_url", { length: 500 }),
+    priceObservedAt: date("price_observed_at"),
+    priceConfidence: mysqlEnum("price_confidence", [
+      "assumption",
+      "indicative",
+      "quoted",
+    ])
+      .default("assumption")
+      .notNull(),
+    provenancePolicyVersion: varchar("provenance_policy_version", {
+      length: 64,
+    })
+      .default("material-library-provenance-v1")
+      .notNull(),
+  },
+  table => [
+    uniqueIndex("material_library_product_code_unique").on(table.productCode),
+  ]
+);
 
 export type MaterialLibrary = typeof materialLibrary.$inferSelect;
 export type InsertMaterialLibrary = typeof materialLibrary.$inferInsert;
@@ -2534,8 +2618,18 @@ export const finishScheduleItems = mysqlTable("finish_schedule_items", {
     "ceiling",
     "joinery",
     "hardware",
+    "sanitaryware",
   ]).notNull(),
   materialLibraryId: int("material_library_id"),
+  productId: int("product_id"),
+  specId: int("spec_id"),
+  identityState: mysqlEnum("identity_state", [
+    "resolved",
+    "unresolved",
+    "legacy_unverified",
+  ])
+    .default("legacy_unverified")
+    .notNull(),
   overrideSpec: varchar("override_spec", { length: 500 }),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -2567,11 +2661,79 @@ export const rfqLineItems = mysqlTable("rfq_line_items", {
   itemCode: varchar("item_code", { length: 20 }).notNull(),
   description: varchar("description", { length: 500 }).notNull(),
   unit: varchar("unit", { length: 20 }).notNull(),
-  quantity: decimal("quantity", { precision: 10, scale: 2 }),
+  quantity: decimal("quantity", { precision: 12, scale: 3 }),
   unitRateAedMin: decimal("unit_rate_aed_min", { precision: 10, scale: 2 }),
   unitRateAedMax: decimal("unit_rate_aed_max", { precision: 10, scale: 2 }),
   totalAedMin: decimal("total_aed_min", { precision: 12, scale: 2 }),
   totalAedMax: decimal("total_aed_max", { precision: 12, scale: 2 }),
+  productId: int("product_id"),
+  specId: int("spec_id"),
+  benchmarkProposalId: int("benchmark_proposal_id"),
+  resolutionState: mysqlEnum("resolution_state", [
+    "resolved",
+    "insufficient",
+    "legacy_unverified",
+  ])
+    .default("legacy_unverified")
+    .notNull(),
+  resolutionReason: varchar("resolution_reason", { length: 64 }),
+  resolvedPriceScope: mysqlEnum("resolved_price_scope", [
+    "supply_only",
+    "supply_and_install",
+    "legacy_unknown",
+  ]),
+  requestedGeography: mysqlEnum("requested_geography", [
+    "dubai",
+    "abu_dhabi",
+    "sharjah",
+    "ajman",
+    "umm_al_quwain",
+    "ras_al_khaimah",
+    "fujairah",
+    "uae",
+  ]),
+  resolvedGeography: mysqlEnum("resolved_geography", [
+    "dubai",
+    "abu_dhabi",
+    "sharjah",
+    "ajman",
+    "umm_al_quwain",
+    "ras_al_khaimah",
+    "fujairah",
+    "uae",
+  ]),
+  resolvedUnitBasis: mysqlEnum("resolved_unit_basis", [
+    "per_piece",
+    "per_pack",
+    "per_sqm",
+    "per_lm",
+    "per_litre",
+  ]),
+  resolutionAsOf: timestamp("resolution_as_of"),
+  resolverPolicyVersion: varchar("resolver_policy_version", { length: 64 }),
+  benchmarkVersionId: int("benchmark_version_id"),
+  benchmarkVersion: varchar("benchmark_version", { length: 64 }),
+  provenancePolicyVersion: varchar("provenance_policy_version", { length: 64 }),
+  presentationProvenance: json("presentation_provenance"),
+  quantityPolicyVersion: varchar("quantity_policy_version", { length: 64 }),
+  quantityConversionInputs: json("quantity_conversion_inputs"),
+  lineKind: mysqlEnum("line_kind", [
+    "material",
+    "non_material_fee",
+    "legacy_unverified",
+  ])
+    .default("legacy_unverified")
+    .notNull(),
+  artifactState: mysqlEnum("artifact_state", [
+    "draft",
+    "issued",
+    "legacy_unverified",
+  ])
+    .default("legacy_unverified")
+    .notNull(),
+  nonMaterialPolicyVersion: varchar("non_material_policy_version", {
+    length: 64,
+  }),
   supplierName: varchar("supplier_name", { length: 200 }),
   pricingSource: varchar("pricing_source", { length: 32 }), // "market-verified" | "estimated" | "manual"
   notes: text("notes"),
@@ -2928,6 +3090,13 @@ export const digitalTwinModels = mysqlTable("digital_twin_models", {
     precision: 18,
     scale: 2,
   }),
+  lifecycleCostResolutionState: mysqlEnum("lifecycle_cost_resolution_state", [
+    "resolved",
+    "insufficient",
+    "legacy_unverified",
+  ])
+    .default("legacy_unverified")
+    .notNull(),
   carbonBreakdown: json("carbon_breakdown"),
   lifecycle: json("lifecycle"),
   config: json("config"),
@@ -2956,7 +3125,14 @@ export const sustainabilitySnapshots = mysqlTable("sustainability_snapshots", {
   lifecycleCost: decimal("lifecycleCost", {
     precision: 18,
     scale: 2,
-  }).notNull(),
+  }),
+  lifecycleCostResolutionState: mysqlEnum("lifecycleCostResolutionState", [
+    "resolved",
+    "insufficient",
+    "legacy_unverified",
+  ])
+    .default("legacy_unverified")
+    .notNull(),
   carbonPerSqm: decimal("carbonPerSqm", { precision: 12, scale: 2 }).notNull(),
   energyRating: varchar("energyRating", { length: 2 }),
   renewablesEnabled: boolean("renewablesEnabled").default(false),
@@ -3187,6 +3363,7 @@ export const materialAllocations = mysqlTable("material_allocations", {
     "ceiling",
     "joinery",
     "hardware",
+    "sanitaryware",
   ]).notNull(),
   materialLibraryId: int("materialLibraryId"),
   materialName: varchar("materialName", { length: 300 }).notNull(),
@@ -3195,10 +3372,72 @@ export const materialAllocations = mysqlTable("material_allocations", {
     precision: 10,
     scale: 2,
   }).notNull(),
+  explicitQuantity: decimal("explicitQuantity", {
+    precision: 12,
+    scale: 3,
+  }),
+  explicitQuantityUnit: mysqlEnum("explicitQuantityUnit", [
+    "sqm",
+    "lm",
+    "piece",
+    "pack",
+    "litre",
+  ]),
   unitCostMin: decimal("unitCostMin", { precision: 10, scale: 2 }),
   unitCostMax: decimal("unitCostMax", { precision: 10, scale: 2 }),
   totalCostMin: decimal("totalCostMin", { precision: 12, scale: 2 }),
   totalCostMax: decimal("totalCostMax", { precision: 12, scale: 2 }),
+  productId: int("productId"),
+  specId: int("specId"),
+  benchmarkProposalId: int("benchmarkProposalId"),
+  resolutionState: mysqlEnum("resolutionState", [
+    "resolved",
+    "insufficient",
+    "legacy_unverified",
+  ])
+    .default("legacy_unverified")
+    .notNull(),
+  resolutionReason: varchar("resolutionReason", { length: 64 }),
+  resolvedPriceScope: mysqlEnum("resolvedPriceScope", [
+    "supply_only",
+    "supply_and_install",
+    "legacy_unknown",
+  ]),
+  requestedGeography: mysqlEnum("requestedGeography", [
+    "dubai",
+    "abu_dhabi",
+    "sharjah",
+    "ajman",
+    "umm_al_quwain",
+    "ras_al_khaimah",
+    "fujairah",
+    "uae",
+  ]),
+  resolvedGeography: mysqlEnum("resolvedGeography", [
+    "dubai",
+    "abu_dhabi",
+    "sharjah",
+    "ajman",
+    "umm_al_quwain",
+    "ras_al_khaimah",
+    "fujairah",
+    "uae",
+  ]),
+  resolvedUnitBasis: mysqlEnum("resolvedUnitBasis", [
+    "per_piece",
+    "per_pack",
+    "per_sqm",
+    "per_lm",
+    "per_litre",
+  ]),
+  resolutionAsOf: timestamp("resolutionAsOf"),
+  resolverPolicyVersion: varchar("resolverPolicyVersion", { length: 64 }),
+  benchmarkVersionId: int("benchmarkVersionId"),
+  benchmarkVersion: varchar("benchmarkVersion", { length: 64 }),
+  provenancePolicyVersion: varchar("provenancePolicyVersion", { length: 64 }),
+  presentationProvenance: json("presentationProvenance"),
+  quantityPolicyVersion: varchar("quantityPolicyVersion", { length: 64 }),
+  quantityConversionInputs: json("quantityConversionInputs"),
   aiReasoning: text("aiReasoning"),
   isLocked: boolean("isLocked").default(false).notNull(),
   generatedAt: timestamp("generatedAt").defaultNow().notNull(),
@@ -4175,11 +4414,17 @@ export const typologyPackRevisions = mysqlTable(
     revisionNumber: int("revisionNumber").notNull(),
     basePackKey: varchar("basePackKey", { length: 96 }).notNull(),
     basePackVersion: varchar("basePackVersion", { length: 32 }).notNull(),
-    basePackFingerprint: varchar("basePackFingerprint", { length: 64 }).notNull(),
-    payloadSchemaVersion: varchar("payloadSchemaVersion", { length: 32 }).notNull(),
+    basePackFingerprint: varchar("basePackFingerprint", {
+      length: 64,
+    }).notNull(),
+    payloadSchemaVersion: varchar("payloadSchemaVersion", {
+      length: 32,
+    }).notNull(),
     payload: json("payload").notNull(),
     payloadFingerprint: varchar("payloadFingerprint", { length: 64 }).notNull(),
-    status: mysqlEnum("status", ["draft", "reviewed", "approved", "withdrawn"]).notNull().default("draft"),
+    status: mysqlEnum("status", ["draft", "reviewed", "approved", "withdrawn"])
+      .notNull()
+      .default("draft"),
     createdBy: int("createdBy").notNull(),
     reviewedBy: int("reviewedBy"),
     reviewedAt: timestamp("reviewedAt"),
@@ -4191,9 +4436,20 @@ export const typologyPackRevisions = mysqlTable(
     createdAt: timestamp("createdAt").defaultNow().notNull(),
   },
   table => [
-    uniqueIndex("typology_pack_revisions_org_pack_revision_unique").on(table.organizationId, table.packKey, table.revisionNumber),
-    uniqueIndex("typology_pack_revisions_org_id_unique").on(table.organizationId, table.id),
-    index("typology_pack_revisions_org_status_idx").on(table.organizationId, table.packKey, table.status),
+    uniqueIndex("typology_pack_revisions_org_pack_revision_unique").on(
+      table.organizationId,
+      table.packKey,
+      table.revisionNumber
+    ),
+    uniqueIndex("typology_pack_revisions_org_id_unique").on(
+      table.organizationId,
+      table.id
+    ),
+    index("typology_pack_revisions_org_status_idx").on(
+      table.organizationId,
+      table.packKey,
+      table.status
+    ),
   ]
 );
 export type TypologyPackRevision = typeof typologyPackRevisions.$inferSelect;
@@ -4204,7 +4460,12 @@ export const typologyPackEvents = mysqlTable(
     id: int("id").primaryKey().autoincrement(),
     organizationId: int("organizationId").notNull(),
     revisionId: int("revisionId").notNull(),
-    eventType: mysqlEnum("eventType", ["created", "reviewed", "approved", "withdrawn"]).notNull(),
+    eventType: mysqlEnum("eventType", [
+      "created",
+      "reviewed",
+      "approved",
+      "withdrawn",
+    ]).notNull(),
     actorUserId: int("actorUserId").notNull(),
     reason: text("reason").notNull(),
     idempotencyKey: varchar("idempotencyKey", { length: 128 }).notNull(),
@@ -4212,9 +4473,18 @@ export const typologyPackEvents = mysqlTable(
     createdAt: timestamp("createdAt").defaultNow().notNull(),
   },
   table => [
-    uniqueIndex("typology_pack_events_org_id_unique").on(table.organizationId, table.id),
-    uniqueIndex("typology_pack_events_org_idempotency_unique").on(table.organizationId, table.idempotencyKey),
-    index("typology_pack_events_org_revision_idx").on(table.organizationId, table.revisionId),
+    uniqueIndex("typology_pack_events_org_id_unique").on(
+      table.organizationId,
+      table.id
+    ),
+    uniqueIndex("typology_pack_events_org_idempotency_unique").on(
+      table.organizationId,
+      table.idempotencyKey
+    ),
+    index("typology_pack_events_org_revision_idx").on(
+      table.organizationId,
+      table.revisionId
+    ),
   ]
 );
 export type TypologyPackEvent = typeof typologyPackEvents.$inferSelect;
@@ -4234,13 +4504,31 @@ export const regulatorySources = mysqlTable(
     languages: json("languages").notNull(),
     canonicalUrl: text("canonicalUrl").notNull(),
     approvedHosts: json("approvedHosts").notNull(),
-    retentionPolicy: mysqlEnum("retentionPolicy", ["metadata_only", "artifact_permitted", "prohibited", "pending_review"]).notNull(),
-    licensingStatus: mysqlEnum("licensingStatus", ["permitted", "restricted", "prohibited", "pending_review"]).notNull(),
-    coverageStatus: mysqlEnum("coverageStatus", ["supported", "candidate", "unsupported"]).notNull().default("candidate"),
+    retentionPolicy: mysqlEnum("retentionPolicy", [
+      "metadata_only",
+      "artifact_permitted",
+      "prohibited",
+      "pending_review",
+    ]).notNull(),
+    licensingStatus: mysqlEnum("licensingStatus", [
+      "permitted",
+      "restricted",
+      "prohibited",
+      "pending_review",
+    ]).notNull(),
+    coverageStatus: mysqlEnum("coverageStatus", [
+      "supported",
+      "candidate",
+      "unsupported",
+    ])
+      .notNull()
+      .default("candidate"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
-  table => [uniqueIndex("regulatory_sources_source_key_unique").on(table.sourceKey)]
+  table => [
+    uniqueIndex("regulatory_sources_source_key_unique").on(table.sourceKey),
+  ]
 );
 export type RegulatorySource = typeof regulatorySources.$inferSelect;
 
@@ -4256,18 +4544,44 @@ export const regulatorySourceVersions = mysqlTable(
     effectiveTo: timestamp("effectiveTo"),
     contentFingerprint: varchar("contentFingerprint", { length: 64 }).notNull(),
     parserVersion: varchar("parserVersion", { length: 64 }).notNull(),
-    status: mysqlEnum("status", ["candidate", "asserted", "stale", "withdrawn", "archived"]).notNull().default("candidate"),
+    status: mysqlEnum("status", [
+      "candidate",
+      "asserted",
+      "stale",
+      "withdrawn",
+      "archived",
+    ])
+      .notNull()
+      .default("candidate"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
   },
   table => [
-    uniqueIndex("regulatory_source_versions_source_version_unique").on(table.sourceId, table.versionKey),
-    uniqueIndex("regulatory_source_versions_source_fingerprint_unique").on(table.sourceId, table.contentFingerprint),
-    uniqueIndex("regulatory_source_versions_source_id_unique").on(table.sourceId, table.id),
-    index("regulatory_source_versions_temporal_idx").on(table.sourceId, table.effectiveFrom, table.effectiveTo),
-    foreignKey({ name: "reg_source_versions_source_fk", columns: [table.sourceId], foreignColumns: [regulatorySources.id] }),
+    uniqueIndex("regulatory_source_versions_source_version_unique").on(
+      table.sourceId,
+      table.versionKey
+    ),
+    uniqueIndex("regulatory_source_versions_source_fingerprint_unique").on(
+      table.sourceId,
+      table.contentFingerprint
+    ),
+    uniqueIndex("regulatory_source_versions_source_id_unique").on(
+      table.sourceId,
+      table.id
+    ),
+    index("regulatory_source_versions_temporal_idx").on(
+      table.sourceId,
+      table.effectiveFrom,
+      table.effectiveTo
+    ),
+    foreignKey({
+      name: "reg_source_versions_source_fk",
+      columns: [table.sourceId],
+      foreignColumns: [regulatorySources.id],
+    }),
   ]
 );
-export type RegulatorySourceVersion = typeof regulatorySourceVersions.$inferSelect;
+export type RegulatorySourceVersion =
+  typeof regulatorySourceVersions.$inferSelect;
 
 export const regulatorySourceCaptures = mysqlTable(
   "regulatory_source_captures",
@@ -4286,18 +4600,40 @@ export const regulatorySourceCaptures = mysqlTable(
     lastModified: varchar("lastModified", { length: 255 }),
     parserVersion: varchar("parserVersion", { length: 64 }).notNull(),
     storageReference: text("storageReference"),
-    fetchResult: mysqlEnum("fetchResult", ["captured", "unchanged", "changed_candidate", "disappeared_candidate", "denied", "failed"]).notNull(),
+    fetchResult: mysqlEnum("fetchResult", [
+      "captured",
+      "unchanged",
+      "changed_candidate",
+      "disappeared_candidate",
+      "denied",
+      "failed",
+    ]).notNull(),
     failureCode: varchar("failureCode", { length: 64 }),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
   },
   table => [
-    index("regulatory_source_captures_source_time_idx").on(table.sourceId, table.retrievedAt),
+    index("regulatory_source_captures_source_time_idx").on(
+      table.sourceId,
+      table.retrievedAt
+    ),
     index("regulatory_source_captures_version_idx").on(table.sourceVersionId),
-    foreignKey({ name: "reg_source_captures_source_fk", columns: [table.sourceId], foreignColumns: [regulatorySources.id] }),
-    foreignKey({ name: "reg_source_captures_version_fk", columns: [table.sourceId, table.sourceVersionId], foreignColumns: [regulatorySourceVersions.sourceId, regulatorySourceVersions.id] }),
+    foreignKey({
+      name: "reg_source_captures_source_fk",
+      columns: [table.sourceId],
+      foreignColumns: [regulatorySources.id],
+    }),
+    foreignKey({
+      name: "reg_source_captures_version_fk",
+      columns: [table.sourceId, table.sourceVersionId],
+      foreignColumns: [
+        regulatorySourceVersions.sourceId,
+        regulatorySourceVersions.id,
+      ],
+    }),
   ]
 );
-export type RegulatorySourceCapture = typeof regulatorySourceCaptures.$inferSelect;
+export type RegulatorySourceCapture =
+  typeof regulatorySourceCaptures.$inferSelect;
 
 export const regulatoryClauseCandidates = mysqlTable(
   "regulatory_clause_candidates",
@@ -4308,18 +4644,42 @@ export const regulatoryClauseCandidates = mysqlTable(
     locator: varchar("locator", { length: 255 }).notNull(),
     pageLocator: varchar("pageLocator", { length: 64 }),
     candidateSummary: text("candidateSummary").notNull(),
-    candidateFingerprint: varchar("candidateFingerprint", { length: 64 }).notNull(),
-    extractionMethod: mysqlEnum("extractionMethod", ["deterministic", "ai_extracted_candidate", "human_transcription"]).notNull(),
-    reviewStatus: mysqlEnum("reviewStatus", ["candidate", "accepted_for_review", "rejected"]).notNull().default("candidate"),
+    candidateFingerprint: varchar("candidateFingerprint", {
+      length: 64,
+    }).notNull(),
+    extractionMethod: mysqlEnum("extractionMethod", [
+      "deterministic",
+      "ai_extracted_candidate",
+      "human_transcription",
+    ]).notNull(),
+    reviewStatus: mysqlEnum("reviewStatus", [
+      "candidate",
+      "accepted_for_review",
+      "rejected",
+    ])
+      .notNull()
+      .default("candidate"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
   },
   table => [
-    uniqueIndex("regulatory_clause_candidates_version_key_unique").on(table.sourceVersionId, table.clauseKey, table.candidateFingerprint),
-    index("regulatory_clause_candidates_version_status_idx").on(table.sourceVersionId, table.reviewStatus),
-    foreignKey({ name: "reg_clause_candidates_version_fk", columns: [table.sourceVersionId], foreignColumns: [regulatorySourceVersions.id] }),
+    uniqueIndex("regulatory_clause_candidates_version_key_unique").on(
+      table.sourceVersionId,
+      table.clauseKey,
+      table.candidateFingerprint
+    ),
+    index("regulatory_clause_candidates_version_status_idx").on(
+      table.sourceVersionId,
+      table.reviewStatus
+    ),
+    foreignKey({
+      name: "reg_clause_candidates_version_fk",
+      columns: [table.sourceVersionId],
+      foreignColumns: [regulatorySourceVersions.id],
+    }),
   ]
 );
-export type RegulatoryClauseCandidate = typeof regulatoryClauseCandidates.$inferSelect;
+export type RegulatoryClauseCandidate =
+  typeof regulatoryClauseCandidates.$inferSelect;
 
 export const regulatorySourceRelations = mysqlTable(
   "regulatory_source_relations",
@@ -4327,44 +4687,94 @@ export const regulatorySourceRelations = mysqlTable(
     id: int("id").primaryKey().autoincrement(),
     sourceVersionId: int("sourceVersionId").notNull(),
     targetSourceVersionId: int("targetSourceVersionId").notNull(),
-    relationType: mysqlEnum("relationType", ["amends", "supersedes", "suspends", "revokes", "clarifies"]).notNull(),
-    relationFingerprint: varchar("relationFingerprint", { length: 64 }).notNull(),
+    relationType: mysqlEnum("relationType", [
+      "amends",
+      "supersedes",
+      "suspends",
+      "revokes",
+      "clarifies",
+    ]).notNull(),
+    relationFingerprint: varchar("relationFingerprint", {
+      length: 64,
+    }).notNull(),
     clauseScope: json("clauseScope").notNull(),
     effectiveFrom: timestamp("effectiveFrom"),
     effectiveTo: timestamp("effectiveTo"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
   },
   table => [
-    uniqueIndex("regulatory_source_relations_fingerprint_unique").on(table.relationFingerprint),
-    index("regulatory_source_relations_temporal_idx").on(table.targetSourceVersionId, table.effectiveFrom, table.effectiveTo),
-    foreignKey({ name: "reg_source_relations_source_fk", columns: [table.sourceVersionId], foreignColumns: [regulatorySourceVersions.id] }),
-    foreignKey({ name: "reg_source_relations_target_fk", columns: [table.targetSourceVersionId], foreignColumns: [regulatorySourceVersions.id] }),
+    uniqueIndex("regulatory_source_relations_fingerprint_unique").on(
+      table.relationFingerprint
+    ),
+    index("regulatory_source_relations_temporal_idx").on(
+      table.targetSourceVersionId,
+      table.effectiveFrom,
+      table.effectiveTo
+    ),
+    foreignKey({
+      name: "reg_source_relations_source_fk",
+      columns: [table.sourceVersionId],
+      foreignColumns: [regulatorySourceVersions.id],
+    }),
+    foreignKey({
+      name: "reg_source_relations_target_fk",
+      columns: [table.targetSourceVersionId],
+      foreignColumns: [regulatorySourceVersions.id],
+    }),
   ]
 );
-export type RegulatorySourceRelation = typeof regulatorySourceRelations.$inferSelect;
+export type RegulatorySourceRelation =
+  typeof regulatorySourceRelations.$inferSelect;
 
 export const regulatorySourceAssertions = mysqlTable(
   "regulatory_source_assertions",
   {
     id: int("id").primaryKey().autoincrement(),
     sourceVersionId: int("sourceVersionId").notNull(),
-    assertionType: mysqlEnum("assertionType", ["document_identity", "authenticity", "temporal_status", "jurisdiction", "permitted_use"]).notNull(),
-    decision: mysqlEnum("decision", ["accepted", "rejected", "withdrawn"]).notNull(),
+    assertionType: mysqlEnum("assertionType", [
+      "document_identity",
+      "authenticity",
+      "temporal_status",
+      "jurisdiction",
+      "permitted_use",
+    ]).notNull(),
+    decision: mysqlEnum("decision", [
+      "accepted",
+      "rejected",
+      "withdrawn",
+    ]).notNull(),
     assertedByUserId: int("assertedByUserId").notNull(),
     reason: text("reason").notNull(),
-    assertionFingerprint: varchar("assertionFingerprint", { length: 64 }).notNull(),
+    assertionFingerprint: varchar("assertionFingerprint", {
+      length: 64,
+    }).notNull(),
     validFrom: timestamp("validFrom").defaultNow().notNull(),
     validTo: timestamp("validTo"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
   },
   table => [
-    uniqueIndex("regulatory_source_assertions_fingerprint_unique").on(table.assertionFingerprint),
-    index("regulatory_source_assertions_version_type_idx").on(table.sourceVersionId, table.assertionType, table.decision),
-    foreignKey({ name: "reg_source_assertions_version_fk", columns: [table.sourceVersionId], foreignColumns: [regulatorySourceVersions.id] }),
-    foreignKey({ name: "reg_source_assertions_user_fk", columns: [table.assertedByUserId], foreignColumns: [users.id] }),
+    uniqueIndex("regulatory_source_assertions_fingerprint_unique").on(
+      table.assertionFingerprint
+    ),
+    index("regulatory_source_assertions_version_type_idx").on(
+      table.sourceVersionId,
+      table.assertionType,
+      table.decision
+    ),
+    foreignKey({
+      name: "reg_source_assertions_version_fk",
+      columns: [table.sourceVersionId],
+      foreignColumns: [regulatorySourceVersions.id],
+    }),
+    foreignKey({
+      name: "reg_source_assertions_user_fk",
+      columns: [table.assertedByUserId],
+      foreignColumns: [users.id],
+    }),
   ]
 );
-export type RegulatorySourceAssertion = typeof regulatorySourceAssertions.$inferSelect;
+export type RegulatorySourceAssertion =
+  typeof regulatorySourceAssertions.$inferSelect;
 
 // ─── Canonical issued-design-brief workflow (BR-02/BR-03) ──────────────────
 // These tables are deliberately additive. Historical design_briefs remain
@@ -4480,7 +4890,11 @@ export const briefVersions = mysqlTable(
     foreignKey({
       name: "brief_versions_stream_scope_fk",
       columns: [t.organizationId, t.projectId, t.streamId],
-      foreignColumns: [briefStreams.organizationId, briefStreams.projectId, briefStreams.id],
+      foreignColumns: [
+        briefStreams.organizationId,
+        briefStreams.projectId,
+        briefStreams.id,
+      ],
     }),
   ]
 );
@@ -4583,12 +4997,20 @@ export const briefVersionSections = mysqlTable(
     foreignKey({
       name: "brief_version_sections_version_scope_fk",
       columns: [t.organizationId, t.projectId, t.versionId],
-      foreignColumns: [briefVersions.organizationId, briefVersions.projectId, briefVersions.id],
+      foreignColumns: [
+        briefVersions.organizationId,
+        briefVersions.projectId,
+        briefVersions.id,
+      ],
     }),
     foreignKey({
       name: "brief_version_sections_revision_scope_fk",
       columns: [t.organizationId, t.projectId, t.sectionRevisionId],
-      foreignColumns: [briefSectionRevisions.organizationId, briefSectionRevisions.projectId, briefSectionRevisions.id],
+      foreignColumns: [
+        briefSectionRevisions.organizationId,
+        briefSectionRevisions.projectId,
+        briefSectionRevisions.id,
+      ],
     }),
   ]
 );
@@ -4625,7 +5047,10 @@ export const briefRoleEvents = mysqlTable(
       t.role
     ),
     uniqueIndex("brief_role_events_stream_sequence_unique").on(
-      t.organizationId, t.projectId, t.streamId, t.streamSequence
+      t.organizationId,
+      t.projectId,
+      t.streamId,
+      t.streamSequence
     ),
   ]
 );
@@ -4659,7 +5084,10 @@ export const briefFindings = mysqlTable(
       t.bindingId
     ),
     uniqueIndex("brief_findings_stream_sequence_unique").on(
-      t.organizationId, t.projectId, t.streamId, t.streamSequence
+      t.organizationId,
+      t.projectId,
+      t.streamId,
+      t.streamSequence
     ),
   ]
 );
@@ -4693,7 +5121,10 @@ export const briefFindingResolutions = mysqlTable(
       t.createdAt
     ),
     uniqueIndex("brief_finding_resolutions_stream_sequence_unique").on(
-      t.organizationId, t.projectId, t.streamId, t.streamSequence
+      t.organizationId,
+      t.projectId,
+      t.streamId,
+      t.streamSequence
     ),
   ]
 );
@@ -4736,7 +5167,10 @@ export const briefApplicabilityEvents = mysqlTable(
       t.createdAt
     ),
     uniqueIndex("brief_applicability_events_stream_sequence_unique").on(
-      t.organizationId, t.projectId, t.streamId, t.streamSequence
+      t.organizationId,
+      t.projectId,
+      t.streamId,
+      t.streamSequence
     ),
   ]
 );
@@ -4776,7 +5210,10 @@ export const briefApprovals = mysqlTable(
       t.createdAt
     ),
     uniqueIndex("brief_approvals_stream_sequence_unique").on(
-      t.organizationId, t.projectId, t.streamId, t.streamSequence
+      t.organizationId,
+      t.projectId,
+      t.streamId,
+      t.streamSequence
     ),
   ]
 );
@@ -4868,7 +5305,10 @@ export const briefConditionEvents = mysqlTable(
       t.createdAt
     ),
     uniqueIndex("brief_condition_events_stream_sequence_unique").on(
-      t.organizationId, t.projectId, t.streamId, t.streamSequence
+      t.organizationId,
+      t.projectId,
+      t.streamId,
+      t.streamSequence
     ),
   ]
 );
@@ -5026,17 +5466,29 @@ export const briefIssueSections = mysqlTable(
     foreignKey({
       name: "brief_issue_sections_issue_scope_fk",
       columns: [t.organizationId, t.projectId, t.issueId],
-      foreignColumns: [briefIssues.organizationId, briefIssues.projectId, briefIssues.id],
+      foreignColumns: [
+        briefIssues.organizationId,
+        briefIssues.projectId,
+        briefIssues.id,
+      ],
     }),
     foreignKey({
       name: "brief_issue_sections_binding_scope_fk",
       columns: [t.organizationId, t.projectId, t.bindingId],
-      foreignColumns: [briefVersionSections.organizationId, briefVersionSections.projectId, briefVersionSections.id],
+      foreignColumns: [
+        briefVersionSections.organizationId,
+        briefVersionSections.projectId,
+        briefVersionSections.id,
+      ],
     }),
     foreignKey({
       name: "brief_issue_sections_revision_scope_fk",
       columns: [t.organizationId, t.projectId, t.sectionRevisionId],
-      foreignColumns: [briefSectionRevisions.organizationId, briefSectionRevisions.projectId, briefSectionRevisions.id],
+      foreignColumns: [
+        briefSectionRevisions.organizationId,
+        briefSectionRevisions.projectId,
+        briefSectionRevisions.id,
+      ],
     }),
   ]
 );

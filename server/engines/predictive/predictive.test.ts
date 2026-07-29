@@ -144,8 +144,8 @@ describe("V4-08: predictCostRange — Confidence Rules", () => {
     const evidence = [makeEvidence(), makeEvidence()];
     const result = predictCostRange(evidence, [], {});
     expect(result.confidence).toBe("insufficient");
-    expect(result.p15).toBe(0);
-    expect(result.p50).toBe(0);
+    expect(result.p15).toBeNull();
+    expect(result.p50).toBeNull();
   });
 });
 
@@ -569,10 +569,10 @@ describe("V4-14: Edge Cases — Empty Vault", () => {
   it("predictCostRange with empty evidence → insufficient", () => {
     const result = predictCostRange([], [], {});
     expect(result.confidence).toBe("insufficient");
-    expect(result.p15).toBe(0);
-    expect(result.p50).toBe(0);
-    expect(result.p85).toBe(0);
-    expect(result.p95).toBe(0);
+    expect(result.p15).toBeNull();
+    expect(result.p50).toBeNull();
+    expect(result.p85).toBeNull();
+    expect(result.p95).toBeNull();
     expect(result.dataPointCount).toBe(0);
   });
 

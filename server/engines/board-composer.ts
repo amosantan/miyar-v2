@@ -1,7 +1,7 @@
 /**
  * Board Composer Engine (V4)
  * Deterministic material board composition from catalog + project context.
- * Generates RFQ-ready material lists with cost estimates.
+ * Generates browse-only board suggestions and concept schedules.
  */
 
 export interface BriefConstraints {
@@ -17,8 +17,8 @@ export interface BoardItem {
   name: string;
   category: string;
   tier: string;
-  costLow: number;
-  costHigh: number;
+  costLow: number | null;
+  costHigh: number | null;
   costUnit: string;
   leadTimeDays: number;
   leadTimeBand: string;
@@ -30,8 +30,8 @@ export interface BoardItem {
 
 export interface BoardSummary {
   totalItems: number;
-  estimatedCostLow: number;
-  estimatedCostHigh: number;
+  estimatedCostLow: number | null;
+  estimatedCostHigh: number | null;
   currency: string;
   longestLeadTimeDays: number;
   criticalPathItems: string[];
@@ -51,11 +51,12 @@ export interface RfqLine {
   specification: string;
   quantity: string;
   unit: string;
-  estimatedUnitCostLow: number;
-  estimatedUnitCostHigh: number;
+  estimatedUnitCostLow: number | null;
+  estimatedUnitCostHigh: number | null;
   leadTimeDays: number;
   supplierSuggestion: string;
   notes: string;
+  pricingState: "browse_only_estimate";
 }
 
 /**
@@ -66,37 +67,47 @@ export function computeBoardSummary(items: BoardItem[], briefConstraints?: Brief
   const catDist: Record<string, number> = {};
   let costLow = 0;
   let costHigh = 0;
+  let hasCompleteBrowseEstimate = items.length > 0;
   let maxLead = 0;
   const criticalItems: string[] = [];
 
   for (const item of items) {
     tierDist[item.tier] = (tierDist[item.tier] || 0) + 1;
     catDist[item.category] = (catDist[item.category] || 0) + 1;
-    costLow += item.costLow;
-    costHigh += item.costHigh;
+    if (
+      item.costLow === null ||
+      item.costHigh === null ||
+      !Number.isFinite(item.costLow) ||
+      !Number.isFinite(item.costHigh)
+    ) {
+      hasCompleteBrowseEstimate = false;
+    } else {
+      costLow += item.costLow;
+      costHigh += item.costHigh;
+    }
     if (item.leadTimeDays > maxLead) maxLead = item.leadTimeDays;
     if (item.leadTimeBand === "critical" || item.leadTimeDays >= 90) {
       criticalItems.push(item.name);
     }
   }
 
-  // Budget compliance check if brief constraints provided
+  // Catalog prices are browse-only. They may be displayed as estimates, but
+  // cannot establish budget compliance or enter an issued calculation.
   let budgetComplianceCheck: BoardSummary["budgetComplianceCheck"];
   if (briefConstraints) {
     const capStr = briefConstraints.totalBudgetCap.replace(/[^0-9.]/g, "");
     const cap = Number(capStr) || null;
-    const utilizationPct = cap ? Math.round((costHigh / cap) * 100) : null;
     budgetComplianceCheck = {
       budgetCapAed: cap,
-      utilizationPct,
-      status: cap ? (costHigh <= cap ? "within_budget" : "over_budget") : "unknown",
+      utilizationPct: null,
+      status: "unknown",
     };
   }
 
   return {
     totalItems: items.length,
-    estimatedCostLow: costLow,
-    estimatedCostHigh: costHigh,
+    estimatedCostLow: hasCompleteBrowseEstimate ? costLow : null,
+    estimatedCostHigh: hasCompleteBrowseEstimate ? costHigh : null,
     currency: "AED",
     longestLeadTimeDays: maxLead,
     criticalPathItems: criticalItems,
@@ -107,7 +118,9 @@ export function computeBoardSummary(items: BoardItem[], briefConstraints?: Brief
 }
 
 /**
- * Generate RFQ-ready line items from board
+ * Generate a browse-only concept schedule from board catalog data.
+ * These compatibility-shaped rows are not RFQ-ready until governed values
+ * resolve through the EV-03 supply-and-install path.
  */
 export function generateRfqLines(items: BoardItem[], briefConstraints?: BriefConstraints): RfqLine[] {
   return items.map((item, idx) => {
@@ -135,7 +148,11 @@ export function generateRfqLines(items: BoardItem[], briefConstraints?: BriefCon
       estimatedUnitCostHigh: item.costHigh,
       leadTimeDays: item.leadTimeDays,
       supplierSuggestion: item.supplierName,
-      notes: notes.join(" | ") || "",
+      notes: [
+        ...notes,
+        "Browse-only catalog estimate; not RFQ-ready or eligible for issued totals.",
+      ].join(" | "),
+      pricingState: "browse_only_estimate",
     };
   });
 }
@@ -177,8 +194,15 @@ export function recommendMaterials(
       name: m.name,
       category: m.category,
       tier: m.tier,
-      costLow: Number(m.typicalCostLow) || 0,
-      costHigh: Number(m.typicalCostHigh) || 0,
+      costLow:
+        m.typicalCostLow === null || !Number.isFinite(Number(m.typicalCostLow))
+          ? null
+          : Number(m.typicalCostLow),
+      costHigh:
+        m.typicalCostHigh === null ||
+        !Number.isFinite(Number(m.typicalCostHigh))
+          ? null
+          : Number(m.typicalCostHigh),
       costUnit: m.costUnit || "AED/unit",
       leadTimeDays: m.leadTimeDays || 30,
       leadTimeBand: m.leadTimeBand || "medium",

@@ -296,9 +296,12 @@ export default function BoardComposer() {
                   </Card>
                   <Card>
                     <CardContent className="py-3">
-                      <p className="text-xs text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Est. Cost Range</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Browse-only Catalog Estimate</p>
                       <p className="text-sm font-bold">
-                        {boardSummary.data.summary.estimatedCostLow.toLocaleString()} — {boardSummary.data.summary.estimatedCostHigh.toLocaleString()} AED
+                        {boardSummary.data.summary.estimatedCostLow === null ||
+                        boardSummary.data.summary.estimatedCostHigh === null
+                          ? "Estimate unavailable"
+                          : `${boardSummary.data.summary.estimatedCostLow.toLocaleString()} — ${boardSummary.data.summary.estimatedCostHigh.toLocaleString()} AED`}
                       </p>
                     </CardContent>
                   </Card>
@@ -347,7 +350,7 @@ export default function BoardComposer() {
                                       {mat.brandStandardApproval}
                                     </Badge>
                                   )}
-                                  <span>{mat.typicalCostLow}–{mat.typicalCostHigh} {mat.costUnit}</span>
+                                  <span>{mat.typicalCostLow == null || mat.typicalCostHigh == null ? "Browse estimate unavailable" : `Browse estimate: ${mat.typicalCostLow}–${mat.typicalCostHigh} ${mat.costUnit}`}</span>
                                 </div>
                               </div>
                               <Button
@@ -387,7 +390,7 @@ export default function BoardComposer() {
                                   </Badge>
                                 )}
                                 <span className="text-xs text-muted-foreground">
-                                  {mat.typicalCostLow}–{mat.typicalCostHigh} {mat.costUnit}
+                                  {mat.typicalCostLow == null || mat.typicalCostHigh == null ? "Browse estimate unavailable" : `Browse estimate: ${mat.typicalCostLow}–${mat.typicalCostHigh} ${mat.costUnit}`}
                                 </span>
                                 <span className={`text-xs ${leadColors[mat.leadTimeBand] || ""}`}>
                                   {mat.leadTimeDays}d lead
@@ -530,9 +533,9 @@ export default function BoardComposer() {
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
-                      <FileSpreadsheet className="h-4 w-4" /> RFQ-Ready Line Items
+                      <FileSpreadsheet className="h-4 w-4" /> Concept Material Schedule
                     </CardTitle>
-                    <CardDescription>Export-ready procurement schedule</CardDescription>
+                    <CardDescription>Browse-only catalog estimates; governed pricing is required before RFQ or issue</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="overflow-x-auto">
@@ -542,7 +545,7 @@ export default function BoardComposer() {
                             <th className="py-2 pr-4">#</th>
                             <th className="py-2 pr-4">Material</th>
                             <th className="py-2 pr-4">Category</th>
-                            <th className="py-2 pr-4">Est. Cost (AED)</th>
+                            <th className="py-2 pr-4">Browse Estimate (AED)</th>
                             <th className="py-2 pr-4">Lead Time</th>
                             <th className="py-2">Supplier</th>
                           </tr>

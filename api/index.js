@@ -365,6 +365,7 @@ __export(schema_exports, {
   organizations: () => organizations,
   outcomeComparisons: () => outcomeComparisons,
   overrideRecords: () => overrideRecords,
+  paintCoverageProfiles: () => paintCoverageProfiles,
   pdfExtractions: () => pdfExtractions,
   platformAlerts: () => platformAlerts,
   portfolioAlerts: () => portfolioAlerts,
@@ -430,7 +431,7 @@ import {
   uniqueIndex,
   foreignKey
 } from "drizzle-orm/mysql-core";
-var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, products, specifications, supplierQuotes, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, evidenceConfidenceAssessments, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, portfolioAlerts, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces, projectGeometryAuthorities, spatialGraphVersions, spaceIdentities, spaceVersions, geometrySources, measurementRecords, measurementInputEdges, geometryReconciliationEvents, legacySpaceLinks, artifactInputSnapshots, typologyPackRevisions, typologyPackEvents, regulatorySources, regulatorySourceVersions, regulatorySourceCaptures, regulatoryClauseCandidates, regulatorySourceRelations, regulatorySourceAssertions, briefSectionValues, briefRoleValues, briefStreams, briefVersions, briefSectionRevisions, briefVersionSections, briefRoleEvents, briefFindings, briefFindingResolutions, briefApplicabilityEvents, briefApprovals, briefDependencies, briefConditionEvents, briefOperations, briefEvents, briefIssues, briefIssueSections, briefIssueApprovals, briefIssueApplicability, briefIssueDependencies, briefLegacyLinks;
+var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, products, specifications, paintCoverageProfiles, supplierQuotes, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, evidenceConfidenceAssessments, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, portfolioAlerts, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces, projectGeometryAuthorities, spatialGraphVersions, spaceIdentities, spaceVersions, geometrySources, measurementRecords, measurementInputEdges, geometryReconciliationEvents, legacySpaceLinks, artifactInputSnapshots, typologyPackRevisions, typologyPackEvents, regulatorySources, regulatorySourceVersions, regulatorySourceCaptures, regulatoryClauseCandidates, regulatorySourceRelations, regulatorySourceAssertions, briefSectionValues, briefRoleValues, briefStreams, briefVersions, briefSectionRevisions, briefVersionSections, briefRoleEvents, briefFindings, briefFindingResolutions, briefApplicabilityEvents, briefApprovals, briefDependencies, briefConditionEvents, briefOperations, briefEvents, briefIssues, briefIssueSections, briefIssueApprovals, briefIssueApplicability, briefIssueDependencies, briefLegacyLinks;
 var init_schema = __esm({
   "drizzle/schema.ts"() {
     "use strict";
@@ -616,6 +617,17 @@ var init_schema = __esm({
       dldAreaName: varchar("dld_area_name", { length: 200 }),
       // City & Sustainability Certification (Phase D — affects pricing, scoring, compliance)
       city: mysqlEnum("city", ["Dubai", "Abu Dhabi"]).default("Dubai"),
+      materialPriceGeography: mysqlEnum("materialPriceGeography", [
+        "dubai",
+        "abu_dhabi",
+        "sharjah",
+        "ajman",
+        "umm_al_quwain",
+        "ras_al_khaimah",
+        "fujairah",
+        "uae"
+      ]),
+      materialPricingRevision: int("material_pricing_revision").default(1).notNull(),
       sustainCertTarget: varchar("sustain_cert_target", { length: 50 }).default(
         "silver"
       ),
@@ -1253,6 +1265,45 @@ var init_schema = __esm({
         )
       ]
     );
+    paintCoverageProfiles = mysqlTable(
+      "paint_coverage_profiles",
+      {
+        id: int("id").autoincrement().primaryKey(),
+        productId: int("productId").notNull(),
+        specId: int("specId").notNull(),
+        coverageM2PerLitrePerCoat: decimal("coverageM2PerLitrePerCoat", {
+          precision: 10,
+          scale: 3
+        }).notNull(),
+        coatCount: int("coatCount").notNull(),
+        wastePct: decimal("wastePct", { precision: 6, scale: 3 }).notNull(),
+        packSizesLitres: json("packSizesLitres").notNull(),
+        effectiveAt: timestamp("effectiveAt").notNull(),
+        policyVersion: varchar("policyVersion", { length: 64 }).notNull(),
+        sourceDocumentUrl: text("sourceDocumentUrl").notNull(),
+        sourceDocumentDigest: varchar("sourceDocumentDigest", {
+          length: 128
+        }).notNull(),
+        status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+        // Pending/rejected evidence may be unreviewed. The approved-value loader
+        // requires both fields and rejects invalid/future review clocks.
+        reviewedBy: int("reviewedBy"),
+        reviewedAt: timestamp("reviewedAt"),
+        supersedesId: int("supersedesId"),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("paint_coverage_profiles_supersedes_unique").on(
+          table.supersedesId
+        ),
+        index("paint_coverage_profiles_resolution_idx").on(
+          table.productId,
+          table.specId,
+          table.status,
+          table.effectiveAt
+        )
+      ]
+    );
     supplierQuotes = mysqlTable(
       "supplier_quote",
       {
@@ -1281,10 +1332,7 @@ var init_schema = __esm({
           table.quoteRef
         ),
         uniqueIndex("supplier_quote_supersedes_unique").on(table.supersedesId),
-        index("supplier_quote_org_validity_idx").on(
-          table.orgId,
-          table.validUntil
-        )
+        index("supplier_quote_org_validity_idx").on(table.orgId, table.validUntil)
       ]
     );
     materialsCatalog = mysqlTable("materials_catalog", {
@@ -1346,6 +1394,13 @@ var init_schema = __esm({
       id: int("id").autoincrement().primaryKey(),
       boardId: int("boardId").notNull(),
       materialId: int("materialId").notNull(),
+      productId: int("productId"),
+      specId: int("specId"),
+      identityState: mysqlEnum("identityState", [
+        "resolved",
+        "unresolved",
+        "legacy_unverified"
+      ]).default("legacy_unverified").notNull(),
       quantity: decimal("quantity", { precision: 10, scale: 2 }),
       unitOfMeasure: varchar("unitOfMeasure", { length: 32 }),
       notes: text("notes"),
@@ -1664,101 +1719,103 @@ var init_schema = __esm({
       corpusPolicyVersion: varchar("corpusPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
       createdAt: timestamp("createdAt").defaultNow().notNull()
     });
-    sourceRegistry = mysqlTable("source_registry", {
-      id: int("id").autoincrement().primaryKey(),
-      name: varchar("name", { length: 255 }).notNull(),
-      /**
-       * ADR-0009/EV-00 (audit F4/F5): stable connector key. Static connectors
-       * resolve their registry row by this slug (their sourceId); dynamic
-       * connectors resolve by numeric id. The former name-vs-sourceId join never
-       * matched, so freshness and evidence linkage were silently lost.
-       */
-      slug: varchar("slug", { length: 64 }),
-      url: text("url").notNull(),
-      sourceType: mysqlEnum("sourceType", [
-        "supplier_catalog",
-        "manufacturer_catalog",
-        "developer_brochure",
-        "industry_report",
-        "government_tender",
-        "procurement_portal",
-        "trade_publication",
-        "retailer_listing",
-        "aggregator",
-        "other"
-      ]).notNull(),
-      reliabilityDefault: mysqlEnum("reliabilityDefault", ["A", "B", "C"]).default("B").notNull(),
-      isWhitelisted: boolean("isWhitelisted").default(true).notNull(),
-      region: varchar("region", { length: 64 }).default("UAE"),
-      notes: text("notes"),
-      addedBy: int("addedBy"),
-      isActive: boolean("isActive").default(true).notNull(),
-      lastSuccessfulFetch: timestamp("lastSuccessfulFetch"),
-      // DFE Fields
-      scrapeConfig: json("scrapeConfig"),
-      scrapeSchedule: varchar("scrapeSchedule", { length: 64 }),
-      scrapeMethod: mysqlEnum("scrapeMethod", [
-        "html_llm",
-        "html_rules",
-        "json_api",
-        "rss_feed",
-        "csv_upload",
-        "email_forward"
-      ]).default("html_llm").notNull(),
-      scrapeHeaders: json("scrapeHeaders"),
-      extractionHints: text("extractionHints"),
-      priceFieldMapping: json("priceFieldMapping"),
-      lastScrapedAt: timestamp("lastScrapedAt"),
-      lastScrapedStatus: mysqlEnum("lastScrapedStatus", [
-        "success",
-        "partial",
-        "failed",
-        "never"
-      ]).default("never").notNull(),
-      lastRecordCount: int("lastRecordCount").default(0).notNull(),
-      consecutiveFailures: int("consecutiveFailures").default(0).notNull(),
-      requestDelayMs: int("requestDelayMs").default(2e3).notNull(),
-      /**
-       * EV-01b: e-commerce platform behind this source. When set alongside
-       * `scrapeMethod = "json_api"` the deterministic platform connector family
-       * handles acquisition instead of the LLM path. `null` means "not probed".
-       */
-      platform: mysqlEnum("platform", [
-        "shopify",
-        "woocommerce",
-        "magento",
-        "none"
-      ]),
-      /**
-       * EV-01b: mechanical enforcement of the BR-06 source-terms process. Robots
-       * permission is a technical signal, not a commercial licence — a connector
-       * refuses to acquire until a human records `approved` here. Every existing
-       * row defaults to `pending`, which is the truthful state: no terms decision
-       * has been recorded for any of them.
-       */
-      termsDecision: mysqlEnum("termsDecision", [
-        "pending",
-        "approved",
-        "rejected"
-      ]).default("pending").notNull(),
-      /**
-       * EV-01b: what kind of price this source publishes. Retail listings are not
-       * trade rates and must not be presented as if they were; the proposal
-       * generator refuses to publish a benchmark keyed only on `retail_listed`
-       * evidence. `unknown` is the truthful default for unclassified rows.
-       */
-      priceClass: mysqlEnum("priceClass", [
-        "retail_listed",
-        "trade_quoted",
-        "official_statistic",
-        "consultancy_benchmark",
-        "unknown"
-      ]).default("unknown").notNull(),
-      addedAt: timestamp("addedAt").defaultNow().notNull(),
-      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-    }, (table) => [
-      uniqueIndex("source_registry_slug_unique").on(table.slug)
-    ]);
+    sourceRegistry = mysqlTable(
+      "source_registry",
+      {
+        id: int("id").autoincrement().primaryKey(),
+        name: varchar("name", { length: 255 }).notNull(),
+        /**
+         * ADR-0009/EV-00 (audit F4/F5): stable connector key. Static connectors
+         * resolve their registry row by this slug (their sourceId); dynamic
+         * connectors resolve by numeric id. The former name-vs-sourceId join never
+         * matched, so freshness and evidence linkage were silently lost.
+         */
+        slug: varchar("slug", { length: 64 }),
+        url: text("url").notNull(),
+        sourceType: mysqlEnum("sourceType", [
+          "supplier_catalog",
+          "manufacturer_catalog",
+          "developer_brochure",
+          "industry_report",
+          "government_tender",
+          "procurement_portal",
+          "trade_publication",
+          "retailer_listing",
+          "aggregator",
+          "other"
+        ]).notNull(),
+        reliabilityDefault: mysqlEnum("reliabilityDefault", ["A", "B", "C"]).default("B").notNull(),
+        isWhitelisted: boolean("isWhitelisted").default(true).notNull(),
+        region: varchar("region", { length: 64 }).default("UAE"),
+        notes: text("notes"),
+        addedBy: int("addedBy"),
+        isActive: boolean("isActive").default(true).notNull(),
+        lastSuccessfulFetch: timestamp("lastSuccessfulFetch"),
+        // DFE Fields
+        scrapeConfig: json("scrapeConfig"),
+        scrapeSchedule: varchar("scrapeSchedule", { length: 64 }),
+        scrapeMethod: mysqlEnum("scrapeMethod", [
+          "html_llm",
+          "html_rules",
+          "json_api",
+          "rss_feed",
+          "csv_upload",
+          "email_forward"
+        ]).default("html_llm").notNull(),
+        scrapeHeaders: json("scrapeHeaders"),
+        extractionHints: text("extractionHints"),
+        priceFieldMapping: json("priceFieldMapping"),
+        lastScrapedAt: timestamp("lastScrapedAt"),
+        lastScrapedStatus: mysqlEnum("lastScrapedStatus", [
+          "success",
+          "partial",
+          "failed",
+          "never"
+        ]).default("never").notNull(),
+        lastRecordCount: int("lastRecordCount").default(0).notNull(),
+        consecutiveFailures: int("consecutiveFailures").default(0).notNull(),
+        requestDelayMs: int("requestDelayMs").default(2e3).notNull(),
+        /**
+         * EV-01b: e-commerce platform behind this source. When set alongside
+         * `scrapeMethod = "json_api"` the deterministic platform connector family
+         * handles acquisition instead of the LLM path. `null` means "not probed".
+         */
+        platform: mysqlEnum("platform", [
+          "shopify",
+          "woocommerce",
+          "magento",
+          "none"
+        ]),
+        /**
+         * EV-01b: mechanical enforcement of the BR-06 source-terms process. Robots
+         * permission is a technical signal, not a commercial licence — a connector
+         * refuses to acquire until a human records `approved` here. Every existing
+         * row defaults to `pending`, which is the truthful state: no terms decision
+         * has been recorded for any of them.
+         */
+        termsDecision: mysqlEnum("termsDecision", [
+          "pending",
+          "approved",
+          "rejected"
+        ]).default("pending").notNull(),
+        /**
+         * EV-01b: what kind of price this source publishes. Retail listings are not
+         * trade rates and must not be presented as if they were; the proposal
+         * generator refuses to publish a benchmark keyed only on `retail_listed`
+         * evidence. `unknown` is the truthful default for unclassified rows.
+         */
+        priceClass: mysqlEnum("priceClass", [
+          "retail_listed",
+          "trade_quoted",
+          "official_statistic",
+          "consultancy_benchmark",
+          "unknown"
+        ]).default("unknown").notNull(),
+        addedAt: timestamp("addedAt").defaultNow().notNull(),
+        updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+      },
+      (table) => [uniqueIndex("source_registry_slug_unique").on(table.slug)]
+    );
     evidenceRecords = mysqlTable(
       "evidence_records",
       {
@@ -1842,7 +1899,9 @@ var init_schema = __esm({
           "luxury",
           "ultra_luxury"
         ]),
-        modelSuggestedFinishLevel: varchar("modelSuggestedFinishLevel", { length: 32 }),
+        modelSuggestedFinishLevel: varchar("modelSuggestedFinishLevel", {
+          length: 32
+        }),
         designStyle: varchar("designStyle", { length: 255 }),
         brandsMentioned: json("brandsMentioned"),
         // string[]
@@ -1919,10 +1978,7 @@ var init_schema = __esm({
           "fujairah",
           "uae"
         ]),
-        priceScope: mysqlEnum("priceScope", [
-          "supply_only",
-          "supply_and_install"
-        ]),
+        priceScope: mysqlEnum("priceScope", ["supply_only", "supply_and_install"]),
         deliveryIncluded: boolean("deliveryIncluded"),
         moqValue: decimal("moqValue", { precision: 12, scale: 3 }),
         moqUnit: varchar("moqUnit", { length: 32 }),
@@ -2039,94 +2095,101 @@ var init_schema = __esm({
         )
       ]
     );
-    benchmarkProposals = mysqlTable("benchmark_proposals", {
-      id: int("id").autoincrement().primaryKey(),
-      benchmarkKey: varchar("benchmarkKey", { length: 255 }).notNull(),
-      // category:finishLevel:unit
-      specId: int("specId"),
-      productId: int("productId"),
-      orgId: int("orgId"),
-      priceScope: mysqlEnum("priceScope", [
-        "supply_only",
-        "supply_and_install"
-      ]),
-      sourceKind: mysqlEnum("sourceKind", ["observed", "assumption"]).default("observed").notNull(),
-      sourceLadderRung: mysqlEnum("sourceLadderRung", [
-        "supplier_quote",
-        "official_statistic",
-        "consultancy_benchmark",
-        "market_observation",
-        "retail_sanity",
-        "assumption"
-      ]),
-      benchmarkVersionId: int("benchmarkVersionId"),
-      supplierQuoteId: int("supplierQuoteId"),
-      supersedesId: int("supersedesId"),
-      legacyMaterialLibraryId: int("legacyMaterialLibraryId"),
-      sourceLabel: varchar("sourceLabel", { length: 255 }),
-      priceConfidence: mysqlEnum("priceConfidence", [
-        "assumption",
-        "indicative",
-        "quoted"
-      ]),
-      provenancePolicyVersion: varchar("provenancePolicyVersion", { length: 64 }),
-      // ADR-0009: distinguishes key eras — "legacy-v0" rows predate deterministic
-      // finish/category keying; new proposals stamp "benchmark-key-v2".
-      keyPolicyVersion: varchar("keyPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
-      currentTypical: decimal("currentTypical", { precision: 12, scale: 2 }),
-      currentMin: decimal("currentMin", { precision: 12, scale: 2 }),
-      currentMax: decimal("currentMax", { precision: 12, scale: 2 }),
-      proposedP25: decimal("proposedP25", { precision: 12, scale: 2 }).notNull(),
-      proposedP50: decimal("proposedP50", { precision: 12, scale: 2 }).notNull(),
-      proposedP75: decimal("proposedP75", { precision: 12, scale: 2 }).notNull(),
-      weightedMean: decimal("weightedMean", { precision: 12, scale: 2 }).notNull(),
-      deltaPct: decimal("deltaPct", { precision: 8, scale: 2 }),
-      // % change from current
-      evidenceCount: int("evidenceCount").notNull(),
-      sourceDiversity: int("sourceDiversity").notNull(),
-      reliabilityDist: json("reliabilityDist").notNull(),
-      // { A: n, B: n, C: n }
-      recencyDist: json("recencyDist").notNull(),
-      // { recent: n, mid: n, old: n }
-      /**
-       * EV-01b: what the proposed number is actually made of. A reviewer needs to
-       * see that a percentile came entirely from consumer retail listings, or from
-       * records whose price basis was never resolved, before approving it.
-       * Null on pre-existing proposals — they were never assessed for either.
-       */
-      priceClassDist: json("priceClassDist"),
-      // { retail_listed: n, ... }
-      priceBasisDist: json("priceBasisDist"),
-      // { per_sqm: n, unknown: n, ... }
-      confidenceScore: int("confidenceScore").notNull(),
-      // 0-100
-      impactNotes: text("impactNotes"),
-      recommendation: mysqlEnum("recommendation", ["publish", "reject"]).notNull(),
-      rejectionReason: text("rejectionReason"),
-      // Review workflow
-      status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
-      reviewerNotes: text("reviewerNotes"),
-      reviewedBy: int("reviewedBy"),
-      reviewedAt: timestamp("reviewedAt"),
-      // Snapshot linking
-      benchmarkSnapshotId: int("benchmarkSnapshotId"),
-      runId: varchar("runId", { length: 64 }),
-      createdAt: timestamp("createdAt").defaultNow().notNull()
-    }, (table) => [
-      uniqueIndex("benchmark_proposals_supersedes_unique").on(table.supersedesId),
-      uniqueIndex("benchmark_proposals_legacy_library_unique").on(
-        table.legacyMaterialLibraryId
-      ),
-      index("benchmark_proposals_governed_resolver_idx").on(
-        table.specId,
-        table.orgId,
-        table.productId,
-        table.priceScope,
-        table.status,
-        table.recommendation
-      ),
-      index("benchmark_proposals_supplier_quote_idx").on(table.supplierQuoteId)
-    ]);
+    benchmarkProposals = mysqlTable(
+      "benchmark_proposals",
+      {
+        id: int("id").autoincrement().primaryKey(),
+        benchmarkKey: varchar("benchmarkKey", { length: 255 }).notNull(),
+        // category:finishLevel:unit
+        specId: int("specId"),
+        productId: int("productId"),
+        orgId: int("orgId"),
+        priceScope: mysqlEnum("priceScope", ["supply_only", "supply_and_install"]),
+        sourceKind: mysqlEnum("sourceKind", ["observed", "assumption"]).default("observed").notNull(),
+        sourceLadderRung: mysqlEnum("sourceLadderRung", [
+          "supplier_quote",
+          "official_statistic",
+          "consultancy_benchmark",
+          "market_observation",
+          "retail_sanity",
+          "assumption"
+        ]),
+        benchmarkVersionId: int("benchmarkVersionId"),
+        supplierQuoteId: int("supplierQuoteId"),
+        supersedesId: int("supersedesId"),
+        legacyMaterialLibraryId: int("legacyMaterialLibraryId"),
+        sourceLabel: varchar("sourceLabel", { length: 255 }),
+        priceConfidence: mysqlEnum("priceConfidence", [
+          "assumption",
+          "indicative",
+          "quoted"
+        ]),
+        provenancePolicyVersion: varchar("provenancePolicyVersion", { length: 64 }),
+        // ADR-0009: distinguishes key eras — "legacy-v0" rows predate deterministic
+        // finish/category keying; new proposals stamp "benchmark-key-v2".
+        keyPolicyVersion: varchar("keyPolicyVersion", { length: 64 }).default("legacy-v0").notNull(),
+        currentTypical: decimal("currentTypical", { precision: 12, scale: 2 }),
+        currentMin: decimal("currentMin", { precision: 12, scale: 2 }),
+        currentMax: decimal("currentMax", { precision: 12, scale: 2 }),
+        proposedP25: decimal("proposedP25", { precision: 12, scale: 2 }).notNull(),
+        proposedP50: decimal("proposedP50", { precision: 12, scale: 2 }).notNull(),
+        proposedP75: decimal("proposedP75", { precision: 12, scale: 2 }).notNull(),
+        weightedMean: decimal("weightedMean", {
+          precision: 12,
+          scale: 2
+        }).notNull(),
+        deltaPct: decimal("deltaPct", { precision: 8, scale: 2 }),
+        // % change from current
+        evidenceCount: int("evidenceCount").notNull(),
+        sourceDiversity: int("sourceDiversity").notNull(),
+        reliabilityDist: json("reliabilityDist").notNull(),
+        // { A: n, B: n, C: n }
+        recencyDist: json("recencyDist").notNull(),
+        // { recent: n, mid: n, old: n }
+        /**
+         * EV-01b: what the proposed number is actually made of. A reviewer needs to
+         * see that a percentile came entirely from consumer retail listings, or from
+         * records whose price basis was never resolved, before approving it.
+         * Null on pre-existing proposals — they were never assessed for either.
+         */
+        priceClassDist: json("priceClassDist"),
+        // { retail_listed: n, ... }
+        priceBasisDist: json("priceBasisDist"),
+        // { per_sqm: n, unknown: n, ... }
+        confidenceScore: int("confidenceScore").notNull(),
+        // 0-100
+        impactNotes: text("impactNotes"),
+        recommendation: mysqlEnum("recommendation", [
+          "publish",
+          "reject"
+        ]).notNull(),
+        rejectionReason: text("rejectionReason"),
+        // Review workflow
+        status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+        reviewerNotes: text("reviewerNotes"),
+        reviewedBy: int("reviewedBy"),
+        reviewedAt: timestamp("reviewedAt"),
+        // Snapshot linking
+        benchmarkSnapshotId: int("benchmarkSnapshotId"),
+        runId: varchar("runId", { length: 64 }),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (table) => [
+        uniqueIndex("benchmark_proposals_supersedes_unique").on(table.supersedesId),
+        uniqueIndex("benchmark_proposals_legacy_library_unique").on(
+          table.legacyMaterialLibraryId
+        ),
+        index("benchmark_proposals_governed_resolver_idx").on(
+          table.specId,
+          table.orgId,
+          table.productId,
+          table.priceScope,
+          table.status,
+          table.recommendation
+        ),
+        index("benchmark_proposals_supplier_quote_idx").on(table.supplierQuoteId)
+      ]
+    );
     benchmarkSnapshots = mysqlTable("benchmark_snapshots", {
       id: int("id").autoincrement().primaryKey(),
       benchmarkVersionId: int("benchmarkVersionId"),
@@ -2492,61 +2555,72 @@ var init_schema = __esm({
       ),
       createdAt: timestamp("created_at").defaultNow().notNull()
     });
-    materialLibrary = mysqlTable("material_library", {
-      id: int("id").primaryKey().autoincrement(),
-      productId: int("product_id"),
-      category: mysqlEnum("category", [
-        "flooring",
-        "wall_paint",
-        "wall_tile",
-        "ceiling",
-        "joinery",
-        "sanitaryware",
-        "fittings",
-        "lighting",
-        "hardware",
-        "specialty"
-      ]).notNull(),
-      tier: mysqlEnum("tier", ["affordable", "mid", "premium", "ultra"]).notNull(),
-      style: mysqlEnum("style", [
-        "modern",
-        "contemporary",
-        "classic",
-        "minimalist",
-        "arabesque",
-        "all"
-      ]).default("all").notNull(),
-      productCode: varchar("product_code", { length: 100 }),
-      productName: varchar("product_name", { length: 300 }).notNull(),
-      brand: varchar("brand", { length: 150 }).notNull(),
-      supplierName: varchar("supplier_name", { length: 200 }).notNull(),
-      supplierLocation: varchar("supplier_location", { length: 200 }),
-      supplierPhone: varchar("supplier_phone", { length: 50 }),
-      unitLabel: varchar("unit_label", { length: 30 }).notNull(),
-      priceAedMin: decimal("price_aed_min", { precision: 10, scale: 2 }),
-      priceAedMax: decimal("price_aed_max", { precision: 10, scale: 2 }),
-      notes: text("notes"),
-      isActive: boolean("is_active").default(true).notNull(),
-      // ADR-0009 provenance: defaults label every pre-existing row an explicit
-      // MIYAR assumption; only a deliberate write may claim an observation.
-      sourceType: mysqlEnum("source_type", [
-        "miyar_assumption",
-        "supplier_quote",
-        "market_observation",
-        "manual_entry"
-      ]).default("miyar_assumption").notNull(),
-      sourceLabel: varchar("source_label", { length: 255 }).default("MIYAR assumption").notNull(),
-      sourceUrl: varchar("source_url", { length: 500 }),
-      priceObservedAt: date("price_observed_at"),
-      priceConfidence: mysqlEnum("price_confidence", [
-        "assumption",
-        "indicative",
-        "quoted"
-      ]).default("assumption").notNull(),
-      provenancePolicyVersion: varchar("provenance_policy_version", { length: 64 }).default("material-library-provenance-v1").notNull()
-    }, (table) => [
-      uniqueIndex("material_library_product_code_unique").on(table.productCode)
-    ]);
+    materialLibrary = mysqlTable(
+      "material_library",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        productId: int("product_id"),
+        category: mysqlEnum("category", [
+          "flooring",
+          "wall_paint",
+          "wall_tile",
+          "ceiling",
+          "joinery",
+          "sanitaryware",
+          "fittings",
+          "lighting",
+          "hardware",
+          "specialty"
+        ]).notNull(),
+        tier: mysqlEnum("tier", [
+          "affordable",
+          "mid",
+          "premium",
+          "ultra"
+        ]).notNull(),
+        style: mysqlEnum("style", [
+          "modern",
+          "contemporary",
+          "classic",
+          "minimalist",
+          "arabesque",
+          "all"
+        ]).default("all").notNull(),
+        productCode: varchar("product_code", { length: 100 }),
+        productName: varchar("product_name", { length: 300 }).notNull(),
+        brand: varchar("brand", { length: 150 }).notNull(),
+        supplierName: varchar("supplier_name", { length: 200 }).notNull(),
+        supplierLocation: varchar("supplier_location", { length: 200 }),
+        supplierPhone: varchar("supplier_phone", { length: 50 }),
+        unitLabel: varchar("unit_label", { length: 30 }).notNull(),
+        priceAedMin: decimal("price_aed_min", { precision: 10, scale: 2 }),
+        priceAedMax: decimal("price_aed_max", { precision: 10, scale: 2 }),
+        notes: text("notes"),
+        isActive: boolean("is_active").default(true).notNull(),
+        // ADR-0009 provenance: defaults label every pre-existing row an explicit
+        // MIYAR assumption; only a deliberate write may claim an observation.
+        sourceType: mysqlEnum("source_type", [
+          "miyar_assumption",
+          "supplier_quote",
+          "market_observation",
+          "manual_entry"
+        ]).default("miyar_assumption").notNull(),
+        sourceLabel: varchar("source_label", { length: 255 }).default("MIYAR assumption").notNull(),
+        sourceUrl: varchar("source_url", { length: 500 }),
+        priceObservedAt: date("price_observed_at"),
+        priceConfidence: mysqlEnum("price_confidence", [
+          "assumption",
+          "indicative",
+          "quoted"
+        ]).default("assumption").notNull(),
+        provenancePolicyVersion: varchar("provenance_policy_version", {
+          length: 64
+        }).default("material-library-provenance-v1").notNull()
+      },
+      (table) => [
+        uniqueIndex("material_library_product_code_unique").on(table.productCode)
+      ]
+    );
     finishScheduleItems = mysqlTable("finish_schedule_items", {
       id: int("id").primaryKey().autoincrement(),
       projectId: int("project_id").notNull(),
@@ -2560,9 +2634,17 @@ var init_schema = __esm({
         "wall_wet",
         "ceiling",
         "joinery",
-        "hardware"
+        "hardware",
+        "sanitaryware"
       ]).notNull(),
       materialLibraryId: int("material_library_id"),
+      productId: int("product_id"),
+      specId: int("spec_id"),
+      identityState: mysqlEnum("identity_state", [
+        "resolved",
+        "unresolved",
+        "legacy_unverified"
+      ]).default("legacy_unverified").notNull(),
       overrideSpec: varchar("override_spec", { length: 500 }),
       notes: text("notes"),
       createdAt: timestamp("created_at").defaultNow().notNull()
@@ -2586,11 +2668,73 @@ var init_schema = __esm({
       itemCode: varchar("item_code", { length: 20 }).notNull(),
       description: varchar("description", { length: 500 }).notNull(),
       unit: varchar("unit", { length: 20 }).notNull(),
-      quantity: decimal("quantity", { precision: 10, scale: 2 }),
+      quantity: decimal("quantity", { precision: 12, scale: 3 }),
       unitRateAedMin: decimal("unit_rate_aed_min", { precision: 10, scale: 2 }),
       unitRateAedMax: decimal("unit_rate_aed_max", { precision: 10, scale: 2 }),
       totalAedMin: decimal("total_aed_min", { precision: 12, scale: 2 }),
       totalAedMax: decimal("total_aed_max", { precision: 12, scale: 2 }),
+      productId: int("product_id"),
+      specId: int("spec_id"),
+      benchmarkProposalId: int("benchmark_proposal_id"),
+      resolutionState: mysqlEnum("resolution_state", [
+        "resolved",
+        "insufficient",
+        "legacy_unverified"
+      ]).default("legacy_unverified").notNull(),
+      resolutionReason: varchar("resolution_reason", { length: 64 }),
+      resolvedPriceScope: mysqlEnum("resolved_price_scope", [
+        "supply_only",
+        "supply_and_install",
+        "legacy_unknown"
+      ]),
+      requestedGeography: mysqlEnum("requested_geography", [
+        "dubai",
+        "abu_dhabi",
+        "sharjah",
+        "ajman",
+        "umm_al_quwain",
+        "ras_al_khaimah",
+        "fujairah",
+        "uae"
+      ]),
+      resolvedGeography: mysqlEnum("resolved_geography", [
+        "dubai",
+        "abu_dhabi",
+        "sharjah",
+        "ajman",
+        "umm_al_quwain",
+        "ras_al_khaimah",
+        "fujairah",
+        "uae"
+      ]),
+      resolvedUnitBasis: mysqlEnum("resolved_unit_basis", [
+        "per_piece",
+        "per_pack",
+        "per_sqm",
+        "per_lm",
+        "per_litre"
+      ]),
+      resolutionAsOf: timestamp("resolution_as_of"),
+      resolverPolicyVersion: varchar("resolver_policy_version", { length: 64 }),
+      benchmarkVersionId: int("benchmark_version_id"),
+      benchmarkVersion: varchar("benchmark_version", { length: 64 }),
+      provenancePolicyVersion: varchar("provenance_policy_version", { length: 64 }),
+      presentationProvenance: json("presentation_provenance"),
+      quantityPolicyVersion: varchar("quantity_policy_version", { length: 64 }),
+      quantityConversionInputs: json("quantity_conversion_inputs"),
+      lineKind: mysqlEnum("line_kind", [
+        "material",
+        "non_material_fee",
+        "legacy_unverified"
+      ]).default("legacy_unverified").notNull(),
+      artifactState: mysqlEnum("artifact_state", [
+        "draft",
+        "issued",
+        "legacy_unverified"
+      ]).default("legacy_unverified").notNull(),
+      nonMaterialPolicyVersion: varchar("non_material_policy_version", {
+        length: 64
+      }),
       supplierName: varchar("supplier_name", { length: 200 }),
       pricingSource: varchar("pricing_source", { length: 32 }),
       // "market-verified" | "estimated" | "manual"
@@ -2884,6 +3028,11 @@ var init_schema = __esm({
         precision: 18,
         scale: 2
       }),
+      lifecycleCostResolutionState: mysqlEnum("lifecycle_cost_resolution_state", [
+        "resolved",
+        "insufficient",
+        "legacy_unverified"
+      ]).default("legacy_unverified").notNull(),
       carbonBreakdown: json("carbon_breakdown"),
       lifecycle: json("lifecycle"),
       config: json("config"),
@@ -2906,7 +3055,12 @@ var init_schema = __esm({
       lifecycleCost: decimal("lifecycleCost", {
         precision: 18,
         scale: 2
-      }).notNull(),
+      }),
+      lifecycleCostResolutionState: mysqlEnum("lifecycleCostResolutionState", [
+        "resolved",
+        "insufficient",
+        "legacy_unverified"
+      ]).default("legacy_unverified").notNull(),
       carbonPerSqm: decimal("carbonPerSqm", { precision: 12, scale: 2 }).notNull(),
       energyRating: varchar("energyRating", { length: 2 }),
       renewablesEnabled: boolean("renewablesEnabled").default(false),
@@ -3117,7 +3271,8 @@ var init_schema = __esm({
         "walls",
         "ceiling",
         "joinery",
-        "hardware"
+        "hardware",
+        "sanitaryware"
       ]).notNull(),
       materialLibraryId: int("materialLibraryId"),
       materialName: varchar("materialName", { length: 300 }).notNull(),
@@ -3126,10 +3281,70 @@ var init_schema = __esm({
         precision: 10,
         scale: 2
       }).notNull(),
+      explicitQuantity: decimal("explicitQuantity", {
+        precision: 12,
+        scale: 3
+      }),
+      explicitQuantityUnit: mysqlEnum("explicitQuantityUnit", [
+        "sqm",
+        "lm",
+        "piece",
+        "pack",
+        "litre"
+      ]),
       unitCostMin: decimal("unitCostMin", { precision: 10, scale: 2 }),
       unitCostMax: decimal("unitCostMax", { precision: 10, scale: 2 }),
       totalCostMin: decimal("totalCostMin", { precision: 12, scale: 2 }),
       totalCostMax: decimal("totalCostMax", { precision: 12, scale: 2 }),
+      productId: int("productId"),
+      specId: int("specId"),
+      benchmarkProposalId: int("benchmarkProposalId"),
+      resolutionState: mysqlEnum("resolutionState", [
+        "resolved",
+        "insufficient",
+        "legacy_unverified"
+      ]).default("legacy_unverified").notNull(),
+      resolutionReason: varchar("resolutionReason", { length: 64 }),
+      resolvedPriceScope: mysqlEnum("resolvedPriceScope", [
+        "supply_only",
+        "supply_and_install",
+        "legacy_unknown"
+      ]),
+      requestedGeography: mysqlEnum("requestedGeography", [
+        "dubai",
+        "abu_dhabi",
+        "sharjah",
+        "ajman",
+        "umm_al_quwain",
+        "ras_al_khaimah",
+        "fujairah",
+        "uae"
+      ]),
+      resolvedGeography: mysqlEnum("resolvedGeography", [
+        "dubai",
+        "abu_dhabi",
+        "sharjah",
+        "ajman",
+        "umm_al_quwain",
+        "ras_al_khaimah",
+        "fujairah",
+        "uae"
+      ]),
+      resolvedUnitBasis: mysqlEnum("resolvedUnitBasis", [
+        "per_piece",
+        "per_pack",
+        "per_sqm",
+        "per_lm",
+        "per_litre"
+      ]),
+      resolutionAsOf: timestamp("resolutionAsOf"),
+      resolverPolicyVersion: varchar("resolverPolicyVersion", { length: 64 }),
+      benchmarkVersionId: int("benchmarkVersionId"),
+      benchmarkVersion: varchar("benchmarkVersion", { length: 64 }),
+      provenancePolicyVersion: varchar("provenancePolicyVersion", { length: 64 }),
+      presentationProvenance: json("presentationProvenance"),
+      quantityPolicyVersion: varchar("quantityPolicyVersion", { length: 64 }),
+      quantityConversionInputs: json("quantityConversionInputs"),
       aiReasoning: text("aiReasoning"),
       isLocked: boolean("isLocked").default(false).notNull(),
       generatedAt: timestamp("generatedAt").defaultNow().notNull(),
@@ -4016,8 +4231,12 @@ var init_schema = __esm({
         revisionNumber: int("revisionNumber").notNull(),
         basePackKey: varchar("basePackKey", { length: 96 }).notNull(),
         basePackVersion: varchar("basePackVersion", { length: 32 }).notNull(),
-        basePackFingerprint: varchar("basePackFingerprint", { length: 64 }).notNull(),
-        payloadSchemaVersion: varchar("payloadSchemaVersion", { length: 32 }).notNull(),
+        basePackFingerprint: varchar("basePackFingerprint", {
+          length: 64
+        }).notNull(),
+        payloadSchemaVersion: varchar("payloadSchemaVersion", {
+          length: 32
+        }).notNull(),
         payload: json("payload").notNull(),
         payloadFingerprint: varchar("payloadFingerprint", { length: 64 }).notNull(),
         status: mysqlEnum("status", ["draft", "reviewed", "approved", "withdrawn"]).notNull().default("draft"),
@@ -4032,9 +4251,20 @@ var init_schema = __esm({
         createdAt: timestamp("createdAt").defaultNow().notNull()
       },
       (table) => [
-        uniqueIndex("typology_pack_revisions_org_pack_revision_unique").on(table.organizationId, table.packKey, table.revisionNumber),
-        uniqueIndex("typology_pack_revisions_org_id_unique").on(table.organizationId, table.id),
-        index("typology_pack_revisions_org_status_idx").on(table.organizationId, table.packKey, table.status)
+        uniqueIndex("typology_pack_revisions_org_pack_revision_unique").on(
+          table.organizationId,
+          table.packKey,
+          table.revisionNumber
+        ),
+        uniqueIndex("typology_pack_revisions_org_id_unique").on(
+          table.organizationId,
+          table.id
+        ),
+        index("typology_pack_revisions_org_status_idx").on(
+          table.organizationId,
+          table.packKey,
+          table.status
+        )
       ]
     );
     typologyPackEvents = mysqlTable(
@@ -4043,7 +4273,12 @@ var init_schema = __esm({
         id: int("id").primaryKey().autoincrement(),
         organizationId: int("organizationId").notNull(),
         revisionId: int("revisionId").notNull(),
-        eventType: mysqlEnum("eventType", ["created", "reviewed", "approved", "withdrawn"]).notNull(),
+        eventType: mysqlEnum("eventType", [
+          "created",
+          "reviewed",
+          "approved",
+          "withdrawn"
+        ]).notNull(),
         actorUserId: int("actorUserId").notNull(),
         reason: text("reason").notNull(),
         idempotencyKey: varchar("idempotencyKey", { length: 128 }).notNull(),
@@ -4051,9 +4286,18 @@ var init_schema = __esm({
         createdAt: timestamp("createdAt").defaultNow().notNull()
       },
       (table) => [
-        uniqueIndex("typology_pack_events_org_id_unique").on(table.organizationId, table.id),
-        uniqueIndex("typology_pack_events_org_idempotency_unique").on(table.organizationId, table.idempotencyKey),
-        index("typology_pack_events_org_revision_idx").on(table.organizationId, table.revisionId)
+        uniqueIndex("typology_pack_events_org_id_unique").on(
+          table.organizationId,
+          table.id
+        ),
+        uniqueIndex("typology_pack_events_org_idempotency_unique").on(
+          table.organizationId,
+          table.idempotencyKey
+        ),
+        index("typology_pack_events_org_revision_idx").on(
+          table.organizationId,
+          table.revisionId
+        )
       ]
     );
     regulatorySources = mysqlTable(
@@ -4067,13 +4311,29 @@ var init_schema = __esm({
         languages: json("languages").notNull(),
         canonicalUrl: text("canonicalUrl").notNull(),
         approvedHosts: json("approvedHosts").notNull(),
-        retentionPolicy: mysqlEnum("retentionPolicy", ["metadata_only", "artifact_permitted", "prohibited", "pending_review"]).notNull(),
-        licensingStatus: mysqlEnum("licensingStatus", ["permitted", "restricted", "prohibited", "pending_review"]).notNull(),
-        coverageStatus: mysqlEnum("coverageStatus", ["supported", "candidate", "unsupported"]).notNull().default("candidate"),
+        retentionPolicy: mysqlEnum("retentionPolicy", [
+          "metadata_only",
+          "artifact_permitted",
+          "prohibited",
+          "pending_review"
+        ]).notNull(),
+        licensingStatus: mysqlEnum("licensingStatus", [
+          "permitted",
+          "restricted",
+          "prohibited",
+          "pending_review"
+        ]).notNull(),
+        coverageStatus: mysqlEnum("coverageStatus", [
+          "supported",
+          "candidate",
+          "unsupported"
+        ]).notNull().default("candidate"),
         createdAt: timestamp("createdAt").defaultNow().notNull(),
         updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
       },
-      (table) => [uniqueIndex("regulatory_sources_source_key_unique").on(table.sourceKey)]
+      (table) => [
+        uniqueIndex("regulatory_sources_source_key_unique").on(table.sourceKey)
+      ]
     );
     regulatorySourceVersions = mysqlTable(
       "regulatory_source_versions",
@@ -4087,15 +4347,38 @@ var init_schema = __esm({
         effectiveTo: timestamp("effectiveTo"),
         contentFingerprint: varchar("contentFingerprint", { length: 64 }).notNull(),
         parserVersion: varchar("parserVersion", { length: 64 }).notNull(),
-        status: mysqlEnum("status", ["candidate", "asserted", "stale", "withdrawn", "archived"]).notNull().default("candidate"),
+        status: mysqlEnum("status", [
+          "candidate",
+          "asserted",
+          "stale",
+          "withdrawn",
+          "archived"
+        ]).notNull().default("candidate"),
         createdAt: timestamp("createdAt").defaultNow().notNull()
       },
       (table) => [
-        uniqueIndex("regulatory_source_versions_source_version_unique").on(table.sourceId, table.versionKey),
-        uniqueIndex("regulatory_source_versions_source_fingerprint_unique").on(table.sourceId, table.contentFingerprint),
-        uniqueIndex("regulatory_source_versions_source_id_unique").on(table.sourceId, table.id),
-        index("regulatory_source_versions_temporal_idx").on(table.sourceId, table.effectiveFrom, table.effectiveTo),
-        foreignKey({ name: "reg_source_versions_source_fk", columns: [table.sourceId], foreignColumns: [regulatorySources.id] })
+        uniqueIndex("regulatory_source_versions_source_version_unique").on(
+          table.sourceId,
+          table.versionKey
+        ),
+        uniqueIndex("regulatory_source_versions_source_fingerprint_unique").on(
+          table.sourceId,
+          table.contentFingerprint
+        ),
+        uniqueIndex("regulatory_source_versions_source_id_unique").on(
+          table.sourceId,
+          table.id
+        ),
+        index("regulatory_source_versions_temporal_idx").on(
+          table.sourceId,
+          table.effectiveFrom,
+          table.effectiveTo
+        ),
+        foreignKey({
+          name: "reg_source_versions_source_fk",
+          columns: [table.sourceId],
+          foreignColumns: [regulatorySources.id]
+        })
       ]
     );
     regulatorySourceCaptures = mysqlTable(
@@ -4115,15 +4398,36 @@ var init_schema = __esm({
         lastModified: varchar("lastModified", { length: 255 }),
         parserVersion: varchar("parserVersion", { length: 64 }).notNull(),
         storageReference: text("storageReference"),
-        fetchResult: mysqlEnum("fetchResult", ["captured", "unchanged", "changed_candidate", "disappeared_candidate", "denied", "failed"]).notNull(),
+        fetchResult: mysqlEnum("fetchResult", [
+          "captured",
+          "unchanged",
+          "changed_candidate",
+          "disappeared_candidate",
+          "denied",
+          "failed"
+        ]).notNull(),
         failureCode: varchar("failureCode", { length: 64 }),
         createdAt: timestamp("createdAt").defaultNow().notNull()
       },
       (table) => [
-        index("regulatory_source_captures_source_time_idx").on(table.sourceId, table.retrievedAt),
+        index("regulatory_source_captures_source_time_idx").on(
+          table.sourceId,
+          table.retrievedAt
+        ),
         index("regulatory_source_captures_version_idx").on(table.sourceVersionId),
-        foreignKey({ name: "reg_source_captures_source_fk", columns: [table.sourceId], foreignColumns: [regulatorySources.id] }),
-        foreignKey({ name: "reg_source_captures_version_fk", columns: [table.sourceId, table.sourceVersionId], foreignColumns: [regulatorySourceVersions.sourceId, regulatorySourceVersions.id] })
+        foreignKey({
+          name: "reg_source_captures_source_fk",
+          columns: [table.sourceId],
+          foreignColumns: [regulatorySources.id]
+        }),
+        foreignKey({
+          name: "reg_source_captures_version_fk",
+          columns: [table.sourceId, table.sourceVersionId],
+          foreignColumns: [
+            regulatorySourceVersions.sourceId,
+            regulatorySourceVersions.id
+          ]
+        })
       ]
     );
     regulatoryClauseCandidates = mysqlTable(
@@ -4135,15 +4439,36 @@ var init_schema = __esm({
         locator: varchar("locator", { length: 255 }).notNull(),
         pageLocator: varchar("pageLocator", { length: 64 }),
         candidateSummary: text("candidateSummary").notNull(),
-        candidateFingerprint: varchar("candidateFingerprint", { length: 64 }).notNull(),
-        extractionMethod: mysqlEnum("extractionMethod", ["deterministic", "ai_extracted_candidate", "human_transcription"]).notNull(),
-        reviewStatus: mysqlEnum("reviewStatus", ["candidate", "accepted_for_review", "rejected"]).notNull().default("candidate"),
+        candidateFingerprint: varchar("candidateFingerprint", {
+          length: 64
+        }).notNull(),
+        extractionMethod: mysqlEnum("extractionMethod", [
+          "deterministic",
+          "ai_extracted_candidate",
+          "human_transcription"
+        ]).notNull(),
+        reviewStatus: mysqlEnum("reviewStatus", [
+          "candidate",
+          "accepted_for_review",
+          "rejected"
+        ]).notNull().default("candidate"),
         createdAt: timestamp("createdAt").defaultNow().notNull()
       },
       (table) => [
-        uniqueIndex("regulatory_clause_candidates_version_key_unique").on(table.sourceVersionId, table.clauseKey, table.candidateFingerprint),
-        index("regulatory_clause_candidates_version_status_idx").on(table.sourceVersionId, table.reviewStatus),
-        foreignKey({ name: "reg_clause_candidates_version_fk", columns: [table.sourceVersionId], foreignColumns: [regulatorySourceVersions.id] })
+        uniqueIndex("regulatory_clause_candidates_version_key_unique").on(
+          table.sourceVersionId,
+          table.clauseKey,
+          table.candidateFingerprint
+        ),
+        index("regulatory_clause_candidates_version_status_idx").on(
+          table.sourceVersionId,
+          table.reviewStatus
+        ),
+        foreignKey({
+          name: "reg_clause_candidates_version_fk",
+          columns: [table.sourceVersionId],
+          foreignColumns: [regulatorySourceVersions.id]
+        })
       ]
     );
     regulatorySourceRelations = mysqlTable(
@@ -4152,18 +4477,40 @@ var init_schema = __esm({
         id: int("id").primaryKey().autoincrement(),
         sourceVersionId: int("sourceVersionId").notNull(),
         targetSourceVersionId: int("targetSourceVersionId").notNull(),
-        relationType: mysqlEnum("relationType", ["amends", "supersedes", "suspends", "revokes", "clarifies"]).notNull(),
-        relationFingerprint: varchar("relationFingerprint", { length: 64 }).notNull(),
+        relationType: mysqlEnum("relationType", [
+          "amends",
+          "supersedes",
+          "suspends",
+          "revokes",
+          "clarifies"
+        ]).notNull(),
+        relationFingerprint: varchar("relationFingerprint", {
+          length: 64
+        }).notNull(),
         clauseScope: json("clauseScope").notNull(),
         effectiveFrom: timestamp("effectiveFrom"),
         effectiveTo: timestamp("effectiveTo"),
         createdAt: timestamp("createdAt").defaultNow().notNull()
       },
       (table) => [
-        uniqueIndex("regulatory_source_relations_fingerprint_unique").on(table.relationFingerprint),
-        index("regulatory_source_relations_temporal_idx").on(table.targetSourceVersionId, table.effectiveFrom, table.effectiveTo),
-        foreignKey({ name: "reg_source_relations_source_fk", columns: [table.sourceVersionId], foreignColumns: [regulatorySourceVersions.id] }),
-        foreignKey({ name: "reg_source_relations_target_fk", columns: [table.targetSourceVersionId], foreignColumns: [regulatorySourceVersions.id] })
+        uniqueIndex("regulatory_source_relations_fingerprint_unique").on(
+          table.relationFingerprint
+        ),
+        index("regulatory_source_relations_temporal_idx").on(
+          table.targetSourceVersionId,
+          table.effectiveFrom,
+          table.effectiveTo
+        ),
+        foreignKey({
+          name: "reg_source_relations_source_fk",
+          columns: [table.sourceVersionId],
+          foreignColumns: [regulatorySourceVersions.id]
+        }),
+        foreignKey({
+          name: "reg_source_relations_target_fk",
+          columns: [table.targetSourceVersionId],
+          foreignColumns: [regulatorySourceVersions.id]
+        })
       ]
     );
     regulatorySourceAssertions = mysqlTable(
@@ -4171,20 +4518,46 @@ var init_schema = __esm({
       {
         id: int("id").primaryKey().autoincrement(),
         sourceVersionId: int("sourceVersionId").notNull(),
-        assertionType: mysqlEnum("assertionType", ["document_identity", "authenticity", "temporal_status", "jurisdiction", "permitted_use"]).notNull(),
-        decision: mysqlEnum("decision", ["accepted", "rejected", "withdrawn"]).notNull(),
+        assertionType: mysqlEnum("assertionType", [
+          "document_identity",
+          "authenticity",
+          "temporal_status",
+          "jurisdiction",
+          "permitted_use"
+        ]).notNull(),
+        decision: mysqlEnum("decision", [
+          "accepted",
+          "rejected",
+          "withdrawn"
+        ]).notNull(),
         assertedByUserId: int("assertedByUserId").notNull(),
         reason: text("reason").notNull(),
-        assertionFingerprint: varchar("assertionFingerprint", { length: 64 }).notNull(),
+        assertionFingerprint: varchar("assertionFingerprint", {
+          length: 64
+        }).notNull(),
         validFrom: timestamp("validFrom").defaultNow().notNull(),
         validTo: timestamp("validTo"),
         createdAt: timestamp("createdAt").defaultNow().notNull()
       },
       (table) => [
-        uniqueIndex("regulatory_source_assertions_fingerprint_unique").on(table.assertionFingerprint),
-        index("regulatory_source_assertions_version_type_idx").on(table.sourceVersionId, table.assertionType, table.decision),
-        foreignKey({ name: "reg_source_assertions_version_fk", columns: [table.sourceVersionId], foreignColumns: [regulatorySourceVersions.id] }),
-        foreignKey({ name: "reg_source_assertions_user_fk", columns: [table.assertedByUserId], foreignColumns: [users.id] })
+        uniqueIndex("regulatory_source_assertions_fingerprint_unique").on(
+          table.assertionFingerprint
+        ),
+        index("regulatory_source_assertions_version_type_idx").on(
+          table.sourceVersionId,
+          table.assertionType,
+          table.decision
+        ),
+        foreignKey({
+          name: "reg_source_assertions_version_fk",
+          columns: [table.sourceVersionId],
+          foreignColumns: [regulatorySourceVersions.id]
+        }),
+        foreignKey({
+          name: "reg_source_assertions_user_fk",
+          columns: [table.assertedByUserId],
+          foreignColumns: [users.id]
+        })
       ]
     );
     briefSectionValues = [
@@ -4292,7 +4665,11 @@ var init_schema = __esm({
         foreignKey({
           name: "brief_versions_stream_scope_fk",
           columns: [t2.organizationId, t2.projectId, t2.streamId],
-          foreignColumns: [briefStreams.organizationId, briefStreams.projectId, briefStreams.id]
+          foreignColumns: [
+            briefStreams.organizationId,
+            briefStreams.projectId,
+            briefStreams.id
+          ]
         })
       ]
     );
@@ -4389,12 +4766,20 @@ var init_schema = __esm({
         foreignKey({
           name: "brief_version_sections_version_scope_fk",
           columns: [t2.organizationId, t2.projectId, t2.versionId],
-          foreignColumns: [briefVersions.organizationId, briefVersions.projectId, briefVersions.id]
+          foreignColumns: [
+            briefVersions.organizationId,
+            briefVersions.projectId,
+            briefVersions.id
+          ]
         }),
         foreignKey({
           name: "brief_version_sections_revision_scope_fk",
           columns: [t2.organizationId, t2.projectId, t2.sectionRevisionId],
-          foreignColumns: [briefSectionRevisions.organizationId, briefSectionRevisions.projectId, briefSectionRevisions.id]
+          foreignColumns: [
+            briefSectionRevisions.organizationId,
+            briefSectionRevisions.projectId,
+            briefSectionRevisions.id
+          ]
         })
       ]
     );
@@ -4843,17 +5228,29 @@ var init_schema = __esm({
         foreignKey({
           name: "brief_issue_sections_issue_scope_fk",
           columns: [t2.organizationId, t2.projectId, t2.issueId],
-          foreignColumns: [briefIssues.organizationId, briefIssues.projectId, briefIssues.id]
+          foreignColumns: [
+            briefIssues.organizationId,
+            briefIssues.projectId,
+            briefIssues.id
+          ]
         }),
         foreignKey({
           name: "brief_issue_sections_binding_scope_fk",
           columns: [t2.organizationId, t2.projectId, t2.bindingId],
-          foreignColumns: [briefVersionSections.organizationId, briefVersionSections.projectId, briefVersionSections.id]
+          foreignColumns: [
+            briefVersionSections.organizationId,
+            briefVersionSections.projectId,
+            briefVersionSections.id
+          ]
         }),
         foreignKey({
           name: "brief_issue_sections_revision_scope_fk",
           columns: [t2.organizationId, t2.projectId, t2.sectionRevisionId],
-          foreignColumns: [briefSectionRevisions.organizationId, briefSectionRevisions.projectId, briefSectionRevisions.id]
+          foreignColumns: [
+            briefSectionRevisions.organizationId,
+            briefSectionRevisions.projectId,
+            briefSectionRevisions.id
+          ]
         })
       ]
     );
@@ -5072,6 +5469,7 @@ __export(db_exports, {
   createEvidenceRecordForOrg: () => createEvidenceRecordForOrg,
   createEvidenceRecordWithConfidenceAssessment: () => createEvidenceRecordWithConfidenceAssessment,
   createEvidenceReference: () => createEvidenceReference,
+  createExplicitMaterialAllocationForOrg: () => createExplicitMaterialAllocationForOrg,
   createFloorPlanAssetAndLinkForOrg: () => createFloorPlanAssetAndLinkForOrg,
   createGeneratedVisual: () => createGeneratedVisual,
   createGeneratedVisualForOrg: () => createGeneratedVisualForOrg,
@@ -5371,6 +5769,7 @@ __export(db_exports, {
   updatePdfExtraction: () => updatePdfExtraction,
   updatePdfExtractionForOrg: () => updatePdfExtractionForOrg,
   updateProject: () => updateProject,
+  updateProjectAndInvalidateMaterialPricingForOrg: () => updateProjectAndInvalidateMaterialPricingForOrg,
   updateProjectApprovalState: () => updateProjectApprovalState,
   updateProjectApprovalStateForOrg: () => updateProjectApprovalStateForOrg,
   updateProjectAsset: () => updateProjectAsset,
@@ -5389,9 +5788,21 @@ __export(db_exports, {
   upsertBiasProfile: () => upsertBiasProfile,
   upsertPublicEvidenceObservation: () => upsertPublicEvidenceObservation,
   upsertUser: () => upsertUser,
+  validateIssuedRfqArtifacts: () => validateIssuedRfqArtifacts,
   verifyPdfExtractionForOrg: () => verifyPdfExtractionForOrg
 });
-import { eq, and, desc, asc, sql, inArray, gte, isNull, isNotNull, or } from "drizzle-orm";
+import {
+  eq,
+  and,
+  desc,
+  asc,
+  sql,
+  inArray,
+  gte,
+  isNull,
+  isNotNull,
+  or
+} from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2";
 import { createHash } from "node:crypto";
@@ -5400,7 +5811,12 @@ async function getDb() {
     assertDatabaseAccess();
     try {
       const url = new URL(process.env.DATABASE_URL);
-      console.log("[Database] Connecting to:", url.hostname, "database:", url.pathname.slice(1));
+      console.log(
+        "[Database] Connecting to:",
+        url.hostname,
+        "database:",
+        url.pathname.slice(1)
+      );
       const pool = mysql.createPool({
         host: url.hostname,
         port: url.port ? parseInt(url.port) : 3306,
@@ -5420,7 +5836,10 @@ async function getDb() {
     }
   }
   if (!_db) {
-    console.warn("[Database] getDb() returning null. DATABASE_URL set:", !!process.env.DATABASE_URL);
+    console.warn(
+      "[Database] getDb() returning null. DATABASE_URL set:",
+      !!process.env.DATABASE_URL
+    );
   }
   return _db;
 }
@@ -5488,7 +5907,12 @@ async function getUserByOpenId(openId) {
 }
 async function getUserByEmail(email) {
   const db = await getDb();
-  console.log("[Database] getUserByEmail called, db available:", !!db, "email:", email);
+  console.log(
+    "[Database] getUserByEmail called, db available:",
+    !!db,
+    "email:",
+    email
+  );
   if (!db) return void 0;
   const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
   console.log("[Database] getUserByEmail query result count:", result.length);
@@ -5534,10 +5958,12 @@ async function getProjectsByOrg(orgId) {
 async function getOrganizationMemberships(userId, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  return db.select().from(organizationMembers).where(and(
-    eq(organizationMembers.userId, userId),
-    eq(organizationMembers.orgId, orgId)
-  )).limit(2);
+  return db.select().from(organizationMembers).where(
+    and(
+      eq(organizationMembers.userId, userId),
+      eq(organizationMembers.orgId, orgId)
+    )
+  ).limit(2);
 }
 async function getAllProjects() {
   const db = await getDb();
@@ -5561,10 +5987,83 @@ async function updateProjectForOrg(id, orgId, data) {
   const result = await db.update(projects).set(data).where(and(eq(projects.id, id), eq(projects.orgId, orgId)));
   return Number(result[0].affectedRows) === 1;
 }
+async function updateProjectAndInvalidateMaterialPricingForOrg(id, orgId, data) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const current = await tx.select({
+      materialPriceGeography: projects.materialPriceGeography,
+      materialPricingRevision: projects.materialPricingRevision
+    }).from(projects).where(and(eq(projects.id, id), eq(projects.orgId, orgId))).limit(1).for("update");
+    if (current.length !== 1) return false;
+    const geographyChanged = data.materialPriceGeography !== void 0 && data.materialPriceGeography !== current[0].materialPriceGeography;
+    const result = await tx.update(projects).set({
+      ...data,
+      ...geographyChanged ? {
+        materialPricingRevision: sql`${projects.materialPricingRevision} + 1`
+      } : {}
+    }).where(and(eq(projects.id, id), eq(projects.orgId, orgId)));
+    if (Number(result[0].affectedRows) !== 1) return false;
+    if (geographyChanged) {
+      await tx.update(materialAllocations).set({
+        unitCostMin: null,
+        unitCostMax: null,
+        totalCostMin: null,
+        totalCostMax: null,
+        benchmarkProposalId: null,
+        resolutionState: "insufficient",
+        resolutionReason: "no_governed_value",
+        resolvedPriceScope: null,
+        requestedGeography: null,
+        resolvedGeography: null,
+        resolvedUnitBasis: null,
+        resolutionAsOf: null,
+        resolverPolicyVersion: null,
+        benchmarkVersionId: null,
+        benchmarkVersion: null,
+        provenancePolicyVersion: null,
+        presentationProvenance: null,
+        quantityPolicyVersion: null,
+        quantityConversionInputs: null
+      }).where(
+        and(
+          eq(materialAllocations.projectId, id),
+          eq(materialAllocations.organizationId, orgId)
+        )
+      );
+      await tx.update(rfqLineItems).set({
+        unitRateAedMin: null,
+        unitRateAedMax: null,
+        totalAedMin: null,
+        totalAedMax: null,
+        benchmarkProposalId: null,
+        resolutionState: "insufficient",
+        resolutionReason: "no_governed_value",
+        resolvedPriceScope: null,
+        requestedGeography: null,
+        resolvedGeography: null,
+        resolvedUnitBasis: null,
+        resolutionAsOf: null,
+        resolverPolicyVersion: null,
+        benchmarkVersionId: null,
+        benchmarkVersion: null,
+        provenancePolicyVersion: null,
+        presentationProvenance: null,
+        quantityPolicyVersion: null,
+        quantityConversionInputs: null
+      }).where(
+        and(
+          eq(rfqLineItems.projectId, id),
+          eq(rfqLineItems.organizationId, orgId),
+          eq(rfqLineItems.artifactState, "draft")
+        )
+      );
+    }
+    return true;
+  });
+}
 async function lockLegacyGeometryProjectForOrg(tx, projectId, organizationId) {
-  const ownedProject = await tx.select({ id: projects.id }).from(projects).where(
-    and(eq(projects.id, projectId), eq(projects.orgId, organizationId))
-  ).limit(1).for("update");
+  const ownedProject = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, organizationId))).limit(1).for("update");
   if (ownedProject.length !== 1) return "not_found";
   const authority = await tx.select({ mode: projectGeometryAuthorities.mode }).from(projectGeometryAuthorities).where(
     and(
@@ -5652,7 +6151,8 @@ async function getComparableScoreMatricesForOrg(orgId, excludeProjectId) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [eq(projects.orgId, orgId)];
-  if (excludeProjectId !== void 0) conditions.push(sql`${scoreMatrices.projectId} <> ${excludeProjectId}`);
+  if (excludeProjectId !== void 0)
+    conditions.push(sql`${scoreMatrices.projectId} <> ${excludeProjectId}`);
   return db.select({ scoreMatrix: scoreMatrices, project: projects }).from(scoreMatrices).innerJoin(projects, eq(scoreMatrices.projectId, projects.id)).where(and(...conditions)).orderBy(desc(scoreMatrices.computedAt));
 }
 async function createScenarioRecord(data) {
@@ -5703,10 +6203,7 @@ async function createScenarioStressTestForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const scenario = await tx.select({ id: scenarios.id }).from(scenarios).innerJoin(projects, eq(scenarios.projectId, projects.id)).where(and(
-      eq(scenarios.id, data.scenarioId),
-      eq(projects.orgId, orgId)
-    )).limit(1).for("update");
+    const scenario = await tx.select({ id: scenarios.id }).from(scenarios).innerJoin(projects, eq(scenarios.projectId, projects.id)).where(and(eq(scenarios.id, data.scenarioId), eq(projects.orgId, orgId))).limit(1).for("update");
     if (scenario.length !== 1) return false;
     await tx.insert(scenarioStressTests).values(data);
     return true;
@@ -5719,11 +6216,13 @@ async function createProjectRoiModelForOrg(data, orgId) {
     const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
     if (project.length !== 1) return false;
     if (data.scenarioId !== null && data.scenarioId !== void 0) {
-      const scenario = await tx.select({ id: scenarios.id }).from(scenarios).where(and(
-        eq(scenarios.id, data.scenarioId),
-        eq(scenarios.projectId, data.projectId),
-        eq(scenarios.orgId, orgId)
-      )).limit(1).for("update");
+      const scenario = await tx.select({ id: scenarios.id }).from(scenarios).where(
+        and(
+          eq(scenarios.id, data.scenarioId),
+          eq(scenarios.projectId, data.projectId),
+          eq(scenarios.orgId, orgId)
+        )
+      ).limit(1).for("update");
       if (scenario.length !== 1) return false;
     }
     await tx.insert(projectRoiModels).values(data);
@@ -5800,7 +6299,10 @@ async function getBenchmarks(typology, location, marketTier) {
 async function getExpectedCost(typology, location, marketTier) {
   const benchmarks = await getBenchmarks(typology, location, marketTier);
   if (benchmarks.length === 0) return 400 * 10.7639;
-  const avgSqft = benchmarks.reduce((sum, b) => sum + Number(b.costPerSqftMid ?? 400), 0) / benchmarks.length;
+  const avgSqft = benchmarks.reduce(
+    (sum, b) => sum + Number(b.costPerSqftMid ?? 400),
+    0
+  ) / benchmarks.length;
   return avgSqft * 10.7639;
 }
 async function createBenchmark(data) {
@@ -5859,8 +6361,16 @@ async function getBenchmarkDiff(oldVersionId, newVersionId) {
   if (!db) return { added: 0, removed: 0, changed: 0 };
   const oldData = await db.select().from(benchmarkData).where(eq(benchmarkData.benchmarkVersionId, oldVersionId));
   const newData = await db.select().from(benchmarkData).where(eq(benchmarkData.benchmarkVersionId, newVersionId));
-  const oldKeys = new Set(oldData.map((d) => `${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`));
-  const newKeys = new Set(newData.map((d) => `${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`));
+  const oldKeys = new Set(
+    oldData.map(
+      (d) => `${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`
+    )
+  );
+  const newKeys = new Set(
+    newData.map(
+      (d) => `${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`
+    )
+  );
   let added = 0, removed = 0, changed = 0;
   newKeys.forEach((k) => {
     if (!oldKeys.has(k)) added++;
@@ -5868,13 +6378,24 @@ async function getBenchmarkDiff(oldVersionId, newVersionId) {
   oldKeys.forEach((k) => {
     if (!newKeys.has(k)) removed++;
   });
-  const oldMap = new Map(oldData.map((d) => [`${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`, d]));
-  const newMap = new Map(newData.map((d) => [`${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`, d]));
+  const oldMap = new Map(
+    oldData.map((d) => [
+      `${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`,
+      d
+    ])
+  );
+  const newMap = new Map(
+    newData.map((d) => [
+      `${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`,
+      d
+    ])
+  );
   oldKeys.forEach((k) => {
     if (newKeys.has(k)) {
       const o = oldMap.get(k);
       const n = newMap.get(k);
-      if (o && n && Number(o.costPerSqftMid) !== Number(n.costPerSqftMid)) changed++;
+      if (o && n && Number(o.costPerSqftMid) !== Number(n.costPerSqftMid))
+        changed++;
     }
   });
   return { added, removed, changed };
@@ -5883,8 +6404,10 @@ async function getAllBenchmarkCategories(category, projectClass) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [];
-  if (category) conditions.push(eq(benchmarkCategories.category, category));
-  if (projectClass) conditions.push(eq(benchmarkCategories.projectClass, projectClass));
+  if (category)
+    conditions.push(eq(benchmarkCategories.category, category));
+  if (projectClass)
+    conditions.push(eq(benchmarkCategories.projectClass, projectClass));
   let query = db.select().from(benchmarkCategories);
   if (conditions.length > 0) {
     query = query.where(and(...conditions));
@@ -5983,31 +6506,116 @@ async function createReportInstance(data) {
   const result = await db.insert(reportInstances).values(data);
   return { id: Number(result[0].insertId) };
 }
+function finiteAed(value) {
+  if (typeof value !== "number" && typeof value !== "string") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+function validateIssuedRfqArtifacts(artifacts) {
+  const materialLines = artifacts.rfqItems.filter(
+    (row) => row.lineKind === "material"
+  );
+  if (materialLines.length === 0 || artifacts.rfqItems.some(
+    (row) => row.resolutionState !== "resolved" || row.lineKind !== "material" && row.lineKind !== "non_material_fee"
+  )) {
+    return { valid: false, reason: "incomplete_lines" };
+  }
+  let totalMin = 0;
+  let totalMax = 0;
+  let materialResolutionClock = null;
+  let materialResolverPolicy = null;
+  for (const row of artifacts.rfqItems) {
+    const lineMin = finiteAed(row.totalAedMin);
+    const lineMax = finiteAed(row.totalAedMax);
+    if (lineMin === null || lineMax === null || lineMin < 0 || lineMax < lineMin || row.lineKind === "material" && lineMin === 0) {
+      return { valid: false, reason: "incomplete_lines" };
+    }
+    if (row.lineKind === "material") {
+      const quantity = finiteAed(row.quantity);
+      const rateMin = finiteAed(row.unitRateAedMin);
+      const rateMax = finiteAed(row.unitRateAedMax);
+      const resolutionClock = row.resolutionAsOf instanceof Date ? row.resolutionAsOf.getTime() : new Date(String(row.resolutionAsOf ?? "")).getTime();
+      const resolverPolicy = typeof row.resolverPolicyVersion === "string" ? row.resolverPolicyVersion : "";
+      const provenance = row.presentationProvenance && typeof row.presentationProvenance === "object" && !Array.isArray(row.presentationProvenance) ? row.presentationProvenance : null;
+      const allowedProvenanceKeys = /* @__PURE__ */ new Set([
+        "sourceLadderRung",
+        "sourceLabel",
+        "provenancePolicyVersion",
+        "benchmarkVersion",
+        "compatibilityFallback"
+      ]);
+      const safeProvenance2 = provenance !== null && Object.keys(provenance).every((key) => allowedProvenanceKeys.has(key)) && typeof provenance.sourceLadderRung === "string" && typeof provenance.sourceLabel === "string" && typeof provenance.provenancePolicyVersion === "string" && typeof provenance.benchmarkVersion === "string" && provenance.compatibilityFallback === false;
+      if (row.resolvedPriceScope !== "supply_and_install" || !Number.isInteger(row.productId) || Number(row.productId) <= 0 || !Number.isInteger(row.specId) || Number(row.specId) <= 0 || !Number.isInteger(row.benchmarkProposalId) || Number(row.benchmarkProposalId) <= 0 || !Number.isFinite(resolutionClock) || resolverPolicy.length === 0 || typeof row.benchmarkVersion !== "string" || row.benchmarkVersion.length === 0 || typeof row.provenancePolicyVersion !== "string" || row.provenancePolicyVersion.length === 0 || typeof row.quantityPolicyVersion !== "string" || row.quantityPolicyVersion.length === 0 || !safeProvenance2 || quantity === null || quantity <= 0 || rateMin === null || rateMin <= 0 || rateMax === null || rateMax < rateMin || Math.abs(
+        lineMin - Math.round((quantity * rateMin + Number.EPSILON) * 100) / 100
+      ) > 5e-3 || Math.abs(
+        lineMax - Math.round((quantity * rateMax + Number.EPSILON) * 100) / 100
+      ) > 5e-3) {
+        return { valid: false, reason: "incomplete_lines" };
+      }
+      if (materialResolutionClock !== null && materialResolutionClock !== resolutionClock || materialResolverPolicy !== null && materialResolverPolicy !== resolverPolicy) {
+        return { valid: false, reason: "incomplete_lines" };
+      }
+      materialResolutionClock = resolutionClock;
+      materialResolverPolicy = resolverPolicy;
+    } else {
+      const quantity = finiteAed(row.quantity);
+      const rateMin = finiteAed(row.unitRateAedMin);
+      const rateMax = finiteAed(row.unitRateAedMax);
+      if (typeof row.nonMaterialPolicyVersion !== "string" || row.nonMaterialPolicyVersion.length === 0 || quantity === null || quantity <= 0 || rateMin === null || rateMin < 0 || rateMax === null || rateMax < rateMin || Math.abs(
+        lineMin - Math.round((quantity * rateMin + Number.EPSILON) * 100) / 100
+      ) > 5e-3 || Math.abs(
+        lineMax - Math.round((quantity * rateMax + Number.EPSILON) * 100) / 100
+      ) > 5e-3) {
+        return { valid: false, reason: "incomplete_lines" };
+      }
+    }
+    totalMin = Math.round((totalMin + lineMin + Number.EPSILON) * 100) / 100;
+    totalMax = Math.round((totalMax + lineMax + Number.EPSILON) * 100) / 100;
+  }
+  const detailedBudget = artifacts.brief.detailedBudget && typeof artifacts.brief.detailedBudget === "object" && !Array.isArray(artifacts.brief.detailedBudget) ? artifacts.brief.detailedBudget : null;
+  const persistedMin = finiteAed(detailedBudget?.rfqMin);
+  const persistedMax = finiteAed(detailedBudget?.rfqMax);
+  if (persistedMin === null || persistedMax === null) {
+    return { valid: false, reason: "missing_totals" };
+  }
+  if (Math.abs(persistedMin - totalMin) > 5e-3 || Math.abs(persistedMax - totalMax) > 5e-3) {
+    return { valid: false, reason: "totals_mismatch" };
+  }
+  return { valid: true, totalMin, totalMax };
+}
 async function createReportArtifactsForOrg(input) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const owned = await tx.select({ id: projects.id }).from(projects).where(and(
-      eq(projects.id, input.projectId),
-      eq(projects.orgId, input.orgId)
-    )).limit(1).for("update");
+    const owned = await tx.select({
+      id: projects.id,
+      materialPricingRevision: projects.materialPricingRevision
+    }).from(projects).where(
+      and(eq(projects.id, input.projectId), eq(projects.orgId, input.orgId))
+    ).limit(1).for("update");
     if (owned.length !== 1 || input.report.projectId !== input.projectId) {
       return null;
     }
-    const score = await tx.select({ id: scoreMatrices.id }).from(scoreMatrices).where(and(
-      eq(scoreMatrices.id, input.report.scoreMatrixId),
-      eq(scoreMatrices.projectId, input.projectId)
-    )).limit(1).for("update");
+    const score = await tx.select({ id: scoreMatrices.id }).from(scoreMatrices).where(
+      and(
+        eq(scoreMatrices.id, input.report.scoreMatrixId),
+        eq(scoreMatrices.projectId, input.projectId)
+      )
+    ).limit(1).for("update");
     if (score.length !== 1) return null;
     let briefId = null;
     const artifacts = input.designArtifacts;
     if (artifacts) {
+      if (!Number.isInteger(input.expectedMaterialPricingRevision) || owned[0].materialPricingRevision !== input.expectedMaterialPricingRevision) {
+        return null;
+      }
       const rowsMatch = artifacts.finishSchedule.every(
         (row) => row.projectId === input.projectId && row.organizationId === input.orgId
       ) && artifacts.colorPalette.projectId === input.projectId && artifacts.colorPalette.organizationId === input.orgId && artifacts.complianceChecklist.projectId === input.projectId && artifacts.complianceChecklist.organizationId === input.orgId && artifacts.brief.projectId === input.projectId && artifacts.rfqItems.every(
         (row) => row.projectId === input.projectId && row.organizationId === input.orgId
       );
       if (!rowsMatch) return null;
+      if (!validateIssuedRfqArtifacts(artifacts).valid) return null;
       if (artifacts.finishSchedule.length > 0) {
         await tx.insert(finishScheduleItems).values(artifacts.finishSchedule);
       }
@@ -6017,7 +6625,11 @@ async function createReportArtifactsForOrg(input) {
       briefId = Number(briefResult[0].insertId);
       if (artifacts.rfqItems.length > 0) {
         await tx.insert(rfqLineItems).values(
-          artifacts.rfqItems.map((row) => ({ ...row, briefId }))
+          artifacts.rfqItems.map((row) => ({
+            ...row,
+            briefId,
+            artifactState: "issued"
+          }))
         );
       }
     }
@@ -6123,14 +6735,16 @@ async function deleteProjectAsset(id) {
 async function deleteProjectAssetForOrg(id, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.delete(projectAssets).where(and(
-    eq(projectAssets.id, id),
-    sql`exists (
+  const result = await db.delete(projectAssets).where(
+    and(
+      eq(projectAssets.id, id),
+      sql`exists (
       select 1 from ${projects}
       where ${projects.id} = ${projectAssets.projectId}
         and ${projects.orgId} = ${orgId}
     )`
-  ));
+    )
+  );
   return Number(result[0].affectedRows) === 1;
 }
 async function updateProjectAsset(id, data) {
@@ -6141,14 +6755,16 @@ async function updateProjectAsset(id, data) {
 async function updateProjectAssetForOrg(id, orgId, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.update(projectAssets).set(data).where(and(
-    eq(projectAssets.id, id),
-    sql`exists (
+  const result = await db.update(projectAssets).set(data).where(
+    and(
+      eq(projectAssets.id, id),
+      sql`exists (
       select 1 from ${projects}
       where ${projects.id} = ${projectAssets.projectId}
         and ${projects.orgId} = ${orgId}
     )`
-  ));
+    )
+  );
   return Number(result[0].affectedRows) === 1;
 }
 async function linkProjectAssetsForOrg(assetIds, projectId, orgId) {
@@ -6159,10 +6775,12 @@ async function linkProjectAssetsForOrg(assetIds, projectId, orgId) {
   return db.transaction(async (tx) => {
     const target = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId))).limit(1).for("update");
     if (target.length !== 1) return false;
-    const authorizedAssets = await tx.select({ id: projectAssets.id }).from(projectAssets).innerJoin(projects, eq(projectAssets.projectId, projects.id)).where(and(
-      inArray(projectAssets.id, uniqueAssetIds),
-      eq(projects.orgId, orgId)
-    )).for("update");
+    const authorizedAssets = await tx.select({ id: projectAssets.id }).from(projectAssets).innerJoin(projects, eq(projectAssets.projectId, projects.id)).where(
+      and(
+        inArray(projectAssets.id, uniqueAssetIds),
+        eq(projects.orgId, orgId)
+      )
+    ).for("update");
     if (authorizedAssets.length !== uniqueAssetIds.length) return false;
     const result = await tx.update(projectAssets).set({ projectId }).where(inArray(projectAssets.id, uniqueAssetIds));
     return Number(result[0].affectedRows) === uniqueAssetIds.length;
@@ -6199,7 +6817,10 @@ async function getAssetLinksByEntity(linkType, linkId) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(assetLinks).where(
-    and(eq(assetLinks.linkType, linkType), eq(assetLinks.linkId, linkId))
+    and(
+      eq(assetLinks.linkType, linkType),
+      eq(assetLinks.linkId, linkId)
+    )
   );
 }
 async function deleteAssetLinkForOrg(id, orgId) {
@@ -6238,7 +6859,9 @@ async function createDesignBriefForOrg(data, orgId) {
     const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
     if (!owned[0]) return null;
     if (data.scenarioId !== null && data.scenarioId !== void 0) {
-      const scenario = await tx.select({ projectId: scenarios.projectId }).from(scenarios).where(and(eq(scenarios.id, data.scenarioId), eq(scenarios.orgId, orgId))).limit(1).for("update");
+      const scenario = await tx.select({ projectId: scenarios.projectId }).from(scenarios).where(
+        and(eq(scenarios.id, data.scenarioId), eq(scenarios.orgId, orgId))
+      ).limit(1).for("update");
       if (!scenario[0] || scenario[0].projectId !== data.projectId) return null;
     }
     const result = await tx.insert(designBriefs).values(data);
@@ -6275,7 +6898,9 @@ async function createGeneratedVisualForOrg(data, orgId) {
     const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
     if (!owned[0]) return null;
     if (data.scenarioId !== null && data.scenarioId !== void 0) {
-      const scenario = await tx.select({ projectId: scenarios.projectId }).from(scenarios).where(and(eq(scenarios.id, data.scenarioId), eq(scenarios.orgId, orgId))).limit(1).for("update");
+      const scenario = await tx.select({ projectId: scenarios.projectId }).from(scenarios).where(
+        and(eq(scenarios.id, data.scenarioId), eq(scenarios.orgId, orgId))
+      ).limit(1).for("update");
       if (!scenario[0] || scenario[0].projectId !== data.projectId) return null;
     }
     const result = await tx.insert(generatedVisuals).values(data);
@@ -6295,14 +6920,16 @@ async function updateGeneratedVisual(id, data) {
 async function updateGeneratedVisualForOrg(id, orgId, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.update(generatedVisuals).set(data).where(and(
-    eq(generatedVisuals.id, id),
-    sql`exists (
+  const result = await db.update(generatedVisuals).set(data).where(
+    and(
+      eq(generatedVisuals.id, id),
+      sql`exists (
       select 1 from ${projects}
       where ${projects.id} = ${generatedVisuals.projectId}
         and ${projects.orgId} = ${orgId}
     )`
-  ));
+    )
+  );
   return Number(result[0].affectedRows) === 1;
 }
 async function getGeneratedVisualById(id) {
@@ -6324,7 +6951,9 @@ async function createMaterialBoardForOrg(data, orgId) {
     const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
     if (!owned[0]) return null;
     if (data.scenarioId !== null && data.scenarioId !== void 0) {
-      const scenario = await tx.select({ projectId: scenarios.projectId }).from(scenarios).where(and(eq(scenarios.id, data.scenarioId), eq(scenarios.orgId, orgId))).limit(1).for("update");
+      const scenario = await tx.select({ projectId: scenarios.projectId }).from(scenarios).where(
+        and(eq(scenarios.id, data.scenarioId), eq(scenarios.orgId, orgId))
+      ).limit(1).for("update");
       if (!scenario[0] || scenario[0].projectId !== data.projectId) return null;
     }
     const result = await tx.insert(materialBoards).values(data);
@@ -6348,8 +6977,6 @@ async function getReportBoardSnapshotForOrg(projectId, orgId) {
     name: materialsCatalog.name,
     category: materialsCatalog.category,
     tier: materialsCatalog.tier,
-    costLow: materialsCatalog.typicalCostLow,
-    costHigh: materialsCatalog.typicalCostHigh,
     costUnit: materialsCatalog.costUnit,
     leadTimeDays: materialsCatalog.leadTimeDays,
     leadTimeBand: materialsCatalog.leadTimeBand,
@@ -6359,7 +6986,15 @@ async function getReportBoardSnapshotForOrg(projectId, orgId) {
     unitOfMeasure: materialsToBoards.unitOfMeasure,
     notes: materialsToBoards.notes,
     sortOrder: materialsToBoards.sortOrder
-  }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).leftJoin(materialsToBoards, eq(materialsToBoards.boardId, materialBoards.id)).leftJoin(materialsCatalog, eq(materialsCatalog.id, materialsToBoards.materialId)).where(and(eq(materialBoards.projectId, projectId), eq(projects.orgId, orgId))).orderBy(
+  }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).leftJoin(
+    materialsToBoards,
+    eq(materialsToBoards.boardId, materialBoards.id)
+  ).leftJoin(
+    materialsCatalog,
+    eq(materialsCatalog.id, materialsToBoards.materialId)
+  ).where(
+    and(eq(materialBoards.projectId, projectId), eq(projects.orgId, orgId))
+  ).orderBy(
     desc(materialBoards.createdAt),
     desc(materialBoards.id),
     asc(materialsToBoards.sortOrder),
@@ -6379,14 +7014,15 @@ async function getReportBoardSnapshotForOrg(projectId, orgId) {
     }
     if (row.linkId == null) continue;
     board.linkedItemCount += 1;
-    if (row.materialId == null || row.name == null || row.category == null || row.tier == null) continue;
+    if (row.materialId == null || row.name == null || row.category == null || row.tier == null)
+      continue;
     board.resolvedItems.push({
       materialId: row.materialId,
       name: row.name,
       category: row.category,
       tier: row.tier,
-      costLow: Number(row.costLow) || 0,
-      costHigh: Number(row.costHigh) || 0,
+      costLow: null,
+      costHigh: null,
       costUnit: row.costUnit || "AED/unit",
       leadTimeDays: row.leadTimeDays || 30,
       leadTimeBand: row.leadTimeBand || "medium",
@@ -6423,14 +7059,16 @@ async function deleteMaterialBoardForOrg(id, orgId) {
     const boardRows = await tx.select({ id: materialBoards.id }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).where(and(eq(materialBoards.id, id), eq(projects.orgId, orgId))).limit(1).for("update");
     if (!boardRows[0]) return false;
     await tx.delete(materialsToBoards).where(eq(materialsToBoards.boardId, id));
-    const result = await tx.delete(materialBoards).where(and(
-      eq(materialBoards.id, id),
-      sql`exists (
+    const result = await tx.delete(materialBoards).where(
+      and(
+        eq(materialBoards.id, id),
+        sql`exists (
         select 1 from ${projects}
         where ${projects.id} = ${materialBoards.projectId}
         and ${projects.orgId} = ${orgId}
       )`
-    ));
+      )
+    );
     if (Number(result[0].affectedRows) !== 1) {
       throw new Error("Material board deletion lost authorization");
     }
@@ -6445,23 +7083,28 @@ async function createMaterialBoardWithMaterialsForOrg(data, materialIds, orgId) 
     const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
     if (!owned[0]) return null;
     if (data.scenarioId !== null && data.scenarioId !== void 0) {
-      const scenario = await tx.select({ projectId: scenarios.projectId }).from(scenarios).where(and(
-        eq(scenarios.id, data.scenarioId),
-        eq(scenarios.orgId, orgId)
-      )).limit(1).for("update");
+      const scenario = await tx.select({ projectId: scenarios.projectId }).from(scenarios).where(
+        and(eq(scenarios.id, data.scenarioId), eq(scenarios.orgId, orgId))
+      ).limit(1).for("update");
       if (!scenario[0] || scenario[0].projectId !== data.projectId) return null;
     }
     let orderedMaterials = [];
     if (materialIds.length > 0) {
-      const rows = await tx.select().from(materialsCatalog).where(and(
-        inArray(materialsCatalog.id, materialIds),
-        eq(materialsCatalog.isActive, true)
-      )).for("update");
-      const materialsById = new Map(rows.map((material) => [
-        material.id,
-        material
-      ]));
-      orderedMaterials = materialIds.map((materialId) => materialsById.get(materialId)).filter((material) => Boolean(material));
+      const rows = await tx.select().from(materialsCatalog).where(
+        and(
+          inArray(materialsCatalog.id, materialIds),
+          eq(materialsCatalog.isActive, true)
+        )
+      ).for("update");
+      const materialsById = new Map(
+        rows.map((material) => [
+          material.id,
+          material
+        ])
+      );
+      orderedMaterials = materialIds.map((materialId) => materialsById.get(materialId)).filter(
+        (material) => Boolean(material)
+      );
       if (orderedMaterials.length !== materialIds.length) return null;
     }
     const boardResult = await tx.insert(materialBoards).values({
@@ -6471,9 +7114,12 @@ async function createMaterialBoardWithMaterialsForOrg(data, materialIds, orgId) 
     const boardId = Number(boardResult[0].insertId);
     if (materialIds.length > 0) {
       await tx.insert(materialsToBoards).values(
-        materialIds.map((materialId, sortOrder) => ({
+        orderedMaterials.map((material, sortOrder) => ({
           boardId,
-          materialId,
+          materialId: material.id,
+          productId: material.productId,
+          specId: null,
+          identityState: "unresolved",
           sortOrder
         }))
       );
@@ -6521,14 +7167,28 @@ async function addMaterialToBoardForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const owned = await tx.select({ id: materialBoards.id }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).where(and(eq(materialBoards.id, data.boardId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const owned = await tx.select({ id: materialBoards.id }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).where(
+      and(eq(materialBoards.id, data.boardId), eq(projects.orgId, orgId))
+    ).limit(1).for("update");
     if (!owned[0]) return null;
-    const material = await tx.select({ id: materialsCatalog.id }).from(materialsCatalog).where(and(
-      eq(materialsCatalog.id, data.materialId),
-      eq(materialsCatalog.isActive, true)
-    )).limit(1).for("update");
+    const material = await tx.select({
+      id: materialsCatalog.id,
+      productId: materialsCatalog.productId
+    }).from(materialsCatalog).where(
+      and(
+        eq(materialsCatalog.id, data.materialId),
+        eq(materialsCatalog.isActive, true)
+      )
+    ).limit(1).for("update");
     if (!material[0]) return null;
-    const result = await tx.insert(materialsToBoards).values(data);
+    const result = await tx.insert(materialsToBoards).values({
+      ...data,
+      productId: data.productId ?? material[0].productId,
+      specId: data.specId ?? null,
+      // A new board link is either facade-resolved by its caller or explicitly
+      // unresolved. It must never inherit the historical legacy default.
+      identityState: data.identityState ?? "unresolved"
+    });
     return { id: Number(result[0].insertId) };
   });
 }
@@ -6551,16 +7211,18 @@ async function removeMaterialFromBoard(id) {
 async function removeMaterialFromBoardForOrg(id, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.delete(materialsToBoards).where(and(
-    eq(materialsToBoards.id, id),
-    sql`exists (
+  const result = await db.delete(materialsToBoards).where(
+    and(
+      eq(materialsToBoards.id, id),
+      sql`exists (
       select 1
       from ${materialBoards}
       inner join ${projects} on ${projects.id} = ${materialBoards.projectId}
       where ${materialBoards.id} = ${materialsToBoards.boardId}
         and ${projects.orgId} = ${orgId}
     )`
-  ));
+    )
+  );
   return Number(result[0].affectedRows) === 1;
 }
 async function updateBoardTile(id, data) {
@@ -6568,11 +7230,17 @@ async function updateBoardTile(id, data) {
   if (!db) throw new Error("DB not available");
   const updates = {};
   if (data.specNotes !== void 0) updates.specNotes = data.specNotes;
-  if (data.costBandOverride !== void 0) updates.costBandOverride = data.costBandOverride;
+  if (data.costBandOverride !== void 0)
+    updates.costBandOverride = data.costBandOverride;
   if (data.quantity !== void 0) updates.quantity = data.quantity;
-  if (data.unitOfMeasure !== void 0) updates.unitOfMeasure = data.unitOfMeasure;
+  if (data.unitOfMeasure !== void 0)
+    updates.unitOfMeasure = data.unitOfMeasure;
   if (data.notes !== void 0) updates.notes = data.notes;
   if (data.sortOrder !== void 0) updates.sortOrder = data.sortOrder;
+  if (data.specNotes !== void 0 || data.quantity !== void 0 || data.unitOfMeasure !== void 0) {
+    updates.specId = null;
+    updates.identityState = "unresolved";
+  }
   if (Object.keys(updates).length > 0) {
     await db.update(materialsToBoards).set(updates).where(eq(materialsToBoards.id, id));
   }
@@ -6580,18 +7248,26 @@ async function updateBoardTile(id, data) {
 async function updateBoardTileForOrg(id, orgId, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const updates = Object.fromEntries(Object.entries(data).filter(([, value]) => value !== void 0));
+  const updates = Object.fromEntries(
+    Object.entries(data).filter(([, value]) => value !== void 0)
+  );
+  if (data.specNotes !== void 0 || data.quantity !== void 0 || data.unitOfMeasure !== void 0) {
+    updates.specId = null;
+    updates.identityState = "unresolved";
+  }
   if (Object.keys(updates).length === 0) return true;
-  const result = await db.update(materialsToBoards).set(updates).where(and(
-    eq(materialsToBoards.id, id),
-    sql`exists (
+  const result = await db.update(materialsToBoards).set(updates).where(
+    and(
+      eq(materialsToBoards.id, id),
+      sql`exists (
       select 1
       from ${materialBoards}
       inner join ${projects} on ${projects.id} = ${materialBoards.projectId}
       where ${materialBoards.id} = ${materialsToBoards.boardId}
         and ${projects.orgId} = ${orgId}
     )`
-  ));
+    )
+  );
   return Number(result[0].affectedRows) === 1;
 }
 async function reorderBoardTiles(boardId, orderedIds) {
@@ -6608,22 +7284,30 @@ async function reorderBoardTilesForOrg(boardId, orderedIds, orgId) {
     const boardRows = await tx.select({ id: materialBoards.id }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).where(and(eq(materialBoards.id, boardId), eq(projects.orgId, orgId))).limit(1);
     if (!boardRows[0]) return false;
     if (orderedIds.length > 0) {
-      const joins = await tx.select({ id: materialsToBoards.id }).from(materialsToBoards).where(and(eq(materialsToBoards.boardId, boardId), inArray(materialsToBoards.id, orderedIds)));
+      const joins = await tx.select({ id: materialsToBoards.id }).from(materialsToBoards).where(
+        and(
+          eq(materialsToBoards.boardId, boardId),
+          inArray(materialsToBoards.id, orderedIds)
+        )
+      );
       if (joins.length !== orderedIds.length) return false;
     }
     for (let i = 0; i < orderedIds.length; i++) {
-      const result = await tx.update(materialsToBoards).set({ sortOrder: i }).where(and(
-        eq(materialsToBoards.id, orderedIds[i]),
-        eq(materialsToBoards.boardId, boardId),
-        sql`exists (
+      const result = await tx.update(materialsToBoards).set({ sortOrder: i }).where(
+        and(
+          eq(materialsToBoards.id, orderedIds[i]),
+          eq(materialsToBoards.boardId, boardId),
+          sql`exists (
           select 1
           from ${materialBoards}
           inner join ${projects} on ${projects.id} = ${materialBoards.projectId}
           where ${materialBoards.id} = ${materialsToBoards.boardId}
             and ${projects.orgId} = ${orgId}
         )`
-      ));
-      if (Number(result[0].affectedRows) !== 1) throw new Error("Board tile reorder lost authorization");
+        )
+      );
+      if (Number(result[0].affectedRows) !== 1)
+        throw new Error("Board tile reorder lost authorization");
     }
     return true;
   });
@@ -6649,7 +7333,10 @@ async function getPromptTemplateById(id) {
 async function getActivePromptTemplate(type, orgId) {
   const db = await getDb();
   if (!db) return void 0;
-  const conditions = [eq(promptTemplates.type, type), eq(promptTemplates.isActive, true)];
+  const conditions = [
+    eq(promptTemplates.type, type),
+    eq(promptTemplates.isActive, true)
+  ];
   if (orgId) conditions.push(eq(promptTemplates.orgId, orgId));
   let query = db.select().from(promptTemplates).where(and(...conditions)).limit(1);
   const result = await query;
@@ -6767,7 +7454,11 @@ async function setLogicWeights(logicVersionId, weights) {
   await db.delete(logicWeights).where(eq(logicWeights.logicVersionId, logicVersionId));
   if (weights.length > 0) {
     await db.insert(logicWeights).values(
-      weights.map((w) => ({ logicVersionId, dimension: w.dimension, weight: w.weight }))
+      weights.map((w) => ({
+        logicVersionId,
+        dimension: w.dimension,
+        weight: w.weight
+      }))
     );
   }
 }
@@ -6781,9 +7472,7 @@ async function setLogicThresholds(logicVersionId, thresholds) {
   if (!db) return;
   await db.delete(logicThresholds).where(eq(logicThresholds.logicVersionId, logicVersionId));
   if (thresholds.length > 0) {
-    await db.insert(logicThresholds).values(
-      thresholds.map((t2) => ({ logicVersionId, ...t2 }))
-    );
+    await db.insert(logicThresholds).values(thresholds.map((t2) => ({ logicVersionId, ...t2 })));
   }
 }
 async function getLogicChangeLog(logicVersionId) {
@@ -6859,18 +7548,19 @@ async function createScenarioComparison(data) {
 async function createScenarioComparisonForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const scenarioIds = Array.from(/* @__PURE__ */ new Set([
-    data.baselineScenarioId,
-    ...data.comparedScenarioIds
-  ]));
+  const scenarioIds = Array.from(
+    /* @__PURE__ */ new Set([data.baselineScenarioId, ...data.comparedScenarioIds])
+  );
   return db.transaction(async (tx) => {
     const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
     if (project.length !== 1) return null;
-    const scenarioRows = await tx.select({ id: scenarios.id }).from(scenarios).where(and(
-      inArray(scenarios.id, scenarioIds),
-      eq(scenarios.projectId, data.projectId),
-      eq(scenarios.orgId, orgId)
-    )).for("update");
+    const scenarioRows = await tx.select({ id: scenarios.id }).from(scenarios).where(
+      and(
+        inArray(scenarios.id, scenarioIds),
+        eq(scenarios.projectId, data.projectId),
+        eq(scenarios.orgId, orgId)
+      )
+    ).for("update");
     if (scenarioRows.length !== scenarioIds.length) return null;
     const [result] = await tx.insert(scenarioComparisons).values(data);
     return Number(result.insertId);
@@ -6911,19 +7601,28 @@ async function getProjectOutcomes(projectId) {
 async function getProjectOutcomesForOrg(projectId, orgId) {
   const db = await getDb();
   if (!db) return [];
-  const rows = await db.select({ outcome: projectOutcomes }).from(projectOutcomes).innerJoin(projects, eq(projectOutcomes.projectId, projects.id)).where(and(eq(projectOutcomes.projectId, projectId), eq(projects.orgId, orgId))).orderBy(desc(projectOutcomes.capturedAt));
+  const rows = await db.select({ outcome: projectOutcomes }).from(projectOutcomes).innerJoin(projects, eq(projectOutcomes.projectId, projects.id)).where(
+    and(eq(projectOutcomes.projectId, projectId), eq(projects.orgId, orgId))
+  ).orderBy(desc(projectOutcomes.capturedAt));
   return rows.map((row) => row.outcome);
 }
 async function getLatestProjectOutcomeForOrg(projectId, orgId) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select({ outcome: projectOutcomes }).from(projectOutcomes).innerJoin(projects, eq(projectOutcomes.projectId, projects.id)).where(and(eq(projectOutcomes.projectId, projectId), eq(projects.orgId, orgId))).orderBy(desc(projectOutcomes.capturedAt)).limit(1);
+  const rows = await db.select({ outcome: projectOutcomes }).from(projectOutcomes).innerJoin(projects, eq(projectOutcomes.projectId, projects.id)).where(
+    and(eq(projectOutcomes.projectId, projectId), eq(projects.orgId, orgId))
+  ).orderBy(desc(projectOutcomes.capturedAt)).limit(1);
   return rows[0]?.outcome;
 }
 async function getLatestOutcomeComparisonForOrg(projectId, orgId) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select({ comparison: outcomeComparisons }).from(outcomeComparisons).innerJoin(projects, eq(outcomeComparisons.projectId, projects.id)).where(and(eq(outcomeComparisons.projectId, projectId), eq(projects.orgId, orgId))).orderBy(desc(outcomeComparisons.comparedAt)).limit(1);
+  const rows = await db.select({ comparison: outcomeComparisons }).from(outcomeComparisons).innerJoin(projects, eq(outcomeComparisons.projectId, projects.id)).where(
+    and(
+      eq(outcomeComparisons.projectId, projectId),
+      eq(projects.orgId, orgId)
+    )
+  ).orderBy(desc(outcomeComparisons.comparedAt)).limit(1);
   return rows[0]?.comparison;
 }
 async function createOutcomeComparisonForOrg(projectId, orgId, data) {
@@ -6996,15 +7695,34 @@ async function listEvidenceRecords(filters) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [];
-  if (filters?.projectId) conditions.push(eq(evidenceRecords.projectId, filters.projectId));
-  if (filters?.category) conditions.push(eq(evidenceRecords.category, filters.category));
-  if (filters?.reliabilityGrade) conditions.push(eq(evidenceRecords.reliabilityGrade, filters.reliabilityGrade));
-  if (filters?.evidencePhase) conditions.push(eq(evidenceRecords.evidencePhase, filters.evidencePhase));
-  if (filters?.confidentiality) conditions.push(eq(evidenceRecords.confidentiality, filters.confidentiality));
-  if (filters?.intelligenceType) conditions.push(eq(evidenceRecords.intelligenceType, filters.intelligenceType));
-  if (filters?.corpusScope) conditions.push(eq(evidenceRecords.corpusScope, filters.corpusScope));
+  if (filters?.projectId)
+    conditions.push(eq(evidenceRecords.projectId, filters.projectId));
+  if (filters?.category)
+    conditions.push(eq(evidenceRecords.category, filters.category));
+  if (filters?.reliabilityGrade)
+    conditions.push(
+      eq(evidenceRecords.reliabilityGrade, filters.reliabilityGrade)
+    );
+  if (filters?.evidencePhase)
+    conditions.push(
+      eq(evidenceRecords.evidencePhase, filters.evidencePhase)
+    );
+  if (filters?.confidentiality)
+    conditions.push(
+      eq(evidenceRecords.confidentiality, filters.confidentiality)
+    );
+  if (filters?.intelligenceType)
+    conditions.push(
+      eq(evidenceRecords.intelligenceType, filters.intelligenceType)
+    );
+  if (filters?.corpusScope)
+    conditions.push(
+      eq(evidenceRecords.corpusScope, filters.corpusScope)
+    );
   if (filters?.excludeConfidential) {
-    conditions.push(sql`${evidenceRecords.confidentiality} NOT IN ('confidential', 'restricted')`);
+    conditions.push(
+      sql`${evidenceRecords.confidentiality} NOT IN ('confidential', 'restricted')`
+    );
   }
   let query = db.select().from(evidenceRecords);
   if (conditions.length > 0) {
@@ -7019,11 +7737,36 @@ async function listOrganizationEvidenceRecords(orgId, filters) {
     eq(evidenceRecords.orgId, orgId),
     eq(evidenceRecords.corpusScope, "organization")
   ];
-  if (filters?.projectId !== void 0) conditions.push(eq(evidenceRecords.projectId, filters.projectId));
-  if (filters?.category) conditions.push(eq(evidenceRecords.category, filters.category));
-  if (filters?.reliabilityGrade) conditions.push(eq(evidenceRecords.reliabilityGrade, filters.reliabilityGrade));
-  if (filters?.evidencePhase) conditions.push(eq(evidenceRecords.evidencePhase, filters.evidencePhase));
-  if (filters?.confidentiality) conditions.push(eq(evidenceRecords.confidentiality, filters.confidentiality));
+  if (filters?.projectId !== void 0)
+    conditions.push(eq(evidenceRecords.projectId, filters.projectId));
+  if (filters?.category)
+    conditions.push(eq(evidenceRecords.category, filters.category));
+  if (filters?.reliabilityGrade)
+    conditions.push(
+      eq(evidenceRecords.reliabilityGrade, filters.reliabilityGrade)
+    );
+  if (filters?.evidencePhase)
+    conditions.push(
+      eq(evidenceRecords.evidencePhase, filters.evidencePhase)
+    );
+  if (filters?.confidentiality)
+    conditions.push(
+      eq(evidenceRecords.confidentiality, filters.confidentiality)
+    );
+  if (filters?.excludeConfidential) {
+    conditions.push(
+      sql`${evidenceRecords.confidentiality} NOT IN ('confidential', 'restricted')`
+    );
+  }
+  if (filters?.presentationSafe) {
+    conditions.push(
+      sql`${evidenceRecords.confidentiality} NOT IN ('confidential', 'restricted')`
+    );
+    conditions.push(isNull(evidenceRecords.supplierQuoteId));
+    conditions.push(
+      sql`(${evidenceRecords.observationKind} IS NULL OR ${evidenceRecords.observationKind} <> 'supplier_quote')`
+    );
+  }
   return db.select().from(evidenceRecords).where(and(...conditions)).orderBy(desc(evidenceRecords.createdAt)).limit(filters?.limit ?? 100);
 }
 async function listPublicCorpusEvidence(filters) {
@@ -7034,9 +7777,16 @@ async function listPublicCorpusEvidence(filters) {
     isNull(evidenceRecords.orgId),
     eq(evidenceRecords.corpusScope, "platform_public")
   ];
-  if (filters?.category) conditions.push(eq(evidenceRecords.category, filters.category));
-  if (filters?.reliabilityGrade) conditions.push(eq(evidenceRecords.reliabilityGrade, filters.reliabilityGrade));
-  if (filters?.evidencePhase) conditions.push(eq(evidenceRecords.evidencePhase, filters.evidencePhase));
+  if (filters?.category)
+    conditions.push(eq(evidenceRecords.category, filters.category));
+  if (filters?.reliabilityGrade)
+    conditions.push(
+      eq(evidenceRecords.reliabilityGrade, filters.reliabilityGrade)
+    );
+  if (filters?.evidencePhase)
+    conditions.push(
+      eq(evidenceRecords.evidencePhase, filters.evidencePhase)
+    );
   return db.select().from(evidenceRecords).where(and(...conditions)).orderBy(desc(evidenceRecords.createdAt)).limit(filters?.limit ?? 100);
 }
 async function getEvidenceRecordById(id) {
@@ -7082,7 +7832,9 @@ async function upsertPublicEvidenceObservation(data, assessment) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   if (data.orgId != null || data.projectId != null || data.corpusScope !== "platform_public") {
-    throw new Error("Public connector observations must be platform_public with no organization or project");
+    throw new Error(
+      "Public connector observations must be platform_public with no organization or project"
+    );
   }
   assertLegacyEvidenceWrite(data);
   const publicObservationKey = createHash("sha256").update(JSON.stringify([data.sourceUrl, data.itemName])).digest("hex");
@@ -7096,15 +7848,17 @@ async function upsertPublicEvidenceObservation(data, assessment) {
     );
     const legacyMatches = await tx.select({
       id: evidenceRecords.id
-    }).from(evidenceRecords).where(and(
-      identityMatch,
-      isNull(evidenceRecords.orgId),
-      isNull(evidenceRecords.projectId),
-      isNull(evidenceRecords.specId),
-      isNull(evidenceRecords.priceScope),
-      isNull(evidenceRecords.observationKind),
-      eq(evidenceRecords.corpusScope, "platform_public")
-    )).orderBy(desc(evidenceRecords.captureDate)).limit(1);
+    }).from(evidenceRecords).where(
+      and(
+        identityMatch,
+        isNull(evidenceRecords.orgId),
+        isNull(evidenceRecords.projectId),
+        isNull(evidenceRecords.specId),
+        isNull(evidenceRecords.priceScope),
+        isNull(evidenceRecords.observationKind),
+        eq(evidenceRecords.corpusScope, "platform_public")
+      )
+    ).orderBy(desc(evidenceRecords.captureDate)).limit(1);
     let rootId = legacyMatches[0]?.id;
     if (rootId === void 0) {
       const [insertResult] = await tx.insert(evidenceRecords).values({
@@ -7123,17 +7877,21 @@ async function upsertPublicEvidenceObservation(data, assessment) {
       recordId: evidenceRecords.recordId,
       currentConfidenceAssessmentId: evidenceRecords.currentConfidenceAssessmentId,
       productId: evidenceRecords.productId
-    }).from(evidenceRecords).where(and(
-      eq(evidenceRecords.id, rootId),
-      isNull(evidenceRecords.orgId),
-      isNull(evidenceRecords.projectId),
-      isNull(evidenceRecords.specId),
-      isNull(evidenceRecords.priceScope),
-      isNull(evidenceRecords.observationKind),
-      eq(evidenceRecords.corpusScope, "platform_public")
-    )).limit(1).for("update");
+    }).from(evidenceRecords).where(
+      and(
+        eq(evidenceRecords.id, rootId),
+        isNull(evidenceRecords.orgId),
+        isNull(evidenceRecords.projectId),
+        isNull(evidenceRecords.specId),
+        isNull(evidenceRecords.priceScope),
+        isNull(evidenceRecords.observationKind),
+        eq(evidenceRecords.corpusScope, "platform_public")
+      )
+    ).limit(1).for("update");
     if (!lockedRoot[0]) {
-      throw new Error("Public observation conflict resolved outside the public corpus");
+      throw new Error(
+        "Public observation conflict resolved outside the public corpus"
+      );
     }
     let latest = lockedRoot[0];
     while (true) {
@@ -7153,15 +7911,17 @@ async function upsertPublicEvidenceObservation(data, assessment) {
         recordId: evidenceRecords.recordId,
         currentConfidenceAssessmentId: evidenceRecords.currentConfidenceAssessmentId,
         productId: evidenceRecords.productId
-      }).from(evidenceRecords).where(and(
-        eq(evidenceRecords.supersedesObservationId, latest.id),
-        isNull(evidenceRecords.orgId),
-        isNull(evidenceRecords.projectId),
-        isNull(evidenceRecords.specId),
-        isNull(evidenceRecords.priceScope),
-        isNull(evidenceRecords.observationKind),
-        eq(evidenceRecords.corpusScope, "platform_public")
-      )).limit(1).for("update");
+      }).from(evidenceRecords).where(
+        and(
+          eq(evidenceRecords.supersedesObservationId, latest.id),
+          isNull(evidenceRecords.orgId),
+          isNull(evidenceRecords.projectId),
+          isNull(evidenceRecords.specId),
+          isNull(evidenceRecords.priceScope),
+          isNull(evidenceRecords.observationKind),
+          eq(evidenceRecords.corpusScope, "platform_public")
+        )
+      ).limit(1).for("update");
       if (!successor[0]) break;
       latest = successor[0];
     }
@@ -7198,15 +7958,17 @@ async function upsertPublicEvidenceObservation(data, assessment) {
     await tx.update(evidenceRecords).set({
       currentConfidenceAssessmentId: assessmentId,
       confidencePolicyVersion: assessment.confidencePolicyId
-    }).where(and(
-      eq(evidenceRecords.id, evidenceRecordId),
-      isNull(evidenceRecords.orgId),
-      isNull(evidenceRecords.projectId),
-      isNull(evidenceRecords.specId),
-      isNull(evidenceRecords.priceScope),
-      isNull(evidenceRecords.observationKind),
-      eq(evidenceRecords.corpusScope, "platform_public")
-    ));
+    }).where(
+      and(
+        eq(evidenceRecords.id, evidenceRecordId),
+        isNull(evidenceRecords.orgId),
+        isNull(evidenceRecords.projectId),
+        isNull(evidenceRecords.specId),
+        isNull(evidenceRecords.priceScope),
+        isNull(evidenceRecords.observationKind),
+        eq(evidenceRecords.corpusScope, "platform_public")
+      )
+    );
     return {
       id: evidenceRecordId,
       assessmentId,
@@ -7321,8 +8083,12 @@ async function getDataHealthStats() {
   if (!db) return null;
   const allSources = await db.select().from(sourceRegistry);
   const activeSources = allSources.filter((s) => s.isActive);
-  const failingSources = activeSources.filter((s) => s.consecutiveFailures > 0);
-  const disabledSources = activeSources.filter((s) => s.consecutiveFailures >= 5);
+  const failingSources = activeSources.filter(
+    (s) => s.consecutiveFailures > 0
+  );
+  const disabledSources = activeSources.filter(
+    (s) => s.consecutiveFailures >= 5
+  );
   const sourceHealth = {
     total: allSources.length,
     active: activeSources.length,
@@ -7334,7 +8100,11 @@ async function getDataHealthStats() {
   const now = (/* @__PURE__ */ new Date()).getTime();
   for (const rec of allEvidence) {
     if (!categoryStats[rec.category]) {
-      categoryStats[rec.category] = { count: 0, latestCapture: null, avgAgeDays: 0 };
+      categoryStats[rec.category] = {
+        count: 0,
+        latestCapture: null,
+        avgAgeDays: 0
+      };
     }
     const stat = categoryStats[rec.category];
     stat.count++;
@@ -7402,12 +8172,14 @@ async function createBenchmarkProposal(data) {
 async function reviewBenchmarkProposal(id, data, options = {}) {
   const db = await getDb();
   if (!db) return false;
-  const result = await db.update(benchmarkProposals).set({ ...data, reviewedAt: options.now ?? /* @__PURE__ */ new Date() }).where(and(
-    eq(benchmarkProposals.id, id),
-    eq(benchmarkProposals.status, "pending"),
-    isNull(benchmarkProposals.reviewedAt),
-    isNull(benchmarkProposals.reviewedBy)
-  ));
+  const result = await db.update(benchmarkProposals).set({ ...data, reviewedAt: options.now ?? /* @__PURE__ */ new Date() }).where(
+    and(
+      eq(benchmarkProposals.id, id),
+      eq(benchmarkProposals.status, "pending"),
+      isNull(benchmarkProposals.reviewedAt),
+      isNull(benchmarkProposals.reviewedBy)
+    )
+  );
   return Number(result[0].affectedRows) === 1;
 }
 async function listBenchmarkSnapshots() {
@@ -7459,7 +8231,8 @@ async function listCompetitorProjects(competitorId, segment) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [];
-  if (competitorId) conditions.push(eq(competitorProjects.competitorId, competitorId));
+  if (competitorId)
+    conditions.push(eq(competitorProjects.competitorId, competitorId));
   if (segment) conditions.push(eq(competitorProjects.segment, segment));
   let query = db.select().from(competitorProjects);
   if (conditions.length > 0) {
@@ -7524,11 +8297,13 @@ async function getEntityTagById(id) {
 async function deleteEntityTagIfMatches(id, expected) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.delete(entityTags).where(and(
-    eq(entityTags.id, id),
-    eq(entityTags.entityType, expected.entityType),
-    eq(entityTags.entityId, expected.entityId)
-  ));
+  const result = await db.delete(entityTags).where(
+    and(
+      eq(entityTags.id, id),
+      eq(entityTags.entityType, expected.entityType),
+      eq(entityTags.entityId, expected.entityId)
+    )
+  );
   return Number(result[0].affectedRows) === 1;
 }
 async function deleteEntityTag(id) {
@@ -7539,7 +8314,12 @@ async function deleteEntityTag(id) {
 async function getEntityTags(entityType, entityId) {
   const db = await getDb();
   if (!db) return [];
-  const tags = await db.select().from(entityTags).where(and(eq(entityTags.entityType, entityType), eq(entityTags.entityId, entityId)));
+  const tags = await db.select().from(entityTags).where(
+    and(
+      eq(entityTags.entityType, entityType),
+      eq(entityTags.entityId, entityId)
+    )
+  );
   if (tags.length === 0) return [];
   const tagIds = tags.map((t2) => t2.tagId);
   const tagDetails = await db.select().from(trendTags).where(inArray(trendTags.id, tagIds));
@@ -7577,9 +8357,16 @@ async function listEvidenceReferences(filters) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [];
-  if (filters?.evidenceRecordId) conditions.push(eq(evidenceReferences.evidenceRecordId, filters.evidenceRecordId));
-  if (filters?.targetType) conditions.push(eq(evidenceReferences.targetType, filters.targetType));
-  if (filters?.targetId) conditions.push(eq(evidenceReferences.targetId, filters.targetId));
+  if (filters?.evidenceRecordId)
+    conditions.push(
+      eq(evidenceReferences.evidenceRecordId, filters.evidenceRecordId)
+    );
+  if (filters?.targetType)
+    conditions.push(
+      eq(evidenceReferences.targetType, filters.targetType)
+    );
+  if (filters?.targetId)
+    conditions.push(eq(evidenceReferences.targetId, filters.targetId));
   let query = db.select().from(evidenceReferences);
   if (conditions.length > 0) {
     query = query.where(and(...conditions));
@@ -7601,12 +8388,14 @@ async function getEvidenceReferenceById(id) {
 async function deleteEvidenceReferenceIfMatches(id, expected) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.delete(evidenceReferences).where(and(
-    eq(evidenceReferences.id, id),
-    eq(evidenceReferences.evidenceRecordId, expected.evidenceRecordId),
-    eq(evidenceReferences.targetType, expected.targetType),
-    eq(evidenceReferences.targetId, expected.targetId)
-  ));
+  const result = await db.delete(evidenceReferences).where(
+    and(
+      eq(evidenceReferences.id, id),
+      eq(evidenceReferences.evidenceRecordId, expected.evidenceRecordId),
+      eq(evidenceReferences.targetType, expected.targetType),
+      eq(evidenceReferences.targetId, expected.targetId)
+    )
+  );
   return Number(result[0].affectedRows) === 1;
 }
 async function deleteEvidenceReference(id) {
@@ -7617,10 +8406,12 @@ async function deleteEvidenceReference(id) {
 async function getEvidenceForTarget(targetType, targetId) {
   const db = await getDb();
   if (!db) return [];
-  const refs = await db.select().from(evidenceReferences).where(and(
-    eq(evidenceReferences.targetType, targetType),
-    eq(evidenceReferences.targetId, targetId)
-  ));
+  const refs = await db.select().from(evidenceReferences).where(
+    and(
+      eq(evidenceReferences.targetType, targetType),
+      eq(evidenceReferences.targetId, targetId)
+    )
+  );
   if (refs.length === 0) return [];
   const recordIds = refs.map((r) => r.evidenceRecordId);
   const records = await db.select().from(evidenceRecords).where(inArray(evidenceRecords.id, recordIds));
@@ -7730,10 +8521,12 @@ async function getAllAreaBenchmarks() {
 async function upsertAreaBenchmark(data) {
   const db = await getDb();
   if (!db) return;
-  const existing = await db.select({ id: dldAreaBenchmarks.id }).from(dldAreaBenchmarks).where(and(
-    eq(dldAreaBenchmarks.areaId, data.areaId),
-    eq(dldAreaBenchmarks.period, data.period)
-  )).limit(1);
+  const existing = await db.select({ id: dldAreaBenchmarks.id }).from(dldAreaBenchmarks).where(
+    and(
+      eq(dldAreaBenchmarks.areaId, data.areaId),
+      eq(dldAreaBenchmarks.period, data.period)
+    )
+  ).limit(1);
   if (existing.length > 0) {
     await db.update(dldAreaBenchmarks).set({ ...data, computedAt: /* @__PURE__ */ new Date() }).where(eq(dldAreaBenchmarks.id, existing[0].id));
   } else {
@@ -7743,7 +8536,9 @@ async function upsertAreaBenchmark(data) {
 async function getDldTransactionCount() {
   const db = await getDb();
   if (!db) return 0;
-  const rows = await db.execute(sql`SELECT COUNT(*) as cnt FROM dld_transactions`);
+  const rows = await db.execute(
+    sql`SELECT COUNT(*) as cnt FROM dld_transactions`
+  );
   return rows?.[0]?.[0]?.cnt ?? 0;
 }
 async function getDldRentCount() {
@@ -7778,10 +8573,14 @@ async function getTrendSnapshots(filters) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [];
-  if (filters?.category) conditions.push(eq(trendSnapshots.category, filters.category));
-  if (filters?.geography) conditions.push(eq(trendSnapshots.geography, filters.geography));
-  if (filters?.direction) conditions.push(eq(trendSnapshots.direction, filters.direction));
-  if (filters?.confidence) conditions.push(eq(trendSnapshots.confidence, filters.confidence));
+  if (filters?.category)
+    conditions.push(eq(trendSnapshots.category, filters.category));
+  if (filters?.geography)
+    conditions.push(eq(trendSnapshots.geography, filters.geography));
+  if (filters?.direction)
+    conditions.push(eq(trendSnapshots.direction, filters.direction));
+  if (filters?.confidence)
+    conditions.push(eq(trendSnapshots.confidence, filters.confidence));
   const query = db.select().from(trendSnapshots);
   if (conditions.length > 0) {
     return query.where(and(...conditions)).orderBy(desc(trendSnapshots.createdAt)).limit(filters?.limit ?? 50);
@@ -7791,14 +8590,26 @@ async function getTrendSnapshots(filters) {
 async function getTrendSnapshotsForOrg(orgId, filters) {
   const db = await getDb();
   if (!db) return [];
-  const conditions = [or(
-    and(eq(trendSnapshots.corpusScope, "organization"), eq(trendSnapshots.orgId, orgId)),
-    and(eq(trendSnapshots.corpusScope, "platform_public"), isNull(trendSnapshots.orgId))
-  )];
-  if (filters?.category) conditions.push(eq(trendSnapshots.category, filters.category));
-  if (filters?.geography) conditions.push(eq(trendSnapshots.geography, filters.geography));
-  if (filters?.direction) conditions.push(eq(trendSnapshots.direction, filters.direction));
-  if (filters?.confidence) conditions.push(eq(trendSnapshots.confidence, filters.confidence));
+  const conditions = [
+    or(
+      and(
+        eq(trendSnapshots.corpusScope, "organization"),
+        eq(trendSnapshots.orgId, orgId)
+      ),
+      and(
+        eq(trendSnapshots.corpusScope, "platform_public"),
+        isNull(trendSnapshots.orgId)
+      )
+    )
+  ];
+  if (filters?.category)
+    conditions.push(eq(trendSnapshots.category, filters.category));
+  if (filters?.geography)
+    conditions.push(eq(trendSnapshots.geography, filters.geography));
+  if (filters?.direction)
+    conditions.push(eq(trendSnapshots.direction, filters.direction));
+  if (filters?.confidence)
+    conditions.push(eq(trendSnapshots.confidence, filters.confidence));
   return db.select().from(trendSnapshots).where(and(...conditions)).orderBy(desc(trendSnapshots.createdAt)).limit(filters?.limit ?? 50);
 }
 async function getPublicTrendSnapshots(filters) {
@@ -7808,42 +8619,64 @@ async function getPublicTrendSnapshots(filters) {
     eq(trendSnapshots.corpusScope, "platform_public"),
     isNull(trendSnapshots.orgId)
   ];
-  if (filters?.category) conditions.push(eq(trendSnapshots.category, filters.category));
-  if (filters?.geography) conditions.push(eq(trendSnapshots.geography, filters.geography));
-  if (filters?.direction) conditions.push(eq(trendSnapshots.direction, filters.direction));
-  if (filters?.confidence) conditions.push(eq(trendSnapshots.confidence, filters.confidence));
+  if (filters?.category)
+    conditions.push(eq(trendSnapshots.category, filters.category));
+  if (filters?.geography)
+    conditions.push(eq(trendSnapshots.geography, filters.geography));
+  if (filters?.direction)
+    conditions.push(eq(trendSnapshots.direction, filters.direction));
+  if (filters?.confidence)
+    conditions.push(eq(trendSnapshots.confidence, filters.confidence));
   return db.select().from(trendSnapshots).where(and(...conditions)).orderBy(desc(trendSnapshots.createdAt)).limit(filters?.limit ?? 50);
 }
 async function getTrendHistoryForOrg(orgId, metric, geography, limit = 20) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(trendSnapshots).where(and(
-    eq(trendSnapshots.metric, metric),
-    eq(trendSnapshots.geography, geography),
-    or(
-      and(eq(trendSnapshots.corpusScope, "organization"), eq(trendSnapshots.orgId, orgId)),
-      and(eq(trendSnapshots.corpusScope, "platform_public"), isNull(trendSnapshots.orgId))
+  return db.select().from(trendSnapshots).where(
+    and(
+      eq(trendSnapshots.metric, metric),
+      eq(trendSnapshots.geography, geography),
+      or(
+        and(
+          eq(trendSnapshots.corpusScope, "organization"),
+          eq(trendSnapshots.orgId, orgId)
+        ),
+        and(
+          eq(trendSnapshots.corpusScope, "platform_public"),
+          isNull(trendSnapshots.orgId)
+        )
+      )
     )
-  )).orderBy(desc(trendSnapshots.createdAt)).limit(limit);
+  ).orderBy(desc(trendSnapshots.createdAt)).limit(limit);
 }
 async function getAnomaliesForOrg(orgId, limit = 50) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(trendSnapshots).where(and(
-    sql`${trendSnapshots.anomalyCount} > 0`,
-    or(
-      and(eq(trendSnapshots.corpusScope, "organization"), eq(trendSnapshots.orgId, orgId)),
-      and(eq(trendSnapshots.corpusScope, "platform_public"), isNull(trendSnapshots.orgId))
+  return db.select().from(trendSnapshots).where(
+    and(
+      sql`${trendSnapshots.anomalyCount} > 0`,
+      or(
+        and(
+          eq(trendSnapshots.corpusScope, "organization"),
+          eq(trendSnapshots.orgId, orgId)
+        ),
+        and(
+          eq(trendSnapshots.corpusScope, "platform_public"),
+          isNull(trendSnapshots.orgId)
+        )
+      )
     )
-  )).orderBy(desc(trendSnapshots.createdAt)).limit(limit);
+  ).orderBy(desc(trendSnapshots.createdAt)).limit(limit);
 }
 async function getTrendHistory(metric, geography, limit = 20) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(trendSnapshots).where(and(
-    eq(trendSnapshots.metric, metric),
-    eq(trendSnapshots.geography, geography)
-  )).orderBy(desc(trendSnapshots.createdAt)).limit(limit);
+  return db.select().from(trendSnapshots).where(
+    and(
+      eq(trendSnapshots.metric, metric),
+      eq(trendSnapshots.geography, geography)
+    )
+  ).orderBy(desc(trendSnapshots.createdAt)).limit(limit);
 }
 async function getAnomalies(limit = 50) {
   const db = await getDb();
@@ -7889,10 +8722,16 @@ async function getProjectInsights(filters) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [];
-  if (filters?.projectId) conditions.push(eq(projectInsights.projectId, filters.projectId));
-  if (filters?.insightType) conditions.push(eq(projectInsights.insightType, filters.insightType));
-  if (filters?.severity) conditions.push(eq(projectInsights.severity, filters.severity));
-  if (filters?.status) conditions.push(eq(projectInsights.status, filters.status));
+  if (filters?.projectId)
+    conditions.push(eq(projectInsights.projectId, filters.projectId));
+  if (filters?.insightType)
+    conditions.push(
+      eq(projectInsights.insightType, filters.insightType)
+    );
+  if (filters?.severity)
+    conditions.push(eq(projectInsights.severity, filters.severity));
+  if (filters?.status)
+    conditions.push(eq(projectInsights.status, filters.status));
   const query = db.select().from(projectInsights);
   if (conditions.length > 0) {
     return query.where(and(...conditions)).orderBy(desc(projectInsights.createdAt)).limit(filters?.limit ?? 50);
@@ -7908,9 +8747,14 @@ async function getProjectInsightsForOrg(orgId, filters) {
     eq(projectInsights.corpusScope, "organization"),
     eq(projects.orgId, orgId)
   ];
-  if (filters.insightType) conditions.push(eq(projectInsights.insightType, filters.insightType));
-  if (filters.severity) conditions.push(eq(projectInsights.severity, filters.severity));
-  if (filters.status) conditions.push(eq(projectInsights.status, filters.status));
+  if (filters.insightType)
+    conditions.push(
+      eq(projectInsights.insightType, filters.insightType)
+    );
+  if (filters.severity)
+    conditions.push(eq(projectInsights.severity, filters.severity));
+  if (filters.status)
+    conditions.push(eq(projectInsights.status, filters.status));
   const rows = await db.select({ insight: projectInsights }).from(projectInsights).innerJoin(projects, eq(projectInsights.projectId, projects.id)).where(and(...conditions)).orderBy(desc(projectInsights.createdAt)).limit(filters.limit ?? 50);
   return rows.map((row) => row.insight);
 }
@@ -7922,9 +8766,14 @@ async function getGlobalProjectInsights(filters) {
     isNull(projectInsights.orgId),
     eq(projectInsights.corpusScope, "platform_public")
   ];
-  if (filters?.insightType) conditions.push(eq(projectInsights.insightType, filters.insightType));
-  if (filters?.severity) conditions.push(eq(projectInsights.severity, filters.severity));
-  if (filters?.status) conditions.push(eq(projectInsights.status, filters.status));
+  if (filters?.insightType)
+    conditions.push(
+      eq(projectInsights.insightType, filters.insightType)
+    );
+  if (filters?.severity)
+    conditions.push(eq(projectInsights.severity, filters.severity));
+  if (filters?.status)
+    conditions.push(eq(projectInsights.status, filters.status));
   return db.select().from(projectInsights).where(and(...conditions)).orderBy(desc(projectInsights.createdAt)).limit(filters?.limit ?? 50);
 }
 async function updateInsightStatus(insightId, status, userId) {
@@ -7941,10 +8790,7 @@ async function updateInsightStatusForOrg(insightId, orgId, status, userId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const rows = await tx.select({ id: projectInsights.id }).from(projectInsights).innerJoin(projects, eq(projectInsights.projectId, projects.id)).where(and(
-      eq(projectInsights.id, insightId),
-      eq(projects.orgId, orgId)
-    )).limit(1).for("update");
+    const rows = await tx.select({ id: projectInsights.id }).from(projectInsights).innerJoin(projects, eq(projectInsights.projectId, projects.id)).where(and(eq(projectInsights.id, insightId), eq(projects.orgId, orgId))).limit(1).for("update");
     if (rows.length !== 1) return false;
     const updates = { status };
     if (status === "acknowledged" && userId) {
@@ -7968,7 +8814,10 @@ async function insertProjectColorPalette(data) {
 async function insertRfqLineItem(data) {
   const db = await getDb();
   if (!db) return;
-  return db.insert(rfqLineItems).values(data);
+  return db.insert(rfqLineItems).values({
+    ...data,
+    artifactState: "draft"
+  });
 }
 async function insertRfqLineItemForOrg(data, orgId) {
   if (data.organizationId !== orgId) return false;
@@ -7977,7 +8826,10 @@ async function insertRfqLineItemForOrg(data, orgId) {
   return db.transaction(async (tx) => {
     const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
     if (!owned[0]) return false;
-    await tx.insert(rfqLineItems).values(data);
+    await tx.insert(rfqLineItems).values({
+      ...data,
+      artifactState: "draft"
+    });
     return true;
   });
 }
@@ -7985,26 +8837,46 @@ async function insertRfqLineItemsForOrg(data, expected) {
   if (data.length > 1e3) return false;
   if (data.some(
     (item) => item.organizationId !== expected.orgId || item.projectId !== expected.projectId || item.briefId !== expected.briefId
-  )) return false;
+  ))
+    return false;
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const owned = await tx.select({ id: projects.id }).from(projects).where(and(
-      eq(projects.id, expected.projectId),
-      eq(projects.orgId, expected.orgId)
-    )).limit(1).for("update");
-    if (!owned[0]) return false;
-    const brief = await tx.select({ projectId: designBriefs.projectId }).from(designBriefs).where(and(
-      eq(designBriefs.id, expected.briefId),
-      eq(designBriefs.projectId, expected.projectId)
-    )).limit(1).for("update");
+    const owned = await tx.select({
+      id: projects.id,
+      materialPricingRevision: projects.materialPricingRevision
+    }).from(projects).where(
+      and(
+        eq(projects.id, expected.projectId),
+        eq(projects.orgId, expected.orgId)
+      )
+    ).limit(1).for("update");
+    if (!owned[0] || owned[0].materialPricingRevision !== expected.materialPricingRevision) {
+      return false;
+    }
+    const brief = await tx.select({ projectId: designBriefs.projectId }).from(designBriefs).where(
+      and(
+        eq(designBriefs.id, expected.briefId),
+        eq(designBriefs.projectId, expected.projectId)
+      )
+    ).limit(1).for("update");
     if (!brief[0]) return false;
-    await tx.delete(rfqLineItems).where(and(
-      eq(rfqLineItems.projectId, expected.projectId),
-      eq(rfqLineItems.briefId, expected.briefId),
-      eq(rfqLineItems.organizationId, expected.orgId)
-    ));
-    if (data.length > 0) await tx.insert(rfqLineItems).values(data);
+    await tx.delete(rfqLineItems).where(
+      and(
+        eq(rfqLineItems.projectId, expected.projectId),
+        eq(rfqLineItems.briefId, expected.briefId),
+        eq(rfqLineItems.organizationId, expected.orgId),
+        eq(rfqLineItems.artifactState, "draft")
+      )
+    );
+    if (data.length > 0) {
+      await tx.insert(rfqLineItems).values(
+        data.map((item) => ({
+          ...item,
+          artifactState: "draft"
+        }))
+      );
+    }
     return true;
   });
 }
@@ -8038,10 +8910,9 @@ async function getBiasAlertById(id) {
 async function getActiveBiasAlerts(projectId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(biasAlerts).where(and(
-    eq(biasAlerts.projectId, projectId),
-    eq(biasAlerts.dismissed, false)
-  )).orderBy(desc(biasAlerts.createdAt));
+  return db.select().from(biasAlerts).where(
+    and(eq(biasAlerts.projectId, projectId), eq(biasAlerts.dismissed, false))
+  ).orderBy(desc(biasAlerts.createdAt));
 }
 async function dismissBiasAlert(alertId, userId) {
   const db = await getDb();
@@ -8062,10 +8933,9 @@ async function getUserBiasProfile(userId) {
 async function upsertBiasProfile(userId, orgId, biasType, severityNumeric) {
   const db = await getDb();
   if (!db) return;
-  const existing = await db.select().from(biasProfiles).where(and(
-    eq(biasProfiles.userId, userId),
-    eq(biasProfiles.biasType, biasType)
-  ));
+  const existing = await db.select().from(biasProfiles).where(
+    and(eq(biasProfiles.userId, userId), eq(biasProfiles.biasType, biasType))
+  );
   if (existing.length > 0) {
     const prev = existing[0];
     const newCount = (prev.occurrenceCount || 0) + 1;
@@ -8119,21 +8989,28 @@ async function createSpaceRecommendation(data) {
 async function clearSpaceRecommendations(projectId, orgId) {
   const db = await getDb();
   if (!db) return;
-  await db.delete(spaceRecommendations).where(and(
-    eq(spaceRecommendations.projectId, projectId),
-    eq(spaceRecommendations.orgId, orgId)
-  ));
+  await db.delete(spaceRecommendations).where(
+    and(
+      eq(spaceRecommendations.projectId, projectId),
+      eq(spaceRecommendations.orgId, orgId)
+    )
+  );
 }
 async function replaceSpaceRecommendationsForOrg(projectId, orgId, recommendations) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
     const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId))).limit(1).for("update");
-    if (project.length !== 1 || recommendations.some((row) => row.projectId !== projectId || row.orgId !== orgId)) return false;
-    await tx.delete(spaceRecommendations).where(and(
-      eq(spaceRecommendations.projectId, projectId),
-      eq(spaceRecommendations.orgId, orgId)
-    ));
+    if (project.length !== 1 || recommendations.some(
+      (row) => row.projectId !== projectId || row.orgId !== orgId
+    ))
+      return false;
+    await tx.delete(spaceRecommendations).where(
+      and(
+        eq(spaceRecommendations.projectId, projectId),
+        eq(spaceRecommendations.orgId, orgId)
+      )
+    );
     if (recommendations.length > 0) {
       await tx.insert(spaceRecommendations).values(recommendations);
     }
@@ -8143,10 +9020,12 @@ async function replaceSpaceRecommendationsForOrg(projectId, orgId, recommendatio
 async function getSpaceRecommendations(projectId, orgId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(spaceRecommendations).where(and(
-    eq(spaceRecommendations.projectId, projectId),
-    eq(spaceRecommendations.orgId, orgId)
-  )).orderBy(spaceRecommendations.roomId);
+  return db.select().from(spaceRecommendations).where(
+    and(
+      eq(spaceRecommendations.projectId, projectId),
+      eq(spaceRecommendations.orgId, orgId)
+    )
+  ).orderBy(spaceRecommendations.roomId);
 }
 async function createDesignPackage(data) {
   const db = await getDb();
@@ -8193,10 +9072,12 @@ async function createAiDesignBriefForOrg(data, orgId) {
 async function getLatestAiDesignBrief(projectId, orgId) {
   const db = await getDb();
   if (!db) return null;
-  const results = await db.select().from(aiDesignBriefs).where(and(
-    eq(aiDesignBriefs.projectId, projectId),
-    eq(aiDesignBriefs.orgId, orgId)
-  )).orderBy(desc(aiDesignBriefs.generatedAt)).limit(1);
+  const results = await db.select().from(aiDesignBriefs).where(
+    and(
+      eq(aiDesignBriefs.projectId, projectId),
+      eq(aiDesignBriefs.orgId, orgId)
+    )
+  ).orderBy(desc(aiDesignBriefs.generatedAt)).limit(1);
   return results[0] || null;
 }
 async function getAiDesignBrief(projectId) {
@@ -8220,52 +9101,64 @@ async function updateAiDesignBriefShareTokenForOrg(briefId, projectId, orgId, to
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const rows = await tx.select({ id: aiDesignBriefs.id }).from(aiDesignBriefs).innerJoin(projects, eq(projects.id, aiDesignBriefs.projectId)).where(and(
-      eq(aiDesignBriefs.id, briefId),
-      eq(aiDesignBriefs.projectId, projectId),
-      eq(aiDesignBriefs.orgId, orgId),
-      eq(projects.id, projectId),
-      eq(projects.orgId, orgId)
-    )).limit(1).for("update");
+    const rows = await tx.select({ id: aiDesignBriefs.id }).from(aiDesignBriefs).innerJoin(projects, eq(projects.id, aiDesignBriefs.projectId)).where(
+      and(
+        eq(aiDesignBriefs.id, briefId),
+        eq(aiDesignBriefs.projectId, projectId),
+        eq(aiDesignBriefs.orgId, orgId),
+        eq(projects.id, projectId),
+        eq(projects.orgId, orgId)
+      )
+    ).limit(1).for("update");
     if (!rows[0]) return false;
-    const result = await tx.update(aiDesignBriefs).set({ shareToken: token, shareExpiresAt: expiresAt }).where(and(
-      eq(aiDesignBriefs.id, briefId),
-      eq(aiDesignBriefs.projectId, projectId),
-      eq(aiDesignBriefs.orgId, orgId),
-      sql`exists (
+    const result = await tx.update(aiDesignBriefs).set({ shareToken: token, shareExpiresAt: expiresAt }).where(
+      and(
+        eq(aiDesignBriefs.id, briefId),
+        eq(aiDesignBriefs.projectId, projectId),
+        eq(aiDesignBriefs.orgId, orgId),
+        sql`exists (
           select 1 from ${projects}
           where ${projects.id} = ${projectId}
             and ${projects.orgId} = ${orgId}
         )`
-    ));
+      )
+    );
     return Number(result[0].affectedRows) === 1;
   });
 }
 async function revokeAiDesignBriefSharesForProjectForOrg(projectId, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  return revokeAiDesignBriefSharesForProjectForOrgInDatabase(db, projectId, orgId);
+  return revokeAiDesignBriefSharesForProjectForOrgInDatabase(
+    db,
+    projectId,
+    orgId
+  );
 }
 async function revokeAiDesignBriefSharesForProjectForOrgInDatabase(database4, projectId, orgId) {
   return database4.transaction(async (tx) => {
     const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId))).limit(1).for("update");
     if (owned.length !== 1) return null;
-    await tx.update(aiDesignBriefs).set({ shareExpiresAt: null }).where(and(
-      eq(aiDesignBriefs.projectId, projectId),
-      eq(aiDesignBriefs.orgId, orgId),
-      isNull(aiDesignBriefs.shareToken),
-      isNotNull(aiDesignBriefs.shareExpiresAt)
-    ));
-    const result = await tx.update(aiDesignBriefs).set({ shareToken: null, shareExpiresAt: null }).where(and(
-      eq(aiDesignBriefs.projectId, projectId),
-      eq(aiDesignBriefs.orgId, orgId),
-      isNotNull(aiDesignBriefs.shareToken),
-      sql`exists (
+    await tx.update(aiDesignBriefs).set({ shareExpiresAt: null }).where(
+      and(
+        eq(aiDesignBriefs.projectId, projectId),
+        eq(aiDesignBriefs.orgId, orgId),
+        isNull(aiDesignBriefs.shareToken),
+        isNotNull(aiDesignBriefs.shareExpiresAt)
+      )
+    );
+    const result = await tx.update(aiDesignBriefs).set({ shareToken: null, shareExpiresAt: null }).where(
+      and(
+        eq(aiDesignBriefs.projectId, projectId),
+        eq(aiDesignBriefs.orgId, orgId),
+        isNotNull(aiDesignBriefs.shareToken),
+        sql`exists (
           select 1 from ${projects}
           where ${projects.id} = ${projectId}
             and ${projects.orgId} = ${orgId}
         )`
-    ));
+      )
+    );
     return { revokedCount: Number(result[0].affectedRows) };
   });
 }
@@ -8306,7 +9199,10 @@ async function getDesignTrends(filters) {
   if (!db) return [];
   const conditions = [];
   if (filters?.region) conditions.push(eq(designTrends.region, filters.region));
-  if (filters?.styleClassification) conditions.push(eq(designTrends.styleClassification, filters.styleClassification));
+  if (filters?.styleClassification)
+    conditions.push(
+      eq(designTrends.styleClassification, filters.styleClassification)
+    );
   const query = db.select().from(designTrends);
   if (conditions.length > 0) query.where(and(...conditions));
   const rows = await query.orderBy(desc(designTrends.mentionCount)).limit(filters?.limit ?? 30);
@@ -8317,7 +9213,10 @@ async function getPublicDesignTrends(filters) {
   if (!db) return [];
   const conditions = [eq(designTrends.corpusScope, "platform_public")];
   if (filters?.region) conditions.push(eq(designTrends.region, filters.region));
-  if (filters?.styleClassification) conditions.push(eq(designTrends.styleClassification, filters.styleClassification));
+  if (filters?.styleClassification)
+    conditions.push(
+      eq(designTrends.styleClassification, filters.styleClassification)
+    );
   return db.select().from(designTrends).where(and(...conditions)).orderBy(desc(designTrends.mentionCount)).limit(filters?.limit ?? 30);
 }
 async function getPublicDecisionPatterns() {
@@ -8347,13 +9246,20 @@ async function getGovernedLogicChangeLog(status) {
 async function getBenchmarkForProject(typology, location, marketTier) {
   const db = await getDb();
   if (!db) return null;
-  const exact = await db.select().from(benchmarkData).where(and(
-    eq(benchmarkData.typology, typology),
-    eq(benchmarkData.location, location),
-    eq(benchmarkData.marketTier, marketTier)
-  )).limit(1);
+  const exact = await db.select().from(benchmarkData).where(
+    and(
+      eq(benchmarkData.typology, typology),
+      eq(benchmarkData.location, location),
+      eq(benchmarkData.marketTier, marketTier)
+    )
+  ).limit(1);
   if (exact.length > 0) return exact[0];
-  const noLoc = await db.select().from(benchmarkData).where(and(eq(benchmarkData.typology, typology), eq(benchmarkData.marketTier, marketTier))).limit(1);
+  const noLoc = await db.select().from(benchmarkData).where(
+    and(
+      eq(benchmarkData.typology, typology),
+      eq(benchmarkData.marketTier, marketTier)
+    )
+  ).limit(1);
   if (noLoc.length > 0) return noLoc[0];
   const justTier = await db.select().from(benchmarkData).where(eq(benchmarkData.marketTier, marketTier)).limit(1);
   return justTier[0] ?? null;
@@ -8363,9 +9269,13 @@ async function getEvidenceWithSources(filters) {
   if (!db) return [];
   const conditions = [];
   conditions.push(eq(evidenceRecords.orgId, filters.orgId));
-  if (filters.category) conditions.push(eq(evidenceRecords.category, filters.category));
-  if (filters.projectId) conditions.push(eq(evidenceRecords.projectId, filters.projectId));
-  conditions.push(sql`${evidenceRecords.confidentiality} NOT IN ('confidential', 'restricted')`);
+  if (filters.category)
+    conditions.push(eq(evidenceRecords.category, filters.category));
+  if (filters.projectId)
+    conditions.push(eq(evidenceRecords.projectId, filters.projectId));
+  conditions.push(
+    sql`${evidenceRecords.confidentiality} NOT IN ('confidential', 'restricted')`
+  );
   let query = db.select({
     id: evidenceRecords.id,
     recordId: evidenceRecords.recordId,
@@ -8388,7 +9298,10 @@ async function getEvidenceWithSources(filters) {
     sourceReliability: sourceRegistry.reliabilityDefault,
     sourcePageUrl: sourceRegistry.url,
     sourceLastFetch: sourceRegistry.lastSuccessfulFetch
-  }).from(evidenceRecords).leftJoin(sourceRegistry, eq(evidenceRecords.sourceRegistryId, sourceRegistry.id));
+  }).from(evidenceRecords).leftJoin(
+    sourceRegistry,
+    eq(evidenceRecords.sourceRegistryId, sourceRegistry.id)
+  );
   if (conditions.length > 0) {
     query = query.where(and(...conditions));
   }
@@ -8408,7 +9321,15 @@ async function getActiveSourceRegistry(limit = 10) {
     lastScrapedStatus: sourceRegistry.lastScrapedStatus,
     lastRecordCount: sourceRegistry.lastRecordCount,
     notes: sourceRegistry.notes
-  }).from(sourceRegistry).where(and(eq(sourceRegistry.isWhitelisted, true), eq(sourceRegistry.isActive, true))).orderBy(asc(sourceRegistry.reliabilityDefault), desc(sourceRegistry.lastSuccessfulFetch)).limit(limit);
+  }).from(sourceRegistry).where(
+    and(
+      eq(sourceRegistry.isWhitelisted, true),
+      eq(sourceRegistry.isActive, true)
+    )
+  ).orderBy(
+    asc(sourceRegistry.reliabilityDefault),
+    desc(sourceRegistry.lastSuccessfulFetch)
+  ).limit(limit);
   return rows;
 }
 async function createPdfExtraction(data) {
@@ -8481,8 +9402,10 @@ async function updateProjectVerification(projectId, data) {
   const db = await getDb();
   if (!db) return;
   const updates = {};
-  if (data.fitoutAreaVerified !== void 0) updates.fitoutAreaVerified = data.fitoutAreaVerified;
-  if (data.totalFitoutArea !== void 0) updates.totalFitoutArea = String(data.totalFitoutArea);
+  if (data.fitoutAreaVerified !== void 0)
+    updates.fitoutAreaVerified = data.fitoutAreaVerified;
+  if (data.totalFitoutArea !== void 0)
+    updates.totalFitoutArea = String(data.totalFitoutArea);
   return db.update(projects).set(updates).where(eq(projects.id, projectId));
 }
 async function updateProjectVerificationForOrg(projectId, orgId, data) {
@@ -8509,14 +9432,80 @@ async function insertMaterialAllocations(data) {
   if (data.length === 0) return;
   return db.insert(materialAllocations).values(data);
 }
-async function replaceMaterialAllocationsForOrg(projectId, organizationId, data) {
+async function createExplicitMaterialAllocationForOrg(projectId, organizationId, data, expected) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const project = await tx.select({ id: projects.id }).from(projects).where(
+    if (data.projectId !== projectId || data.organizationId !== organizationId || !["joinery", "sanitaryware"].includes(data.element)) {
+      return null;
+    }
+    const project = await tx.select({
+      id: projects.id,
+      materialPricingRevision: projects.materialPricingRevision,
+      materialPriceGeography: projects.materialPriceGeography
+    }).from(projects).where(
       and(eq(projects.id, projectId), eq(projects.orgId, organizationId))
     ).limit(1).for("update");
-    if (project.length !== 1) return false;
+    if (project.length !== 1 || project[0].materialPricingRevision !== expected.materialPricingRevision || project[0].materialPriceGeography !== expected.materialPriceGeography) {
+      return null;
+    }
+    const [room, material] = await Promise.all([
+      tx.select({
+        roomName: spaceProgramRooms.roomName,
+        isFitOut: spaceProgramRooms.isFitOut
+      }).from(spaceProgramRooms).where(
+        and(
+          eq(spaceProgramRooms.projectId, projectId),
+          eq(spaceProgramRooms.organizationId, organizationId),
+          eq(spaceProgramRooms.roomCode, data.roomId)
+        )
+      ).limit(1).for("update"),
+      data.materialLibraryId === null || data.materialLibraryId === void 0 ? [] : tx.select({
+        productId: materialLibrary.productId,
+        productName: materialLibrary.productName,
+        category: materialLibrary.category
+      }).from(materialLibrary).where(
+        and(
+          eq(materialLibrary.id, data.materialLibraryId),
+          eq(materialLibrary.isActive, true)
+        )
+      ).limit(1).for("update")
+    ]);
+    if (room.length !== 1 || room[0].isFitOut !== true || room[0].roomName !== data.roomName || material.length !== 1 || material[0].productId !== data.productId || material[0].productName !== data.materialName || material[0].category !== data.element) {
+      return null;
+    }
+    const existing = await tx.select({ id: materialAllocations.id }).from(materialAllocations).where(
+      and(
+        eq(materialAllocations.projectId, projectId),
+        eq(materialAllocations.organizationId, organizationId),
+        eq(materialAllocations.roomId, data.roomId),
+        eq(materialAllocations.element, data.element)
+      )
+    ).limit(1);
+    if (existing.length > 0) return null;
+    const result = await tx.insert(materialAllocations).values(data);
+    await tx.update(projects).set({
+      materialPricingRevision: sql`${projects.materialPricingRevision} + 1`
+    }).where(
+      and(eq(projects.id, projectId), eq(projects.orgId, organizationId))
+    );
+    return { id: Number(result[0].insertId) };
+  });
+}
+async function replaceMaterialAllocationsForOrg(projectId, organizationId, data, expected) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.transaction(async (tx) => {
+    const project = await tx.select({
+      id: projects.id,
+      materialPricingRevision: projects.materialPricingRevision,
+      materialPriceGeography: projects.materialPriceGeography
+    }).from(projects).where(
+      and(eq(projects.id, projectId), eq(projects.orgId, organizationId))
+    ).limit(1).for("update");
+    if (project.length !== 1 || project[0].materialPricingRevision !== expected.materialPricingRevision || project[0].materialPriceGeography !== expected.materialPriceGeography) {
+      return false;
+    }
     await tx.delete(materialAllocations).where(
       and(
         eq(materialAllocations.projectId, projectId),
@@ -8531,6 +9520,11 @@ async function replaceMaterialAllocationsForOrg(projectId, organizationId, data)
         return false;
       await tx.insert(materialAllocations).values(data);
     }
+    await tx.update(projects).set({
+      materialPricingRevision: sql`${projects.materialPricingRevision} + 1`
+    }).where(
+      and(eq(projects.id, projectId), eq(projects.orgId, organizationId))
+    );
     return true;
   });
 }
@@ -8560,13 +9554,39 @@ async function getMaterialAllocationById(id) {
 async function updateMaterialAllocationForOrg(id, organizationId, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.update(materialAllocations).set(data).where(
-    and(
-      eq(materialAllocations.id, id),
-      eq(materialAllocations.organizationId, organizationId)
-    )
-  );
-  return Number(result[0].affectedRows) === 1;
+  return db.transaction(async (tx) => {
+    const allocation = await tx.select({ projectId: materialAllocations.projectId }).from(materialAllocations).where(
+      and(
+        eq(materialAllocations.id, id),
+        eq(materialAllocations.organizationId, organizationId)
+      )
+    ).limit(1);
+    if (allocation.length !== 1) return false;
+    const project = await tx.select({ id: projects.id }).from(projects).where(
+      and(
+        eq(projects.id, allocation[0].projectId),
+        eq(projects.orgId, organizationId)
+      )
+    ).limit(1).for("update");
+    if (project.length !== 1) return false;
+    const result = await tx.update(materialAllocations).set(data).where(
+      and(
+        eq(materialAllocations.id, id),
+        eq(materialAllocations.projectId, allocation[0].projectId),
+        eq(materialAllocations.organizationId, organizationId)
+      )
+    );
+    if (Number(result[0].affectedRows) !== 1) return false;
+    await tx.update(projects).set({
+      materialPricingRevision: sql`${projects.materialPricingRevision} + 1`
+    }).where(
+      and(
+        eq(projects.id, allocation[0].projectId),
+        eq(projects.orgId, organizationId)
+      )
+    );
+    return true;
+  });
 }
 async function lockMaterialAllocations(projectId, organizationId, isLocked) {
   const db = await getDb();
@@ -8622,10 +9642,12 @@ async function updateMaterialSupplierSourceForOrg(id, organizationId, data) {
 async function getSpaceProgramRooms(projectId, organizationId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(spaceProgramRooms).where(and(
-    eq(spaceProgramRooms.projectId, projectId),
-    eq(spaceProgramRooms.organizationId, organizationId)
-  )).orderBy(spaceProgramRooms.sortOrder);
+  return db.select().from(spaceProgramRooms).where(
+    and(
+      eq(spaceProgramRooms.projectId, projectId),
+      eq(spaceProgramRooms.organizationId, organizationId)
+    )
+  ).orderBy(spaceProgramRooms.sortOrder);
 }
 async function insertSpaceProgramRooms(data) {
   const db = await getDb();
@@ -8637,15 +9659,17 @@ async function insertSpaceProgramRoomForOrg(data, organizationId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const project = await tx.select({ id: projects.id }).from(projects).where(and(
-      eq(projects.id, data.projectId),
-      eq(projects.orgId, organizationId)
-    )).limit(1).for("update");
-    if (project.length !== 1 || data.organizationId !== organizationId) return false;
-    const authority = await tx.select({ mode: projectGeometryAuthorities.mode }).from(projectGeometryAuthorities).where(and(
-      eq(projectGeometryAuthorities.organizationId, organizationId),
-      eq(projectGeometryAuthorities.projectId, data.projectId)
-    )).limit(1).for("update");
+    const project = await tx.select({ id: projects.id }).from(projects).where(
+      and(eq(projects.id, data.projectId), eq(projects.orgId, organizationId))
+    ).limit(1).for("update");
+    if (project.length !== 1 || data.organizationId !== organizationId)
+      return false;
+    const authority = await tx.select({ mode: projectGeometryAuthorities.mode }).from(projectGeometryAuthorities).where(
+      and(
+        eq(projectGeometryAuthorities.organizationId, organizationId),
+        eq(projectGeometryAuthorities.projectId, data.projectId)
+      )
+    ).limit(1).for("update");
     if (authority[0]?.mode === "canonical") return false;
     await tx.insert(spaceProgramRooms).values(data);
     return true;
@@ -8690,22 +9714,32 @@ async function deleteSpaceProgramRoomForOrg(id, organizationId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const rows = await tx.select({ id: spaceProgramRooms.id }).from(spaceProgramRooms).where(and(
-      eq(spaceProgramRooms.id, id),
-      eq(spaceProgramRooms.organizationId, organizationId)
-    )).limit(1).for("update");
+    const rows = await tx.select({ id: spaceProgramRooms.id }).from(spaceProgramRooms).where(
+      and(
+        eq(spaceProgramRooms.id, id),
+        eq(spaceProgramRooms.organizationId, organizationId)
+      )
+    ).limit(1).for("update");
     if (rows.length !== 1) return false;
-    const authority = await tx.select({ mode: projectGeometryAuthorities.mode }).from(projectGeometryAuthorities).innerJoin(spaceProgramRooms, and(
-      eq(spaceProgramRooms.id, id),
-      eq(spaceProgramRooms.projectId, projectGeometryAuthorities.projectId),
-      eq(spaceProgramRooms.organizationId, projectGeometryAuthorities.organizationId)
-    )).where(eq(projectGeometryAuthorities.organizationId, organizationId)).limit(1).for("update");
+    const authority = await tx.select({ mode: projectGeometryAuthorities.mode }).from(projectGeometryAuthorities).innerJoin(
+      spaceProgramRooms,
+      and(
+        eq(spaceProgramRooms.id, id),
+        eq(spaceProgramRooms.projectId, projectGeometryAuthorities.projectId),
+        eq(
+          spaceProgramRooms.organizationId,
+          projectGeometryAuthorities.organizationId
+        )
+      )
+    ).where(eq(projectGeometryAuthorities.organizationId, organizationId)).limit(1).for("update");
     if (authority[0]?.mode === "canonical") return false;
     await tx.delete(amenitySubSpaces).where(eq(amenitySubSpaces.spaceProgramRoomId, id));
-    const result = await tx.delete(spaceProgramRooms).where(and(
-      eq(spaceProgramRooms.id, id),
-      eq(spaceProgramRooms.organizationId, organizationId)
-    ));
+    const result = await tx.delete(spaceProgramRooms).where(
+      and(
+        eq(spaceProgramRooms.id, id),
+        eq(spaceProgramRooms.organizationId, organizationId)
+      )
+    );
     return Number(result[0].affectedRows) === 1;
   });
 }
@@ -8724,15 +9758,16 @@ async function replaceSpaceProgramRoomsForOrg(projectId, organizationId, rooms, 
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const project = await tx.select({ id: projects.id }).from(projects).where(and(
-      eq(projects.id, projectId),
-      eq(projects.orgId, organizationId)
-    )).limit(1).for("update");
+    const project = await tx.select({ id: projects.id }).from(projects).where(
+      and(eq(projects.id, projectId), eq(projects.orgId, organizationId))
+    ).limit(1).for("update");
     if (project.length !== 1) return null;
-    const authority = await tx.select({ mode: projectGeometryAuthorities.mode }).from(projectGeometryAuthorities).where(and(
-      eq(projectGeometryAuthorities.organizationId, organizationId),
-      eq(projectGeometryAuthorities.projectId, projectId)
-    )).limit(1).for("update");
+    const authority = await tx.select({ mode: projectGeometryAuthorities.mode }).from(projectGeometryAuthorities).where(
+      and(
+        eq(projectGeometryAuthorities.organizationId, organizationId),
+        eq(projectGeometryAuthorities.projectId, projectId)
+      )
+    ).limit(1).for("update");
     if (authority[0]?.mode === "canonical") return null;
     const deleteConditions = [
       eq(spaceProgramRooms.projectId, projectId),
@@ -8749,12 +9784,15 @@ async function replaceSpaceProgramRoomsForOrg(projectId, organizationId, rooms, 
     }
     if (rooms.some(
       (room) => room.projectId !== projectId || room.organizationId !== organizationId
-    )) return null;
+    ))
+      return null;
     if (rooms.length > 0) await tx.insert(spaceProgramRooms).values(rooms);
-    const storedRooms = await tx.select().from(spaceProgramRooms).where(and(
-      eq(spaceProgramRooms.projectId, projectId),
-      eq(spaceProgramRooms.organizationId, organizationId)
-    ));
+    const storedRooms = await tx.select().from(spaceProgramRooms).where(
+      and(
+        eq(spaceProgramRooms.projectId, projectId),
+        eq(spaceProgramRooms.organizationId, organizationId)
+      )
+    );
     const roomByCode = new Map(
       storedRooms.map((room) => [
         room.roomCode,
@@ -8779,20 +9817,21 @@ async function insertPortfolioAlertsForOrg(input) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const portfolio = await tx.select({ id: portfolios.id }).from(portfolios).where(and(
-      eq(portfolios.id, input.portfolioId),
-      eq(portfolios.organizationId, input.orgId)
-    )).limit(1).for("update");
+    const portfolio = await tx.select({ id: portfolios.id }).from(portfolios).where(
+      and(
+        eq(portfolios.id, input.portfolioId),
+        eq(portfolios.organizationId, input.orgId)
+      )
+    ).limit(1).for("update");
     if (portfolio.length !== 1) return null;
     const links = await tx.select({ projectId: portfolioProjects.projectId }).from(portfolioProjects).where(eq(portfolioProjects.portfolioId, input.portfolioId)).for("update");
-    const projectIds = Array.from(new Set(
-      links.map((row) => row.projectId)
-    ));
+    const projectIds = Array.from(
+      new Set(links.map((row) => row.projectId))
+    );
     if (projectIds.length > 0) {
-      const ownedProjects = await tx.select({ id: projects.id }).from(projects).where(and(
-        inArray(projects.id, projectIds),
-        eq(projects.orgId, input.orgId)
-      )).for("update");
+      const ownedProjects = await tx.select({ id: projects.id }).from(projects).where(
+        and(inArray(projects.id, projectIds), eq(projects.orgId, input.orgId))
+      ).for("update");
       if (ownedProjects.length !== projectIds.length) return null;
     }
     const valid = input.alerts.every((alert) => {
@@ -8800,12 +9839,14 @@ async function insertPortfolioAlertsForOrg(input) {
       return alert.organizationId === input.orgId && alert.portfolioId === input.portfolioId && Boolean(alert.activeDedupKey) && affected.every((id) => projectIds.includes(id));
     });
     if (!valid) return null;
-    await tx.update(portfolioAlerts).set({ status: "expired", activeDedupKey: null }).where(and(
-      eq(portfolioAlerts.organizationId, input.orgId),
-      eq(portfolioAlerts.portfolioId, input.portfolioId),
-      eq(portfolioAlerts.status, "active"),
-      sql`${portfolioAlerts.expiresAt} <= now()`
-    ));
+    await tx.update(portfolioAlerts).set({ status: "expired", activeDedupKey: null }).where(
+      and(
+        eq(portfolioAlerts.organizationId, input.orgId),
+        eq(portfolioAlerts.portfolioId, input.portfolioId),
+        eq(portfolioAlerts.status, "active"),
+        sql`${portfolioAlerts.expiresAt} <= now()`
+      )
+    );
     const inserted = [];
     for (const alert of input.alerts) {
       const result = await tx.insert(portfolioAlerts).ignore().values(alert);
@@ -9427,7 +10468,8 @@ async function getAcceptedRoomFloorMeasurementsForOrg(projectId, organizationId)
   );
   const actualBySpaceId = new Map(rows.map((row) => [row.spaceId, row]));
   const hasExactCompleteSet = canonicalRooms.length > 0 && expectedBySpaceId.size === canonicalRooms.length && rows.length === canonicalRooms.length && actualBySpaceId.size === rows.length && canonicalRooms.every((room) => {
-    if (!room.spaceId || room.areaSquareMicrometresTwice == null) return false;
+    if (!room.spaceId || room.areaSquareMicrometresTwice == null)
+      return false;
     const row = actualBySpaceId.get(room.spaceId);
     return Boolean(
       row && row.spaceIdentityId != null && row.spaceVersionId != null && row.graphVersionId === selectedGraph.id && row.geometrySourceId === selectedGraph.geometrySourceId && row.areaSquareMicrometresTwice === room.areaSquareMicrometresTwice
@@ -9519,11 +10561,13 @@ var init_db = __esm({
     assetLinkTargetResolvers = {
       evaluation: (tx, id, orgId) => tx.select({ projectId: scoreMatrices.projectId }).from(scoreMatrices).innerJoin(projects, eq(projects.id, scoreMatrices.projectId)).where(and(eq(scoreMatrices.id, id), eq(projects.orgId, orgId))).limit(1).for("update"),
       report: (tx, id, orgId) => tx.select({ projectId: reportInstances.projectId }).from(reportInstances).innerJoin(projects, eq(projects.id, reportInstances.projectId)).where(and(eq(reportInstances.id, id), eq(projects.orgId, orgId))).limit(1).for("update"),
-      scenario: (tx, id, orgId) => tx.select({ projectId: scenarios.projectId }).from(scenarios).innerJoin(projects, eq(projects.id, scenarios.projectId)).where(and(
-        eq(scenarios.id, id),
-        eq(scenarios.orgId, orgId),
-        eq(projects.orgId, orgId)
-      )).limit(1).for("update"),
+      scenario: (tx, id, orgId) => tx.select({ projectId: scenarios.projectId }).from(scenarios).innerJoin(projects, eq(projects.id, scenarios.projectId)).where(
+        and(
+          eq(scenarios.id, id),
+          eq(scenarios.orgId, orgId),
+          eq(projects.orgId, orgId)
+        )
+      ).limit(1).for("update"),
       material_board: (tx, id, orgId) => tx.select({ projectId: materialBoards.projectId }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).where(and(eq(materialBoards.id, id), eq(projects.orgId, orgId))).limit(1).for("update"),
       design_brief: (tx, id, orgId) => tx.select({ projectId: designBriefs.projectId }).from(designBriefs).innerJoin(projects, eq(projects.id, designBriefs.projectId)).where(and(eq(designBriefs.id, id), eq(projects.orgId, orgId))).limit(1).for("update"),
       visual: (tx, id, orgId) => tx.select({ projectId: generatedVisuals.projectId }).from(generatedVisuals).innerJoin(projects, eq(projects.id, generatedVisuals.projectId)).where(and(eq(generatedVisuals.id, id), eq(projects.orgId, orgId))).limit(1).for("update")
@@ -9918,10 +10962,10 @@ var init_report_catalog = __esm({
       boardResolvedCount: "{resolved} of {linked} items resolved",
       boardItemIs: "item is",
       boardItemsAre: "items are",
-      resolvedItemCostRange: "Resolved-item Cost Range",
+      resolvedItemCostRange: "Browse-only Catalog Estimate (excluded from issued totals)",
       resolvedItemLongestLead: "Resolved-item Longest Lead",
       resolvedCriticalItems: "Resolved Critical Items",
-      materialBoardAnnexDescription: "Board availability and resolution are shown explicitly. Any figures shown are calculated only from resolved catalog items. Full RFQ-ready procurement schedules are available via the Board Composer export.",
+      materialBoardAnnexDescription: "Board availability is shown explicitly. Catalog figures are browse-only estimates, are excluded from scoring and issued totals, and are not RFQ-ready until a governed specification and value resolve.",
       noMaterialBoards: "No material boards have been created for this project. Use the Board Composer to build material boards with cost estimates and RFQ-ready procurement schedules."
     };
     AR_COPY = {
@@ -10053,10 +11097,10 @@ var init_report_catalog = __esm({
       boardResolvedCount: "\u062A\u0645 \u062D\u0644 {resolved} \u0645\u0646 \u0623\u0635\u0644 {linked} \u0639\u0646\u0627\u0635\u0631",
       boardItemIs: "\u0639\u0646\u0635\u0631",
       boardItemsAre: "\u0639\u0646\u0627\u0635\u0631",
-      resolvedItemCostRange: "\u0646\u0637\u0627\u0642 \u062A\u0643\u0644\u0641\u0629 \u0627\u0644\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u0645\u062D\u0644\u0648\u0644\u0629",
+      resolvedItemCostRange: "\u062A\u0642\u062F\u064A\u0631 \u0627\u0644\u0643\u062A\u0627\u0644\u0648\u062C \u0644\u0644\u0627\u0633\u062A\u0639\u0631\u0627\u0636 \u0641\u0642\u0637 (\u0645\u0633\u062A\u0628\u0639\u062F \u0645\u0646 \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A\u0627\u062A \u0627\u0644\u0635\u0627\u062F\u0631\u0629)",
       resolvedItemLongestLead: "\u0623\u0637\u0648\u0644 \u0645\u0647\u0644\u0629 \u0644\u0644\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u0645\u062D\u0644\u0648\u0644\u0629",
       resolvedCriticalItems: "\u0627\u0644\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u062D\u0631\u062C\u0629 \u0627\u0644\u0645\u062D\u0644\u0648\u0644\u0629",
-      materialBoardAnnexDescription: "\u064A\u062A\u0645 \u0639\u0631\u0636 \u062A\u0648\u0641\u0631 \u0627\u0644\u0644\u0648\u062D\u0627\u062A \u0648\u062D\u0627\u0644\u0629 \u062D\u0644 \u0639\u0646\u0627\u0635\u0631\u0647\u0627 \u0628\u0648\u0636\u0648\u062D. \u062A\u064F\u062D\u0633\u0628 \u0627\u0644\u0623\u0631\u0642\u0627\u0645 \u0627\u0644\u0645\u0639\u0631\u0648\u0636\u0629 \u0641\u0642\u0637 \u0645\u0646 \u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u0643\u062A\u0627\u0644\u0648\u062C \u0627\u0644\u062A\u064A \u062A\u0645 \u062D\u0644\u0647\u0627. \u062A\u062A\u0648\u0641\u0631 \u062C\u062F\u0627\u0648\u0644 \u0634\u0631\u0627\u0621 \u0643\u0627\u0645\u0644\u0629 \u062C\u0627\u0647\u0632\u0629 \u0644\u0637\u0644\u0628 \u0639\u0631\u0648\u0636 \u0627\u0644\u0623\u0633\u0639\u0627\u0631 \u0639\u0628\u0631 \u062A\u0635\u062F\u064A\u0631 \u0623\u062F\u0627\u0629 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0644\u0648\u062D\u0627\u062A.",
+      materialBoardAnnexDescription: "\u064A\u062A\u0645 \u0639\u0631\u0636 \u062A\u0648\u0641\u0631 \u0627\u0644\u0644\u0648\u062D\u0627\u062A \u0628\u0648\u0636\u0648\u062D. \u0623\u0631\u0642\u0627\u0645 \u0627\u0644\u0643\u062A\u0627\u0644\u0648\u062C \u062A\u0642\u062F\u064A\u0631\u064A\u0629 \u0648\u0644\u0644\u0627\u0633\u062A\u0639\u0631\u0627\u0636 \u0641\u0642\u0637\u060C \u0648\u0644\u0627 \u062A\u062F\u062E\u0644 \u0641\u064A \u0627\u0644\u062A\u0642\u064A\u064A\u0645 \u0623\u0648 \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A\u0627\u062A \u0627\u0644\u0635\u0627\u062F\u0631\u0629\u060C \u0648\u0644\u0627 \u062A\u0635\u0628\u062D \u062C\u0627\u0647\u0632\u0629 \u0644\u0637\u0644\u0628 \u0639\u0631\u0648\u0636 \u0627\u0644\u0623\u0633\u0639\u0627\u0631 \u0642\u0628\u0644 \u062D\u0644 \u0645\u0648\u0627\u0635\u0641\u0629 \u0648\u0642\u064A\u0645\u0629 \u0645\u062D\u0643\u0648\u0645\u0629.",
       noMaterialBoards: "\u0644\u0645 \u064A\u062A\u0645 \u0625\u0646\u0634\u0627\u0621 \u0644\u0648\u062D\u0627\u062A \u0645\u0648\u0627\u062F \u0644\u0647\u0630\u0627 \u0627\u0644\u0645\u0634\u0631\u0648\u0639. \u0627\u0633\u062A\u062E\u062F\u0645 \u0623\u062F\u0627\u0629 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0644\u0648\u062D\u0627\u062A \u0644\u0628\u0646\u0627\u0621 \u0644\u0648\u062D\u0627\u062A \u0645\u0648\u0627\u062F \u062A\u062A\u0636\u0645\u0646 \u062A\u0642\u062F\u064A\u0631\u0627\u062A \u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0648\u062C\u062F\u0627\u0648\u0644 \u0634\u0631\u0627\u0621 \u062C\u0627\u0647\u0632\u0629 \u0644\u0637\u0644\u0628 \u0639\u0631\u0648\u0636 \u0627\u0644\u0623\u0633\u0639\u0627\u0631."
     };
     LEGACY_REPORT_AR_COPY = {
@@ -10724,9 +11768,6 @@ function classifyFinishLevelForObservation(priceMin, priceMax, unit) {
   }
   return classifyFinishLevel(min, max2, normalizedUnit);
 }
-function mkt01TierToFinish(mkt01Tier) {
-  return (mkt01Tier ? MKT01_TIER_TO_FINISH[mkt01Tier] : void 0) ?? "standard";
-}
 function legacyAdjacentTier(tier) {
   if (tier === "ultra") return "premium";
   if (tier === "premium") return "mid";
@@ -10745,7 +11786,7 @@ function libraryTiersForMkt01Tier(mkt01Tier) {
   }
   return tiers;
 }
-var PER_AREA_UNITS, CATALOG_TIER_TO_FINISH, SQFT_TO_SQM_FACTOR, SQFT_UNITS, MKT01_TIER_TO_FINISH, LIBRARY_TIERS;
+var PER_AREA_UNITS, CATALOG_TIER_TO_FINISH, SQFT_TO_SQM_FACTOR, SQFT_UNITS, LIBRARY_TIERS;
 var init_tier_policy = __esm({
   "server/engines/tier-policy.ts"() {
     "use strict";
@@ -10759,18 +11800,1128 @@ var init_tier_policy = __esm({
     };
     SQFT_TO_SQM_FACTOR = 10.7639;
     SQFT_UNITS = /* @__PURE__ */ new Set(["sqft", "sq.ft", "sq ft"]);
-    MKT01_TIER_TO_FINISH = {
-      Mid: "standard",
-      "Upper-mid": "premium",
-      Luxury: "luxury",
-      "Ultra-luxury": "ultra_luxury"
-    };
     LIBRARY_TIERS = /* @__PURE__ */ new Set([
       "affordable",
       "mid",
       "premium",
       "ultra"
     ]);
+  }
+});
+
+// server/engines/material-pricing/policy.ts
+function materialLibraryCategoryToCanonical(category) {
+  return LIBRARY_CATEGORY_MAP[category] ?? "other";
+}
+function materialCatalogCategoryToCanonical(category) {
+  return CATALOG_CATEGORY_MAP[category] ?? "other";
+}
+function materialLibraryTierToFinish(tier) {
+  return LIBRARY_TIER_MAP[tier] ?? null;
+}
+function materialCatalogTierToFinish(tier) {
+  return CATALOG_TIER_MAP[tier] ?? null;
+}
+function normalizeUnitBasis(unit) {
+  const normalized = (unit ?? "").trim().toLowerCase().replace(/\s+/g, "_");
+  if (["sqm", "m\xB2", "m2", "aed/sqm", "per_sqm", "sq_m"].includes(normalized)) {
+    return "per_sqm";
+  }
+  if (["lm", "linear_metre", "linear_meter", "per_lm"].includes(normalized)) {
+    return "per_lm";
+  }
+  if (["l", "litre", "liter", "per_litre"].includes(normalized)) {
+    return "per_litre";
+  }
+  if (["piece", "pc", "unit", "set", "point", "per_piece"].includes(normalized)) {
+    return "per_piece";
+  }
+  if (["pack", "box", "per_pack"].includes(normalized)) {
+    return "per_pack";
+  }
+  return null;
+}
+function sourceLadderPriority(rung) {
+  return LADDER_PRIORITY[rung];
+}
+function toMinorUnits(value) {
+  if (!/^\d+(?:\.\d{1,2})?$/.test(value)) {
+    throw new Error(`Expected a non-negative decimal with at most 2 places: ${value}`);
+  }
+  const [whole, fraction2 = ""] = value.split(".");
+  return BigInt(whole) * BigInt(100) + BigInt(fraction2.padEnd(2, "0"));
+}
+function exactDecimalMidpoint(min, max2) {
+  const a = toMinorUnits(min);
+  const b = toMinorUnits(max2);
+  if (a > b) throw new Error("Minimum price cannot exceed maximum price");
+  const midpoint = (a + b + BigInt(1)) / BigInt(2);
+  const hundred = BigInt(100);
+  return `${midpoint / hundred}.${String(midpoint % hundred).padStart(2, "0")}`;
+}
+var LIBRARY_CATEGORY_MAP, CATALOG_CATEGORY_MAP, LIBRARY_TIER_MAP, CATALOG_TIER_MAP, LADDER_PRIORITY;
+var init_policy = __esm({
+  "server/engines/material-pricing/policy.ts"() {
+    "use strict";
+    LIBRARY_CATEGORY_MAP = {
+      flooring: "floors",
+      wall_paint: "walls",
+      wall_tile: "walls",
+      ceiling: "ceilings",
+      joinery: "joinery",
+      sanitaryware: "sanitary",
+      fittings: "hardware",
+      lighting: "lighting",
+      hardware: "hardware",
+      specialty: "other"
+    };
+    CATALOG_CATEGORY_MAP = {
+      tile: "floors",
+      stone: "floors",
+      wood: "floors",
+      paint: "walls",
+      wallpaper: "walls",
+      lighting: "lighting",
+      furniture: "ffe",
+      fixture: "sanitary",
+      accessory: "hardware",
+      metal: "other",
+      fabric: "ffe",
+      glass: "other",
+      other: "other"
+    };
+    LIBRARY_TIER_MAP = {
+      affordable: "basic",
+      mid: "standard",
+      premium: "premium",
+      ultra: "ultra_luxury"
+    };
+    CATALOG_TIER_MAP = {
+      economy: "basic",
+      mid: "standard",
+      premium: "premium",
+      luxury: "luxury",
+      ultra_luxury: "ultra_luxury"
+    };
+    LADDER_PRIORITY = {
+      supplier_quote: 0,
+      official_statistic: 1,
+      consultancy_benchmark: 2,
+      market_observation: 3,
+      retail_sanity: 4,
+      assumption: 5
+    };
+  }
+});
+
+// shared/material-calculations.ts
+var MATERIAL_RESOLUTION_POLICY_VERSION, PAINT_QUANTITY_POLICY_VERSION;
+var init_material_calculations = __esm({
+  "shared/material-calculations.ts"() {
+    "use strict";
+    MATERIAL_RESOLUTION_POLICY_VERSION = "ev03-material-resolution-v1";
+    PAINT_QUANTITY_POLICY_VERSION = "ev03-paint-quantity-v1";
+  }
+});
+
+// server/engines/material-pricing/quantity-policy.ts
+function finitePositive(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+function validPaintPackSize(value) {
+  const litres = finitePositive(value);
+  if (litres === null || litres < MIN_PAINT_PACK_LITRES || litres > MAX_PAINT_PACK_LITRES) {
+    return false;
+  }
+  const millilitres = litres * 1e3;
+  return Number.isSafeInteger(Math.round(millilitres)) && Math.abs(millilitres - Math.round(millilitres)) < 1e-9;
+}
+function validateApprovedPaintCoverageProfile(profile, asOf) {
+  const coverage = finitePositive(profile.coverageM2PerLitrePerCoat);
+  const waste = Number(profile.wastePct);
+  const effectiveAt = profile.effectiveAt instanceof Date ? profile.effectiveAt : new Date(profile.effectiveAt);
+  return profile.status === "approved" && Number.isFinite(asOf.getTime()) && Number.isFinite(effectiveAt.getTime()) && effectiveAt.getTime() <= asOf.getTime() && coverage !== null && coverage >= 1 && coverage <= 30 && Number.isInteger(profile.coatCount) && profile.coatCount >= 1 && profile.coatCount <= 5 && Number.isFinite(waste) && waste >= 0 && waste <= 30 && profile.sourceDocumentDigest.trim().length > 0 && profile.packSizesLitres.length <= MAX_PAINT_PACK_SIZE_COUNT && new Set(profile.packSizesLitres).size === profile.packSizesLitres.length && profile.packSizesLitres.every(validPaintPackSize);
+}
+function roundUpToPaintPacks(litresRequired, packSizesLitres) {
+  if (!Number.isFinite(litresRequired) || litresRequired <= 0) return null;
+  const sizes = packSizesLitres.map((size) => Number(size)).filter(
+    (size, index2) => validPaintPackSize(packSizesLitres[index2]) && Number.isFinite(size)
+  ).sort((a, b) => b - a);
+  if (sizes.length !== packSizesLitres.length || sizes.length > MAX_PAINT_PACK_SIZE_COUNT) {
+    return null;
+  }
+  if (sizes.length === 0) {
+    return {
+      purchasedLitres: Number(litresRequired.toFixed(3)),
+      packCounts: {}
+    };
+  }
+  const requiredMl = Math.ceil(litresRequired * 1e3);
+  const packMl = sizes.map((size) => Math.round(size * 1e3));
+  const largest = packMl[0];
+  if (!Number.isSafeInteger(requiredMl) || requiredMl <= 0) return null;
+  const heap = [{ residue: 0, volume: 0, count: 0 }];
+  const push = (node) => {
+    heap.push(node);
+    let index2 = heap.length - 1;
+    while (index2 > 0) {
+      const parent = Math.floor((index2 - 1) / 2);
+      const before = heap[parent];
+      if (before.volume < node.volume || before.volume === node.volume && before.count <= node.count) break;
+      heap[index2] = before;
+      index2 = parent;
+    }
+    heap[index2] = node;
+  };
+  const pop = () => {
+    const first = heap[0];
+    const last = heap.pop();
+    if (!first || !last || heap.length === 0) return first;
+    let index2 = 0;
+    while (true) {
+      const left = index2 * 2 + 1;
+      const right = left + 1;
+      if (left >= heap.length) break;
+      let child = left;
+      if (right < heap.length && (heap[right].volume < heap[left].volume || heap[right].volume === heap[left].volume && heap[right].count < heap[left].count)) child = right;
+      if (heap[child].volume > last.volume || heap[child].volume === last.volume && heap[child].count >= last.count) break;
+      heap[index2] = heap[child];
+      index2 = child;
+    }
+    heap[index2] = last;
+    return first;
+  };
+  const bestVolume = Array(largest).fill(Number.POSITIVE_INFINITY);
+  const bestCount = Array(largest).fill(Number.POSITIVE_INFINITY);
+  const previousResidue = Array(largest).fill(-1);
+  const previousPack = Array(largest).fill(-1);
+  bestVolume[0] = 0;
+  bestCount[0] = 0;
+  while (heap.length > 0) {
+    const current = pop();
+    if (current.volume !== bestVolume[current.residue] || current.count !== bestCount[current.residue]) continue;
+    for (let index2 = 0; index2 < packMl.length; index2 += 1) {
+      const volume = current.volume + packMl[index2];
+      const residue = volume % largest;
+      const count2 = current.count + 1;
+      if (volume < bestVolume[residue] || volume === bestVolume[residue] && count2 < bestCount[residue]) {
+        bestVolume[residue] = volume;
+        bestCount[residue] = count2;
+        previousResidue[residue] = current.residue;
+        previousPack[residue] = index2;
+        push({ residue, volume, count: count2 });
+      }
+    }
+  }
+  let selected = Number.POSITIVE_INFINITY;
+  let selectedCount = Number.POSITIVE_INFINITY;
+  let selectedResidue = -1;
+  let selectedLargestCount = 0;
+  for (let residue = 0; residue < largest; residue += 1) {
+    const base = bestVolume[residue];
+    if (!Number.isFinite(base)) continue;
+    const largestCount = base >= requiredMl ? 0 : Math.ceil((requiredMl - base) / largest);
+    const volume = base + largestCount * largest;
+    const count2 = bestCount[residue] + largestCount;
+    if (volume < selected || volume === selected && count2 < selectedCount) {
+      selected = volume;
+      selectedCount = count2;
+      selectedResidue = residue;
+      selectedLargestCount = largestCount;
+    }
+  }
+  if (!Number.isFinite(selected) || selectedResidue < 0) return null;
+  const packCounts = {};
+  if (selectedLargestCount > 0) {
+    packCounts[String(sizes[0])] = selectedLargestCount;
+  }
+  let cursor = selectedResidue;
+  while (cursor !== 0) {
+    const packIndex = previousPack[cursor];
+    const predecessor = previousResidue[cursor];
+    if (packIndex < 0 || predecessor < 0) return null;
+    const label = String(sizes[packIndex]);
+    packCounts[label] = (packCounts[label] ?? 0) + 1;
+    cursor = predecessor;
+  }
+  return {
+    purchasedLitres: Number((selected / 1e3).toFixed(3)),
+    packCounts
+  };
+}
+function resolveQuantityForUnitBasis(input) {
+  if (input.unitBasis === "per_sqm") {
+    const quantity = input.explicitQuantityUnit === "sqm" ? input.explicitQuantity : input.surfaceAreaM2;
+    if (!quantity || !Number.isFinite(quantity) || quantity <= 0) {
+      return { state: "insufficient", reason: "quantity_required" };
+    }
+    return {
+      state: "resolved",
+      quantity,
+      quantityUnit: "sqm",
+      policyVersion: "ev03-direct-unit-v1",
+      conversionInputs: { surfaceAreaM2: quantity }
+    };
+  }
+  if (input.unitBasis === "per_litre" && input.surfaceAreaM2 !== void 0) {
+    if (input.paintCoverageState === "invalid" || input.paintCoverageState === "approved" && !input.paintCoverageProfile) {
+      return { state: "insufficient", reason: "paint_coverage_invalid" };
+    }
+    const profile = input.paintCoverageProfile ?? DEFAULT_PAINT_COVERAGE_PROFILE;
+    if (!validateApprovedPaintCoverageProfile(profile, input.asOf)) {
+      return { state: "insufficient", reason: "paint_coverage_invalid" };
+    }
+    const coverage = Number(profile.coverageM2PerLitrePerCoat);
+    const wasteMultiplier = 1 + Number(profile.wastePct) / 100;
+    const litres = input.surfaceAreaM2 * profile.coatCount * wasteMultiplier / coverage;
+    if (!Number.isFinite(litres) || litres <= 0) {
+      return { state: "insufficient", reason: "paint_coverage_invalid" };
+    }
+    return {
+      state: "resolved",
+      quantity: Number(litres.toFixed(3)),
+      quantityUnit: "litre",
+      policyVersion: profile.policyVersion,
+      conversionInputs: {
+        surfaceAreaM2: input.surfaceAreaM2,
+        coverageM2PerLitrePerCoat: profile.coverageM2PerLitrePerCoat,
+        coatCount: profile.coatCount,
+        wastePct: profile.wastePct,
+        sourceDocumentDigest: profile.sourceDocumentDigest,
+        packSizesLitres: profile.packSizesLitres
+      }
+    };
+  }
+  const expectedUnit = {
+    per_lm: "lm",
+    per_piece: "piece",
+    per_pack: "pack"
+  };
+  if (input.unitBasis === "per_litre") {
+    if (input.explicitQuantityUnit !== "litre") {
+      return { state: "insufficient", reason: "quantity_required" };
+    }
+  } else if (input.explicitQuantityUnit !== expectedUnit[input.unitBasis]) {
+    return { state: "insufficient", reason: "incompatible_quantity_unit" };
+  }
+  if (input.explicitQuantity === void 0 || !Number.isFinite(input.explicitQuantity) || input.explicitQuantity <= 0) {
+    return { state: "insufficient", reason: "quantity_required" };
+  }
+  if ((input.unitBasis === "per_piece" || input.unitBasis === "per_pack") && !Number.isSafeInteger(input.explicitQuantity)) {
+    return { state: "insufficient", reason: "quantity_required" };
+  }
+  return {
+    state: "resolved",
+    quantity: input.explicitQuantity,
+    quantityUnit: input.unitBasis === "per_litre" ? "litre" : expectedUnit[input.unitBasis],
+    policyVersion: "ev03-direct-unit-v1",
+    conversionInputs: {
+      explicitQuantity: input.explicitQuantity,
+      explicitQuantityUnit: input.explicitQuantityUnit
+    }
+  };
+}
+var DEFAULT_PAINT_COVERAGE_PROFILE, MIN_PAINT_PACK_LITRES, MAX_PAINT_PACK_LITRES, MAX_PAINT_PACK_SIZE_COUNT;
+var init_quantity_policy = __esm({
+  "server/engines/material-pricing/quantity-policy.ts"() {
+    "use strict";
+    init_material_calculations();
+    DEFAULT_PAINT_COVERAGE_PROFILE = {
+      status: "approved",
+      policyVersion: PAINT_QUANTITY_POLICY_VERSION,
+      coverageM2PerLitrePerCoat: "10.000",
+      coatCount: 2,
+      wastePct: "10.000",
+      effectiveAt: /* @__PURE__ */ new Date("2026-07-29T00:00:00.000Z"),
+      sourceDocumentDigest: "owner-approved-fallback:10m2-per-litre-per-coat:2-coats:10pct-waste",
+      packSizesLitres: []
+    };
+    MIN_PAINT_PACK_LITRES = 1e-3;
+    MAX_PAINT_PACK_LITRES = 100;
+    MAX_PAINT_PACK_SIZE_COUNT = 12;
+  }
+});
+
+// server/engines/design/material-quantity-engine.ts
+function calculateSurfaceAreas(rooms, ceilingHeightM) {
+  const height = ceilingHeightM ?? DEFAULT_CEILING_HEIGHT;
+  const clampedHeight = Math.max(2.4, Math.min(5, height));
+  if (clampedHeight !== height) {
+    console.warn(
+      `[MQI] Ceiling height ${height}m outside valid range [2.4, 5.0]. Clamped to ${clampedHeight}m.`
+    );
+  }
+  return rooms.map((room) => {
+    if (room.sqm <= 0) {
+      return {
+        roomId: room.id,
+        roomName: room.name,
+        floorM2: 0,
+        wallM2: 0,
+        ceilingM2: 0
+      };
+    }
+    const ratio = ASPECT_RATIOS[room.id] ?? DEFAULT_ASPECT_RATIO;
+    const sqm = room.sqm;
+    const floorM2 = sqm;
+    const sideA = Math.sqrt(sqm * ratio);
+    const sideB = Math.sqrt(sqm / ratio);
+    const perimeter = 2 * (sideA + sideB);
+    const rawWallM2 = perimeter * clampedHeight;
+    const wallM2 = rawWallM2 * 0.85;
+    const ceilingM2 = sqm * 0.95;
+    const wallFloorRatio = wallM2 / floorM2;
+    if (wallFloorRatio < 1.5 || wallFloorRatio > 3.5) {
+      console.warn(
+        `[MQI] Room ${room.id} wall/floor ratio ${wallFloorRatio.toFixed(2)} outside expected range [1.5, 3.5]`
+      );
+    }
+    return {
+      roomId: room.id,
+      roomName: room.name,
+      floorM2: Number(floorM2.toFixed(2)),
+      wallM2: Number(wallM2.toFixed(2)),
+      ceilingM2: Number(ceilingM2.toFixed(2))
+    };
+  });
+}
+async function generateMaterialAllocations(project, surfaces, materialLibrary2, rooms, existingLockedAllocations) {
+  const roomGradeMap = new Map(rooms.map((r) => [r.id, r.finishGrade]));
+  const lockedMap = /* @__PURE__ */ new Map();
+  if (existingLockedAllocations?.length) {
+    for (const locked of existingLockedAllocations) {
+      lockedMap.set(`${locked.roomId}:${locked.element}`, locked.allocations);
+    }
+  }
+  const gradeCRooms = surfaces.filter(
+    (s) => roomGradeMap.get(s.roomId) === "C"
+  );
+  const nonGradeCRooms = surfaces.filter(
+    (s) => roomGradeMap.get(s.roomId) !== "C"
+  );
+  const roomsForGemini = nonGradeCRooms.filter((s) => {
+    const elements = ["floor", "walls", "ceiling", "joinery"];
+    return elements.some((el) => !lockedMap.has(`${s.roomId}:${el}`));
+  });
+  const projectTier = project.mkt01Tier?.toLowerCase() || "mid";
+  const projectStyle = (project.des01Style || "modern").toLowerCase();
+  const allowedTiers = libraryTiersForMkt01Tier(project.mkt01Tier);
+  const filteredLibrary = materialLibrary2.filter(
+    (m) => allowedTiers.includes(m.tier) && (m.style === projectStyle || m.style === "all")
+  );
+  const roomDescriptions = roomsForGemini.map((s) => {
+    const grade2 = roomGradeMap.get(s.roomId) || "B";
+    const isWet = WET_ROOM_IDS.has(s.roomId);
+    const elements = ["floor", "walls", "ceiling", "joinery"].filter((el) => !lockedMap.has(`${s.roomId}:${el}`));
+    return `- ${s.roomId} "${s.roomName}": floor=${s.floorM2}m\xB2, walls=${s.wallM2}m\xB2, ceiling=${s.ceilingM2}m\xB2, grade=${grade2}, wet=${isWet}, elements_needed=[${elements.join(",")}]`;
+  }).join("\n");
+  const libraryDescriptions = filteredLibrary.slice(0, 60).map(
+    (m) => `id=${m.id} category=${m.category} tier=${m.tier} style=${m.style} brand="${m.brand}" product="${m.productName}" unit=${m.unitLabel}`
+  ).join("\n");
+  const systemPrompt = `You are a UAE interior design cost consultant. Your job is to suggest how the surfaces of a project should be split across materials, based on the project's design style, market tier, and available material library.
+
+PROJECT:
+- Typology: ${project.ctx01Typology || "Residential"}
+- Style: ${project.des01Style || "Modern"}
+- Market Tier: ${projectTier}
+- Material Level: ${project.des02MaterialLevel || 3}/5
+- Purpose: ${project.projectPurpose || "Residential development"}
+
+ROOMS AND SURFACES (only rooms that need new allocations):
+${roomDescriptions}
+
+AVAILABLE MATERIAL LIBRARY (filtered to matching tier and style):
+${libraryDescriptions}
+
+RULES:
+1. For each room \xD7 element, provide 1 OR 2 materials with percentages summing to exactly 100.
+2. MAXIMUM 2 materials per surface \u2014 never return 3 or more.
+3. Use materials from the library when possible (reference by materialLibraryId). If no exact match, use a generic name and set materialLibraryId to null.
+4. Grade A rooms get premium finishes. Grade B rooms get mid-range.
+5. Wet room walls (BTH, MEN, ENS, KIT where wet=true) MUST use wall_tile, NEVER wall_paint or stone.
+6. Ceiling is almost always single material (gypsum or plaster). Only split ceiling if Grade A + ultra tier.
+7. For each allocation, write one sentence of reasoning (max 15 words).
+8. Never suggest materials that conflict with UAE climate (e.g. solid wood flooring in wet areas).
+9. Only provide allocations for the elements listed in elements_needed for each room.`;
+  const outputSchema = {
+    name: "material_allocations",
+    schema: {
+      type: "object",
+      properties: {
+        rooms: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              roomId: { type: "string" },
+              floor: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    materialLibraryId: { type: "number" },
+                    materialName: { type: "string" },
+                    percentage: { type: "number" },
+                    reasoning: { type: "string" }
+                  },
+                  required: ["materialName", "percentage", "reasoning"]
+                }
+              },
+              walls: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    materialLibraryId: { type: "number" },
+                    materialName: { type: "string" },
+                    percentage: { type: "number" },
+                    reasoning: { type: "string" }
+                  },
+                  required: ["materialName", "percentage", "reasoning"]
+                }
+              },
+              ceiling: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    materialLibraryId: { type: "number" },
+                    materialName: { type: "string" },
+                    percentage: { type: "number" },
+                    reasoning: { type: "string" }
+                  },
+                  required: ["materialName", "percentage", "reasoning"]
+                }
+              },
+              joinery: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    materialLibraryId: { type: "number" },
+                    materialName: { type: "string" },
+                    percentage: { type: "number" },
+                    reasoning: { type: "string" }
+                  },
+                  required: ["materialName", "percentage", "reasoning"]
+                }
+              }
+            },
+            required: ["roomId", "floor", "walls", "ceiling", "joinery"]
+          }
+        },
+        designRationale: { type: "string" },
+        estimatedQualityLabel: { type: "string" }
+      },
+      required: ["rooms", "designRationale", "estimatedQualityLabel"]
+    }
+  };
+  let geminiResult;
+  if (roomsForGemini.length === 0) {
+    geminiResult = {
+      rooms: [],
+      designRationale: "All rooms are utility-grade or locked \u2014 deterministic allocation applied.",
+      estimatedQualityLabel: "Standard Utility"
+    };
+  } else {
+    const response = await invokeLLM({
+      messages: [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: "Generate material allocations for all listed rooms. Return structured JSON."
+        }
+      ],
+      outputSchema
+    });
+    const rawContent = response.choices[0]?.message?.content;
+    const text5 = typeof rawContent === "string" ? rawContent : Array.isArray(rawContent) ? rawContent.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
+    geminiResult = JSON.parse(text5);
+  }
+  for (const room of geminiResult.rooms) {
+    for (const element of ["floor", "walls", "ceiling", "joinery"]) {
+      const slices = room[element];
+      if (!slices || slices.length === 0) continue;
+      if (slices.length > 2) {
+        slices.sort((a, b) => b.percentage - a.percentage);
+        slices.length = 2;
+      }
+      const sum = slices.reduce((s, sl) => s + sl.percentage, 0);
+      if (Math.abs(sum - 100) > 0.01) {
+        const scale = 100 / sum;
+        for (const sl of slices) {
+          sl.percentage = Number((sl.percentage * scale).toFixed(2));
+        }
+        const newSum = slices.reduce((s, sl) => s + sl.percentage, 0);
+        if (Math.abs(newSum - 100) > 0.01) {
+          slices[0].percentage += 100 - newSum;
+        }
+      }
+    }
+  }
+  for (const surface of gradeCRooms) {
+    const cheapFloor = materialLibrary2.find(
+      (m) => m.category === "flooring" && m.tier === "affordable"
+    );
+    const isWet = WET_ROOM_IDS.has(surface.roomId);
+    const cheapWall = materialLibrary2.find(
+      (m) => m.category === (isWet ? "wall_tile" : "wall_paint") && (m.tier === "affordable" || m.tier === "mid")
+    );
+    const cheapCeiling = materialLibrary2.find(
+      (m) => m.category === "ceiling" && (m.tier === "affordable" || m.tier === "mid")
+    );
+    geminiResult.rooms.push({
+      roomId: surface.roomId,
+      floor: [
+        {
+          materialLibraryId: cheapFloor?.id ?? null,
+          materialName: cheapFloor?.productName || "Basic Ceramic Tile",
+          percentage: 100,
+          reasoning: "Grade C utility room \u2014 affordable single material."
+        }
+      ],
+      walls: [
+        {
+          materialLibraryId: cheapWall?.id ?? null,
+          materialName: cheapWall?.productName || (isWet ? "Standard Ceramic Wall Tile" : "Standard Emulsion Paint"),
+          percentage: 100,
+          reasoning: isWet ? "Wet utility room \u2014 affordable wall tile." : "Grade C \u2014 standard paint."
+        }
+      ],
+      ceiling: [
+        {
+          materialLibraryId: cheapCeiling?.id ?? null,
+          materialName: cheapCeiling?.productName || "Basic Gypsum Board",
+          percentage: 100,
+          reasoning: "Grade C \u2014 basic gypsum ceiling."
+        }
+      ],
+      joinery: []
+    });
+  }
+  for (const [key, lockedSlices] of Array.from(lockedMap.entries())) {
+    const [roomId, element] = key.split(":");
+    let room = geminiResult.rooms.find((r) => r.roomId === roomId);
+    if (!room) {
+      room = { roomId, floor: [], walls: [], ceiling: [], joinery: [] };
+      geminiResult.rooms.push(room);
+    }
+    room[element] = lockedSlices;
+  }
+  return geminiResult;
+}
+function buildQuantityCostSummary(surfaces, allocations, priceSnapshots, project) {
+  const priceByLibraryId = new Map(
+    priceSnapshots.filter((snapshot) => snapshot.reference.source === "material_library").map((snapshot) => [snapshot.reference.legacyId, snapshot])
+  );
+  const roomBreakdowns = [];
+  const materialTotals = /* @__PURE__ */ new Map();
+  let unpricedAllocationCount = 0;
+  let totalAllocationCount = 0;
+  let pricedAllocationCount = 0;
+  const insufficiencyReasons = {};
+  const pricedSnapshots = [];
+  let totalFloorM2 = 0;
+  let totalWallM2 = 0;
+  let totalCeilingM2 = 0;
+  for (const surface of surfaces) {
+    const roomAllocation = allocations.rooms.find(
+      (r) => r.roomId === surface.roomId
+    );
+    totalFloorM2 += surface.floorM2;
+    totalWallM2 += surface.wallM2;
+    totalCeilingM2 += surface.ceilingM2;
+    const elements = [];
+    const elementDefs = [
+      { name: "floor", areaM2: surface.floorM2 },
+      { name: "walls", areaM2: surface.wallM2 },
+      { name: "ceiling", areaM2: surface.ceilingM2 },
+      { name: "joinery", areaM2: 0 }
+      // Joinery doesn't have a simple surface area
+    ];
+    let roomCostMin = 0;
+    let roomCostMax = 0;
+    for (const elDef of elementDefs) {
+      const slices = roomAllocation?.[elDef.name];
+      if (!slices || slices.length === 0) {
+        if (elDef.name !== "joinery" && elDef.areaM2 > 0) {
+          totalAllocationCount += 1;
+          unpricedAllocationCount += 1;
+          insufficiencyReasons.quantity_required = (insufficiencyReasons.quantity_required ?? 0) + 1;
+          elements.push({
+            element: elDef.name,
+            surfaceAreaM2: elDef.areaM2,
+            allocations: [],
+            elementCostMin: null,
+            elementCostMax: null
+          });
+        }
+        continue;
+      }
+      const allocationTotal = slices.reduce(
+        (sum, slice) => sum + Number(slice.percentage),
+        0
+      );
+      if (!Number.isFinite(allocationTotal) || allocationTotal <= 0 || Math.abs(allocationTotal - 100) > 0.01 || slices.some(
+        (slice) => !Number.isFinite(Number(slice.percentage)) || Number(slice.percentage) <= 0
+      )) {
+        totalAllocationCount += 1;
+        unpricedAllocationCount += 1;
+        insufficiencyReasons.quantity_required = (insufficiencyReasons.quantity_required ?? 0) + 1;
+        elements.push({
+          element: elDef.name,
+          surfaceAreaM2: elDef.areaM2,
+          allocations: [],
+          elementCostMin: null,
+          elementCostMax: null
+        });
+        continue;
+      }
+      let elementCostMin = 0;
+      let elementCostMax = 0;
+      const allocationDetails = [];
+      for (const slice of slices) {
+        totalAllocationCount += 1;
+        const actualAreaM2 = elDef.areaM2 * (slice.percentage / 100);
+        let unitCostMin = null;
+        let unitCostMax = null;
+        let sliceCostMin = null;
+        let sliceCostMax = null;
+        let productId = null;
+        let specificationId = null;
+        let resolutionReason;
+        let priced = false;
+        let selectedSnapshot = null;
+        let quantityPolicyVersion = null;
+        let quantityConversionInputs = null;
+        if (slice.materialLibraryId) {
+          const snapshot = priceByLibraryId.get(slice.materialLibraryId);
+          if (snapshot) {
+            selectedSnapshot = snapshot;
+            if (snapshot.state === "resolved") {
+              productId = snapshot.productId;
+              specificationId = snapshot.specificationId;
+              const quantity = resolveQuantityForUnitBasis({
+                unitBasis: snapshot.unitBasis,
+                surfaceAreaM2: actualAreaM2,
+                explicitQuantity: slice.explicitQuantity ?? void 0,
+                explicitQuantityUnit: slice.explicitQuantityUnit ?? void 0,
+                paintCoverageState: snapshot.paintCoverageState,
+                paintCoverageProfile: snapshot.paintCoverageProfile ? {
+                  status: "approved",
+                  ...snapshot.paintCoverageProfile
+                } : void 0,
+                asOf: new Date(snapshot.resolverAsOf)
+              });
+              if (quantity.state === "resolved") {
+                quantityPolicyVersion = quantity.policyVersion;
+                quantityConversionInputs = quantity.conversionInputs;
+                const priceMin = Number(snapshot.priceMin);
+                const priceMax = Number(snapshot.priceMax);
+                if (Number.isFinite(priceMin) && Number.isFinite(priceMax)) {
+                  unitCostMin = priceMin;
+                  unitCostMax = priceMax;
+                  sliceCostMin = quantity.quantity * unitCostMin;
+                  sliceCostMax = quantity.quantity * unitCostMax;
+                  priced = true;
+                  pricedAllocationCount += 1;
+                  pricedSnapshots.push(snapshot);
+                }
+              } else {
+                resolutionReason = quantity.reason;
+              }
+            } else {
+              productId = snapshot.productId ?? null;
+              specificationId = snapshot.specificationId ?? null;
+              resolutionReason = snapshot.reason;
+            }
+          }
+        }
+        if (!priced) {
+          unpricedAllocationCount += 1;
+          if (!resolutionReason) resolutionReason = "identity_not_found";
+          const reason4 = resolutionReason;
+          insufficiencyReasons[reason4] = (insufficiencyReasons[reason4] ?? 0) + 1;
+        }
+        if (sliceCostMin !== null && sliceCostMax !== null) {
+          elementCostMin += sliceCostMin;
+          elementCostMax += sliceCostMax;
+        }
+        allocationDetails.push({
+          materialLibraryId: slice.materialLibraryId,
+          materialName: slice.materialName,
+          percentage: slice.percentage,
+          actualAreaM2: Number(actualAreaM2.toFixed(2)),
+          unitCostMin,
+          unitCostMax,
+          totalCostMin: sliceCostMin === null ? null : Number(sliceCostMin.toFixed(2)),
+          totalCostMax: sliceCostMax === null ? null : Number(sliceCostMax.toFixed(2)),
+          productId,
+          specificationId,
+          resolutionState: priced ? "resolved" : "insufficient",
+          ...resolutionReason ? { resolutionReason } : {},
+          priceSnapshot: selectedSnapshot,
+          quantityPolicyVersion,
+          quantityConversionInputs,
+          priced,
+          reasoning: slice.reasoning
+        });
+        const existing = materialTotals.get(slice.materialName) || {
+          totalAreaM2: 0,
+          totalCostMin: 0,
+          totalCostMax: 0,
+          complete: true
+        };
+        existing.totalAreaM2 += actualAreaM2;
+        if (sliceCostMin === null || sliceCostMax === null) {
+          existing.complete = false;
+        } else {
+          existing.totalCostMin += sliceCostMin;
+          existing.totalCostMax += sliceCostMax;
+        }
+        materialTotals.set(slice.materialName, existing);
+      }
+      const elementComplete = allocationDetails.every((detail) => detail.priced);
+      elements.push({
+        element: elDef.name,
+        surfaceAreaM2: elDef.areaM2,
+        allocations: allocationDetails,
+        elementCostMin: elementComplete ? Number(elementCostMin.toFixed(2)) : null,
+        elementCostMax: elementComplete ? Number(elementCostMax.toFixed(2)) : null
+      });
+      if (elementComplete) {
+        roomCostMin += elementCostMin;
+        roomCostMax += elementCostMax;
+      }
+    }
+    const roomComplete = elements.every((element) => element.elementCostMin !== null);
+    roomBreakdowns.push({
+      roomId: surface.roomId,
+      roomName: surface.roomName,
+      floorM2: surface.floorM2,
+      wallM2: surface.wallM2,
+      ceilingM2: surface.ceilingM2,
+      elements,
+      roomCostMin: roomComplete ? Number(roomCostMin.toFixed(2)) : null,
+      roomCostMax: roomComplete ? Number(roomCostMax.toFixed(2)) : null
+    });
+  }
+  const totalSurfaceM2 = totalFloorM2 + totalWallM2 + totalCeilingM2;
+  const insufficientItemCount = totalAllocationCount - pricedAllocationCount;
+  const aggregateCoverage = {
+    state: totalAllocationCount === 0 ? "insufficient" : insufficientItemCount === 0 ? "complete" : pricedAllocationCount === 0 ? "insufficient" : "partial",
+    totalItemCount: totalAllocationCount,
+    pricedItemCount: pricedAllocationCount,
+    insufficientItemCount,
+    reasons: insufficiencyReasons
+  };
+  const allRoomsComplete = roomBreakdowns.length > 0 && totalAllocationCount > 0 && roomBreakdowns.every((room) => room.roomCostMin !== null);
+  const totalFinishCostMin = allRoomsComplete ? roomBreakdowns.reduce((s, r) => s + (r.roomCostMin ?? 0), 0) : null;
+  const totalFinishCostMax = allRoomsComplete ? roomBreakdowns.reduce((s, r) => s + (r.roomCostMax ?? 0), 0) : null;
+  const totalFinishCostMid = totalFinishCostMin === null || totalFinishCostMax === null ? null : Number(
+    exactDecimalMidpoint(
+      totalFinishCostMin.toFixed(2),
+      totalFinishCostMax.toFixed(2)
+    )
+  );
+  const SQFT_TO_SQM = 10.764;
+  const FINISH_BUDGET_RATIO = 0.35;
+  const budgetCapPerSqft = Number(project.fin01BudgetCap) || 0;
+  const gfa = Number(project.ctx03Gfa) || 0;
+  const budgetCapAed = budgetCapPerSqft > 0 && gfa > 0 ? budgetCapPerSqft * gfa * SQFT_TO_SQM * FINISH_BUDGET_RATIO : null;
+  const budgetUtilizationPct = budgetCapAed && budgetCapAed > 0 && totalFinishCostMid !== null ? Number((totalFinishCostMid / budgetCapAed * 100).toFixed(1)) : null;
+  const isOverBudget = budgetCapAed ? totalFinishCostMid !== null && totalFinishCostMid > budgetCapAed : false;
+  const overBudgetByAed = isOverBudget ? Number(((totalFinishCostMid ?? 0) - (budgetCapAed || 0)).toFixed(2)) : 0;
+  const materialBreakdown = Array.from(materialTotals.entries()).map(([name, totals]) => ({
+    materialName: name,
+    totalAreaM2: Number(totals.totalAreaM2.toFixed(2)),
+    totalCostMin: totals.complete ? Number(totals.totalCostMin.toFixed(2)) : null,
+    totalCostMax: totals.complete ? Number(totals.totalCostMax.toFixed(2)) : null,
+    pctOfTotalSurface: totalSurfaceM2 > 0 ? Number((totals.totalAreaM2 / totalSurfaceM2 * 100).toFixed(1)) : 0
+  })).sort((a, b) => b.totalAreaM2 - a.totalAreaM2);
+  const resolvedSnapshots = pricedSnapshots.filter(
+    (snapshot) => snapshot.state === "resolved"
+  );
+  const assumptionRowCount = resolvedSnapshots.filter(
+    (snapshot) => snapshot.provenance.sourceLadderRung === "assumption"
+  ).length;
+  const legacyCompatibilityRowCount = resolvedSnapshots.filter(
+    (snapshot) => snapshot.provenance.compatibilityFallback
+  ).length;
+  const ordinaryAssumptionRowCount = assumptionRowCount - legacyCompatibilityRowCount;
+  const observedRowCount = resolvedSnapshots.length - assumptionRowCount;
+  const costBasisLabel = legacyCompatibilityRowCount === resolvedSnapshots.length && legacyCompatibilityRowCount > 0 ? "Legacy scope-unknown assumption" : legacyCompatibilityRowCount > 0 ? `Mixed (${[
+    "legacy scope-unknown assumption",
+    ordinaryAssumptionRowCount > 0 ? "MIYAR assumption" : null,
+    observedRowCount > 0 ? "observed" : null
+  ].filter(Boolean).join(" + ")})` : observedRowCount === 0 ? "MIYAR assumption" : assumptionRowCount === 0 ? "Observed market data" : "Mixed (MIYAR assumption + observed)";
+  return {
+    rooms: roomBreakdowns,
+    summary: {
+      totalFloorM2: Number(totalFloorM2.toFixed(2)),
+      totalWallM2: Number(totalWallM2.toFixed(2)),
+      totalCeilingM2: Number(totalCeilingM2.toFixed(2)),
+      totalSurfaceM2: Number(totalSurfaceM2.toFixed(2)),
+      materialBreakdown,
+      totalFinishCostMin: totalFinishCostMin === null ? null : Number(totalFinishCostMin.toFixed(2)),
+      totalFinishCostMax: totalFinishCostMax === null ? null : Number(totalFinishCostMax.toFixed(2)),
+      totalFinishCostMid: totalFinishCostMid === null ? null : Number(totalFinishCostMid.toFixed(2)),
+      budgetCapAed,
+      budgetUtilizationPct,
+      isOverBudget,
+      overBudgetByAed,
+      qualityLabel: allocations.estimatedQualityLabel || "Standard",
+      unpricedAllocationCount,
+      aggregateCoverage,
+      costBasis: {
+        policyVersion: "ev03-material-resolution-v1",
+        label: costBasisLabel,
+        assumptionRowCount,
+        observedRowCount
+      }
+    },
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+var ASPECT_RATIOS, DEFAULT_ASPECT_RATIO, DEFAULT_CEILING_HEIGHT, WET_ROOM_IDS;
+var init_material_quantity_engine = __esm({
+  "server/engines/design/material-quantity-engine.ts"() {
+    "use strict";
+    init_llm();
+    init_tier_policy();
+    init_policy();
+    init_quantity_policy();
+    ASPECT_RATIOS = {
+      // Living / Dining / Lobby
+      LVG: 1.6,
+      DIN: 1.6,
+      LBY: 1.6,
+      // Master bedroom
+      MBR: 1.4,
+      // Secondary bedrooms
+      BD2: 1.3,
+      BD3: 1.3,
+      BD4: 1.3,
+      // Kitchen
+      KIT: 1.4,
+      // Bathrooms / Ensuite (near-square)
+      BTH: 1,
+      MEN: 1,
+      ENS: 1,
+      // Corridors / Hallways (long and narrow)
+      COR: 2.5,
+      ENT: 2.5,
+      HAL: 2.5,
+      // Office / Meeting
+      OFC: 1.5,
+      MET: 1.5,
+      OPN: 1.5,
+      // Back-of-house / Utility
+      BOH: 1.8,
+      UTL: 1.8,
+      // Hospitality
+      GRM: 1.4,
+      GRS: 1.5,
+      FBB: 1.6,
+      RCP: 1.5,
+      BRK: 1.4
+    };
+    DEFAULT_ASPECT_RATIO = 1.4;
+    DEFAULT_CEILING_HEIGHT = 2.8;
+    WET_ROOM_IDS = /* @__PURE__ */ new Set(["BTH", "MEN", "ENS", "KIT"]);
+  }
+});
+
+// server/engines/board-pdf.ts
+var board_pdf_exports = {};
+__export(board_pdf_exports, {
+  createBoardPdfRenderContext: () => createBoardPdfRenderContext,
+  generateBoardPdfHtml: () => generateBoardPdfHtml
+});
+import { randomUUID as randomUUID3 } from "node:crypto";
+function finite(value) {
+  return value !== null && Number.isFinite(value) ? value : null;
+}
+function text2(value) {
+  return `<span dir="auto" data-report-dynamic>${escapeReportText(value)}</span>`;
+}
+function number(value, locale) {
+  return formatReportNumber(value, locale);
+}
+function browseNumber(value, locale) {
+  return value === null ? "\u2014" : number(value, locale);
+}
+function tierColor(tier) {
+  return { economy: "#6b7280", mid: "#3b82f6", premium: "#8b5cf6", luxury: "#d97706", ultra_luxury: "#e11d48" }[tier] ?? "#6b7280";
+}
+function leadBadgeColor(band) {
+  return { short: "#16a34a", medium: "#ca8a04", long: "#ea580c", critical: "#dc2626" }[band] ?? "#ca8a04";
+}
+function renderMetadata(context3, locale) {
+  const c = (key) => reportCopy(locale, key);
+  const value = (entry) => text2(entry ?? c("notAvailable"));
+  return `<div class="render-meta">
+    <div><b>${c("documentId")}:</b> ${text2(context3.documentId)}</div>
+    <div><b>${c("generatedAt")}:</b> ${text2(formatReportDateTime(context3.generatedAt, locale))}</div>
+    <div><b>${c("renderInputFingerprint")}:</b> ${text2(context3.renderInputFingerprint)}</div>
+    <div><b>${c("artifactVersion")}:</b> ${value(context3.artifactVersion)} \xB7 <b>${c("rendererVersion")}:</b> ${value(context3.rendererVersion)}</div>
+    <div><b>${c("modelVersion")}:</b> ${value(context3.modelVersion)} \xB7 <b>${c("benchmarkVersion")}:</b> ${value(context3.benchmarkVersion)} \xB7 <b>${c("logicVersion")}:</b> ${value(context3.logicVersion)}</div>
+  </div>`;
+}
+function createBoardPdfRenderContext(input) {
+  const locale = reportLocaleOrDefault(input.locale);
+  const { boardName, projectName, items, summary, rfqLines } = input;
+  const versions = {
+    artifactVersion: input.artifactVersion ?? "material-board-html-v1",
+    rendererVersion: input.rendererVersion ?? "standalone-html-v1",
+    modelVersion: input.modelVersion ?? null,
+    benchmarkVersion: input.benchmarkVersion ?? null,
+    logicVersion: input.logicVersion ?? null
+  };
+  return createReportRenderContext({
+    documentId: input.documentId ?? `MYR-BRD-${randomUUID3().toUpperCase()}`,
+    generatedAt: input.generatedAt,
+    locale,
+    ...versions,
+    fingerprintInput: createRenderFingerprintPayload("material_board", locale, versions, {
+      project: { name: projectName },
+      board: {
+        name: boardName,
+        items: items.map((item) => ({
+          name: item.name,
+          category: item.category,
+          tier: item.tier,
+          costLow: finite(item.costLow),
+          costHigh: finite(item.costHigh),
+          costUnit: item.costUnit,
+          leadTimeDays: finite(item.leadTimeDays),
+          leadTimeBand: item.leadTimeBand,
+          supplierName: item.supplierName,
+          quantity: item.quantity,
+          unitOfMeasure: item.unitOfMeasure,
+          specNotes: item.specNotes,
+          costBandOverride: item.costBandOverride,
+          notes: item.notes
+        })),
+        summary: {
+          totalItems: finite(summary.totalItems),
+          estimatedCostLow: finite(summary.estimatedCostLow),
+          estimatedCostHigh: finite(summary.estimatedCostHigh),
+          currency: summary.currency,
+          longestLeadTimeDays: finite(summary.longestLeadTimeDays),
+          criticalPathItems: summary.criticalPathItems,
+          tierDistribution: Object.fromEntries(Object.entries(summary.tierDistribution).map(([key, value]) => [key, finite(value)])),
+          categoryDistribution: Object.fromEntries(Object.entries(summary.categoryDistribution).map(([key, value]) => [key, finite(value)]))
+        },
+        rfqLines: rfqLines.map((line) => ({
+          lineNo: finite(line.lineNo),
+          materialName: line.materialName,
+          category: line.category,
+          specification: line.specification,
+          quantity: line.quantity,
+          unit: line.unit,
+          estimatedUnitCostLow: finite(line.estimatedUnitCostLow),
+          estimatedUnitCostHigh: finite(line.estimatedUnitCostHigh),
+          leadTimeDays: finite(line.leadTimeDays),
+          supplierSuggestion: line.supplierSuggestion,
+          notes: line.notes
+        }))
+      }
+    })
+  });
+}
+function generateBoardPdfHtml(input) {
+  const locale = reportLocaleOrDefault(input.locale);
+  const c = (key) => reportCopy(locale, key);
+  const labels = BOARD_COPY[locale];
+  const { boardName, projectName, items, summary, rfqLines } = input;
+  const context3 = input.renderContext ?? createBoardPdfRenderContext(input);
+  const tileCards = items.map((item, index2) => `<div class="tile-card">
+    <div class="tile-header"><span class="tile-num">${number(index2 + 1, locale)}</span><span class="tile-name">${text2(item.name)}</span><span class="tier-badge" style="background:${tierColor(item.tier)}">${text2(item.tier.replace(/_/g, " "))}</span></div>
+    <div class="tile-body">
+      <div class="tile-row"><span class="tile-label">${c("category")}</span>${text2(item.category)}</div>
+      <div class="tile-row"><span class="tile-label">${labels.costRange}</span><span>${browseNumber(item.costLow, locale)} \u2013 ${browseNumber(item.costHigh, locale)} ${text2(item.costUnit)}</span></div>
+      <div class="tile-row"><span class="tile-label">${labels.leadTime}</span><span style="color:${leadBadgeColor(item.leadTimeBand)}">${number(item.leadTimeDays, locale)}d (${item.leadTimeBand === "critical" ? labels.criticalLeadBand : text2(item.leadTimeBand)})</span></div>
+      <div class="tile-row"><span class="tile-label">${labels.supplier}</span>${text2(item.supplierName)}</div>
+      ${item.quantity ? `<div class="tile-row"><span class="tile-label">${labels.quantity}</span><span>${text2(item.quantity)} ${text2(item.unitOfMeasure ?? "")}</span></div>` : ""}
+      ${item.costBandOverride ? `<div class="tile-row"><span class="tile-label">${labels.costBand}</span><span class="cost-band-badge">${text2(item.costBandOverride)}</span></div>` : ""}
+      ${item.specNotes ? `<div class="tile-spec">${text2(item.specNotes)}</div>` : ""}
+      ${item.notes ? `<div class="tile-notes">${text2(item.notes)}</div>` : ""}
+    </div></div>`).join("");
+  const rfqRows = rfqLines.map((line) => `<tr><td>${number(line.lineNo, locale)}</td><td class="font-medium">${text2(line.materialName)}</td><td>${text2(line.category)}</td><td>${text2(line.specification)}</td><td>${text2(line.quantity)}</td><td>${text2(line.unit)}</td><td class="text-end">${browseNumber(line.estimatedUnitCostLow, locale)}</td><td class="text-end">${browseNumber(line.estimatedUnitCostHigh, locale)}</td><td>${number(line.leadTimeDays, locale)}d</td><td>${text2(line.supplierSuggestion)}</td><td>${text2(line.notes)}</td></tr>`).join("");
+  const tierRows = Object.entries(summary.tierDistribution).map(([tier, count2]) => `<div class="dist-item"><span class="dist-badge" style="background:${tierColor(tier)}">${text2(tier.replace(/_/g, " "))}</span><span class="dist-count">${number(count2, locale)}</span></div>`).join("");
+  const categoryRows = Object.entries(summary.categoryDistribution).map(([category, count2]) => `<div class="dist-item"><span class="dist-label">${text2(category)}</span><span class="dist-count">${number(count2, locale)}</span></div>`).join("");
+  const criticalItems = summary.criticalPathItems.map((item) => `<div class="critical-item">${text2(item)}</div>`).join("");
+  return `<!DOCTYPE html><html lang="${locale}" dir="${reportDirection(locale)}"><head><meta charset="utf-8"><title>${escapeReportText(`${c("materialBoard")} \u2014 ${boardName}`)}</title><style>
+    @page { size: A4 landscape; margin: 15mm 12mm; } * { box-sizing: border-box; margin: 0; padding: 0; }
+    ${reportLocaleCss(locale)} body { color:#1a1a2e; line-height:1.5; font-size:10px; } .cover { page-break-after:always; display:flex; flex-direction:column; justify-content:center; align-items:center; min-height:70vh; text-align:center; }
+    .logo { font-size:32px; font-weight:800; color:#0f3460; letter-spacing:3px; margin-block-end:24px; } .cover h1 { font-size:24px; color:#0f3460; margin-block-end:6px; } .cover h2 { font-size:14px; color:#4ecdc4; font-weight:400; margin-block-end:16px; } .project { font-size:18px; font-weight:600; } .date,.confidential,.watermark { font-size:9px; color:#666; margin-block-start:12px; } .confidential,.watermark { color:#999; text-transform:uppercase; letter-spacing:2px; } .watermark { font-family:monospace; }
+    h2 { font-size:14px; color:#0f3460; border-block-end:2px solid #4ecdc4; padding-block-end:4px; margin:20px 0 10px; } h3 { font-size:12px; color:#0f3460; margin:14px 0 6px; } .section { break-inside:avoid; margin-block-end:16px; } .summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:12px 0; } .summary-card { border:1px solid #e0e0e0; border-radius:6px; padding:10px; text-align:center; } .label { font-size:8px; color:#666; text-transform:uppercase; letter-spacing:1px; } .value { font-size:20px; font-weight:700; color:#0f3460; margin:2px 0; } .sub { font-size:9px; color:#888; }
+    .tile-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:12px 0; } .tile-card { border:1px solid #e0e0e0; border-radius:6px; overflow:hidden; break-inside:avoid; } .tile-header { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#f8f9fa; border-block-end:1px solid #e0e0e0; } .tile-num { font-weight:700; background:#e8f4fd; border-radius:50%; inline-size:20px; block-size:20px; display:flex; align-items:center; justify-content:center; flex-shrink:0; } .tile-name { font-weight:600; flex:1; } .tier-badge,.dist-badge { font-size:8px; color:#fff; padding:1px 6px; border-radius:3px; text-transform:uppercase; } .tile-body { padding:8px 10px; } .tile-row { display:flex; justify-content:space-between; gap:8px; padding-block:2px; border-block-end:1px dotted #f0f0f0; } .tile-label,.dist-label { color:#666; font-weight:500; } .tile-spec { color:#0f3460; background:#e8f4fd; padding:4px 6px; border-radius:3px; margin-block-start:4px; font-style:italic; } .tile-notes { color:#888; margin-block-start:3px; } .cost-band-badge { background:#fef3c7; color:#92400e; padding-inline:4px; border-radius:2px; font-weight:600; }
+    table { width:100%; border-collapse:collapse; margin:10px 0; font-size:9px; } th { background:#0f3460; color:#fff; padding:6px 8px; font-weight:600; } td { padding:5px 8px; border-block-end:1px solid #e0e0e0; } tr:nth-child(even) td { background:#f8f9fa; } .text-end { text-align:end; } .font-medium { font-weight:600; } .dist-grid { display:flex; gap:16px; margin:8px 0; flex-wrap:wrap; } .dist-item { display:flex; align-items:center; gap:6px; } .dist-count { font-weight:700; color:#0f3460; } .critical-item { background:#fef2f2; border-inline-start:3px solid #dc2626; padding:4px 8px; margin-block:3px; color:#991b1b; } .render-meta { margin:10px auto; max-inline-size:620px; padding:8px 10px; border:1px solid #d0d7de; background:#f0f4f8; font-size:8px; text-align:start; overflow-wrap:anywhere; } .closing { break-inside:avoid-page; page-break-inside:avoid; } .footer { margin-block-start:12px; padding-block-start:10px; border-block-start:1px solid #e0e0e0; font-size:8px; color:#999; text-align:center; break-before:avoid-page; page-break-before:avoid; }
+  </style></head><body><div class="cover"><div class="logo">MIYAR</div><h1>${c("materialBoard")}</h1><h2>${text2(boardName)}</h2><div class="project">${text2(projectName)}</div><div class="date">${text2(formatReportDateTime(context3.generatedAt, locale))}</div><div class="confidential">${c("confidentialInternalOnly")}</div>${renderMetadata(context3, locale)}</div>
+  <div class="section"><h2>${labels.boardSummary}</h2><div class="summary-grid"><div class="summary-card"><div class="label">${labels.totalItems}</div><div class="value">${number(summary.totalItems, locale)}</div></div><div class="summary-card"><div class="label">${labels.estimatedCostRange}</div><div class="value" style="font-size:14px">${browseNumber(summary.estimatedCostLow, locale)} \u2013 ${browseNumber(summary.estimatedCostHigh, locale)}</div><div class="sub">${text2(summary.currency)}</div></div><div class="summary-card"><div class="label">${labels.longestLeadTime}</div><div class="value">${number(summary.longestLeadTimeDays, locale)}d</div></div><div class="summary-card"><div class="label">${labels.criticalPathItems}</div><div class="value">${number(summary.criticalPathItems.length, locale)}</div></div></div><h3>${labels.tierDistribution}</h3><div class="dist-grid">${tierRows}</div><h3>${labels.categoryDistribution}</h3><div class="dist-grid">${categoryRows}</div>${summary.criticalPathItems.length > 0 ? `<h3>${labels.criticalPathItems}</h3><div>${criticalItems}</div>` : ""}</div>
+  <div class="section"><h2>${labels.materialTiles}</h2><div class="tile-grid">${tileCards}</div></div><div class="closing"><div class="section"><h2>${labels.rfqSchedule}</h2><table><thead><tr><th>#</th><th>${labels.material}</th><th>${c("category")}</th><th>${labels.specification}</th><th>${labels.quantity}</th><th>${labels.unit}</th><th class="text-end">${labels.costLow}</th><th class="text-end">${labels.costHigh}</th><th>${labels.lead}</th><th>${labels.supplier}</th><th>${c("notes")}</th></tr></thead><tbody>${rfqRows}</tbody></table></div><div class="footer">MIYAR \xB7 ${c("materialBoard")} \xB7 ${text2(formatReportDateTime(context3.generatedAt, locale))}<br>${labels.generatedNotice}</div></div></body></html>`;
+}
+var BOARD_COPY;
+var init_board_pdf = __esm({
+  "server/engines/board-pdf.ts"() {
+    "use strict";
+    init_report_locale();
+    init_report_catalog();
+    init_report_render_context();
+    init_report_safe_output();
+    BOARD_COPY = {
+      en: {
+        boardSummary: "Board Summary",
+        totalItems: "Total Items",
+        estimatedCostRange: "Browse-only Catalog Estimate",
+        longestLeadTime: "Longest Lead Time",
+        criticalPathItems: "Critical Path Items",
+        tierDistribution: "Tier Distribution",
+        categoryDistribution: "Category Distribution",
+        materialTiles: "Material Tiles",
+        rfqSchedule: "Concept Schedule \u2014 Not RFQ-Ready",
+        material: "Material",
+        specification: "Specification",
+        quantity: "Quantity",
+        unit: "Unit",
+        costLow: "Browse Low (AED)",
+        costHigh: "Browse High (AED)",
+        lead: "Lead",
+        supplier: "Supplier",
+        costRange: "Browse Estimate",
+        leadTime: "Lead Time",
+        costBand: "Cost Band",
+        criticalLeadBand: "critical",
+        generatedNotice: "This document is auto-generated. All cost estimates are indicative and subject to supplier confirmation."
+      },
+      ar: {
+        boardSummary: "\u0645\u0644\u062E\u0635 \u0627\u0644\u0644\u0648\u062D\u0629",
+        totalItems: "\u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u0639\u0646\u0627\u0635\u0631",
+        estimatedCostRange: "\u062A\u0642\u062F\u064A\u0631 \u0627\u0644\u0643\u062A\u0627\u0644\u0648\u062C \u0644\u0644\u0627\u0633\u062A\u0639\u0631\u0627\u0636 \u0641\u0642\u0637",
+        longestLeadTime: "\u0623\u0637\u0648\u0644 \u0645\u062F\u0629 \u062A\u0648\u0631\u064A\u062F",
+        criticalPathItems: "\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u0645\u0633\u0627\u0631 \u0627\u0644\u062D\u0631\u062C",
+        tierDistribution: "\u062A\u0648\u0632\u064A\u0639 \u0627\u0644\u0634\u0631\u0627\u0626\u062D",
+        categoryDistribution: "\u062A\u0648\u0632\u064A\u0639 \u0627\u0644\u0641\u0626\u0627\u062A",
+        materialTiles: "\u0628\u0637\u0627\u0642\u0627\u062A \u0627\u0644\u0645\u0648\u0627\u062F",
+        rfqSchedule: "\u062C\u062F\u0648\u0644 \u0645\u0628\u062F\u0626\u064A \u2014 \u063A\u064A\u0631 \u062C\u0627\u0647\u0632 \u0644\u0637\u0644\u0628 \u0639\u0631\u0648\u0636 \u0627\u0644\u0623\u0633\u0639\u0627\u0631",
+        material: "\u0627\u0644\u0645\u0627\u062F\u0629",
+        specification: "\u0627\u0644\u0645\u0648\u0627\u0635\u0641\u0629",
+        quantity: "\u0627\u0644\u0643\u0645\u064A\u0629",
+        unit: "\u0627\u0644\u0648\u062D\u062F\u0629",
+        costLow: "\u062A\u0642\u062F\u064A\u0631 \u0623\u062F\u0646\u0649 \u0644\u0644\u0627\u0633\u062A\u0639\u0631\u0627\u0636 (\u062F\u0631\u0647\u0645)",
+        costHigh: "\u062A\u0642\u062F\u064A\u0631 \u0623\u0639\u0644\u0649 \u0644\u0644\u0627\u0633\u062A\u0639\u0631\u0627\u0636 (\u062F\u0631\u0647\u0645)",
+        lead: "\u0645\u062F\u0629 \u0627\u0644\u062A\u0648\u0631\u064A\u062F",
+        supplier: "\u0627\u0644\u0645\u0648\u0631\u0651\u062F",
+        costRange: "\u062A\u0642\u062F\u064A\u0631 \u0644\u0644\u0627\u0633\u062A\u0639\u0631\u0627\u0636",
+        leadTime: "\u0645\u062F\u0629 \u0627\u0644\u062A\u0648\u0631\u064A\u062F",
+        costBand: "\u0634\u0631\u064A\u062D\u0629 \u0627\u0644\u062A\u0643\u0644\u0641\u0629",
+        criticalLeadBand: "\u062D\u0631\u062C",
+        generatedNotice: "\u062A\u0645 \u0625\u0646\u0634\u0627\u0621 \u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062A\u0646\u062F \u0622\u0644\u064A\u0627\u064B. \u062C\u0645\u064A\u0639 \u062A\u0642\u062F\u064A\u0631\u0627\u062A \u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0627\u0633\u062A\u0631\u0634\u0627\u062F\u064A\u0629 \u0648\u062A\u062E\u0636\u0639 \u0644\u062A\u0623\u0643\u064A\u062F \u0627\u0644\u0645\u0648\u0631\u0651\u062F."
+      }
+    };
   }
 });
 
@@ -11747,80 +13898,6 @@ var init_space_program = __esm({
   }
 });
 
-// server/engines/design/finish-schedule.ts
-var finish_schedule_exports = {};
-__export(finish_schedule_exports, {
-  buildFinishSchedule: () => buildFinishSchedule
-});
-function buildFinishSchedule(project, vocab, rooms, materials) {
-  const schedule = [];
-  const downgradeTier = (tier) => {
-    if (tier === "ultra") return "premium";
-    if (tier === "premium") return "mid";
-    if (tier === "mid") return "affordable";
-    return "affordable";
-  };
-  const getMaterial = (element, roomTier, elementStyle) => {
-    let category = element;
-    if (element === "floor") category = "flooring";
-    else if (element.startsWith("wall_")) {
-      if (element === "wall_wet") category = "wall_tile";
-      else category = "wall_paint";
-    }
-    let match = materials.find(
-      (m) => m.category === category && m.tier === roomTier && (m.style === elementStyle || m.style === "all")
-    );
-    if (!match) match = materials.find((m) => m.category === category && m.tier === roomTier);
-    if (!match) match = materials.find((m) => m.category === category && (m.style === elementStyle || m.style === "all"));
-    if (!match) match = materials.find((m) => m.category === category);
-    return match;
-  };
-  for (const room of rooms) {
-    const elements = ["floor", "wall_primary", "wall_feature", "wall_wet", "ceiling", "joinery", "hardware"];
-    for (const element of elements) {
-      if (element === "wall_wet" && ["LVG", "MBR", "BD2", "BD3", "ENT", "OPN", "MET", "RCP", "BRK", "COR"].includes(room.id)) {
-        continue;
-      }
-      if (element === "wall_feature" && ["UTL", "BOH", "COR", "ENT", "BTH", "MEN"].includes(room.id)) {
-        continue;
-      }
-      let activeTier = vocab.materialTier;
-      if (room.finishGrade === "C") {
-        activeTier = "affordable";
-      } else if (room.finishGrade === "B") {
-        if (element === "floor" || element === "wall_primary") {
-          activeTier = downgradeTier(activeTier);
-        }
-      }
-      let activeStyle = "modern";
-      if (vocab.paletteKey.includes("minimalism")) activeStyle = "minimalist";
-      else if (vocab.paletteKey.includes("arabesque")) activeStyle = "arabesque";
-      else if (vocab.paletteKey.includes("classic")) activeStyle = "classic";
-      const material = getMaterial(element, activeTier, activeStyle);
-      let overrideSpec = null;
-      if (element === "ceiling") overrideSpec = vocab.ceilingType;
-      if (element === "joinery") overrideSpec = vocab.joinery;
-      if (element === "hardware") overrideSpec = vocab.hardwareFinish;
-      schedule.push({
-        projectId: project.id,
-        organizationId: project.organizationId,
-        roomId: room.id,
-        roomName: room.name,
-        element,
-        materialLibraryId: material ? material.id : null,
-        overrideSpec,
-        notes: material ? material.notes : null
-      });
-    }
-  }
-  return schedule;
-}
-var init_finish_schedule = __esm({
-  "server/engines/design/finish-schedule.ts"() {
-    "use strict";
-  }
-});
-
 // server/engines/design/palette-seeds.ts
 var paletteSeeds;
 var init_palette_seeds = __esm({
@@ -11913,436 +13990,654 @@ var init_color_palette = __esm({
 // server/engines/design/rfq-generator.ts
 var rfq_generator_exports = {};
 __export(rfq_generator_exports, {
+  RFQ_NON_MATERIAL_POLICY: () => RFQ_NON_MATERIAL_POLICY,
+  allocateScheduledWallAreas: () => allocateScheduledWallAreas,
   buildRFQFromBrief: () => buildRFQFromBrief,
-  buildRFQPack: () => buildRFQPack
+  buildRFQPack: () => buildRFQPack,
+  buildRFQPackFromAllocations: () => buildRFQPackFromAllocations,
+  expectedCanonicalRfqMaterialLineCount: () => expectedCanonicalRfqMaterialLineCount,
+  expectedIssuedMaterialRfqLineCount: () => expectedIssuedMaterialRfqLineCount
 });
-function parseCostLabel(label) {
-  const cleaned = label.replace(/[^0-9.,\-—]/g, " ").trim();
-  const numbers = cleaned.split(/[\-—\s]+/).map((s) => Number(s.replace(/,/g, ""))).filter((n) => !isNaN(n) && n > 0);
-  if (numbers.length === 0) return null;
-  if (numbers.length === 1) return { min: numbers[0], max: numbers[0] };
-  return { min: numbers[0], max: numbers[1] };
+function parseBudgetCap(value) {
+  const parsed = Number(value.replace(/[^0-9.]/g, ""));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
-function parseBudgetCap(s) {
-  const cleaned = s.replace(/[^0-9.]/g, "");
-  const n = Number(cleaned);
-  return isNaN(n) || n === 0 ? null : n;
+function materialName(material) {
+  return material.productName || material.name || `Material ${material.id}`;
 }
-function isApprovedMaterial(mat, specs) {
-  const prohibited = specs.prohibitedMaterials.map((p) => p.toLowerCase());
-  const matNameLower = mat.name.toLowerCase();
-  for (const p of prohibited) {
-    if (matNameLower.includes(p.split("(")[0].trim().toLowerCase())) return false;
+function snapshotMap(snapshots) {
+  const resolverClocks = new Set(
+    snapshots.map((snapshot) => snapshot.resolverAsOf)
+  );
+  if (resolverClocks.size > 1) {
+    throw new Error("RFQ material snapshots must share one resolver asOf clock");
   }
-  return true;
+  return new Map(
+    snapshots.map((snapshot) => [
+      `${snapshot.reference.source}:${snapshot.reference.legacyId}`,
+      snapshot
+    ])
+  );
 }
-function buildRFQFromBrief(projectId, orgId, briefData, briefId, materials) {
+function pricingSource(snapshot) {
+  return snapshot.provenance.sourceLadderRung === "assumption" ? "estimated" : "market-verified";
+}
+function validPositiveRate(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? roundAed(parsed) : null;
+}
+function roundAed(value) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+function roundPersistedQuantity(value) {
+  return Math.round((value + Number.EPSILON) * 1e3) / 1e3;
+}
+function buildMaterialLine(input) {
+  const { snapshot } = input;
+  const explicitQuantityUnit = input.unit === "sqm" ? "sqm" : input.unit === "lm" ? "lm" : input.unit === "nr" || input.unit === "set" || input.unit === "piece" ? "piece" : input.unit === "pack" ? "pack" : input.unit === "litre" ? "litre" : void 0;
+  const quantityResolution = snapshot?.state === "resolved" ? resolveQuantityForUnitBasis({
+    unitBasis: snapshot.unitBasis,
+    surfaceAreaM2: input.unit === "sqm" ? input.quantity : void 0,
+    explicitQuantity: input.quantity,
+    explicitQuantityUnit,
+    paintCoverageProfile: snapshot.paintCoverageProfile ? {
+      status: "approved",
+      ...snapshot.paintCoverageProfile
+    } : void 0,
+    paintCoverageState: snapshot.paintCoverageState,
+    asOf: new Date(snapshot.resolverAsOf)
+  }) : null;
+  const purchasedPaint = quantityResolution?.state === "resolved" && quantityResolution.quantityUnit === "litre" ? roundUpToPaintPacks(
+    quantityResolution.quantity,
+    snapshot?.state === "resolved" ? snapshot.paintCoverageProfile?.packSizesLitres ?? [] : []
+  ) : null;
+  const packRoundingInvalid = quantityResolution?.state === "resolved" && quantityResolution.quantityUnit === "litre" && snapshot?.state === "resolved" && (snapshot.paintCoverageProfile?.packSizesLitres.length ?? 0) > 0 && purchasedPaint === null;
+  const resolvedQuantity = roundPersistedQuantity(
+    purchasedPaint?.purchasedLitres ?? (quantityResolution?.state === "resolved" ? quantityResolution.quantity : input.quantity)
+  );
+  const resolvedUnit = quantityResolution?.state === "resolved" ? quantityResolution.quantityUnit : input.unit;
+  const incompatible = snapshot?.state === "resolved" && (quantityResolution?.state === "insufficient" || packRoundingInvalid);
+  const legacyEstimate = snapshot?.state === "resolved" && snapshot.requestedPriceScope === "supply_and_install" && snapshot.resolvedPriceScope === "legacy_unknown" && input.allowLegacyScopeUnknownEstimate === true;
+  const wrongScope = snapshot?.state === "resolved" && (snapshot.requestedPriceScope !== "supply_and_install" || snapshot.resolvedPriceScope !== "supply_and_install" && !legacyEstimate);
+  const min = snapshot?.state === "resolved" ? validPositiveRate(snapshot.priceMin) : null;
+  const max2 = snapshot?.state === "resolved" ? validPositiveRate(snapshot.priceMax) : null;
+  const resolved2 = snapshot?.state === "resolved" && !incompatible && !wrongScope && min !== null && max2 !== null;
+  const reason4 = resolved2 ? null : incompatible ? packRoundingInvalid ? "paint_coverage_invalid" : quantityResolution?.state === "insufficient" ? quantityResolution.reason : "incompatible_quantity_unit" : wrongScope ? "no_governed_value" : snapshot?.state === "insufficient" ? snapshot.reason : "no_governed_value";
+  return {
+    projectId: input.projectId,
+    organizationId: input.organizationId,
+    briefId: input.briefId ?? null,
+    sectionNo: input.sectionNo,
+    itemCode: input.itemCode,
+    description: input.description,
+    unit: resolvedUnit,
+    quantity: resolvedQuantity,
+    unitRateAedMin: resolved2 ? min : null,
+    unitRateAedMax: resolved2 ? max2 : null,
+    totalAedMin: resolved2 ? roundAed(resolvedQuantity * min) : null,
+    totalAedMax: resolved2 ? roundAed(resolvedQuantity * max2) : null,
+    productId: snapshot?.productId ?? null,
+    specId: snapshot?.specificationId ?? null,
+    benchmarkProposalId: snapshot?.state === "resolved" ? snapshot.benchmarkProposalId : null,
+    resolutionState: resolved2 ? "resolved" : "insufficient",
+    resolutionReason: reason4,
+    resolvedPriceScope: snapshot?.state === "resolved" ? snapshot.resolvedPriceScope : null,
+    requestedGeography: snapshot?.requestedGeography ?? null,
+    resolvedGeography: snapshot?.state === "resolved" ? snapshot.resolvedGeography : null,
+    resolvedUnitBasis: snapshot?.state === "resolved" ? snapshot.unitBasis : null,
+    resolutionAsOf: snapshot ? new Date(snapshot.resolverAsOf) : null,
+    resolverPolicyVersion: snapshot?.policyVersion ?? null,
+    benchmarkVersionId: snapshot?.state === "resolved" ? snapshot.benchmarkVersionId : null,
+    benchmarkVersion: snapshot?.state === "resolved" ? snapshot.provenance.benchmarkVersion : null,
+    provenancePolicyVersion: snapshot?.state === "resolved" ? snapshot.provenance.provenancePolicyVersion : null,
+    presentationProvenance: snapshot?.state === "resolved" ? snapshot.provenance : null,
+    quantityPolicyVersion: quantityResolution?.state === "resolved" ? quantityResolution.policyVersion : null,
+    quantityConversionInputs: quantityResolution?.state === "resolved" ? quantityResolution.conversionInputs : null,
+    lineKind: "material",
+    nonMaterialPolicyVersion: null,
+    // A material identity is not proof that the named supplier supplied the
+    // governed value. Keep the compatibility field neutral.
+    supplierName: "TBD",
+    pricingSource: snapshot?.state === "resolved" ? pricingSource(snapshot) : "estimated",
+    notes: [
+      input.notes,
+      resolved2 && quantityResolution?.state === "resolved" ? `Quantity policy: ${quantityResolution.policyVersion}.` : null,
+      resolved2 && purchasedPaint && Object.keys(purchasedPaint.packCounts).length > 0 ? `Supplier packs: ${Object.entries(purchasedPaint.packCounts).map(([size, count2]) => `${count2} \xD7 ${size} L`).join(", ")}.` : null,
+      resolved2 && legacyEstimate ? "Legacy scope-unknown assumption; estimate only; not contractual supply-and-install coverage." : null,
+      resolved2 ? null : `Pricing insufficient: ${reason4}`
+    ].filter(Boolean).join(" ") || void 0
+  };
+}
+function fixedFeeLine(input) {
+  return {
+    projectId: input.projectId,
+    organizationId: input.organizationId,
+    briefId: input.briefId ?? null,
+    sectionNo: input.sectionNo,
+    itemCode: input.itemCode,
+    description: input.description,
+    unit: "sum",
+    quantity: 1,
+    unitRateAedMin: input.amount,
+    unitRateAedMax: input.amount,
+    totalAedMin: input.amount,
+    totalAedMax: input.amount,
+    resolutionState: "resolved",
+    resolutionReason: null,
+    lineKind: "non_material_fee",
+    nonMaterialPolicyVersion: RFQ_NON_MATERIAL_POLICY.version,
+    supplierName: input.supplierName,
+    pricingSource: "estimated",
+    notes: input.notes
+  };
+}
+function contingencyLine(input) {
+  const complete = input.subtotalMin !== null && input.subtotalMax !== null;
+  const min = complete ? roundAed(input.subtotalMin * input.rate) : null;
+  const max2 = complete ? roundAed(input.subtotalMax * input.rate) : null;
+  return {
+    projectId: input.projectId,
+    organizationId: input.organizationId,
+    briefId: input.briefId ?? null,
+    sectionNo: input.sectionNo,
+    itemCode: input.itemCode,
+    description: input.description,
+    unit: "sum",
+    quantity: 1,
+    unitRateAedMin: min,
+    unitRateAedMax: max2,
+    totalAedMin: min,
+    totalAedMax: max2,
+    resolutionState: complete ? "resolved" : "insufficient",
+    resolutionReason: complete ? null : "no_governed_value",
+    lineKind: "non_material_fee",
+    nonMaterialPolicyVersion: RFQ_NON_MATERIAL_POLICY.version,
+    supplierName: "",
+    pricingSource: "estimated",
+    notes: complete ? input.notes : [input.notes, "Cannot calculate contingency until all material lines resolve."].filter(Boolean).join(" ")
+  };
+}
+function materialSubtotal(items) {
+  const materialItems = items.filter((item) => item.lineKind === "material");
+  if (materialItems.length === 0 || materialItems.some(
+    (item) => item.resolutionState !== "resolved" || item.totalAedMin === null || item.totalAedMax === null
+  )) {
+    return { min: null, max: null };
+  }
+  return {
+    min: roundAed(
+      materialItems.reduce((sum, item) => sum + item.totalAedMin, 0)
+    ),
+    max: roundAed(
+      materialItems.reduce((sum, item) => sum + item.totalAedMax, 0)
+    )
+  };
+}
+function allocateScheduledWallAreas(room, wallSchedules) {
+  if (wallSchedules.length === 0) return [];
+  const wallAreaM2 = calculateSurfaceAreas([room])[0]?.wallM2 ?? 0;
+  return wallSchedules.map((schedule) => ({
+    schedule,
+    surfaceAreaM2: wallSchedules.length === 1 ? wallAreaM2 : null
+  }));
+}
+function buildRFQFromBrief(projectId, orgId, briefData, briefId, materials, priceSnapshots) {
   const items = [];
-  const gfa = briefData.boqFramework.totalEstimatedSqm || 0;
+  const snapshots = snapshotMap(priceSnapshots);
   const budgetCap = parseBudgetCap(briefData.detailedBudget.totalBudgetCap);
-  let subtotalMin = 0;
-  let subtotalMax = 0;
-  let marketVerifiedCount = 0;
-  let estimatedCount = 0;
-  briefData.boqFramework.coreAllocations.forEach((alloc, sectionIdx) => {
-    const sectionNo = sectionIdx + 1;
-    const costParsed = parseCostLabel(alloc.estimatedCostLabel);
-    const mapping = CATEGORY_MATERIAL_MAP[alloc.category];
-    const qty = gfa > 0 && mapping ? Math.round(gfa * mapping.areaMultiplier) : 1;
-    const unit = mapping?.defaultUnit || "lot";
-    const matchingMaterials = materials?.filter((m) => {
-      if (!mapping) return false;
-      return mapping.categories.some((c) => m.category.toLowerCase().includes(c));
-    }).filter((m) => isApprovedMaterial(m, briefData.materialSpecifications)) || [];
-    if (matchingMaterials.length > 0) {
-      matchingMaterials.slice(0, 3).forEach((mat, matIdx) => {
-        const rateMin = Number(mat.priceAedMin || 0);
-        const rateMax = Number(mat.priceAedMax || 0);
-        const pricingSource = mat.sourceType === "market_observation" ? "market-verified" : "estimated";
-        const totalMin = qty * rateMin;
-        const totalMax = qty * rateMax;
-        subtotalMin += totalMin;
-        subtotalMax += totalMax;
-        if (pricingSource === "market-verified") marketVerifiedCount++;
-        else estimatedCount++;
-        items.push({
-          projectId,
-          organizationId: orgId,
-          briefId: briefId ?? null,
-          sectionNo,
-          itemCode: `${sectionNo.toString().padStart(2, "0")}-${(matIdx + 1).toString().padStart(2, "0")}`,
-          description: `Supply & install ${mat.name} \u2014 ${alloc.category}`,
-          unit,
-          quantity: qty,
-          unitRateAedMin: rateMin,
-          unitRateAedMax: rateMax,
-          totalAedMin: totalMin,
-          totalAedMax: totalMax,
-          supplierName: mat.supplierName || "TBD",
-          pricingSource,
-          notes: alloc.notes || void 0
-        });
-      });
-    } else if (costParsed) {
-      const pricingSource = "estimated";
-      subtotalMin += costParsed.min;
-      subtotalMax += costParsed.max;
-      estimatedCount++;
-      items.push({
-        projectId,
-        organizationId: orgId,
-        briefId: briefId ?? null,
-        sectionNo,
-        itemCode: `${sectionNo.toString().padStart(2, "0")}-PS`,
-        description: `${alloc.category} \u2014 Provisional Sum (from Design Brief)`,
-        unit: "sum",
-        quantity: 1,
-        unitRateAedMin: costParsed.min,
-        unitRateAedMax: costParsed.max,
-        totalAedMin: costParsed.min,
-        totalAedMax: costParsed.max,
-        supplierName: "Per Design Brief",
-        pricingSource,
-        notes: `${alloc.percentage}% of total budget. ${alloc.notes}`
-      });
-    } else {
-      estimatedCount++;
+  const materialsById = new Map(
+    materials.map((material) => [material.id, material])
+  );
+  briefData.boqFramework.coreAllocations.forEach((allocation, sectionIndex) => {
+    const sectionNo = sectionIndex + 1;
+    const mapping = CATEGORY_MATERIAL_MAP[allocation.category];
+    const unit = allocation.explicitQuantityUnit ?? mapping?.defaultUnit ?? "unknown";
+    const quantity = allocation.explicitQuantity ?? 0;
+    const material = allocation.materialLibraryId === void 0 ? void 0 : materialsById.get(allocation.materialLibraryId);
+    if (!material) {
       items.push({
         projectId,
         organizationId: orgId,
         briefId: briefId ?? null,
         sectionNo,
         itemCode: `${sectionNo.toString().padStart(2, "0")}-TBD`,
-        description: `${alloc.category} \u2014 To Be Detailed`,
-        unit: "sum",
-        quantity: 1,
-        unitRateAedMin: 0,
-        unitRateAedMax: 0,
-        totalAedMin: 0,
-        totalAedMax: 0,
+        description: `${allocation.category} \u2014 material specification required`,
+        unit,
+        quantity,
+        unitRateAedMin: null,
+        unitRateAedMax: null,
+        totalAedMin: null,
+        totalAedMax: null,
+        resolutionState: "insufficient",
+        resolutionReason: "identity_not_found",
+        lineKind: "material",
+        nonMaterialPolicyVersion: null,
         supplierName: "TBD",
         pricingSource: "estimated",
-        notes: `${alloc.percentage}% allocation \u2014 requires detailed pricing. ${alloc.notes}`
+        notes: `${allocation.percentage}% allocation. Pricing insufficient: identity_not_found.`
       });
+      return;
     }
+    items.push(buildMaterialLine({
+      projectId,
+      organizationId: orgId,
+      briefId,
+      sectionNo,
+      itemCode: `${sectionNo.toString().padStart(2, "0")}-01`,
+      description: `Supply & install ${materialName(material)} \u2014 ${allocation.category}`,
+      unit,
+      quantity,
+      material,
+      snapshot: snapshots.get(`material_library:${material.id}`),
+      notes: allocation.notes || void 0,
+      allowLegacyScopeUnknownEstimate: true
+    }));
   });
-  const contingencyPct = briefData.detailedBudget.contingencyRecommendation.match(/(\d+)%/)?.[1];
-  const contPct = contingencyPct ? Number(contingencyPct) / 100 : 0.1;
-  const contingencyMin = subtotalMin * contPct;
-  const contingencyMax = subtotalMax * contPct;
+  const subtotal = materialSubtotal(items);
+  const contingencyRate = RFQ_NON_MATERIAL_POLICY.defaultContingencyRate;
   const lastSection = items.length > 0 ? items[items.length - 1].sectionNo + 1 : 1;
-  items.push({
+  const contingency = contingencyLine({
     projectId,
     organizationId: orgId,
-    briefId: briefId ?? null,
+    briefId,
     sectionNo: lastSection,
     itemCode: "PS-CONT",
-    description: `Contingency (${Math.round(contPct * 100)}% of Sections 1-${lastSection - 1})`,
-    unit: "sum",
-    quantity: 1,
-    unitRateAedMin: contingencyMin,
-    unitRateAedMax: contingencyMax,
-    totalAedMin: contingencyMin,
-    totalAedMax: contingencyMax,
-    supplierName: "",
-    pricingSource: "estimated",
+    description: `Contingency (${Math.round(contingencyRate * 100)}% of material sections)`,
+    subtotalMin: subtotal.min,
+    subtotalMax: subtotal.max,
+    rate: contingencyRate,
     notes: briefData.detailedBudget.contingencyRecommendation
   });
-  items.push({
-    projectId,
-    organizationId: orgId,
-    briefId: briefId ?? null,
-    sectionNo: lastSection,
-    itemCode: "PS-DM",
-    description: "DM/DDA Approval Fees (Provisional)",
-    unit: "sum",
-    quantity: 1,
-    unitRateAedMin: 15e3,
-    unitRateAedMax: 15e3,
-    totalAedMin: 15e3,
-    totalAedMax: 15e3,
-    supplierName: "Dubai Authorities",
-    pricingSource: "estimated",
-    notes: "Standard Dubai Municipality / DDA approval fees for interior fit-out."
-  });
-  items.push({
-    projectId,
-    organizationId: orgId,
-    briefId: briefId ?? null,
-    sectionNo: lastSection,
-    itemCode: "PS-FFE",
-    description: "FF&E Procurement Management (Provisional)",
-    unit: "sum",
-    quantity: 1,
-    unitRateAedMin: 25e3,
-    unitRateAedMax: 25e3,
-    totalAedMin: 25e3,
-    totalAedMax: 25e3,
-    supplierName: "Design Consultant",
-    pricingSource: "estimated"
-  });
-  const grandTotalMin = subtotalMin + contingencyMin + 4e4;
-  const grandTotalMax = subtotalMax + contingencyMax + 4e4;
+  items.push(
+    contingency,
+    fixedFeeLine({
+      projectId,
+      organizationId: orgId,
+      briefId,
+      sectionNo: lastSection,
+      itemCode: "PS-DM",
+      description: "DM/DDA Approval Fees (Provisional)",
+      amount: RFQ_NON_MATERIAL_POLICY.authorityApprovalFeeAed,
+      supplierName: "Dubai Authorities",
+      notes: "Non-material authority fee allowance."
+    }),
+    fixedFeeLine({
+      projectId,
+      organizationId: orgId,
+      briefId,
+      sectionNo: lastSection,
+      itemCode: "PS-FFE",
+      description: "FF&E Procurement Management (Provisional)",
+      amount: RFQ_NON_MATERIAL_POLICY.procurementManagementFeeAed,
+      supplierName: "Design Consultant"
+    })
+  );
+  const insufficientCount = items.filter((item) => item.lineKind === "material" && item.resolutionState === "insufficient").length;
+  const materialComplete = insufficientCount === 0 && subtotal.min !== null;
+  const contingencyMin = contingency.totalAedMin;
+  const contingencyMax = contingency.totalAedMax;
+  const fixedFees = RFQ_NON_MATERIAL_POLICY.authorityApprovalFeeAed + RFQ_NON_MATERIAL_POLICY.procurementManagementFeeAed;
+  const grandTotalMin = materialComplete && contingencyMin !== null ? roundAed(subtotal.min + contingencyMin + fixedFees) : null;
+  const grandTotalMax = materialComplete && contingencyMax !== null ? roundAed(subtotal.max + contingencyMax + fixedFees) : null;
+  const marketVerifiedCount = items.filter((item) => item.lineKind === "material" && item.pricingSource === "market-verified").length;
+  const estimatedCount = items.filter((item) => item.pricingSource === "estimated").length;
   return {
     items,
     summary: {
       totalSections: lastSection,
       totalLineItems: items.length,
-      subtotalMin,
-      subtotalMax,
+      subtotalMin: subtotal.min,
+      subtotalMax: subtotal.max,
       contingencyMin,
       contingencyMax,
       grandTotalMin,
       grandTotalMax,
       marketVerifiedCount,
       estimatedCount,
+      insufficientCount,
       budgetCapAed: budgetCap,
-      budgetUtilizationPct: budgetCap ? Math.round(grandTotalMax / budgetCap * 100) : null
+      budgetUtilizationPct: budgetCap && grandTotalMax !== null ? Math.round(grandTotalMax / budgetCap * 100) : null,
+      resolutionState: materialComplete ? "complete" : "insufficient"
     }
   };
 }
-function buildRFQPack(projectId, orgId, finishSchedule, rooms, materials) {
-  const rfqItems = [];
-  const getMaterial = (id) => materials.find((m) => m.id === id);
-  let subtotalMin = 0;
-  let subtotalMax = 0;
-  const pushLine = (sectionNo, itemCode, description, unit, quantity, rateMin, rateMax, supplierName) => {
-    const totalMin = quantity * rateMin;
-    const totalMax = quantity * rateMax;
-    subtotalMin += totalMin;
-    subtotalMax += totalMax;
-    rfqItems.push({
+function buildRFQPack(projectId, orgId, finishSchedule, rooms, materials, priceSnapshots) {
+  const items = [];
+  const byId = new Map(materials.map((material) => [material.id, material]));
+  const snapshots = snapshotMap(priceSnapshots);
+  const schedulesForRoom = (roomId) => finishSchedule.filter((item) => item.roomId === roomId);
+  const addScheduledLine = (input) => {
+    const material = byId.get(input.schedule.materialLibraryId);
+    if (!material) return;
+    items.push(buildMaterialLine({
       projectId,
       organizationId: orgId,
-      sectionNo,
-      itemCode,
-      description,
-      unit,
-      quantity,
-      unitRateAedMin: rateMin,
-      unitRateAedMax: rateMax,
-      totalAedMin: totalMin,
-      totalAedMax: totalMax,
-      supplierName,
-      pricingSource: "estimated"
-    });
+      sectionNo: input.sectionNo,
+      itemCode: input.itemCode,
+      description: input.description,
+      unit: input.unit,
+      quantity: input.quantity,
+      material,
+      snapshot: snapshots.get(`material_library:${material.id}`),
+      notes: input.notes
+    }));
   };
-  const getSchedulesForRoom = (roomId) => finishSchedule.filter((f) => f.roomId === roomId);
-  rooms.forEach((room) => {
-    const floors = getSchedulesForRoom(room.id).filter((f) => f.element === "floor");
-    floors.forEach((floor) => {
-      const mat = getMaterial(floor.materialLibraryId);
-      if (mat) {
-        pushLine(
-          1,
-          `FL-${room.id}`,
-          `Supply & install ${mat.productName} to ${room.name}`,
-          "sqm",
-          room.sqm,
-          Number(mat.priceAedMin || 0),
-          Number(mat.priceAedMax || 0),
-          mat.supplierName
-        );
+  for (const room of rooms) {
+    for (const floor of schedulesForRoom(room.id).filter((item) => item.element === "floor")) {
+      const material = byId.get(floor.materialLibraryId);
+      if (material) {
+        addScheduledLine({
+          room,
+          schedule: floor,
+          sectionNo: 1,
+          itemCode: `FL-${room.id}`,
+          description: `Supply & install ${materialName(material)} to ${room.name}`,
+          unit: "sqm",
+          quantity: room.sqm
+        });
       }
-    });
-  });
-  rooms.forEach((room) => {
-    const walls = getSchedulesForRoom(room.id).filter((f) => f.element.startsWith("wall_"));
-    walls.forEach((wall) => {
-      const mat = getMaterial(wall.materialLibraryId);
-      if (mat) {
-        const areaMultiplier = wall.element === "wall_primary" ? 2.5 : 1;
-        const qty = room.sqm * areaMultiplier;
-        pushLine(
-          2,
-          `WL-${room.id}-${wall.element.split("_")[1]}`,
-          `Supply & apply ${mat.productName} to ${room.name} (${wall.element})`,
-          "sqm",
-          qty,
-          Number(mat.priceAedMin || 0),
-          Number(mat.priceAedMax || 0),
-          mat.supplierName
-        );
-      }
-    });
-  });
-  rooms.forEach((room) => {
-    const ceil = getSchedulesForRoom(room.id).find((f) => f.element === "ceiling");
-    if (ceil) {
-      let rateMin = 90;
-      let rateMax = 120;
-      if (ceil.overrideSpec?.includes("Coffered")) {
-        rateMin = 180;
-        rateMax = 250;
-      }
-      if (ceil.overrideSpec?.includes("Cove")) {
-        rateMin = 130;
-        rateMax = 160;
-      }
-      pushLine(
-        3,
-        `CL-${room.id}`,
-        `Supply & install ${ceil.overrideSpec || "Gypsum Ceiling"} to ${room.name}`,
-        "sqm",
-        room.sqm,
-        rateMin,
-        rateMax,
-        "Various Subcontractors"
-      );
     }
-  });
-  rooms.forEach((room) => {
-    const joinery = getSchedulesForRoom(room.id).find((f) => f.element === "joinery");
-    if (joinery && ["MBR", "BD2", "BD3", "KIT", "LVG"].includes(room.id)) {
-      let lm = room.sqm * 0.2;
-      let rateMin = 1200;
-      let rateMax = 1800;
-      if (room.id === "KIT") {
-        rateMin = 2e3;
-        rateMax = 3500;
-        lm = room.sqm * 0.4;
+    const wallSchedules = schedulesForRoom(room.id).filter(
+      (item) => item.element.startsWith("wall_")
+    );
+    for (const { schedule: wall, surfaceAreaM2 } of allocateScheduledWallAreas(room, wallSchedules)) {
+      const material = byId.get(wall.materialLibraryId);
+      if (material) {
+        addScheduledLine({
+          room,
+          schedule: wall,
+          sectionNo: 2,
+          itemCode: `WL-${room.id}-${wall.element.split("_")[1]}`,
+          description: `Supply & apply ${materialName(material)} to ${room.name} (${wall.element})`,
+          unit: "sqm",
+          quantity: surfaceAreaM2 ?? 0,
+          notes: surfaceAreaM2 === null ? "Pricing insufficient: explicit approved wall-finish area split required." : "Wall area: canonical MQI perimeter-height surface."
+        });
       }
-      pushLine(
-        4,
-        `JN-${room.id}`,
-        `Custom Joinery / Wardrobes / Cabinets in ${room.name} (${joinery.overrideSpec})`,
-        "lm",
-        lm,
-        rateMin,
-        rateMax,
-        "Specialist Joinery"
-      );
     }
-  });
-  const wetRooms = rooms.filter((r) => ["MEN", "BTH", "UTL", "KIT"].includes(r.id));
-  wetRooms.forEach((room) => {
-    const swMat = materials.find((m) => m.category === "sanitaryware");
-    if (swMat) {
-      pushLine(
-        5,
-        `SW-${room.id}`,
-        `Allow for Sanitaryware & Brassware package for ${room.name}`,
-        "set",
-        1,
-        Number(swMat.priceAedMin || 0) * 3,
-        Number(swMat.priceAedMax || 0) * 4,
-        swMat.supplierName
-      );
+    const ceiling = schedulesForRoom(room.id).find((item) => item.element === "ceiling");
+    const ceilingMaterial = ceiling && byId.get(ceiling.materialLibraryId);
+    if (ceiling && ceilingMaterial) {
+      addScheduledLine({
+        room,
+        schedule: ceiling,
+        sectionNo: 3,
+        itemCode: `CL-${room.id}`,
+        description: `Supply & install ${materialName(ceilingMaterial)} to ${room.name}`,
+        unit: "sqm",
+        quantity: room.sqm
+      });
     }
-  });
-  rfqItems.push({
+    const joinery = schedulesForRoom(room.id).find((item) => item.element === "joinery");
+    const joineryMaterial = joinery && byId.get(joinery.materialLibraryId);
+    if (joinery && joineryMaterial && ["MBR", "BD2", "BD3", "KIT", "LVG"].includes(room.id)) {
+      addScheduledLine({
+        room,
+        schedule: joinery,
+        sectionNo: 4,
+        itemCode: `JN-${room.id}`,
+        description: `Supply & install ${materialName(joineryMaterial)} to ${room.name}`,
+        unit: "lm",
+        quantity: 0,
+        notes: "Pricing insufficient: explicit compatible joinery linear metres required."
+      });
+    }
+  }
+  const sanitaryware = materials.find((material) => material.category === "sanitaryware");
+  if (sanitaryware) {
+    for (const room of rooms.filter(
+      (item) => ["MEN", "BTH", "UTL", "KIT"].includes(item.id)
+    )) {
+      items.push(buildMaterialLine({
+        projectId,
+        organizationId: orgId,
+        sectionNo: 5,
+        itemCode: `SW-${room.id}`,
+        description: `Supply & install ${materialName(sanitaryware)} package for ${room.name}`,
+        unit: "set",
+        quantity: 0,
+        material: sanitaryware,
+        snapshot: snapshots.get(`material_library:${sanitaryware.id}`),
+        notes: "Pricing insufficient: explicit compatible sanitaryware piece quantity required."
+      }));
+    }
+  }
+  const subtotal = materialSubtotal(items);
+  const contingency = contingencyLine({
     projectId,
     organizationId: orgId,
     sectionNo: 6,
     itemCode: "PS-01",
-    description: "Contingency (10% of Sections 1-5)",
-    unit: "sum",
-    quantity: 1,
-    unitRateAedMin: subtotalMin * 0.1,
-    unitRateAedMax: subtotalMax * 0.1,
-    totalAedMin: subtotalMin * 0.1,
-    totalAedMax: subtotalMax * 0.1,
-    supplierName: "",
-    pricingSource: "estimated"
+    description: "Contingency (10% of material sections)",
+    subtotalMin: subtotal.min,
+    subtotalMax: subtotal.max,
+    rate: RFQ_NON_MATERIAL_POLICY.defaultContingencyRate
   });
-  rfqItems.push({
-    projectId,
-    organizationId: orgId,
-    sectionNo: 6,
-    itemCode: "PS-02",
-    description: "DM/DDA Approval Fees (Provisional)",
-    unit: "sum",
-    quantity: 1,
-    unitRateAedMin: 15e3,
-    unitRateAedMax: 15e3,
-    totalAedMin: 15e3,
-    totalAedMax: 15e3,
-    supplierName: "Dubai Authorities",
-    pricingSource: "estimated"
-  });
-  rfqItems.push({
-    projectId,
-    organizationId: orgId,
-    sectionNo: 6,
-    itemCode: "PS-03",
-    description: "FF&E Procurement Management (Provisional)",
-    unit: "sum",
-    quantity: 1,
-    unitRateAedMin: 25e3,
-    unitRateAedMax: 25e3,
-    totalAedMin: 25e3,
-    totalAedMax: 25e3,
-    supplierName: "Design Consultant",
-    pricingSource: "estimated"
-  });
-  return rfqItems;
+  items.push(
+    contingency,
+    fixedFeeLine({
+      projectId,
+      organizationId: orgId,
+      sectionNo: 6,
+      itemCode: "PS-02",
+      description: "DM/DDA Approval Fees (Provisional)",
+      amount: RFQ_NON_MATERIAL_POLICY.authorityApprovalFeeAed,
+      supplierName: "Dubai Authorities"
+    }),
+    fixedFeeLine({
+      projectId,
+      organizationId: orgId,
+      sectionNo: 6,
+      itemCode: "PS-03",
+      description: "FF&E Procurement Management (Provisional)",
+      amount: RFQ_NON_MATERIAL_POLICY.procurementManagementFeeAed,
+      supplierName: "Design Consultant"
+    })
+  );
+  return items;
 }
-var CATEGORY_MATERIAL_MAP;
+function buildRFQPackFromAllocations(projectId, orgId, allocations, materials, priceSnapshots, rooms = []) {
+  const items = [];
+  const byId = new Map(materials.map((material) => [material.id, material]));
+  const snapshots = snapshotMap(priceSnapshots);
+  allocations.forEach((allocation, index2) => {
+    const material = allocation.materialLibraryId === null ? void 0 : byId.get(allocation.materialLibraryId);
+    if (!material) {
+      items.push({
+        projectId,
+        organizationId: orgId,
+        briefId: null,
+        sectionNo: index2 + 1,
+        itemCode: `MAT-${index2 + 1}`,
+        description: `${allocation.roomName} ${allocation.element} \u2014 material specification required`,
+        unit: "sqm",
+        quantity: Number(allocation.surfaceAreaM2),
+        unitRateAedMin: null,
+        unitRateAedMax: null,
+        totalAedMin: null,
+        totalAedMax: null,
+        resolutionState: "insufficient",
+        resolutionReason: "identity_not_found",
+        lineKind: "material",
+        nonMaterialPolicyVersion: null,
+        supplierName: "TBD",
+        pricingSource: "estimated",
+        notes: "Pricing insufficient: identity_not_found."
+      });
+      return;
+    }
+    const surfaceElement = allocation.element === "floor" || allocation.element === "walls" || allocation.element === "ceiling";
+    const explicitUnit = surfaceElement ? "sqm" : allocation.explicitQuantityUnit ?? "unknown";
+    const quantity = surfaceElement ? Number(allocation.surfaceAreaM2) : Number(allocation.explicitQuantity ?? 0);
+    items.push(buildMaterialLine({
+      projectId,
+      organizationId: orgId,
+      sectionNo: index2 + 1,
+      itemCode: `MAT-${index2 + 1}`,
+      description: `Supply & install ${materialName(material)} to ${allocation.roomName} (${allocation.element})`,
+      unit: explicitUnit,
+      quantity,
+      material,
+      snapshot: snapshots.get(`material_library:${material.id}`),
+      notes: surfaceElement ? "Quantity from persisted canonical MQI allocation." : "Explicit non-surface quantity required."
+    }));
+  });
+  const sanitarywareRoomsWithAllocations = new Set(
+    allocations.filter((allocation) => allocation.element === "sanitaryware").map((allocation) => allocation.roomId)
+  );
+  const missingRequired = [
+    ...rooms.filter(
+      (room) => SANITARYWARE_RFQ_ROOM_IDS.has(room.id) && !sanitarywareRoomsWithAllocations.has(room.id)
+    ).map((room) => ({
+      room,
+      element: "sanitaryware",
+      reason: "Explicit sanitaryware identity and compatible piece quantity required."
+    }))
+  ];
+  for (const required of missingRequired) {
+    const index2 = items.length;
+    items.push({
+      projectId,
+      organizationId: orgId,
+      briefId: null,
+      sectionNo: index2 + 1,
+      itemCode: `REQ-${index2 + 1}`,
+      description: `${required.room.name} ${required.element} \u2014 specification and quantity required`,
+      unit: required.element === "joinery" ? "lm" : "piece",
+      quantity: 0,
+      unitRateAedMin: null,
+      unitRateAedMax: null,
+      totalAedMin: null,
+      totalAedMax: null,
+      resolutionState: "insufficient",
+      resolutionReason: "quantity_required",
+      lineKind: "material",
+      nonMaterialPolicyVersion: null,
+      supplierName: "TBD",
+      pricingSource: "estimated",
+      notes: `Pricing insufficient: ${required.reason}`
+    });
+  }
+  const subtotal = materialSubtotal(items);
+  items.push(
+    contingencyLine({
+      projectId,
+      organizationId: orgId,
+      sectionNo: allocations.length + 1,
+      itemCode: "PS-01",
+      description: "Contingency (10% of material sections)",
+      subtotalMin: subtotal.min,
+      subtotalMax: subtotal.max,
+      rate: RFQ_NON_MATERIAL_POLICY.defaultContingencyRate
+    }),
+    fixedFeeLine({
+      projectId,
+      organizationId: orgId,
+      sectionNo: allocations.length + 1,
+      itemCode: "PS-02",
+      description: "DM/DDA Approval Fees (Provisional)",
+      amount: RFQ_NON_MATERIAL_POLICY.authorityApprovalFeeAed,
+      supplierName: "Dubai Authorities"
+    }),
+    fixedFeeLine({
+      projectId,
+      organizationId: orgId,
+      sectionNo: allocations.length + 1,
+      itemCode: "PS-03",
+      description: "FF&E Procurement Management (Provisional)",
+      amount: RFQ_NON_MATERIAL_POLICY.procurementManagementFeeAed,
+      supplierName: "Design Consultant"
+    })
+  );
+  return items;
+}
+function expectedCanonicalRfqMaterialLineCount(allocations, rooms) {
+  const sanitarywareRoomsWithAllocations = new Set(
+    allocations.filter((allocation) => allocation.element === "sanitaryware").map((allocation) => allocation.roomId)
+  );
+  return allocations.length + rooms.filter(
+    (room) => SANITARYWARE_RFQ_ROOM_IDS.has(room.id) && !sanitarywareRoomsWithAllocations.has(room.id)
+  ).length;
+}
+function expectedIssuedMaterialRfqLineCount(finishSchedule, rooms) {
+  const scheduled = finishSchedule.filter(
+    (row) => row.element === "floor" || row.element === "ceiling" || row.element?.startsWith("wall_") || row.element === "joinery" && LEGACY_JOINERY_RFQ_ROOM_IDS.has(String(row.roomId))
+  ).length;
+  const sanitaryware = rooms.filter(
+    (room) => SANITARYWARE_RFQ_ROOM_IDS.has(room.id)
+  ).length;
+  return scheduled + sanitaryware;
+}
+var RFQ_NON_MATERIAL_POLICY, CATEGORY_MATERIAL_MAP, LEGACY_JOINERY_RFQ_ROOM_IDS, SANITARYWARE_RFQ_ROOM_IDS;
 var init_rfq_generator = __esm({
   "server/engines/design/rfq-generator.ts"() {
     "use strict";
+    init_quantity_policy();
+    init_material_quantity_engine();
+    RFQ_NON_MATERIAL_POLICY = Object.freeze({
+      version: "ev03-rfq-non-material-v1",
+      defaultContingencyRate: 0.1,
+      authorityApprovalFeeAed: 15e3,
+      procurementManagementFeeAed: 25e3
+    });
     CATEGORY_MATERIAL_MAP = {
       "Civil & MEP Works (Flooring, Ceilings, Partitions)": {
         categories: ["flooring", "ceiling", "partition", "tiles"],
-        defaultUnit: "sqm",
-        areaMultiplier: 1
+        defaultUnit: "sqm"
       },
       "Civil & MEP Works (Partitions, HVAC, Data)": {
         categories: ["partition", "ceiling", "mechanical"],
-        defaultUnit: "sqm",
-        areaMultiplier: 1
+        defaultUnit: "sqm"
       },
       "Civil & MEP Works": {
         categories: ["flooring", "ceiling", "partition"],
-        defaultUnit: "sqm",
-        areaMultiplier: 1
+        defaultUnit: "sqm"
       },
       "Fixed Joinery (Kitchens, Wardrobes, Doors)": {
         categories: ["joinery", "kitchen", "doors", "wardrobes"],
-        defaultUnit: "lm",
-        areaMultiplier: 0.25
+        defaultUnit: "lm"
       },
       "Feature Joinery & Reception": {
         categories: ["joinery", "reception"],
-        defaultUnit: "lm",
-        areaMultiplier: 0.15
+        defaultUnit: "lm"
       },
       "Fixed Joinery & Millwork": {
         categories: ["joinery", "millwork"],
-        defaultUnit: "lm",
-        areaMultiplier: 0.2
+        defaultUnit: "lm"
       },
       "Sanitaryware & Wet Areas": {
         categories: ["sanitaryware", "brassware", "tiles"],
-        defaultUnit: "set",
-        areaMultiplier: 0.12
+        defaultUnit: "set"
       },
       "Sanitaryware & Specialized Equipment": {
         categories: ["sanitaryware", "brassware", "equipment"],
-        defaultUnit: "set",
-        areaMultiplier: 0.12
+        defaultUnit: "set"
       },
       "Pantry & Washrooms": {
         categories: ["sanitaryware", "kitchen", "tiles"],
-        defaultUnit: "set",
-        areaMultiplier: 0.08
+        defaultUnit: "set"
       },
       "FF&E (Loose Furniture, Lighting, Art)": {
         categories: ["furniture", "lighting", "art", "decorative"],
-        defaultUnit: "lot",
-        areaMultiplier: 1
+        defaultUnit: "lot"
       },
       "FF&E (Custom Furniture, Drapery, Rugs)": {
         categories: ["furniture", "drapery", "rugs", "textiles"],
-        defaultUnit: "lot",
-        areaMultiplier: 1
+        defaultUnit: "lot"
       },
       "Workstations & Loose Furniture": {
         categories: ["furniture", "workstation", "seating"],
-        defaultUnit: "nr",
-        areaMultiplier: 0.05
+        defaultUnit: "nr"
       }
     };
+    LEGACY_JOINERY_RFQ_ROOM_IDS = /* @__PURE__ */ new Set([
+      "MBR",
+      "BD2",
+      "BD3",
+      "KIT",
+      "LVG"
+    ]);
+    SANITARYWARE_RFQ_ROOM_IDS = /* @__PURE__ */ new Set(["MEN", "BTH", "UTL", "KIT"]);
   }
 });
 
@@ -12394,7 +14689,7 @@ var pdf_extraction_exports = {};
 __export(pdf_extraction_exports, {
   extractRoomsFromMedia: () => extractRoomsFromMedia
 });
-import { z as z4 } from "zod";
+import { z as z5 } from "zod";
 async function extractRoomsFromMedia(media, projectContext) {
   const contextNote = projectContext ? `
 Project context: ${projectContext.typology || "Residential"} project, GFA: ${projectContext.gfa || "unknown"} sqm, Archetype: ${projectContext.archetype || "unknown"}` : "";
@@ -12508,15 +14803,15 @@ Rules:
 4. Do NOT include external areas (parking, garden) unless they are enclosed balconies/terraces
 5. Label rooms exactly as shown on the plan; if no label is visible, use descriptive names like "Room 1", "Corridor"
 6. Round areas to one decimal place`;
-    EXTRACTION_RESULT_SCHEMA = z4.object({
-      rooms: z4.array(z4.object({
-        name: z4.string().optional(),
-        areaSqm: z4.number().finite().optional(),
-        confidence: z4.number().finite().optional(),
-        category: z4.string().optional()
+    EXTRACTION_RESULT_SCHEMA = z5.object({
+      rooms: z5.array(z5.object({
+        name: z5.string().optional(),
+        areaSqm: z5.number().finite().optional(),
+        confidence: z5.number().finite().optional(),
+        category: z5.string().optional()
       })),
-      totalArea: z4.number().finite().optional(),
-      notes: z4.string().optional()
+      totalArea: z5.number().finite().optional(),
+      notes: z5.string().optional()
     });
   }
 });
@@ -12665,7 +14960,7 @@ var init_monte_carlo = __esm({
 });
 
 // server/engines/design/floor-plan-analyzer.ts
-import { z as z8 } from "zod";
+import { z as z9 } from "zod";
 async function analyzeFloorPlan(media) {
   const result = await invokeLLM({
     messages: [
@@ -12813,21 +15108,21 @@ Analyze the floor plan now.`;
       "dressing",
       "other"
     ];
-    FLOOR_PLAN_RESULT_SCHEMA = z8.object({
-      rooms: z8.array(z8.object({
-        name: z8.string(),
-        type: z8.string().optional(),
-        estimatedSqm: z8.number().finite(),
-        percentOfTotal: z8.number().finite().optional().default(0),
-        finishGrade: z8.string().optional()
+    FLOOR_PLAN_RESULT_SCHEMA = z9.object({
+      rooms: z9.array(z9.object({
+        name: z9.string(),
+        type: z9.string().optional(),
+        estimatedSqm: z9.number().finite(),
+        percentOfTotal: z9.number().finite().optional().default(0),
+        finishGrade: z9.string().optional()
       })).min(1),
-      bedroomCount: z8.number().finite().optional(),
-      bathroomCount: z8.number().finite().optional(),
-      balconyPercentage: z8.number().finite().optional(),
-      circulationPercentage: z8.number().finite().optional(),
-      unitType: z8.string().optional(),
-      analysisConfidence: z8.string().optional(),
-      rawNotes: z8.string().optional()
+      bedroomCount: z9.number().finite().optional(),
+      bathroomCount: z9.number().finite().optional(),
+      balconyPercentage: z9.number().finite().optional(),
+      circulationPercentage: z9.number().finite().optional(),
+      unitType: z9.string().optional(),
+      analysisConfidence: z9.string().optional(),
+      rawNotes: z9.string().optional()
     });
   }
 });
@@ -12838,21 +15133,21 @@ __export(investor_pdf_exports, {
   createInvestorPdfRenderContext: () => createInvestorPdfRenderContext,
   generateInvestorPdfHtml: () => generateInvestorPdfHtml
 });
-import { randomUUID as randomUUID3 } from "node:crypto";
-function finite(value) {
+import { randomUUID as randomUUID4 } from "node:crypto";
+function finite2(value) {
   return Number.isFinite(value) ? value : null;
 }
 function pct(value) {
   return Number.isFinite(value) ? Math.max(0, Math.min(value, 100)).toFixed(1) : "0.0";
 }
-function text2(value) {
+function text3(value) {
   return `<span dir="auto" data-report-dynamic>${escapeReportText(value)}</span>`;
 }
-function number(value, locale) {
+function number2(value, locale) {
   return formatReportNumber(value, locale);
 }
 function aed(value, locale) {
-  return `${number(value, locale)} AED`;
+  return `${number2(value, locale)} AED`;
 }
 function gradeColor(grade2) {
   return { A: "#10b981", B: "#22c55e", C: "#f59e0b", D: "#f97316", E: "#ef4444" }[grade2] ?? "#94a3b8";
@@ -12860,10 +15155,10 @@ function gradeColor(grade2) {
 function confColor(confidence) {
   return { established: "#10b981", emerging: "#8b5cf6", declining: "#ef4444" }[confidence] ?? "#94a3b8";
 }
-function renderMetadata(context3, locale) {
+function renderMetadata2(context3, locale) {
   const c = (key) => reportCopy(locale, key);
-  const value = (entry) => text2(entry ?? c("notAvailable"));
-  return `<div class="render-meta"><div><b>${c("documentId")}:</b> ${text2(context3.documentId)}</div><div><b>${c("generatedAt")}:</b> ${text2(formatReportDateTime(context3.generatedAt, locale))}</div><div><b>${c("renderInputFingerprint")}:</b> ${text2(context3.renderInputFingerprint)}</div><div><b>${c("artifactVersion")}:</b> ${value(context3.artifactVersion)} \xB7 <b>${c("rendererVersion")}:</b> ${value(context3.rendererVersion)}</div><div><b>${c("modelVersion")}:</b> ${value(context3.modelVersion)} \xB7 <b>${c("benchmarkVersion")}:</b> ${value(context3.benchmarkVersion)} \xB7 <b>${c("logicVersion")}:</b> ${value(context3.logicVersion)}</div></div>`;
+  const value = (entry) => text3(entry ?? c("notAvailable"));
+  return `<div class="render-meta"><div><b>${c("documentId")}:</b> ${text3(context3.documentId)}</div><div><b>${c("generatedAt")}:</b> ${text3(formatReportDateTime(context3.generatedAt, locale))}</div><div><b>${c("renderInputFingerprint")}:</b> ${text3(context3.renderInputFingerprint)}</div><div><b>${c("artifactVersion")}:</b> ${value(context3.artifactVersion)} \xB7 <b>${c("rendererVersion")}:</b> ${value(context3.rendererVersion)}</div><div><b>${c("modelVersion")}:</b> ${value(context3.modelVersion)} \xB7 <b>${c("benchmarkVersion")}:</b> ${value(context3.benchmarkVersion)} \xB7 <b>${c("logicVersion")}:</b> ${value(context3.logicVersion)}</div></div>`;
 }
 function createInvestorPdfRenderContext(input) {
   const locale = reportLocaleOrDefault(input.locale);
@@ -12875,20 +15170,20 @@ function createInvestorPdfRenderContext(input) {
     logicVersion: input.logicVersion ?? null
   };
   return createReportRenderContext({
-    documentId: input.documentId ?? `MYR-INV-${randomUUID3().toUpperCase()}`,
+    documentId: input.documentId ?? `MYR-INV-${randomUUID4().toUpperCase()}`,
     generatedAt: input.generatedAt,
     locale,
     ...labels,
     fingerprintInput: createRenderFingerprintPayload("investor_summary", locale, labels, {
-      project: { name: input.projectName, typology: input.typology, location: input.location, tier: input.tier, style: input.style, gfaSqm: finite(input.gfaSqm), execSummary: input.execSummary },
+      project: { name: input.projectName, typology: input.typology, location: input.location, tier: input.tier, style: input.style, gfaSqm: finite2(input.gfaSqm), execSummary: input.execSummary },
       designDirection: Object.fromEntries(Object.entries(input.designDirection ?? {}).slice(0, 6)),
-      spaces: input.spaces.slice(0, 12).map((space) => ({ name: space.name, budgetAed: finite(space.budgetAed), sqm: finite(space.sqm), pct: finite(space.pct), styleDirection: space.styleDirection })),
+      spaces: input.spaces.slice(0, 12).map((space) => ({ name: space.name, budgetAed: finite2(space.budgetAed), sqm: finite2(space.sqm), pct: finite2(space.pct), styleDirection: space.styleDirection })),
       materials: input.materials.slice(0, 16).map((material) => ({ name: material.name, brand: material.brand, room: material.room, price: material.price })),
-      materialConstants: input.materialConstants.slice(0, 9).map((constant) => ({ materialType: constant.materialType, costPerM2: finite(constant.costPerM2), carbonIntensity: finite(constant.carbonIntensity), sustainabilityGrade: constant.sustainabilityGrade })),
-      budget: { totalFitoutBudget: finite(input.totalFitoutBudget), costPerSqm: finite(input.costPerSqm), sustainabilityGrade: input.sustainabilityGrade, salePremiumPct: finite(input.salePremiumPct), estimatedSalesPremiumAed: finite(input.estimatedSalesPremiumAed) },
+      materialConstants: input.materialConstants.slice(0, 9).map((constant) => ({ materialType: constant.materialType, carbonIntensity: finite2(constant.carbonIntensity), sustainabilityGrade: constant.sustainabilityGrade })),
+      budget: { totalFitoutBudget: finite2(input.totalFitoutBudget), costPerSqm: finite2(input.costPerSqm), sustainabilityGrade: input.sustainabilityGrade, salePremiumPct: finite2(input.salePremiumPct), estimatedSalesPremiumAed: finite2(input.estimatedSalesPremiumAed) },
       benchmark: input.benchmark ? { costPerSqmLow: input.benchmark.costPerSqmLow ?? null, costPerSqmMid: input.benchmark.costPerSqmMid ?? null, costPerSqmHigh: input.benchmark.costPerSqmHigh ?? null, typology: input.benchmark.typology, location: input.benchmark.location, marketTier: input.benchmark.marketTier, dataYear: input.benchmark.dataYear ?? null } : null,
       designTrends: input.designTrends?.slice(0, 8).map((trend) => ({ trendName: trend.trendName, confidenceLevel: trend.confidenceLevel, trendCategory: trend.trendCategory })),
-      spaceEfficiency: input.spaceEfficiency ? { efficiencyScore: finite(input.spaceEfficiency.efficiencyScore), criticalCount: finite(input.spaceEfficiency.criticalCount), advisoryCount: finite(input.spaceEfficiency.advisoryCount), circulationPct: finite(input.spaceEfficiency.circulationPct), rooms: input.spaceEfficiency.rooms.slice(0, 10).map((room) => ({ name: room.name, currentPct: finite(room.currentPct), benchmarkPct: finite(room.benchmarkPct), severity: room.severity })) } : null
+      spaceEfficiency: input.spaceEfficiency ? { efficiencyScore: finite2(input.spaceEfficiency.efficiencyScore), criticalCount: finite2(input.spaceEfficiency.criticalCount), advisoryCount: finite2(input.spaceEfficiency.advisoryCount), circulationPct: finite2(input.spaceEfficiency.circulationPct), rooms: input.spaceEfficiency.rooms.slice(0, 10).map((room) => ({ name: room.name, currentPct: finite2(room.currentPct), benchmarkPct: finite2(room.benchmarkPct), severity: room.severity })) } : null
     })
   });
 }
@@ -12918,28 +15213,28 @@ function generateInvestorPdfHtml(input) {
     spaceEfficiency
   } = input;
   const context3 = input.renderContext ?? createInvestorPdfRenderContext(input);
-  const spaceBars = spaces.slice(0, 12).map((space) => `<div class="bar-row"><span class="bar-label">${text2(space.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${pct(space.pct)}%"></div></div><span class="bar-pct">${number(space.pct, locale)}%</span><span class="bar-amt">${aed(space.budgetAed, locale)}</span></div>`).join("");
-  const materialRows = materials.slice(0, 16).map((material, index2) => `<tr class="${index2 % 2 === 0 ? "even" : ""}"><td>${text2(material.name)}</td><td>${text2(material.brand)}</td><td>${text2(material.room)}</td><td>${text2(material.price ?? c("notAvailable"))}</td></tr>`).join("");
-  const constantRows = materialConstants2.slice(0, 9).map((constant, index2) => `<tr class="${index2 % 2 === 0 ? "even" : ""}"><td>${text2(constant.materialType)}</td><td>${aed(constant.costPerM2, locale)}</td><td>${number(constant.carbonIntensity, locale)} ${labels.kilogramsPerSquareMetre}</td><td><span class="grade-badge" style="background:${gradeColor(constant.sustainabilityGrade)}">${text2(constant.sustainabilityGrade)}</span></td></tr>`).join("");
+  const spaceBars = spaces.slice(0, 12).map((space) => `<div class="bar-row"><span class="bar-label">${text3(space.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${pct(space.pct)}%"></div></div><span class="bar-pct">${number2(space.pct, locale)}%</span><span class="bar-amt">${aed(space.budgetAed, locale)}</span></div>`).join("");
+  const materialRows = materials.slice(0, 16).map((material, index2) => `<tr class="${index2 % 2 === 0 ? "even" : ""}"><td>${text3(material.name)}</td><td>${text3(material.brand)}</td><td>${text3(material.room)}</td><td>${text3(material.price ?? c("notAvailable"))}</td></tr>`).join("");
+  const constantRows = materialConstants2.slice(0, 9).map((constant, index2) => `<tr class="${index2 % 2 === 0 ? "even" : ""}"><td>${text3(constant.materialType)}</td><td>${number2(constant.carbonIntensity, locale)} ${labels.kilogramsPerSquareMetre}</td><td><span class="grade-badge" style="background:${gradeColor(constant.sustainabilityGrade)}">${text3(constant.sustainabilityGrade)}</span></td></tr>`).join("");
   const designDirectionLabel = (key) => {
     const normalized = key.replace(/([A-Z])/g, " $1").trim();
     if (normalized.toLowerCase() === "direction") return labels.direction;
     if (normalized.toLowerCase() === "content") return labels.content;
-    return text2(normalized);
+    return text3(normalized);
   };
-  const designDirectionRows = Object.entries(designDirection2 ?? {}).slice(0, 6).map(([key, value]) => `<div class="dd-row"><span class="dd-key">${designDirectionLabel(key)}</span><span class="dd-val">${text2(Array.isArray(value) ? value.join(", ") : String(value))}</span></div>`).join("");
-  const trendRows = (designTrends2 ?? []).slice(0, 8).map((trend) => `<div class="trend-row"><span class="conf-badge" style="background:${confColor(trend.confidenceLevel)}">${text2(trend.confidenceLevel)}</span><span class="trend-name">${text2(trend.trendName)}</span><span class="trend-cat">${text2(trend.trendCategory)}</span></div>`).join("");
-  const benchmarkSection = benchmark ? `<div class="panel"><div class="panel-title">${labels.marketBenchmark} \u2014 ${text2(benchmark.typology ?? typology)} \xB7 ${text2(benchmark.marketTier ?? tier)}${benchmark.dataYear ? ` \xB7 ${number(benchmark.dataYear, locale)}` : ""}</div><div class="kpi-grid">${benchmark.costPerSqmLow != null ? `<div class="kpi"><div class="kpi-label">${labels.low}</div><div class="kpi-value">${aed(benchmark.costPerSqmLow, locale)}/m\xB2</div></div>` : ""}${benchmark.costPerSqmMid != null ? `<div class="kpi"><div class="kpi-label">${labels.mid}</div><div class="kpi-value">${aed(benchmark.costPerSqmMid, locale)}/m\xB2</div></div>` : ""}${benchmark.costPerSqmHigh != null ? `<div class="kpi"><div class="kpi-label">${labels.high}</div><div class="kpi-value">${aed(benchmark.costPerSqmHigh, locale)}/m\xB2</div></div>` : ""}<div class="kpi"><div class="kpi-label">${labels.yourEstimate}</div><div class="kpi-value" style="color:${costPerSqm <= (benchmark.costPerSqmMid ?? Infinity) ? "#10b981" : "#f59e0b"}">${aed(costPerSqm, locale)}/m\xB2</div></div></div></div>` : "";
-  const spaceEfficiencySection = spaceEfficiency ? `<div class="section"><h2>${labels.spacePlanning}</h2><div class="kpi-grid"><div class="kpi"><div class="kpi-label">${labels.efficiencyScore}</div><div class="kpi-value" style="color:${spaceEfficiency.efficiencyScore >= 75 ? "#10b981" : spaceEfficiency.efficiencyScore >= 50 ? "#f59e0b" : "#ef4444"}">${number(spaceEfficiency.efficiencyScore, locale)}/100</div></div><div class="kpi"><div class="kpi-label">${labels.criticalIssues}</div><div class="kpi-value">${number(spaceEfficiency.criticalCount, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.advisoryIssues}</div><div class="kpi-value">${number(spaceEfficiency.advisoryCount, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.circulation}</div><div class="kpi-value">${number(spaceEfficiency.circulationPct, locale)}%</div></div></div>${spaceEfficiency.rooms.length > 0 ? `<h3>${labels.roomAllocation}</h3><div class="panel">${spaceEfficiency.rooms.slice(0, 10).map((room) => `<div class="bar-row"><span class="bar-label">${text2(room.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${pct(room.currentPct)}%;background:${room.severity === "critical" ? "#ef4444" : room.severity === "advisory" ? "#f59e0b" : "#10b981"}"></div></div><span class="bar-pct">${number(room.currentPct, locale)}%</span><span class="bar-amt">${labels.versus} ${number(room.benchmarkPct, locale)}%</span></div>`).join("")}</div>` : ""}</div>` : "";
+  const designDirectionRows = Object.entries(designDirection2 ?? {}).slice(0, 6).map(([key, value]) => `<div class="dd-row"><span class="dd-key">${designDirectionLabel(key)}</span><span class="dd-val">${text3(Array.isArray(value) ? value.join(", ") : String(value))}</span></div>`).join("");
+  const trendRows = (designTrends2 ?? []).slice(0, 8).map((trend) => `<div class="trend-row"><span class="conf-badge" style="background:${confColor(trend.confidenceLevel)}">${text3(trend.confidenceLevel)}</span><span class="trend-name">${text3(trend.trendName)}</span><span class="trend-cat">${text3(trend.trendCategory)}</span></div>`).join("");
+  const benchmarkSection = benchmark ? `<div class="panel"><div class="panel-title">${labels.marketBenchmark} \u2014 ${text3(benchmark.typology ?? typology)} \xB7 ${text3(benchmark.marketTier ?? tier)}${benchmark.dataYear ? ` \xB7 ${number2(benchmark.dataYear, locale)}` : ""}</div><div class="kpi-grid">${benchmark.costPerSqmLow != null ? `<div class="kpi"><div class="kpi-label">${labels.low}</div><div class="kpi-value">${aed(benchmark.costPerSqmLow, locale)}/m\xB2</div></div>` : ""}${benchmark.costPerSqmMid != null ? `<div class="kpi"><div class="kpi-label">${labels.mid}</div><div class="kpi-value">${aed(benchmark.costPerSqmMid, locale)}/m\xB2</div></div>` : ""}${benchmark.costPerSqmHigh != null ? `<div class="kpi"><div class="kpi-label">${labels.high}</div><div class="kpi-value">${aed(benchmark.costPerSqmHigh, locale)}/m\xB2</div></div>` : ""}<div class="kpi"><div class="kpi-label">${labels.yourEstimate}</div><div class="kpi-value" style="color:${costPerSqm <= (benchmark.costPerSqmMid ?? Infinity) ? "#10b981" : "#f59e0b"}">${aed(costPerSqm, locale)}/m\xB2</div></div></div></div>` : "";
+  const spaceEfficiencySection = spaceEfficiency ? `<div class="section"><h2>${labels.spacePlanning}</h2><div class="kpi-grid"><div class="kpi"><div class="kpi-label">${labels.efficiencyScore}</div><div class="kpi-value" style="color:${spaceEfficiency.efficiencyScore >= 75 ? "#10b981" : spaceEfficiency.efficiencyScore >= 50 ? "#f59e0b" : "#ef4444"}">${number2(spaceEfficiency.efficiencyScore, locale)}/100</div></div><div class="kpi"><div class="kpi-label">${labels.criticalIssues}</div><div class="kpi-value">${number2(spaceEfficiency.criticalCount, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.advisoryIssues}</div><div class="kpi-value">${number2(spaceEfficiency.advisoryCount, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.circulation}</div><div class="kpi-value">${number2(spaceEfficiency.circulationPct, locale)}%</div></div></div>${spaceEfficiency.rooms.length > 0 ? `<h3>${labels.roomAllocation}</h3><div class="panel">${spaceEfficiency.rooms.slice(0, 10).map((room) => `<div class="bar-row"><span class="bar-label">${text3(room.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${pct(room.currentPct)}%;background:${room.severity === "critical" ? "#ef4444" : room.severity === "advisory" ? "#f59e0b" : "#10b981"}"></div></div><span class="bar-pct">${number2(room.currentPct, locale)}%</span><span class="bar-amt">${labels.versus} ${number2(room.benchmarkPct, locale)}%</span></div>`).join("")}</div>` : ""}</div>` : "";
   return `<!DOCTYPE html><html lang="${locale}" dir="${reportDirection(locale)}"><head><meta charset="utf-8"><title>${escapeReportText(`MIYAR ${labels.investorBrief} \u2014 ${projectName}`)}</title><style>
     @page { size:A4 portrait; margin:15mm 14mm; } @media print { .no-print { display:none; } } * { box-sizing:border-box; margin:0; padding:0; } ${reportLocaleCss(locale)} body { color:#0f172a; font-size:10px; line-height:1.5; background:#fff; } .cover { break-after:page; padding-block:40mm 20mm; text-align:center; } .brand { font-size:30px; font-weight:800; letter-spacing:4px; color:#0f3460; } .subtitle { font-size:12px; color:#4ecdc4; margin:4px 0 20px; letter-spacing:2px; text-transform:uppercase; } .project-name { font-size:22px; font-weight:700; margin-block-end:8px; } .meta { font-size:10px; color:#64748b; margin-block-end:6px; } .divider { inline-size:60px; block-size:3px; background:#4ecdc4; margin:20px auto; } .cover .kpi-grid { max-inline-size:340px; margin:24px auto 0; } .cover .kpi-card { border:1px solid #e2e8f0; border-radius:8px; padding:10px 8px; background:#f8fafc; } .cv { font-size:16px; font-weight:800; color:#0f3460; } .cl,.kpi-label,.roi-label { font-size:7px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; margin-block-start:2px; }
     h2 { font-size:12px; font-weight:700; color:#0f3460; border-block-end:2px solid #4ecdc4; padding-block-end:4px; margin:18px 0 10px; text-transform:uppercase; letter-spacing:1px; } h3 { font-size:10px; font-weight:700; color:#334155; margin:12px 0 6px; } .section { break-inside:avoid; margin-block-end:14px; } .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:10px 0; } .kpi { border:1px solid #e2e8f0; border-radius:6px; padding:8px; text-align:center; background:#f8fafc; } .kpi-value { font-size:14px; font-weight:800; color:#0f3460; margin:2px 0; } .panel { border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin:8px 0; background:#f8fafc; } .panel-title { font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#64748b; margin-block-end:8px; } .exec-body { color:#334155; line-height:1.65; padding-block:8px; } .dd-row { display:flex; gap:8px; padding-block:3px; border-block-end:1px dotted #e2e8f0; } .dd-key { inline-size:110px; color:#64748b; font-weight:600; flex-shrink:0; } .dd-val { flex:1; } .bar-row { display:flex; align-items:center; gap:6px; margin-block:4px; font-size:9px; } .bar-label { inline-size:90px; color:#475569; flex-shrink:0; } .bar-track { flex:1; block-size:8px; background:#e2e8f0; border-radius:4px; overflow:hidden; } .bar-fill { block-size:100%; background:linear-gradient(90deg,#4ecdc4,#0f3460); border-radius:4px; } .bar-pct,.bar-amt { text-align:end; flex-shrink:0; } .bar-pct { inline-size:32px; } .bar-amt { inline-size:76px; color:#0f3460; font-weight:600; font-size:8px; } table { width:100%; border-collapse:collapse; margin:8px 0; font-size:9px; } th { background:#0f3460; color:#fff; padding:5px 8px; font-weight:600; font-size:8px; letter-spacing:.5px; } td { padding:4px 8px; border-block-end:1px solid #f1f5f9; } tr.even td { background:#f8fafc; } .roi-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; } .roi-card { border:1px solid #e2e8f0; border-radius:6px; padding:10px; } .roi-big { font-size:20px; font-weight:800; color:#10b981; } .roi-sub { font-size:8px; color:#64748b; margin-block-start:3px; } .grade-chip,.grade-badge,.conf-badge { color:#fff; font-weight:700; } .grade-chip { display:inline-flex; align-items:center; justify-content:center; inline-size:32px; block-size:32px; border-radius:50%; font-size:16px; } .grade-badge,.conf-badge { font-size:8px; padding:1px 5px; border-radius:3px; } .trend-row { display:flex; align-items:center; gap:6px; padding-block:3px; border-block-end:1px dotted #e2e8f0; font-size:9px; } .trend-name { flex:1; font-weight:600; } .trend-cat { font-size:7px; color:#94a3b8; text-transform:uppercase; } .render-meta { margin:12px auto; max-inline-size:520px; padding:8px 10px; border:1px solid #d0d7de; background:#f0f4f8; font-size:8px; text-align:start; overflow-wrap:anywhere; } .fallback { border-inline-start:3px solid #f59e0b; background:#fffbeb; padding:8px; margin-block:10px; font-size:9px; } .footer { margin-block-start:20px; padding-block-start:8px; border-block-start:1px solid #e2e8f0; font-size:7px; color:#94a3b8; text-align:center; }
-  </style></head><body><div class="cover"><div class="brand">MIYAR</div><div class="subtitle">${labels.investorBrief}</div><div class="project-name">${text2(projectName)}</div><div class="meta">${text2(typology)} \xB7 ${text2(tier)} \xB7 ${text2(location)}</div><div class="meta">${number(gfaSqm, locale)} ${labels.squareMetres} ${labels.gfa} \xB7 ${text2(style)} ${labels.design}</div><div class="divider"></div><div class="kpi-grid"><div class="kpi-card"><div class="cv">${aed(totalFitoutBudget, locale)}</div><div class="cl">${c("totalFitout")}</div></div><div class="kpi-card"><div class="cv">${aed(costPerSqm, locale)}</div><div class="cl">${labels.costPerSquareMetre}</div></div><div class="kpi-card"><div class="cv" style="color:${gradeColor(sustainabilityGrade)}">${text2(sustainabilityGrade)}</div><div class="cl">${labels.sustainabilityGrade}</div></div></div>${renderMetadata(context3, locale)}</div>
-    <div class="section"><h2>${labels.designIdentity}</h2><div class="kpi-grid"><div class="kpi"><div class="kpi-label">${labels.typology}</div><div class="kpi-value">${text2(typology)}</div></div><div class="kpi"><div class="kpi-label">${labels.style}</div><div class="kpi-value">${text2(style)}</div></div><div class="kpi"><div class="kpi-label">${labels.tier}</div><div class="kpi-value">${text2(tier)}</div></div><div class="kpi"><div class="kpi-label">${labels.location}</div><div class="kpi-value">${text2(location)}</div></div></div>${execSummary ? `<p class="exec-body">${text2(execSummary)}</p>` : ""}${designDirectionRows ? `<div class="panel">${designDirectionRows}</div>` : ""}</div>
-    ${materials.length > 0 ? `<div class="section"><h2>${labels.materialSpecification}</h2><table><thead><tr><th>${labels.product}</th><th>${labels.brand}</th><th>${labels.space}</th><th>${labels.priceRange}</th></tr></thead><tbody>${materialRows}</tbody></table>${materialConstants2.length > 0 ? `<h3>${labels.marketConstants}</h3><table><thead><tr><th>${labels.material}</th><th>${labels.costPerSquareMetre}</th><th>${labels.carbon}</th><th>${labels.sustainabilityGrade}</th></tr></thead><tbody>${constantRows}</tbody></table>` : ""}</div>` : ""}
-    <div class="section"><h2>${labels.budgetSynthesis}</h2><div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><div class="kpi-label">${c("totalFitout")}</div><div class="kpi-value">${aed(totalFitoutBudget, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.costPerSquareMetre}</div><div class="kpi-value">${aed(costPerSqm, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.gfa}</div><div class="kpi-value">${number(gfaSqm, locale)} ${labels.squareMetres}</div></div></div>${spaceBars ? `<h3>${labels.budgetBySpace}</h3><div class="panel">${spaceBars}</div>` : ""}${benchmarkSection}</div>${spaceEfficiencySection}
-    <div class="section"><h2>${labels.roiBridge}</h2><div class="roi-grid"><div class="roi-card"><div class="roi-label">${labels.sustainabilityGrade}</div><div style="margin-block-start:6px;display:flex;align-items:center;gap:10px"><div class="grade-chip" style="background:${gradeColor(sustainabilityGrade)}">${text2(sustainabilityGrade)}</div><div class="roi-sub">${labels.basedOnMaterialSelectionAndTierFor} ${text2(location)}</div></div></div><div class="roi-card"><div class="roi-label">${labels.designPremiumPotential}</div><div class="roi-big">+${number(salePremiumPct, locale)}%</div><div class="roi-sub">\u2248 ${aed(estimatedSalesPremiumAed, locale)} ${labels.upliftVsStandardFitout}</div></div><div class="roi-card" style="grid-column:span 2"><div class="roi-label">${labels.roiSummary}</div><div style="display:flex;gap:30px;margin-block-start:6px;font-size:9px"><div><div>${labels.fitoutInvestment}</div><b>${aed(totalFitoutBudget, locale)}</b></div><div><div>${c("designPremium")}</div><b>+${aed(estimatedSalesPremiumAed, locale)}</b></div><div><div>${labels.netUplift}</div><b>${aed(estimatedSalesPremiumAed - totalFitoutBudget, locale)}</b></div></div></div></div><div class="fallback"><b>${c("investorFallbackAssumption")}:</b> ${c("investorFallbackAssumptionHelp")}</div></div>
-    ${(designTrends2 ?? []).length > 0 ? `<div class="section"><h2>${labels.marketIntelligence}</h2><h3>${labels.uaeDesignTrends} (${text2(style)} \xB7 ${labels.uae})</h3><div class="panel">${trendRows}</div></div>` : ""}<div class="footer">MIYAR \xB7 ${labels.investorBrief} \xB7 ${text2(formatReportDateTime(context3.generatedAt, locale))}<br>${labels.generatedNotice}</div></body></html>`;
+  </style></head><body><div class="cover"><div class="brand">MIYAR</div><div class="subtitle">${labels.investorBrief}</div><div class="project-name">${text3(projectName)}</div><div class="meta">${text3(typology)} \xB7 ${text3(tier)} \xB7 ${text3(location)}</div><div class="meta">${number2(gfaSqm, locale)} ${labels.squareMetres} ${labels.gfa} \xB7 ${text3(style)} ${labels.design}</div><div class="divider"></div><div class="kpi-grid"><div class="kpi-card"><div class="cv">${aed(totalFitoutBudget, locale)}</div><div class="cl">${c("totalFitout")}</div></div><div class="kpi-card"><div class="cv">${aed(costPerSqm, locale)}</div><div class="cl">${labels.costPerSquareMetre}</div></div><div class="kpi-card"><div class="cv" style="color:${gradeColor(sustainabilityGrade)}">${text3(sustainabilityGrade)}</div><div class="cl">${labels.sustainabilityGrade}</div></div></div>${renderMetadata2(context3, locale)}</div>
+    <div class="section"><h2>${labels.designIdentity}</h2><div class="kpi-grid"><div class="kpi"><div class="kpi-label">${labels.typology}</div><div class="kpi-value">${text3(typology)}</div></div><div class="kpi"><div class="kpi-label">${labels.style}</div><div class="kpi-value">${text3(style)}</div></div><div class="kpi"><div class="kpi-label">${labels.tier}</div><div class="kpi-value">${text3(tier)}</div></div><div class="kpi"><div class="kpi-label">${labels.location}</div><div class="kpi-value">${text3(location)}</div></div></div>${execSummary ? `<p class="exec-body">${text3(execSummary)}</p>` : ""}${designDirectionRows ? `<div class="panel">${designDirectionRows}</div>` : ""}</div>
+    ${materials.length > 0 ? `<div class="section"><h2>${labels.materialSpecification}</h2><table><thead><tr><th>${labels.product}</th><th>${labels.brand}</th><th>${labels.space}</th><th>${labels.priceRange}</th></tr></thead><tbody>${materialRows}</tbody></table>${materialConstants2.length > 0 ? `<h3>${labels.marketConstants}</h3><table><thead><tr><th>${labels.material}</th><th>${labels.carbon}</th><th>${labels.sustainabilityGrade}</th></tr></thead><tbody>${constantRows}</tbody></table>` : ""}</div>` : ""}
+    <div class="section"><h2>${labels.budgetSynthesis}</h2><div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><div class="kpi-label">${c("totalFitout")}</div><div class="kpi-value">${aed(totalFitoutBudget, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.costPerSquareMetre}</div><div class="kpi-value">${aed(costPerSqm, locale)}</div></div><div class="kpi"><div class="kpi-label">${labels.gfa}</div><div class="kpi-value">${number2(gfaSqm, locale)} ${labels.squareMetres}</div></div></div>${spaceBars ? `<h3>${labels.budgetBySpace}</h3><div class="panel">${spaceBars}</div>` : ""}${benchmarkSection}</div>${spaceEfficiencySection}
+    <div class="section"><h2>${labels.roiBridge}</h2><div class="roi-grid"><div class="roi-card"><div class="roi-label">${labels.sustainabilityGrade}</div><div style="margin-block-start:6px;display:flex;align-items:center;gap:10px"><div class="grade-chip" style="background:${gradeColor(sustainabilityGrade)}">${text3(sustainabilityGrade)}</div><div class="roi-sub">${labels.basedOnMaterialSelectionAndTierFor} ${text3(location)}</div></div></div><div class="roi-card"><div class="roi-label">${labels.designPremiumPotential}</div><div class="roi-big">+${number2(salePremiumPct, locale)}%</div><div class="roi-sub">\u2248 ${aed(estimatedSalesPremiumAed, locale)} ${labels.upliftVsStandardFitout}</div></div><div class="roi-card" style="grid-column:span 2"><div class="roi-label">${labels.roiSummary}</div><div style="display:flex;gap:30px;margin-block-start:6px;font-size:9px"><div><div>${labels.fitoutInvestment}</div><b>${aed(totalFitoutBudget, locale)}</b></div><div><div>${c("designPremium")}</div><b>+${aed(estimatedSalesPremiumAed, locale)}</b></div><div><div>${labels.netUplift}</div><b>${aed(estimatedSalesPremiumAed - totalFitoutBudget, locale)}</b></div></div></div></div><div class="fallback"><b>${c("investorFallbackAssumption")}:</b> ${c("investorFallbackAssumptionHelp")}</div></div>
+    ${(designTrends2 ?? []).length > 0 ? `<div class="section"><h2>${labels.marketIntelligence}</h2><h3>${labels.uaeDesignTrends} (${text3(style)} \xB7 ${labels.uae})</h3><div class="panel">${trendRows}</div></div>` : ""}<div class="footer">MIYAR \xB7 ${labels.investorBrief} \xB7 ${text3(formatReportDateTime(context3.generatedAt, locale))}<br>${labels.generatedNotice}</div></body></html>`;
 }
 var INVESTOR_COPY;
 var init_investor_pdf = __esm({
@@ -12962,7 +15257,7 @@ var init_investor_pdf = __esm({
         brand: "Brand",
         space: "Space",
         priceRange: "Price Range",
-        marketConstants: "UAE Market Constants (AED/m\xB2)",
+        marketConstants: "Sustainability Constants",
         costPerSquareMetre: "Cost/m\xB2",
         carbon: "Carbon",
         sustainabilityGrade: "Sustainability Grade",
@@ -13012,7 +15307,7 @@ var init_investor_pdf = __esm({
         brand: "\u0627\u0644\u0639\u0644\u0627\u0645\u0629 \u0627\u0644\u062A\u062C\u0627\u0631\u064A\u0629",
         space: "\u0627\u0644\u0645\u0633\u0627\u062D\u0629",
         priceRange: "\u0646\u0637\u0627\u0642 \u0627\u0644\u0633\u0639\u0631",
-        marketConstants: "\u062B\u0648\u0627\u0628\u062A \u0633\u0648\u0642 \u0627\u0644\u0625\u0645\u0627\u0631\u0627\u062A (\u062F\u0631\u0647\u0645/\u0645\xB2)",
+        marketConstants: "\u062B\u0648\u0627\u0628\u062A \u0627\u0644\u0627\u0633\u062A\u062F\u0627\u0645\u0629",
         costPerSquareMetre: "\u0627\u0644\u062A\u0643\u0644\u0641\u0629/\u0645\xB2",
         carbon: "\u0627\u0644\u0643\u0631\u0628\u0648\u0646",
         sustainabilityGrade: "\u062F\u0631\u062C\u0629 \u0627\u0644\u0627\u0633\u062A\u062F\u0627\u0645\u0629",
@@ -13049,195 +15344,6 @@ var init_investor_pdf = __esm({
         uae: "\u0627\u0644\u0625\u0645\u0627\u0631\u0627\u062A",
         direction: "\u0627\u0644\u062A\u0648\u062C\u0647",
         content: "\u0627\u0644\u0645\u062D\u062A\u0648\u0649"
-      }
-    };
-  }
-});
-
-// server/engines/board-pdf.ts
-var board_pdf_exports = {};
-__export(board_pdf_exports, {
-  createBoardPdfRenderContext: () => createBoardPdfRenderContext,
-  generateBoardPdfHtml: () => generateBoardPdfHtml
-});
-import { randomUUID as randomUUID4 } from "node:crypto";
-function finite2(value) {
-  return Number.isFinite(value) ? value : null;
-}
-function text3(value) {
-  return `<span dir="auto" data-report-dynamic>${escapeReportText(value)}</span>`;
-}
-function number2(value, locale) {
-  return formatReportNumber(value, locale);
-}
-function tierColor(tier) {
-  return { economy: "#6b7280", mid: "#3b82f6", premium: "#8b5cf6", luxury: "#d97706", ultra_luxury: "#e11d48" }[tier] ?? "#6b7280";
-}
-function leadBadgeColor(band) {
-  return { short: "#16a34a", medium: "#ca8a04", long: "#ea580c", critical: "#dc2626" }[band] ?? "#ca8a04";
-}
-function renderMetadata2(context3, locale) {
-  const c = (key) => reportCopy(locale, key);
-  const value = (entry) => text3(entry ?? c("notAvailable"));
-  return `<div class="render-meta">
-    <div><b>${c("documentId")}:</b> ${text3(context3.documentId)}</div>
-    <div><b>${c("generatedAt")}:</b> ${text3(formatReportDateTime(context3.generatedAt, locale))}</div>
-    <div><b>${c("renderInputFingerprint")}:</b> ${text3(context3.renderInputFingerprint)}</div>
-    <div><b>${c("artifactVersion")}:</b> ${value(context3.artifactVersion)} \xB7 <b>${c("rendererVersion")}:</b> ${value(context3.rendererVersion)}</div>
-    <div><b>${c("modelVersion")}:</b> ${value(context3.modelVersion)} \xB7 <b>${c("benchmarkVersion")}:</b> ${value(context3.benchmarkVersion)} \xB7 <b>${c("logicVersion")}:</b> ${value(context3.logicVersion)}</div>
-  </div>`;
-}
-function createBoardPdfRenderContext(input) {
-  const locale = reportLocaleOrDefault(input.locale);
-  const { boardName, projectName, items, summary, rfqLines } = input;
-  const versions = {
-    artifactVersion: input.artifactVersion ?? "material-board-html-v1",
-    rendererVersion: input.rendererVersion ?? "standalone-html-v1",
-    modelVersion: input.modelVersion ?? null,
-    benchmarkVersion: input.benchmarkVersion ?? null,
-    logicVersion: input.logicVersion ?? null
-  };
-  return createReportRenderContext({
-    documentId: input.documentId ?? `MYR-BRD-${randomUUID4().toUpperCase()}`,
-    generatedAt: input.generatedAt,
-    locale,
-    ...versions,
-    fingerprintInput: createRenderFingerprintPayload("material_board", locale, versions, {
-      project: { name: projectName },
-      board: {
-        name: boardName,
-        items: items.map((item) => ({
-          name: item.name,
-          category: item.category,
-          tier: item.tier,
-          costLow: finite2(item.costLow),
-          costHigh: finite2(item.costHigh),
-          costUnit: item.costUnit,
-          leadTimeDays: finite2(item.leadTimeDays),
-          leadTimeBand: item.leadTimeBand,
-          supplierName: item.supplierName,
-          quantity: item.quantity,
-          unitOfMeasure: item.unitOfMeasure,
-          specNotes: item.specNotes,
-          costBandOverride: item.costBandOverride,
-          notes: item.notes
-        })),
-        summary: {
-          totalItems: finite2(summary.totalItems),
-          estimatedCostLow: finite2(summary.estimatedCostLow),
-          estimatedCostHigh: finite2(summary.estimatedCostHigh),
-          currency: summary.currency,
-          longestLeadTimeDays: finite2(summary.longestLeadTimeDays),
-          criticalPathItems: summary.criticalPathItems,
-          tierDistribution: Object.fromEntries(Object.entries(summary.tierDistribution).map(([key, value]) => [key, finite2(value)])),
-          categoryDistribution: Object.fromEntries(Object.entries(summary.categoryDistribution).map(([key, value]) => [key, finite2(value)]))
-        },
-        rfqLines: rfqLines.map((line) => ({
-          lineNo: finite2(line.lineNo),
-          materialName: line.materialName,
-          category: line.category,
-          specification: line.specification,
-          quantity: line.quantity,
-          unit: line.unit,
-          estimatedUnitCostLow: finite2(line.estimatedUnitCostLow),
-          estimatedUnitCostHigh: finite2(line.estimatedUnitCostHigh),
-          leadTimeDays: finite2(line.leadTimeDays),
-          supplierSuggestion: line.supplierSuggestion,
-          notes: line.notes
-        }))
-      }
-    })
-  });
-}
-function generateBoardPdfHtml(input) {
-  const locale = reportLocaleOrDefault(input.locale);
-  const c = (key) => reportCopy(locale, key);
-  const labels = BOARD_COPY[locale];
-  const { boardName, projectName, items, summary, rfqLines } = input;
-  const context3 = input.renderContext ?? createBoardPdfRenderContext(input);
-  const tileCards = items.map((item, index2) => `<div class="tile-card">
-    <div class="tile-header"><span class="tile-num">${number2(index2 + 1, locale)}</span><span class="tile-name">${text3(item.name)}</span><span class="tier-badge" style="background:${tierColor(item.tier)}">${text3(item.tier.replace(/_/g, " "))}</span></div>
-    <div class="tile-body">
-      <div class="tile-row"><span class="tile-label">${c("category")}</span>${text3(item.category)}</div>
-      <div class="tile-row"><span class="tile-label">${labels.costRange}</span><span>${number2(item.costLow, locale)} \u2013 ${number2(item.costHigh, locale)} ${text3(item.costUnit)}</span></div>
-      <div class="tile-row"><span class="tile-label">${labels.leadTime}</span><span style="color:${leadBadgeColor(item.leadTimeBand)}">${number2(item.leadTimeDays, locale)}d (${item.leadTimeBand === "critical" ? labels.criticalLeadBand : text3(item.leadTimeBand)})</span></div>
-      <div class="tile-row"><span class="tile-label">${labels.supplier}</span>${text3(item.supplierName)}</div>
-      ${item.quantity ? `<div class="tile-row"><span class="tile-label">${labels.quantity}</span><span>${text3(item.quantity)} ${text3(item.unitOfMeasure ?? "")}</span></div>` : ""}
-      ${item.costBandOverride ? `<div class="tile-row"><span class="tile-label">${labels.costBand}</span><span class="cost-band-badge">${text3(item.costBandOverride)}</span></div>` : ""}
-      ${item.specNotes ? `<div class="tile-spec">${text3(item.specNotes)}</div>` : ""}
-      ${item.notes ? `<div class="tile-notes">${text3(item.notes)}</div>` : ""}
-    </div></div>`).join("");
-  const rfqRows = rfqLines.map((line) => `<tr><td>${number2(line.lineNo, locale)}</td><td class="font-medium">${text3(line.materialName)}</td><td>${text3(line.category)}</td><td>${text3(line.specification)}</td><td>${text3(line.quantity)}</td><td>${text3(line.unit)}</td><td class="text-end">${number2(line.estimatedUnitCostLow, locale)}</td><td class="text-end">${number2(line.estimatedUnitCostHigh, locale)}</td><td>${number2(line.leadTimeDays, locale)}d</td><td>${text3(line.supplierSuggestion)}</td><td>${text3(line.notes)}</td></tr>`).join("");
-  const tierRows = Object.entries(summary.tierDistribution).map(([tier, count2]) => `<div class="dist-item"><span class="dist-badge" style="background:${tierColor(tier)}">${text3(tier.replace(/_/g, " "))}</span><span class="dist-count">${number2(count2, locale)}</span></div>`).join("");
-  const categoryRows = Object.entries(summary.categoryDistribution).map(([category, count2]) => `<div class="dist-item"><span class="dist-label">${text3(category)}</span><span class="dist-count">${number2(count2, locale)}</span></div>`).join("");
-  const criticalItems = summary.criticalPathItems.map((item) => `<div class="critical-item">${text3(item)}</div>`).join("");
-  return `<!DOCTYPE html><html lang="${locale}" dir="${reportDirection(locale)}"><head><meta charset="utf-8"><title>${escapeReportText(`${c("materialBoard")} \u2014 ${boardName}`)}</title><style>
-    @page { size: A4 landscape; margin: 15mm 12mm; } * { box-sizing: border-box; margin: 0; padding: 0; }
-    ${reportLocaleCss(locale)} body { color:#1a1a2e; line-height:1.5; font-size:10px; } .cover { page-break-after:always; display:flex; flex-direction:column; justify-content:center; align-items:center; min-height:70vh; text-align:center; }
-    .logo { font-size:32px; font-weight:800; color:#0f3460; letter-spacing:3px; margin-block-end:24px; } .cover h1 { font-size:24px; color:#0f3460; margin-block-end:6px; } .cover h2 { font-size:14px; color:#4ecdc4; font-weight:400; margin-block-end:16px; } .project { font-size:18px; font-weight:600; } .date,.confidential,.watermark { font-size:9px; color:#666; margin-block-start:12px; } .confidential,.watermark { color:#999; text-transform:uppercase; letter-spacing:2px; } .watermark { font-family:monospace; }
-    h2 { font-size:14px; color:#0f3460; border-block-end:2px solid #4ecdc4; padding-block-end:4px; margin:20px 0 10px; } h3 { font-size:12px; color:#0f3460; margin:14px 0 6px; } .section { break-inside:avoid; margin-block-end:16px; } .summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:12px 0; } .summary-card { border:1px solid #e0e0e0; border-radius:6px; padding:10px; text-align:center; } .label { font-size:8px; color:#666; text-transform:uppercase; letter-spacing:1px; } .value { font-size:20px; font-weight:700; color:#0f3460; margin:2px 0; } .sub { font-size:9px; color:#888; }
-    .tile-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:12px 0; } .tile-card { border:1px solid #e0e0e0; border-radius:6px; overflow:hidden; break-inside:avoid; } .tile-header { display:flex; align-items:center; gap:6px; padding:6px 10px; background:#f8f9fa; border-block-end:1px solid #e0e0e0; } .tile-num { font-weight:700; background:#e8f4fd; border-radius:50%; inline-size:20px; block-size:20px; display:flex; align-items:center; justify-content:center; flex-shrink:0; } .tile-name { font-weight:600; flex:1; } .tier-badge,.dist-badge { font-size:8px; color:#fff; padding:1px 6px; border-radius:3px; text-transform:uppercase; } .tile-body { padding:8px 10px; } .tile-row { display:flex; justify-content:space-between; gap:8px; padding-block:2px; border-block-end:1px dotted #f0f0f0; } .tile-label,.dist-label { color:#666; font-weight:500; } .tile-spec { color:#0f3460; background:#e8f4fd; padding:4px 6px; border-radius:3px; margin-block-start:4px; font-style:italic; } .tile-notes { color:#888; margin-block-start:3px; } .cost-band-badge { background:#fef3c7; color:#92400e; padding-inline:4px; border-radius:2px; font-weight:600; }
-    table { width:100%; border-collapse:collapse; margin:10px 0; font-size:9px; } th { background:#0f3460; color:#fff; padding:6px 8px; font-weight:600; } td { padding:5px 8px; border-block-end:1px solid #e0e0e0; } tr:nth-child(even) td { background:#f8f9fa; } .text-end { text-align:end; } .font-medium { font-weight:600; } .dist-grid { display:flex; gap:16px; margin:8px 0; flex-wrap:wrap; } .dist-item { display:flex; align-items:center; gap:6px; } .dist-count { font-weight:700; color:#0f3460; } .critical-item { background:#fef2f2; border-inline-start:3px solid #dc2626; padding:4px 8px; margin-block:3px; color:#991b1b; } .render-meta { margin:10px auto; max-inline-size:620px; padding:8px 10px; border:1px solid #d0d7de; background:#f0f4f8; font-size:8px; text-align:start; overflow-wrap:anywhere; } .closing { break-inside:avoid-page; page-break-inside:avoid; } .footer { margin-block-start:12px; padding-block-start:10px; border-block-start:1px solid #e0e0e0; font-size:8px; color:#999; text-align:center; break-before:avoid-page; page-break-before:avoid; }
-  </style></head><body><div class="cover"><div class="logo">MIYAR</div><h1>${c("materialBoard")}</h1><h2>${text3(boardName)}</h2><div class="project">${text3(projectName)}</div><div class="date">${text3(formatReportDateTime(context3.generatedAt, locale))}</div><div class="confidential">${c("confidentialInternalOnly")}</div>${renderMetadata2(context3, locale)}</div>
-  <div class="section"><h2>${labels.boardSummary}</h2><div class="summary-grid"><div class="summary-card"><div class="label">${labels.totalItems}</div><div class="value">${number2(summary.totalItems, locale)}</div></div><div class="summary-card"><div class="label">${labels.estimatedCostRange}</div><div class="value" style="font-size:14px">${number2(summary.estimatedCostLow, locale)} \u2013 ${number2(summary.estimatedCostHigh, locale)}</div><div class="sub">${text3(summary.currency)}</div></div><div class="summary-card"><div class="label">${labels.longestLeadTime}</div><div class="value">${number2(summary.longestLeadTimeDays, locale)}d</div></div><div class="summary-card"><div class="label">${labels.criticalPathItems}</div><div class="value">${number2(summary.criticalPathItems.length, locale)}</div></div></div><h3>${labels.tierDistribution}</h3><div class="dist-grid">${tierRows}</div><h3>${labels.categoryDistribution}</h3><div class="dist-grid">${categoryRows}</div>${summary.criticalPathItems.length > 0 ? `<h3>${labels.criticalPathItems}</h3><div>${criticalItems}</div>` : ""}</div>
-  <div class="section"><h2>${labels.materialTiles}</h2><div class="tile-grid">${tileCards}</div></div><div class="closing"><div class="section"><h2>${labels.rfqSchedule}</h2><table><thead><tr><th>#</th><th>${labels.material}</th><th>${c("category")}</th><th>${labels.specification}</th><th>${labels.quantity}</th><th>${labels.unit}</th><th class="text-end">${labels.costLow}</th><th class="text-end">${labels.costHigh}</th><th>${labels.lead}</th><th>${labels.supplier}</th><th>${c("notes")}</th></tr></thead><tbody>${rfqRows}</tbody></table></div><div class="footer">MIYAR \xB7 ${c("materialBoard")} \xB7 ${text3(formatReportDateTime(context3.generatedAt, locale))}<br>${labels.generatedNotice}</div></div></body></html>`;
-}
-var BOARD_COPY;
-var init_board_pdf = __esm({
-  "server/engines/board-pdf.ts"() {
-    "use strict";
-    init_report_locale();
-    init_report_catalog();
-    init_report_render_context();
-    init_report_safe_output();
-    BOARD_COPY = {
-      en: {
-        boardSummary: "Board Summary",
-        totalItems: "Total Items",
-        estimatedCostRange: "Estimated Cost Range",
-        longestLeadTime: "Longest Lead Time",
-        criticalPathItems: "Critical Path Items",
-        tierDistribution: "Tier Distribution",
-        categoryDistribution: "Category Distribution",
-        materialTiles: "Material Tiles",
-        rfqSchedule: "RFQ-Ready Procurement Schedule",
-        material: "Material",
-        specification: "Specification",
-        quantity: "Quantity",
-        unit: "Unit",
-        costLow: "Cost Low (AED)",
-        costHigh: "Cost High (AED)",
-        lead: "Lead",
-        supplier: "Supplier",
-        costRange: "Cost Range",
-        leadTime: "Lead Time",
-        costBand: "Cost Band",
-        criticalLeadBand: "critical",
-        generatedNotice: "This document is auto-generated. All cost estimates are indicative and subject to supplier confirmation."
-      },
-      ar: {
-        boardSummary: "\u0645\u0644\u062E\u0635 \u0627\u0644\u0644\u0648\u062D\u0629",
-        totalItems: "\u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u0639\u0646\u0627\u0635\u0631",
-        estimatedCostRange: "\u0646\u0637\u0627\u0642 \u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0627\u0644\u062A\u0642\u062F\u064A\u0631\u064A\u0629",
-        longestLeadTime: "\u0623\u0637\u0648\u0644 \u0645\u062F\u0629 \u062A\u0648\u0631\u064A\u062F",
-        criticalPathItems: "\u0639\u0646\u0627\u0635\u0631 \u0627\u0644\u0645\u0633\u0627\u0631 \u0627\u0644\u062D\u0631\u062C",
-        tierDistribution: "\u062A\u0648\u0632\u064A\u0639 \u0627\u0644\u0634\u0631\u0627\u0626\u062D",
-        categoryDistribution: "\u062A\u0648\u0632\u064A\u0639 \u0627\u0644\u0641\u0626\u0627\u062A",
-        materialTiles: "\u0628\u0637\u0627\u0642\u0627\u062A \u0627\u0644\u0645\u0648\u0627\u062F",
-        rfqSchedule: "\u062C\u062F\u0648\u0644 \u0627\u0644\u0634\u0631\u0627\u0621 \u0627\u0644\u062C\u0627\u0647\u0632 \u0644\u0637\u0644\u0628 \u0639\u0631\u0648\u0636 \u0627\u0644\u0623\u0633\u0639\u0627\u0631",
-        material: "\u0627\u0644\u0645\u0627\u062F\u0629",
-        specification: "\u0627\u0644\u0645\u0648\u0627\u0635\u0641\u0629",
-        quantity: "\u0627\u0644\u0643\u0645\u064A\u0629",
-        unit: "\u0627\u0644\u0648\u062D\u062F\u0629",
-        costLow: "\u0623\u0642\u0644 \u062A\u0643\u0644\u0641\u0629 (\u062F\u0631\u0647\u0645)",
-        costHigh: "\u0623\u0639\u0644\u0649 \u062A\u0643\u0644\u0641\u0629 (\u062F\u0631\u0647\u0645)",
-        lead: "\u0645\u062F\u0629 \u0627\u0644\u062A\u0648\u0631\u064A\u062F",
-        supplier: "\u0627\u0644\u0645\u0648\u0631\u0651\u062F",
-        costRange: "\u0646\u0637\u0627\u0642 \u0627\u0644\u062A\u0643\u0644\u0641\u0629",
-        leadTime: "\u0645\u062F\u0629 \u0627\u0644\u062A\u0648\u0631\u064A\u062F",
-        costBand: "\u0634\u0631\u064A\u062D\u0629 \u0627\u0644\u062A\u0643\u0644\u0641\u0629",
-        criticalLeadBand: "\u062D\u0631\u062C",
-        generatedNotice: "\u062A\u0645 \u0625\u0646\u0634\u0627\u0621 \u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062A\u0646\u062F \u0622\u0644\u064A\u0627\u064B. \u062C\u0645\u064A\u0639 \u062A\u0642\u062F\u064A\u0631\u0627\u062A \u0627\u0644\u062A\u0643\u0644\u0641\u0629 \u0627\u0633\u062A\u0631\u0634\u0627\u062F\u064A\u0629 \u0648\u062A\u062E\u0636\u0639 \u0644\u062A\u0623\u0643\u064A\u062F \u0627\u0644\u0645\u0648\u0631\u0651\u062F."
       }
     };
   }
@@ -15495,9 +17601,9 @@ async function generateBenchmarkProposals(options = {}) {
     for (const rec of records) {
       const price = Number(rec.priceTypical ?? rec.currencyAed ?? 0);
       if (price <= 0) continue;
-      const gradeWeight2 = weightMap[rec.reliabilityGrade] ?? 1;
+      const gradeWeight = weightMap[rec.reliabilityGrade] ?? 1;
       const freshnessWeight = getFreshnessWeight(rec.captureDate);
-      const combinedWeight = gradeWeight2 * freshnessWeight;
+      const combinedWeight = gradeWeight * freshnessWeight;
       weightedSum += price * combinedWeight;
       totalWeight += combinedWeight;
     }
@@ -15699,7 +17805,7 @@ var init_alert_delivery = __esm({
 });
 
 // server/engines/autonomous/alert-engine.ts
-import { eq as eq6, inArray as inArray2, and as and3, sql as sql2 } from "drizzle-orm";
+import { eq as eq7, inArray as inArray3, and as and4, sql as sql2 } from "drizzle-orm";
 async function evaluateAlerts(params) {
   const db = await getDb();
   if (!db) return [];
@@ -15723,13 +17829,13 @@ async function evaluateAlerts(params) {
   let loadedPatterns = {};
   if (params.patternMatches.length > 0) {
     const pIds = params.patternMatches.map((m) => m.patternId);
-    const patterns = await db.select().from(decisionPatterns).where(inArray2(decisionPatterns.id, pIds));
+    const patterns = await db.select().from(decisionPatterns).where(inArray3(decisionPatterns.id, pIds));
     for (const p of patterns) loadedPatterns[p.id] = p;
   }
   let loadedProjects = {};
   if (params.patternMatches.length > 0) {
     const prjIds = params.patternMatches.map((m) => m.projectId);
-    const prjs = await db.select().from(projects).where(inArray2(projects.id, prjIds));
+    const prjs = await db.select().from(projects).where(inArray3(projects.id, prjIds));
     for (const p of prjs) loadedProjects[p.id] = p;
   }
   for (const match of params.patternMatches) {
@@ -15800,9 +17906,9 @@ async function evaluateAlerts(params) {
   const insertedAlerts = [];
   for (const alert of newAlerts) {
     const existing = await db.select().from(platformAlerts).where(
-      and3(
-        eq6(platformAlerts.alertType, alert.alertType),
-        eq6(platformAlerts.status, "active")
+      and4(
+        eq7(platformAlerts.alertType, alert.alertType),
+        eq7(platformAlerts.status, "active")
         // For perfect duplicate suppression on JSON array, we can use simple string equality or fetch and filter
         // We'll fetch active of this type and filter by JS equality
       )
@@ -16253,7 +18359,7 @@ var evidence_to_materials_exports = {};
 __export(evidence_to_materials_exports, {
   syncEvidenceToMaterials: () => syncEvidenceToMaterials
 });
-import { eq as eq7, desc as desc4 } from "drizzle-orm";
+import { eq as eq8, desc as desc4 } from "drizzle-orm";
 function detectTier(priceMin, priceMax, unit) {
   return classifyCatalogTier(priceMin, priceMax, unit);
 }
@@ -16264,7 +18370,7 @@ async function syncEvidenceToMaterials(runId, limit = 500) {
   const constantsMap = new Map(constants.map((c) => [c.materialType, c]));
   let evidence;
   if (runId) {
-    evidence = await db.select().from(evidenceRecords).where(eq7(evidenceRecords.runId, runId)).limit(limit);
+    evidence = await db.select().from(evidenceRecords).where(eq8(evidenceRecords.runId, runId)).limit(limit);
   } else {
     evidence = await db.select().from(evidenceRecords).orderBy(desc4(evidenceRecords.createdAt)).limit(limit);
   }
@@ -16347,7 +18453,7 @@ async function syncEvidenceToMaterials(runId, limit = 500) {
             embodiedCarbon: String(defaultCarbon),
             brandStandardApproval: brandApproval,
             notes: `Updated from market data ${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}. ${record.publisher || ""}`
-          }).where(eq7(materialsCatalog.id, existingMatch.id));
+          }).where(eq8(materialsCatalog.id, existingMatch.id));
           updated++;
         } else {
           skipped++;
@@ -16424,7 +18530,7 @@ __export(orchestrator_exports, {
   testScrape: () => testScrape
 });
 import { randomUUID as randomUUID6 } from "crypto";
-import { eq as eq8, sql as sql3 } from "drizzle-orm";
+import { eq as eq9, sql as sql3 } from "drizzle-orm";
 async function runWithConcurrencyLimit(tasks, limit) {
   const results = [];
   let index2 = 0;
@@ -16527,7 +18633,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
           id: sourceRegistry.id,
           lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch
         }).from(sourceRegistry).where(
-          connector.sourceRegistryId !== void 0 ? eq8(sourceRegistry.id, connector.sourceRegistryId) : eq8(sourceRegistry.slug, connector.sourceId)
+          connector.sourceRegistryId !== void 0 ? eq9(sourceRegistry.id, connector.sourceRegistryId) : eq9(sourceRegistry.slug, connector.sourceId)
         ).limit(1);
         if (rows.length > 0) {
           connector.sourceRegistryId = rows[0].id;
@@ -16834,7 +18940,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
       for (const result of connectorResults) {
         const resolvedId = registryIdBySourceId.get(String(result.sourceId));
         if (resolvedId === void 0) continue;
-        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures }).from(sourceRegistry).where(eq8(sourceRegistry.id, resolvedId)).limit(1);
+        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures }).from(sourceRegistry).where(eq9(sourceRegistry.id, resolvedId)).limit(1);
         const currentFailures = current.length > 0 ? current[0].consecutiveFailures : 0;
         const isSuccess = result.status === "success";
         const statusEnum = isSuccess ? result.evidenceExtracted > 0 ? "success" : "partial" : "failed";
@@ -16847,7 +18953,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         if (isSuccess) {
           updates.lastSuccessfulFetch = /* @__PURE__ */ new Date();
         }
-        await db.update(sourceRegistry).set(updates).where(eq8(sourceRegistry.id, resolvedId));
+        await db.update(sourceRegistry).set(updates).where(eq9(sourceRegistry.id, resolvedId));
       }
     }
   } catch (err) {
@@ -20099,8 +22205,8 @@ var authRouter = router({
 });
 
 // server/routers/project.ts
-import { z as z5 } from "zod";
-import { TRPCError as TRPCError7 } from "@trpc/server";
+import { z as z6 } from "zod";
+import { TRPCError as TRPCError9 } from "@trpc/server";
 
 // server/_core/project-access.ts
 init_db();
@@ -21450,7 +23556,7 @@ function renderBoardCard(board, locale) {
       <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px;">
         <div style="text-align:center;">
           <div style="font-size:8px; color:#666; text-transform:uppercase;">${reportCopy(locale, "resolvedItemCostRange")}</div>
-          <div style="font-size:12px; font-weight:700; color:#0f3460;">${summary.estimatedCostLow.toLocaleString()} \u2013 ${summary.estimatedCostHigh.toLocaleString()} ${escapeHtml(summary.currency)}</div>
+          <div style="font-size:12px; font-weight:700; color:#0f3460;">${summary.estimatedCostLow === null || summary.estimatedCostHigh === null ? reportCopy(locale, "notAvailable") : `${summary.estimatedCostLow.toLocaleString()} \u2013 ${summary.estimatedCostHigh.toLocaleString()} ${escapeHtml(summary.currency)}`}</div>
         </div>
         <div style="text-align:center;">
           <div style="font-size:8px; color:#666; text-transform:uppercase;">${reportCopy(locale, "resolvedItemLongestLead")}</div>
@@ -21526,7 +23632,7 @@ function renderWorkflowReconciliation(reconciliation, locale) {
     noGroups: "\u0644\u0627 \u062A\u0648\u062C\u062F \u0645\u062C\u0645\u0648\u0639\u0627\u062A \u062A\u062E\u0635\u064A\u0635 \u0645\u062E\u0632\u0646\u0629.",
     allGroups: "\u062C\u0645\u064A\u0639 \u0627\u0644\u0645\u062C\u0645\u0648\u0639\u0627\u062A \u0628\u0646\u0633\u0628\u0629 100%",
     allSurfaces: "\u062C\u0645\u064A\u0639 \u0627\u0644\u0645\u0633\u0627\u062D\u0627\u062A \u0645\u0637\u0627\u0628\u0642\u0629 \u0644\u0644\u0635\u064A\u063A\u0629",
-    costs: "\u062A\u0643\u0644\u0641\u0629 \u0627\u0644\u0645\u0648\u0627\u062F \u0645\u0646 \u0645\u0643\u062A\u0628\u0629 \u0627\u0644\u0645\u0648\u0627\u062F",
+    costs: "\u062A\u0643\u0644\u0641\u0629 \u0627\u0644\u0645\u0648\u0627\u062F \u0627\u0644\u0645\u062D\u0643\u0648\u0645\u0629",
     minimum: "\u0627\u0644\u062D\u062F \u0627\u0644\u0623\u062F\u0646\u0649",
     midpoint: "\u0627\u0644\u0645\u062A\u0648\u0633\u0637",
     maximum: "\u0627\u0644\u062D\u062F \u0627\u0644\u0623\u0639\u0644\u0649",
@@ -21535,11 +23641,11 @@ function renderWorkflowReconciliation(reconciliation, locale) {
     source: "\u0627\u0644\u0645\u0635\u062F\u0631",
     sourceTables: "\u062C\u062F\u0627\u0648\u0644 \u0627\u0644\u0645\u0635\u062F\u0631",
     costBasis: "\u0623\u0633\u0627\u0633 \u0627\u0644\u062A\u0643\u0644\u0641\u0629",
-    assumptionNote: "\u0623\u0633\u0639\u0627\u0631 \u0645\u0631\u062C\u0639\u064A\u0629 \u062F\u0627\u062E\u0644\u064A\u0629 \u0645\u0646 MIYAR \u0648\u0644\u064A\u0633\u062A \u0645\u0644\u0627\u062D\u0638\u0627\u062A \u0633\u0648\u0642\u064A\u0629",
+    assumptionNote: "\u0627\u0641\u062A\u0631\u0627\u0636 \u0642\u062F\u064A\u0645 \u0628\u0646\u0637\u0627\u0642 \u063A\u064A\u0631 \u0645\u0639\u0631\u0648\u0641",
     basisCounts: "\u0635\u0641\u0648\u0641 \u0627\u0644\u0645\u0648\u0627\u062F (\u0627\u0641\u062A\u0631\u0627\u0636 / \u0645\u0644\u0627\u062D\u0638\u0629)"
   } : {
     heading: "Workflow, Space & MQI Reconciliation",
-    description: "Deterministic reconciliation of stored project, space-programme, material-allocation, and material-library values.",
+    description: "Deterministic reconciliation of stored project and allocation values with governed material-price snapshots.",
     projectFitOut: "Project fit-out area",
     roomFitOut: "Fit-out room total",
     variance: "Area variance",
@@ -21569,7 +23675,7 @@ function renderWorkflowReconciliation(reconciliation, locale) {
     noGroups: "No stored allocation groups.",
     allGroups: "All groups at 100%",
     allSurfaces: "All surfaces match formula",
-    costs: "Material-library cost reconciliation",
+    costs: "Governed material-cost reconciliation",
     minimum: "Minimum",
     midpoint: "Midpoint",
     maximum: "Maximum",
@@ -21578,13 +23684,14 @@ function renderWorkflowReconciliation(reconciliation, locale) {
     source: "Source",
     sourceTables: "Source tables",
     costBasis: "Cost basis",
-    assumptionNote: "internal MIYAR reference catalogue prices, not market observations",
+    assumptionNote: "legacy scope-unknown assumption",
     basisCounts: "material rows (assumption / observed)"
   };
   const number3 = (value) => value.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
+  const money = (value) => value === null ? copy.unavailable : `${reconciliation.materialCosts.currency} ${number3(value)}`;
   const areaStatus = reconciliation.spaceProgram.reconciles === null ? copy.unavailable : reconciliation.spaceProgram.reconciles ? copy.pass : copy.fail;
   const allocationRows = reconciliation.allocations.groups.map(
     (group) => `
@@ -21636,13 +23743,13 @@ function renderWorkflowReconciliation(reconciliation, locale) {
   <table>
     <tr><th>${copy.minimum}</th><th>${copy.midpoint}</th><th>${copy.maximum}</th><th>${copy.priceCoverage}</th></tr>
     <tr>
-      <td>${reconciliation.materialCosts.currency} ${number3(reconciliation.materialCosts.min)}</td>
-      <td>${reconciliation.materialCosts.currency} ${number3(reconciliation.materialCosts.mid)}</td>
-      <td>${reconciliation.materialCosts.currency} ${number3(reconciliation.materialCosts.max)}</td>
+      <td>${money(reconciliation.materialCosts.min)}</td>
+      <td>${money(reconciliation.materialCosts.mid)}</td>
+      <td>${money(reconciliation.materialCosts.max)}</td>
       <td>${reconciliation.materialCosts.pricedAllocationCount}/${reconciliation.allocations.rowCount} \xB7 ${reconciliation.materialCosts.unpricedAllocationCount} ${copy.unpriced} \xB7 ${reconciliation.materialCosts.allAllocationsPriced ? copy.pass : copy.fail}</td>
     </tr>
   </table>
-  ${reconciliation.materialCosts.basis ? `<p style="font-size:8px; color:#777;">${copy.costBasis}: ${dynamicText(reconciliation.materialCosts.basis.label)}${reconciliation.materialCosts.basis.observedRowCount === 0 ? ` \u2014 ${copy.assumptionNote}` : ""} \xB7 ${reconciliation.materialCosts.basis.assumptionRowCount} / ${reconciliation.materialCosts.basis.observedRowCount} ${copy.basisCounts} \xB7 ${dynamicText(reconciliation.materialCosts.basis.policyVersion)}</p>` : ""}
+  ${reconciliation.materialCosts.basis ? `<p style="font-size:8px; color:#777;">${copy.costBasis}: ${dynamicText(reconciliation.materialCosts.basis.label)} \xB7 ${reconciliation.materialCosts.basis.assumptionRowCount} / ${reconciliation.materialCosts.basis.observedRowCount} ${copy.basisCounts} \xB7 ${dynamicText(reconciliation.materialCosts.basis.policyVersion)}</p>` : ""}
   <p style="font-size:8px; color:#777;">${copy.source}: ${dynamicText(reconciliation.materialCosts.source)} \xB7 ${copy.sourceTables}: ${dynamicText(reconciliation.sourceTables.join(", "))} \xB7 ${dynamicText(reconciliation.version)}</p>
 </div>
 `;
@@ -22259,13 +24366,18 @@ function computeBoardSummary(items, briefConstraints) {
   const catDist = {};
   let costLow = 0;
   let costHigh = 0;
+  let hasCompleteBrowseEstimate = items.length > 0;
   let maxLead = 0;
   const criticalItems = [];
   for (const item of items) {
     tierDist[item.tier] = (tierDist[item.tier] || 0) + 1;
     catDist[item.category] = (catDist[item.category] || 0) + 1;
-    costLow += item.costLow;
-    costHigh += item.costHigh;
+    if (item.costLow === null || item.costHigh === null || !Number.isFinite(item.costLow) || !Number.isFinite(item.costHigh)) {
+      hasCompleteBrowseEstimate = false;
+    } else {
+      costLow += item.costLow;
+      costHigh += item.costHigh;
+    }
     if (item.leadTimeDays > maxLead) maxLead = item.leadTimeDays;
     if (item.leadTimeBand === "critical" || item.leadTimeDays >= 90) {
       criticalItems.push(item.name);
@@ -22275,17 +24387,16 @@ function computeBoardSummary(items, briefConstraints) {
   if (briefConstraints) {
     const capStr = briefConstraints.totalBudgetCap.replace(/[^0-9.]/g, "");
     const cap = Number(capStr) || null;
-    const utilizationPct = cap ? Math.round(costHigh / cap * 100) : null;
     budgetComplianceCheck = {
       budgetCapAed: cap,
-      utilizationPct,
-      status: cap ? costHigh <= cap ? "within_budget" : "over_budget" : "unknown"
+      utilizationPct: null,
+      status: "unknown"
     };
   }
   return {
     totalItems: items.length,
-    estimatedCostLow: costLow,
-    estimatedCostHigh: costHigh,
+    estimatedCostLow: hasCompleteBrowseEstimate ? costLow : null,
+    estimatedCostHigh: hasCompleteBrowseEstimate ? costHigh : null,
     currency: "AED",
     longestLeadTimeDays: maxLead,
     criticalPathItems: criticalItems,
@@ -22317,7 +24428,11 @@ function generateRfqLines(items, briefConstraints) {
       estimatedUnitCostHigh: item.costHigh,
       leadTimeDays: item.leadTimeDays,
       supplierSuggestion: item.supplierName,
-      notes: notes.join(" | ") || ""
+      notes: [
+        ...notes,
+        "Browse-only catalog estimate; not RFQ-ready or eligible for issued totals."
+      ].join(" | "),
+      pricingState: "browse_only_estimate"
     };
   });
 }
@@ -22334,8 +24449,8 @@ function recommendMaterials(catalog, projectTier, maxItems = 10) {
     name: m.name,
     category: m.category,
     tier: m.tier,
-    costLow: Number(m.typicalCostLow) || 0,
-    costHigh: Number(m.typicalCostHigh) || 0,
+    costLow: m.typicalCostLow === null || !Number.isFinite(Number(m.typicalCostLow)) ? null : Number(m.typicalCostLow),
+    costHigh: m.typicalCostHigh === null || !Number.isFinite(Number(m.typicalCostHigh)) ? null : Number(m.typicalCostHigh),
     costUnit: m.costUnit || "AED/unit",
     leadTimeDays: m.leadTimeDays || 30,
     leadTimeBand: m.leadTimeBand || "medium",
@@ -22395,481 +24510,10 @@ function buildBoardAnnexData(inputs) {
   };
 }
 
-// server/engines/design/material-quantity-engine.ts
-init_llm();
-init_tier_policy();
-var ASPECT_RATIOS = {
-  // Living / Dining / Lobby
-  LVG: 1.6,
-  DIN: 1.6,
-  LBY: 1.6,
-  // Master bedroom
-  MBR: 1.4,
-  // Secondary bedrooms
-  BD2: 1.3,
-  BD3: 1.3,
-  BD4: 1.3,
-  // Kitchen
-  KIT: 1.4,
-  // Bathrooms / Ensuite (near-square)
-  BTH: 1,
-  MEN: 1,
-  ENS: 1,
-  // Corridors / Hallways (long and narrow)
-  COR: 2.5,
-  ENT: 2.5,
-  HAL: 2.5,
-  // Office / Meeting
-  OFC: 1.5,
-  MET: 1.5,
-  OPN: 1.5,
-  // Back-of-house / Utility
-  BOH: 1.8,
-  UTL: 1.8,
-  // Hospitality
-  GRM: 1.4,
-  GRS: 1.5,
-  FBB: 1.6,
-  RCP: 1.5,
-  BRK: 1.4
-};
-var DEFAULT_ASPECT_RATIO = 1.4;
-var DEFAULT_CEILING_HEIGHT = 2.8;
-function calculateSurfaceAreas(rooms, ceilingHeightM) {
-  const height = ceilingHeightM ?? DEFAULT_CEILING_HEIGHT;
-  const clampedHeight = Math.max(2.4, Math.min(5, height));
-  if (clampedHeight !== height) {
-    console.warn(
-      `[MQI] Ceiling height ${height}m outside valid range [2.4, 5.0]. Clamped to ${clampedHeight}m.`
-    );
-  }
-  return rooms.map((room) => {
-    if (room.sqm <= 0) {
-      return {
-        roomId: room.id,
-        roomName: room.name,
-        floorM2: 0,
-        wallM2: 0,
-        ceilingM2: 0
-      };
-    }
-    const ratio = ASPECT_RATIOS[room.id] ?? DEFAULT_ASPECT_RATIO;
-    const sqm = room.sqm;
-    const floorM2 = sqm;
-    const sideA = Math.sqrt(sqm * ratio);
-    const sideB = Math.sqrt(sqm / ratio);
-    const perimeter = 2 * (sideA + sideB);
-    const rawWallM2 = perimeter * clampedHeight;
-    const wallM2 = rawWallM2 * 0.85;
-    const ceilingM2 = sqm * 0.95;
-    const wallFloorRatio = wallM2 / floorM2;
-    if (wallFloorRatio < 1.5 || wallFloorRatio > 3.5) {
-      console.warn(
-        `[MQI] Room ${room.id} wall/floor ratio ${wallFloorRatio.toFixed(2)} outside expected range [1.5, 3.5]`
-      );
-    }
-    return {
-      roomId: room.id,
-      roomName: room.name,
-      floorM2: Number(floorM2.toFixed(2)),
-      wallM2: Number(wallM2.toFixed(2)),
-      ceilingM2: Number(ceilingM2.toFixed(2))
-    };
-  });
-}
-var WET_ROOM_IDS = /* @__PURE__ */ new Set(["BTH", "MEN", "ENS", "KIT"]);
-async function generateMaterialAllocations(project, surfaces, materialLibrary2, rooms, existingLockedAllocations) {
-  const roomGradeMap = new Map(rooms.map((r) => [r.id, r.finishGrade]));
-  const lockedMap = /* @__PURE__ */ new Map();
-  if (existingLockedAllocations?.length) {
-    for (const locked of existingLockedAllocations) {
-      lockedMap.set(`${locked.roomId}:${locked.element}`, locked.allocations);
-    }
-  }
-  const gradeCRooms = surfaces.filter(
-    (s) => roomGradeMap.get(s.roomId) === "C"
-  );
-  const nonGradeCRooms = surfaces.filter(
-    (s) => roomGradeMap.get(s.roomId) !== "C"
-  );
-  const roomsForGemini = nonGradeCRooms.filter((s) => {
-    const elements = ["floor", "walls", "ceiling", "joinery"];
-    return elements.some((el) => !lockedMap.has(`${s.roomId}:${el}`));
-  });
-  const projectTier = project.mkt01Tier?.toLowerCase() || "mid";
-  const projectStyle = (project.des01Style || "modern").toLowerCase();
-  const allowedTiers = libraryTiersForMkt01Tier(project.mkt01Tier);
-  const filteredLibrary = materialLibrary2.filter(
-    (m) => allowedTiers.includes(m.tier) && (m.style === projectStyle || m.style === "all")
-  );
-  const roomDescriptions = roomsForGemini.map((s) => {
-    const grade2 = roomGradeMap.get(s.roomId) || "B";
-    const isWet = WET_ROOM_IDS.has(s.roomId);
-    const elements = ["floor", "walls", "ceiling", "joinery"].filter((el) => !lockedMap.has(`${s.roomId}:${el}`));
-    return `- ${s.roomId} "${s.roomName}": floor=${s.floorM2}m\xB2, walls=${s.wallM2}m\xB2, ceiling=${s.ceilingM2}m\xB2, grade=${grade2}, wet=${isWet}, elements_needed=[${elements.join(",")}]`;
-  }).join("\n");
-  const libraryDescriptions = filteredLibrary.slice(0, 60).map(
-    (m) => `id=${m.id} category=${m.category} tier=${m.tier} style=${m.style} brand="${m.brand}" product="${m.productName}" AED_min=${m.priceAedMin} AED_max=${m.priceAedMax} unit=${m.unitLabel}`
-  ).join("\n");
-  const systemPrompt = `You are a UAE interior design cost consultant. Your job is to suggest how the surfaces of a project should be split across materials, based on the project's design style, market tier, and available material library.
-
-PROJECT:
-- Typology: ${project.ctx01Typology || "Residential"}
-- Style: ${project.des01Style || "Modern"}
-- Market Tier: ${projectTier}
-- Material Level: ${project.des02MaterialLevel || 3}/5
-- Purpose: ${project.projectPurpose || "Residential development"}
-
-ROOMS AND SURFACES (only rooms that need new allocations):
-${roomDescriptions}
-
-AVAILABLE MATERIAL LIBRARY (filtered to matching tier and style):
-${libraryDescriptions}
-
-RULES:
-1. For each room \xD7 element, provide 1 OR 2 materials with percentages summing to exactly 100.
-2. MAXIMUM 2 materials per surface \u2014 never return 3 or more.
-3. Use materials from the library when possible (reference by materialLibraryId). If no exact match, use a generic name and set materialLibraryId to null.
-4. Grade A rooms get premium finishes. Grade B rooms get mid-range.
-5. Wet room walls (BTH, MEN, ENS, KIT where wet=true) MUST use wall_tile, NEVER wall_paint or stone.
-6. Ceiling is almost always single material (gypsum or plaster). Only split ceiling if Grade A + ultra tier.
-7. For each allocation, write one sentence of reasoning (max 15 words).
-8. Never suggest materials that conflict with UAE climate (e.g. solid wood flooring in wet areas).
-9. Only provide allocations for the elements listed in elements_needed for each room.`;
-  const outputSchema = {
-    name: "material_allocations",
-    schema: {
-      type: "object",
-      properties: {
-        rooms: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              roomId: { type: "string" },
-              floor: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    materialLibraryId: { type: "number" },
-                    materialName: { type: "string" },
-                    percentage: { type: "number" },
-                    reasoning: { type: "string" }
-                  },
-                  required: ["materialName", "percentage", "reasoning"]
-                }
-              },
-              walls: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    materialLibraryId: { type: "number" },
-                    materialName: { type: "string" },
-                    percentage: { type: "number" },
-                    reasoning: { type: "string" }
-                  },
-                  required: ["materialName", "percentage", "reasoning"]
-                }
-              },
-              ceiling: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    materialLibraryId: { type: "number" },
-                    materialName: { type: "string" },
-                    percentage: { type: "number" },
-                    reasoning: { type: "string" }
-                  },
-                  required: ["materialName", "percentage", "reasoning"]
-                }
-              },
-              joinery: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    materialLibraryId: { type: "number" },
-                    materialName: { type: "string" },
-                    percentage: { type: "number" },
-                    reasoning: { type: "string" }
-                  },
-                  required: ["materialName", "percentage", "reasoning"]
-                }
-              }
-            },
-            required: ["roomId"]
-          }
-        },
-        designRationale: { type: "string" },
-        estimatedQualityLabel: { type: "string" }
-      },
-      required: ["rooms", "designRationale", "estimatedQualityLabel"]
-    }
-  };
-  let geminiResult;
-  if (roomsForGemini.length === 0) {
-    geminiResult = {
-      rooms: [],
-      designRationale: "All rooms are utility-grade or locked \u2014 deterministic allocation applied.",
-      estimatedQualityLabel: "Standard Utility"
-    };
-  } else {
-    const response = await invokeLLM({
-      messages: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: "Generate material allocations for all listed rooms. Return structured JSON."
-        }
-      ],
-      outputSchema
-    });
-    const rawContent = response.choices[0]?.message?.content;
-    const text5 = typeof rawContent === "string" ? rawContent : Array.isArray(rawContent) ? rawContent.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
-    geminiResult = JSON.parse(text5);
-  }
-  for (const room of geminiResult.rooms) {
-    for (const element of ["floor", "walls", "ceiling", "joinery"]) {
-      const slices = room[element];
-      if (!slices || slices.length === 0) continue;
-      if (slices.length > 2) {
-        slices.sort((a, b) => b.percentage - a.percentage);
-        slices.length = 2;
-      }
-      const sum = slices.reduce((s, sl) => s + sl.percentage, 0);
-      if (Math.abs(sum - 100) > 0.01) {
-        const scale = 100 / sum;
-        for (const sl of slices) {
-          sl.percentage = Number((sl.percentage * scale).toFixed(2));
-        }
-        const newSum = slices.reduce((s, sl) => s + sl.percentage, 0);
-        if (Math.abs(newSum - 100) > 0.01) {
-          slices[0].percentage += 100 - newSum;
-        }
-      }
-    }
-  }
-  for (const surface of gradeCRooms) {
-    const cheapFloor = materialLibrary2.find(
-      (m) => m.category === "flooring" && m.tier === "affordable"
-    );
-    const isWet = WET_ROOM_IDS.has(surface.roomId);
-    const cheapWall = materialLibrary2.find(
-      (m) => m.category === (isWet ? "wall_tile" : "wall_paint") && (m.tier === "affordable" || m.tier === "mid")
-    );
-    const cheapCeiling = materialLibrary2.find(
-      (m) => m.category === "ceiling" && (m.tier === "affordable" || m.tier === "mid")
-    );
-    geminiResult.rooms.push({
-      roomId: surface.roomId,
-      floor: [
-        {
-          materialLibraryId: cheapFloor?.id ?? null,
-          materialName: cheapFloor?.productName || "Basic Ceramic Tile",
-          percentage: 100,
-          reasoning: "Grade C utility room \u2014 affordable single material."
-        }
-      ],
-      walls: [
-        {
-          materialLibraryId: cheapWall?.id ?? null,
-          materialName: cheapWall?.productName || (isWet ? "Standard Ceramic Wall Tile" : "Standard Emulsion Paint"),
-          percentage: 100,
-          reasoning: isWet ? "Wet utility room \u2014 affordable wall tile." : "Grade C \u2014 standard paint."
-        }
-      ],
-      ceiling: [
-        {
-          materialLibraryId: cheapCeiling?.id ?? null,
-          materialName: cheapCeiling?.productName || "Basic Gypsum Board",
-          percentage: 100,
-          reasoning: "Grade C \u2014 basic gypsum ceiling."
-        }
-      ],
-      joinery: []
-    });
-  }
-  for (const [key, lockedSlices] of Array.from(lockedMap.entries())) {
-    const [roomId, element] = key.split(":");
-    let room = geminiResult.rooms.find((r) => r.roomId === roomId);
-    if (!room) {
-      room = { roomId, floor: [], walls: [], ceiling: [], joinery: [] };
-      geminiResult.rooms.push(room);
-    }
-    room[element] = lockedSlices;
-  }
-  return geminiResult;
-}
-function buildQuantityCostSummary(surfaces, allocations, materialLibrary2, project) {
-  const materialLibraryMap = new Map(materialLibrary2.map((m) => [m.id, m]));
-  const roomBreakdowns = [];
-  const materialTotals = /* @__PURE__ */ new Map();
-  let unpricedAllocationCount = 0;
-  const pricedLibraryRowIds = /* @__PURE__ */ new Set();
-  let totalFloorM2 = 0;
-  let totalWallM2 = 0;
-  let totalCeilingM2 = 0;
-  for (const surface of surfaces) {
-    const roomAllocation = allocations.rooms.find(
-      (r) => r.roomId === surface.roomId
-    );
-    totalFloorM2 += surface.floorM2;
-    totalWallM2 += surface.wallM2;
-    totalCeilingM2 += surface.ceilingM2;
-    const elements = [];
-    const elementDefs = [
-      { name: "floor", areaM2: surface.floorM2 },
-      { name: "walls", areaM2: surface.wallM2 },
-      { name: "ceiling", areaM2: surface.ceilingM2 },
-      { name: "joinery", areaM2: 0 }
-      // Joinery doesn't have a simple surface area
-    ];
-    let roomCostMin = 0;
-    let roomCostMax = 0;
-    for (const elDef of elementDefs) {
-      const slices = roomAllocation?.[elDef.name];
-      if (!slices || slices.length === 0) continue;
-      let elementCostMin = 0;
-      let elementCostMax = 0;
-      const allocationDetails = [];
-      for (const slice of slices) {
-        const actualAreaM2 = elDef.areaM2 * (slice.percentage / 100);
-        let unitCostMin = 0;
-        let unitCostMax = 0;
-        let priced = false;
-        if (slice.materialLibraryId) {
-          const libEntry = materialLibraryMap.get(slice.materialLibraryId);
-          if (libEntry && libEntry.priceAedMin !== null && libEntry.priceAedMax !== null) {
-            const priceMin = Number(libEntry.priceAedMin);
-            const priceMax = Number(libEntry.priceAedMax);
-            if (Number.isFinite(priceMin) && Number.isFinite(priceMax)) {
-              unitCostMin = priceMin;
-              unitCostMax = priceMax;
-              priced = true;
-              pricedLibraryRowIds.add(libEntry.id);
-            }
-          }
-        }
-        if (!priced) {
-          unpricedAllocationCount += 1;
-        }
-        const sliceCostMin = actualAreaM2 * unitCostMin;
-        const sliceCostMax = actualAreaM2 * unitCostMax;
-        elementCostMin += sliceCostMin;
-        elementCostMax += sliceCostMax;
-        allocationDetails.push({
-          materialLibraryId: slice.materialLibraryId,
-          materialName: slice.materialName,
-          percentage: slice.percentage,
-          actualAreaM2: Number(actualAreaM2.toFixed(2)),
-          unitCostMin,
-          unitCostMax,
-          totalCostMin: Number(sliceCostMin.toFixed(2)),
-          totalCostMax: Number(sliceCostMax.toFixed(2)),
-          priced,
-          reasoning: slice.reasoning
-        });
-        const existing = materialTotals.get(slice.materialName) || {
-          totalAreaM2: 0,
-          totalCostMin: 0,
-          totalCostMax: 0
-        };
-        existing.totalAreaM2 += actualAreaM2;
-        existing.totalCostMin += sliceCostMin;
-        existing.totalCostMax += sliceCostMax;
-        materialTotals.set(slice.materialName, existing);
-      }
-      elements.push({
-        element: elDef.name,
-        surfaceAreaM2: elDef.areaM2,
-        allocations: allocationDetails,
-        elementCostMin: Number(elementCostMin.toFixed(2)),
-        elementCostMax: Number(elementCostMax.toFixed(2))
-      });
-      roomCostMin += elementCostMin;
-      roomCostMax += elementCostMax;
-    }
-    roomBreakdowns.push({
-      roomId: surface.roomId,
-      roomName: surface.roomName,
-      floorM2: surface.floorM2,
-      wallM2: surface.wallM2,
-      ceilingM2: surface.ceilingM2,
-      elements,
-      roomCostMin: Number(roomCostMin.toFixed(2)),
-      roomCostMax: Number(roomCostMax.toFixed(2))
-    });
-  }
-  const totalSurfaceM2 = totalFloorM2 + totalWallM2 + totalCeilingM2;
-  const totalFinishCostMin = roomBreakdowns.reduce(
-    (s, r) => s + r.roomCostMin,
-    0
-  );
-  const totalFinishCostMax = roomBreakdowns.reduce(
-    (s, r) => s + r.roomCostMax,
-    0
-  );
-  const totalFinishCostMid = (totalFinishCostMin + totalFinishCostMax) / 2;
-  const SQFT_TO_SQM = 10.764;
-  const FINISH_BUDGET_RATIO = 0.35;
-  const budgetCapPerSqft = Number(project.fin01BudgetCap) || 0;
-  const gfa = Number(project.ctx03Gfa) || 0;
-  const budgetCapAed = budgetCapPerSqft > 0 && gfa > 0 ? budgetCapPerSqft * gfa * SQFT_TO_SQM * FINISH_BUDGET_RATIO : null;
-  const budgetUtilizationPct = budgetCapAed && budgetCapAed > 0 ? Number((totalFinishCostMid / budgetCapAed * 100).toFixed(1)) : null;
-  const isOverBudget = budgetCapAed ? totalFinishCostMid > budgetCapAed : false;
-  const overBudgetByAed = isOverBudget ? Number((totalFinishCostMid - (budgetCapAed || 0)).toFixed(2)) : 0;
-  const materialBreakdown = Array.from(materialTotals.entries()).map(([name, totals]) => ({
-    materialName: name,
-    totalAreaM2: Number(totals.totalAreaM2.toFixed(2)),
-    totalCostMin: Number(totals.totalCostMin.toFixed(2)),
-    totalCostMax: Number(totals.totalCostMax.toFixed(2)),
-    pctOfTotalSurface: totalSurfaceM2 > 0 ? Number((totals.totalAreaM2 / totalSurfaceM2 * 100).toFixed(1)) : 0
-  })).sort((a, b) => b.totalAreaM2 - a.totalAreaM2);
-  const OBSERVED_SOURCE_TYPES = /* @__PURE__ */ new Set(["market_observation", "supplier_quote"]);
-  let assumptionRowCount = 0;
-  let observedRowCount = 0;
-  for (const rowId of Array.from(pricedLibraryRowIds)) {
-    const row = materialLibraryMap.get(rowId);
-    if (!row) continue;
-    if (OBSERVED_SOURCE_TYPES.has(row.sourceType ?? "miyar_assumption")) {
-      observedRowCount += 1;
-    } else {
-      assumptionRowCount += 1;
-    }
-  }
-  const costBasisLabel = observedRowCount === 0 ? "MIYAR assumption" : assumptionRowCount === 0 ? "Observed market data" : "Mixed (MIYAR assumption + observed)";
-  return {
-    rooms: roomBreakdowns,
-    summary: {
-      totalFloorM2: Number(totalFloorM2.toFixed(2)),
-      totalWallM2: Number(totalWallM2.toFixed(2)),
-      totalCeilingM2: Number(totalCeilingM2.toFixed(2)),
-      totalSurfaceM2: Number(totalSurfaceM2.toFixed(2)),
-      materialBreakdown,
-      totalFinishCostMin: Number(totalFinishCostMin.toFixed(2)),
-      totalFinishCostMax: Number(totalFinishCostMax.toFixed(2)),
-      totalFinishCostMid: Number(totalFinishCostMid.toFixed(2)),
-      budgetCapAed,
-      budgetUtilizationPct,
-      isOverBudget,
-      overBudgetByAed,
-      qualityLabel: allocations.estimatedQualityLabel || "Standard",
-      unpricedAllocationCount,
-      costBasis: {
-        policyVersion: "material-library-provenance-v1",
-        label: costBasisLabel,
-        assumptionRowCount,
-        observedRowCount
-      }
-    },
-    generatedAt: (/* @__PURE__ */ new Date()).toISOString()
-  };
-}
-
 // server/engines/report-reconciliation.ts
+init_material_quantity_engine();
+init_material_calculations();
+init_quantity_policy();
 var RECONCILIATION_VERSION = "workflow-space-mqi-reconciliation-v1";
 var SURFACE_FORMULA_VERSION = "mqi-surface-area-v1";
 var DEFAULT_CEILING_HEIGHT_M = 2.8;
@@ -22944,47 +24588,74 @@ function buildWorkflowSpaceMqiReconciliation(input) {
   }).sort(
     (left, right) => left.roomId.localeCompare(right.roomId) || left.element.localeCompare(right.element) || left.roomName.localeCompare(right.roomName)
   );
-  const libraryById = new Map(input.materialLibrary.map((material) => [material.id, material]));
+  const priceByLibraryId = new Map(
+    input.priceSnapshots.filter((snapshot) => snapshot.reference.source === "material_library").map((snapshot) => [snapshot.reference.legacyId, snapshot])
+  );
   let pricedAllocationCount = 0;
   let unpricedAllocationCount = 0;
   let min = 0;
   let max2 = 0;
-  const pricedMaterialIds = /* @__PURE__ */ new Set();
+  const reasons = {};
+  const pricedSnapshotKeys = /* @__PURE__ */ new Set();
   for (const allocation of input.allocations) {
-    const material = allocation.materialLibraryId === null ? void 0 : libraryById.get(allocation.materialLibraryId);
-    const priceMin = finiteNumber(material?.priceAedMin);
-    const priceMax = finiteNumber(material?.priceAedMax);
-    if (material === void 0 || priceMin === null || priceMax === null) {
+    const snapshot = allocation.materialLibraryId === null ? void 0 : priceByLibraryId.get(allocation.materialLibraryId);
+    let insufficiencyReason;
+    if (snapshot === void 0) {
+      insufficiencyReason = "identity_not_found";
+    } else if (snapshot.state === "insufficient") {
+      insufficiencyReason = snapshot.reason;
+    }
+    const quantity = snapshot?.state === "resolved" ? resolveQuantityForUnitBasis({
+      unitBasis: snapshot.unitBasis,
+      surfaceAreaM2: allocation.element === "floor" || allocation.element === "walls" || allocation.element === "ceiling" ? numberOrZero(allocation.surfaceAreaM2) : void 0,
+      explicitQuantity: allocation.explicitQuantity === void 0 || allocation.explicitQuantity === null ? void 0 : numberOrZero(allocation.explicitQuantity),
+      explicitQuantityUnit: allocation.explicitQuantityUnit ?? void 0,
+      paintCoverageState: snapshot.paintCoverageState,
+      paintCoverageProfile: snapshot.paintCoverageProfile ? { status: "approved", ...snapshot.paintCoverageProfile } : void 0,
+      asOf: new Date(snapshot.resolverAsOf)
+    }) : void 0;
+    if (quantity?.state === "insufficient") {
+      insufficiencyReason = quantity.reason;
+    }
+    if (snapshot?.state !== "resolved" || quantity?.state !== "resolved") {
       unpricedAllocationCount += 1;
+      const reason4 = insufficiencyReason ?? "no_governed_value";
+      reasons[reason4] = (reasons[reason4] ?? 0) + 1;
       continue;
     }
-    const areaM2 = numberOrZero(allocation.surfaceAreaM2);
     pricedAllocationCount += 1;
-    pricedMaterialIds.add(material.id);
-    min += areaM2 * priceMin;
-    max2 += areaM2 * priceMax;
+    pricedSnapshotKeys.add(`${snapshot.productId}:${snapshot.specificationId}`);
+    min += quantity.quantity * Number(snapshot.priceMin);
+    max2 += quantity.quantity * Number(snapshot.priceMax);
   }
   min = round2(min);
   max2 = round2(max2);
   let assumptionRowCount = 0;
+  let legacyCompatibilityRowCount = 0;
   let observedRowCount = 0;
-  for (const materialId of Array.from(pricedMaterialIds)) {
-    const material = libraryById.get(materialId);
-    const sourceType = typeof material?.sourceType === "string" ? material.sourceType : "miyar_assumption";
-    if (sourceType === "market_observation" || sourceType === "supplier_quote") {
-      observedRowCount += 1;
-    } else {
+  for (const snapshot of input.priceSnapshots) {
+    if (snapshot.state !== "resolved" || !pricedSnapshotKeys.has(`${snapshot.productId}:${snapshot.specificationId}`)) continue;
+    if (snapshot.provenance.sourceLadderRung === "assumption") {
       assumptionRowCount += 1;
-    }
+      if (snapshot.provenance.compatibilityFallback) {
+        legacyCompatibilityRowCount += 1;
+      }
+    } else observedRowCount += 1;
   }
-  const basisLabel = observedRowCount === 0 ? "MIYAR assumption" : assumptionRowCount === 0 ? "Observed market data" : "Mixed (MIYAR assumption + observed)";
+  const ordinaryAssumptionRowCount = assumptionRowCount - legacyCompatibilityRowCount;
+  const pricedRowCount = assumptionRowCount + observedRowCount;
+  const basisLabel = legacyCompatibilityRowCount === pricedRowCount && legacyCompatibilityRowCount > 0 ? "Legacy scope-unknown assumption" : legacyCompatibilityRowCount > 0 ? `Mixed (${[
+    "legacy scope-unknown assumption",
+    ordinaryAssumptionRowCount > 0 ? "MIYAR assumption" : null,
+    observedRowCount > 0 ? "observed" : null
+  ].filter(Boolean).join(" + ")})` : observedRowCount === 0 ? "MIYAR assumption" : assumptionRowCount === 0 ? "Observed market data" : "Mixed (MIYAR assumption + observed)";
   return {
     version: RECONCILIATION_VERSION,
     sourceTables: [
       "projects",
       "space_program_rooms",
       "material_allocations",
-      "material_library"
+      "governed_material_values"
     ],
     spaceProgram: {
       storedRoomCount: input.rooms.length,
@@ -23016,21 +24687,1328 @@ function buildWorkflowSpaceMqiReconciliation(input) {
     },
     materialCosts: {
       currency: "AED",
-      source: "material_library.priceAedMin/priceAedMax",
+      source: "EV-02 governed material-price resolver",
       pricedAllocationCount,
       unpricedAllocationCount,
       allAllocationsPriced: input.allocations.length > 0 && unpricedAllocationCount === 0,
-      min,
-      mid: round2((min + max2) / 2),
-      max: max2,
+      min: unpricedAllocationCount === 0 && input.allocations.length > 0 ? min : null,
+      mid: unpricedAllocationCount === 0 && input.allocations.length > 0 ? round2((min + max2) / 2) : null,
+      max: unpricedAllocationCount === 0 && input.allocations.length > 0 ? max2 : null,
+      coverage: {
+        state: input.allocations.length === 0 || pricedAllocationCount === 0 ? "insufficient" : unpricedAllocationCount === 0 ? "complete" : "partial",
+        totalItemCount: input.allocations.length,
+        pricedItemCount: pricedAllocationCount,
+        insufficientItemCount: unpricedAllocationCount,
+        reasons
+      },
       basis: {
-        policyVersion: "material-library-provenance-v1",
+        policyVersion: MATERIAL_RESOLUTION_POLICY_VERSION,
         label: basisLabel,
         assumptionRowCount,
         observedRowCount
       }
     }
   };
+}
+
+// server/db/material-pricing.ts
+init_schema();
+init_db();
+import { and as and2, eq as eq3, inArray as inArray2, isNotNull as isNotNull2, isNull as isNull2, lte, ne, or as or2 } from "drizzle-orm";
+function isGlobalGovernedCandidateScope(candidate2) {
+  return candidate2.orgId === null && candidate2.supplierQuoteId === null && candidate2.sourceLadderRung !== "supplier_quote" && (candidate2.productId === null || candidate2.joinedProductId === candidate2.productId && candidate2.productOrgId === null);
+}
+async function listApprovedPaintCoverageProfiles(input) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const productIds = Array.from(new Set(input.productIds));
+  if (productIds.length === 0) return [];
+  const rows = await db.select({
+    id: paintCoverageProfiles.id,
+    productId: paintCoverageProfiles.productId,
+    specId: paintCoverageProfiles.specId,
+    coverageM2PerLitrePerCoat: paintCoverageProfiles.coverageM2PerLitrePerCoat,
+    coatCount: paintCoverageProfiles.coatCount,
+    wastePct: paintCoverageProfiles.wastePct,
+    packSizesLitres: paintCoverageProfiles.packSizesLitres,
+    effectiveAt: paintCoverageProfiles.effectiveAt,
+    policyVersion: paintCoverageProfiles.policyVersion,
+    sourceDocumentDigest: paintCoverageProfiles.sourceDocumentDigest,
+    reviewedBy: paintCoverageProfiles.reviewedBy,
+    reviewedAt: paintCoverageProfiles.reviewedAt,
+    supersedesId: paintCoverageProfiles.supersedesId
+  }).from(paintCoverageProfiles).where(
+    and2(
+      inArray2(paintCoverageProfiles.productId, productIds),
+      eq3(paintCoverageProfiles.status, "approved"),
+      lte(paintCoverageProfiles.effectiveAt, input.asOf)
+    )
+  );
+  const rowById = new Map(rows.map((row) => [row.id, row]));
+  const cyclicIds = /* @__PURE__ */ new Set();
+  for (const row of rows) {
+    const seen = /* @__PURE__ */ new Set();
+    let cursor = row;
+    while (cursor?.supersedesId && rowById.has(cursor.supersedesId)) {
+      if (seen.has(cursor.supersedesId)) {
+        for (const id of Array.from(seen)) cyclicIds.add(id);
+        cyclicIds.add(cursor.supersedesId);
+        break;
+      }
+      seen.add(cursor.id);
+      cursor = rowById.get(cursor.supersedesId);
+    }
+  }
+  const supersededIds = new Set(
+    rows.map((row) => row.supersedesId).filter((id) => id !== null)
+  );
+  return rows.filter((row) => cyclicIds.has(row.id) || !supersededIds.has(row.id)).map((row) => ({
+    ...row,
+    lineageValid: !cyclicIds.has(row.id),
+    packSizesLitres: Array.isArray(row.packSizesLitres) ? row.packSizesLitres.map(String) : []
+  }));
+}
+async function listMaterialResolutionIdentitiesWithScope(input) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const rows = [];
+  const libraryIds = Array.from(new Set(input.materialLibraryIds ?? []));
+  if (libraryIds.length > 0) {
+    const libraryRows = await db.select({
+      legacyId: materialLibrary.id,
+      productId: products.id,
+      productOrgId: products.orgId,
+      productCanonicalCategory: products.canonicalCategory,
+      category: materialLibrary.category,
+      tier: materialLibrary.tier,
+      unit: materialLibrary.unitLabel
+    }).from(materialLibrary).leftJoin(
+      products,
+      input.globalOnly ? and2(
+        eq3(products.id, materialLibrary.productId),
+        isNull2(products.orgId)
+      ) : eq3(products.id, materialLibrary.productId)
+    ).where(inArray2(materialLibrary.id, libraryIds));
+    rows.push(
+      ...libraryRows.map((row) => ({
+        source: "material_library",
+        ...row
+      }))
+    );
+  }
+  const catalogIds = Array.from(new Set(input.materialCatalogIds ?? []));
+  if (catalogIds.length > 0) {
+    const catalogRows = await db.select({
+      legacyId: materialsCatalog.id,
+      productId: products.id,
+      productOrgId: products.orgId,
+      productCanonicalCategory: products.canonicalCategory,
+      category: materialsCatalog.category,
+      tier: materialsCatalog.tier,
+      unit: materialsCatalog.costUnit
+    }).from(materialsCatalog).leftJoin(
+      products,
+      input.globalOnly ? and2(
+        eq3(products.id, materialsCatalog.productId),
+        isNull2(products.orgId)
+      ) : eq3(products.id, materialsCatalog.productId)
+    ).where(inArray2(materialsCatalog.id, catalogIds));
+    rows.push(
+      ...catalogRows.map((row) => ({
+        source: "materials_catalog",
+        ...row
+      }))
+    );
+  }
+  return rows;
+}
+async function listMaterialResolutionIdentities(input) {
+  return listMaterialResolutionIdentitiesWithScope({
+    ...input,
+    globalOnly: false
+  });
+}
+async function listGlobalMaterialResolutionIdentities(input) {
+  return listMaterialResolutionIdentitiesWithScope({
+    ...input,
+    globalOnly: true
+  });
+}
+async function listLegacyCompatibilityPriceRows(materialLibraryIds) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const ids = materialLibraryIds === void 0 ? void 0 : Array.from(new Set(materialLibraryIds));
+  if (ids?.length === 0) return [];
+  const eligibilityConditions = [
+    isNotNull2(materialLibrary.priceAedMin),
+    isNotNull2(materialLibrary.priceAedMax),
+    isNotNull2(benchmarkProposals.productId),
+    eq3(benchmarkProposals.sourceKind, "assumption"),
+    eq3(benchmarkProposals.sourceLadderRung, "assumption"),
+    isNull2(benchmarkProposals.orgId),
+    isNull2(benchmarkProposals.priceScope),
+    eq3(benchmarkProposals.keyPolicyVersion, "ev02-backfill-v1"),
+    eq3(benchmarkProposals.status, "approved"),
+    eq3(benchmarkProposals.recommendation, "publish")
+  ];
+  if (ids !== void 0) {
+    eligibilityConditions.unshift(inArray2(materialLibrary.id, ids));
+  }
+  const rows = await db.select({
+    legacyId: materialLibrary.id,
+    productId: benchmarkProposals.productId,
+    specId: benchmarkProposals.specId,
+    benchmarkProposalId: benchmarkProposals.id,
+    benchmarkVersionId: benchmarkProposals.benchmarkVersionId,
+    benchmarkVersionTag: benchmarkVersions.versionTag,
+    provenancePolicyVersion: benchmarkProposals.provenancePolicyVersion,
+    unitBasis: specifications.unitBasis,
+    geography: specifications.geography,
+    priceMin: materialLibrary.priceAedMin,
+    priceMax: materialLibrary.priceAedMax
+  }).from(materialLibrary).innerJoin(
+    benchmarkProposals,
+    and2(
+      eq3(benchmarkProposals.legacyMaterialLibraryId, materialLibrary.id),
+      eq3(benchmarkProposals.productId, materialLibrary.productId)
+    )
+  ).innerJoin(specifications, eq3(specifications.id, benchmarkProposals.specId)).leftJoin(
+    benchmarkVersions,
+    eq3(benchmarkVersions.id, benchmarkProposals.benchmarkVersionId)
+  ).where(and2(...eligibilityConditions));
+  const unique = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    if (row.productId === null || row.specId === null || row.priceMin === null || row.priceMax === null) {
+      continue;
+    }
+    const eligible = {
+      ...row,
+      benchmarkVersion: row.benchmarkVersionTag ?? "legacy-unversioned-benchmark",
+      productId: row.productId,
+      specId: row.specId,
+      priceMin: row.priceMin,
+      priceMax: row.priceMax
+    };
+    delete eligible.benchmarkVersionTag;
+    const existing = unique.get(row.legacyId);
+    if (existing && JSON.stringify(existing) !== JSON.stringify(eligible)) {
+      throw new Error(
+        `Ambiguous EV-02 compatibility link for material_library:${row.legacyId}`
+      );
+    }
+    unique.set(row.legacyId, eligible);
+  }
+  return Array.from(unique.values());
+}
+async function listMaterialResolutionSpecifications(input) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  if (input.categories.length === 0 || input.finishLevels.length === 0 || input.unitBases.length === 0 || input.geographies.length === 0) {
+    return [];
+  }
+  return db.select({
+    id: specifications.id,
+    category: specifications.category,
+    finishLevel: specifications.finishLevel,
+    unitBasis: specifications.unitBasis,
+    geography: specifications.geography
+  }).from(specifications).where(
+    and2(
+      inArray2(specifications.category, input.categories),
+      inArray2(specifications.finishLevel, input.finishLevels),
+      inArray2(specifications.unitBasis, input.unitBases),
+      inArray2(specifications.geography, input.geographies)
+    )
+  );
+}
+async function listGovernedValueCandidatesForSpecificationsWithScope(input) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const specIds = Array.from(new Set(input.specIds));
+  if (specIds.length === 0) return [];
+  const scopeCondition = input.globalOnly || input.organizationId === void 0 ? isNull2(benchmarkProposals.orgId) : or2(
+    isNull2(benchmarkProposals.orgId),
+    eq3(benchmarkProposals.orgId, input.organizationId)
+  );
+  const rows = await db.select({
+    id: benchmarkProposals.id,
+    specId: benchmarkProposals.specId,
+    productId: benchmarkProposals.productId,
+    orgId: benchmarkProposals.orgId,
+    priceScope: benchmarkProposals.priceScope,
+    sourceKind: benchmarkProposals.sourceKind,
+    sourceLadderRung: benchmarkProposals.sourceLadderRung,
+    benchmarkVersionId: benchmarkProposals.benchmarkVersionId,
+    benchmarkVersionTag: benchmarkVersions.versionTag,
+    createdAt: benchmarkProposals.createdAt,
+    reviewedAt: benchmarkProposals.reviewedAt,
+    supplierQuoteId: benchmarkProposals.supplierQuoteId,
+    supersedesId: benchmarkProposals.supersedesId,
+    p25: benchmarkProposals.proposedP25,
+    p50: benchmarkProposals.proposedP50,
+    p75: benchmarkProposals.proposedP75,
+    weightedMean: benchmarkProposals.weightedMean,
+    sourceLabel: benchmarkProposals.sourceLabel,
+    provenancePolicyVersion: benchmarkProposals.provenancePolicyVersion,
+    unitBasis: specifications.unitBasis,
+    geography: specifications.geography,
+    quoteValidUntil: supplierQuotes.validUntil,
+    quoteReceivedAt: supplierQuotes.receivedAt,
+    quoteOrgId: supplierQuotes.orgId,
+    joinedProductId: products.id,
+    productOrgId: products.orgId
+  }).from(benchmarkProposals).innerJoin(specifications, eq3(specifications.id, benchmarkProposals.specId)).leftJoin(products, eq3(products.id, benchmarkProposals.productId)).leftJoin(
+    benchmarkVersions,
+    eq3(benchmarkVersions.id, benchmarkProposals.benchmarkVersionId)
+  ).leftJoin(
+    supplierQuotes,
+    eq3(supplierQuotes.id, benchmarkProposals.supplierQuoteId)
+  ).where(
+    and2(
+      inArray2(benchmarkProposals.specId, specIds),
+      eq3(benchmarkProposals.status, "approved"),
+      eq3(benchmarkProposals.recommendation, "publish"),
+      or2(
+        and2(
+          isNotNull2(benchmarkProposals.reviewedBy),
+          isNotNull2(benchmarkProposals.reviewedAt)
+        ),
+        and2(
+          eq3(benchmarkProposals.sourceKind, "assumption"),
+          eq3(benchmarkProposals.sourceLadderRung, "assumption"),
+          isNotNull2(benchmarkProposals.legacyMaterialLibraryId),
+          eq3(benchmarkProposals.keyPolicyVersion, "ev02-backfill-v1")
+        )
+      ),
+      scopeCondition,
+      ...input.globalOnly ? [
+        isNull2(benchmarkProposals.supplierQuoteId),
+        ne(benchmarkProposals.sourceLadderRung, "supplier_quote"),
+        or2(
+          isNull2(benchmarkProposals.productId),
+          and2(isNotNull2(products.id), isNull2(products.orgId))
+        )
+      ] : []
+    )
+  );
+  const quoteIds = rows.map((row) => row.supplierQuoteId).filter((id) => id !== null);
+  const quoteSupersededAt = /* @__PURE__ */ new Map();
+  const quoteOrganizations = new Map(
+    rows.filter(
+      (row) => row.supplierQuoteId !== null && row.quoteOrgId !== null
+    ).map((row) => [row.supplierQuoteId, row.quoteOrgId])
+  );
+  if (quoteIds.length > 0) {
+    const successors = await db.select({
+      supersedesId: supplierQuotes.supersedesId,
+      orgId: supplierQuotes.orgId,
+      receivedAt: supplierQuotes.receivedAt
+    }).from(supplierQuotes).where(inArray2(supplierQuotes.supersedesId, quoteIds));
+    for (const successor of successors) {
+      if (successor.supersedesId !== null && quoteOrganizations.get(successor.supersedesId) === successor.orgId) {
+        quoteSupersededAt.set(successor.supersedesId, successor.receivedAt);
+      }
+    }
+  }
+  return rows.filter((row) => !input.globalOnly || isGlobalGovernedCandidateScope(row)).filter(
+    (row) => row.specId !== null && row.sourceLadderRung !== null
+  ).map((row) => {
+    const {
+      joinedProductId: _joinedProductId,
+      productOrgId: _productOrgId,
+      ...candidate2
+    } = row;
+    return {
+      ...candidate2,
+      benchmarkVersion: row.benchmarkVersionTag ?? "legacy-unversioned-benchmark",
+      benchmarkVersionTag: void 0,
+      effectiveAt: row.reviewedAt ?? row.createdAt,
+      quoteSupersededAt: row.supplierQuoteId === null ? null : quoteSupersededAt.get(row.supplierQuoteId) ?? null
+    };
+  });
+}
+async function listGovernedValueCandidatesForSpecifications(input) {
+  return listGovernedValueCandidatesForSpecificationsWithScope({
+    ...input,
+    globalOnly: false
+  });
+}
+async function listGlobalGovernedValueCandidatesForSpecifications(input) {
+  return listGovernedValueCandidatesForSpecificationsWithScope({
+    ...input,
+    organizationId: void 0,
+    globalOnly: true
+  });
+}
+
+// server/engines/material-pricing/material-resolution.ts
+init_material_calculations();
+
+// shared/material-pricing.ts
+var UAE_PRICE_GEOGRAPHIES = [
+  "dubai",
+  "abu_dhabi",
+  "sharjah",
+  "ajman",
+  "umm_al_quwain",
+  "ras_al_khaimah",
+  "fujairah",
+  "uae"
+];
+
+// server/engines/material-pricing/material-resolution.ts
+init_policy();
+
+// server/engines/material-pricing/resolver.ts
+init_policy();
+function retailBand(candidates) {
+  const retail = candidates.filter(
+    (candidate2) => candidate2.sourceLadderRung === "retail_sanity"
+  );
+  if (retail.length !== 1) return void 0;
+  return {
+    p25: retail[0].p25,
+    p50: retail[0].p50,
+    p75: retail[0].p75
+  };
+}
+function resolveGovernedMaterialValueFromCandidates(input, candidates) {
+  if (!Number.isFinite(input.asOf.getTime())) {
+    throw new Error("Resolver requires a valid explicit asOf clock");
+  }
+  const availableAtClock = candidates.filter(
+    (candidate2) => candidate2.effectiveAt.getTime() <= input.asOf.getTime()
+  );
+  const supersededIds = new Set(
+    availableAtClock.map((candidate2) => candidate2.supersedesId).filter((id) => id !== null)
+  );
+  const active = availableAtClock.filter(
+    (candidate2) => !supersededIds.has(candidate2.id)
+  );
+  const scoped = active.filter((candidate2) => {
+    if (candidate2.orgId !== null && candidate2.orgId !== input.organizationId) {
+      return false;
+    }
+    if (input.productId === void 0) {
+      if (candidate2.productId !== null) return false;
+    } else if (candidate2.productId !== null && candidate2.productId !== input.productId) {
+      return false;
+    }
+    return true;
+  });
+  const diagnosticBand = retailBand(
+    scoped.filter((candidate2) => candidate2.priceScope === input.priceScope)
+  );
+  const eligible = scoped.filter((candidate2) => {
+    if (candidate2.sourceLadderRung === "retail_sanity") return false;
+    if (candidate2.sourceLadderRung === "supplier_quote") {
+      return input.organizationId !== void 0 && candidate2.orgId === input.organizationId && candidate2.quoteOrgId === input.organizationId && candidate2.supplierQuoteId !== null && candidate2.quoteReceivedAt !== null && candidate2.quoteReceivedAt.getTime() <= input.asOf.getTime() && candidate2.quoteValidUntil !== null && candidate2.quoteValidUntil.getTime() >= input.asOf.getTime() && (candidate2.quoteSupersededAt === null || candidate2.quoteSupersededAt.getTime() > input.asOf.getTime()) && candidate2.priceScope === input.priceScope;
+    }
+    if (candidate2.priceScope === input.priceScope) return true;
+    return candidate2.sourceLadderRung === "assumption" && candidate2.priceScope === null && input.allowLegacyUnknownScope === true;
+  });
+  if (eligible.length === 0) {
+    const hasLegacyUnknown = scoped.some(
+      (candidate2) => candidate2.sourceLadderRung === "assumption" && candidate2.priceScope === null
+    );
+    return {
+      status: "insufficient",
+      reason: diagnosticBand && !hasLegacyUnknown ? "only_retail_sanity" : hasLegacyUnknown ? "legacy_scope_unknown" : "no_governed_value",
+      retailSanityBand: diagnosticBand
+    };
+  }
+  const ranked = eligible.map((candidate2) => ({
+    candidate: candidate2,
+    ladder: sourceLadderPriority(candidate2.sourceLadderRung),
+    productSpecific: input.productId !== void 0 && candidate2.productId === input.productId ? 0 : 1,
+    orgSpecific: input.organizationId !== void 0 && candidate2.orgId === input.organizationId ? 0 : 1,
+    legacyScope: candidate2.priceScope === null ? 1 : 0
+  })).sort(
+    (a, b) => a.ladder - b.ladder || a.productSpecific - b.productSpecific || a.orgSpecific - b.orgSpecific || a.legacyScope - b.legacyScope
+  );
+  const best = ranked[0];
+  const tied = ranked.filter(
+    (row) => row.ladder === best.ladder && row.productSpecific === best.productSpecific && row.orgSpecific === best.orgSpecific && row.legacyScope === best.legacyScope
+  );
+  if (tied.length !== 1) {
+    return {
+      status: "insufficient",
+      reason: "ambiguous_governed_value",
+      retailSanityBand: diagnosticBand
+    };
+  }
+  const selected = best.candidate;
+  if (selected.sourceLadderRung === "retail_sanity") {
+    throw new Error("Retail sanity rows cannot resolve authoritatively");
+  }
+  const p25 = Number(selected.p25);
+  const p50 = Number(selected.p50);
+  const p75 = Number(selected.p75);
+  const weightedMean = Number(selected.weightedMean);
+  if (!Number.isFinite(p25) || !Number.isFinite(p50) || !Number.isFinite(p75) || !Number.isFinite(weightedMean) || p25 <= 0 || p50 <= 0 || p75 <= 0 || weightedMean <= 0 || p25 > p50 || p50 > p75) {
+    return {
+      status: "insufficient",
+      reason: "no_governed_value",
+      retailSanityBand: diagnosticBand
+    };
+  }
+  const value = {
+    benchmarkProposalId: selected.id,
+    benchmarkVersionId: selected.benchmarkVersionId,
+    benchmarkVersion: selected.benchmarkVersion,
+    specificationId: selected.specId,
+    productId: selected.productId,
+    organizationId: selected.orgId,
+    p25: selected.p25,
+    p50: selected.p50,
+    p75: selected.p75,
+    weightedMean: selected.weightedMean,
+    currency: "AED",
+    unitBasis: selected.unitBasis,
+    geography: selected.geography,
+    priceScope: selected.priceScope ?? "legacy_unknown",
+    sourceKind: selected.sourceKind,
+    sourceLadderRung: selected.sourceLadderRung,
+    sourceLabel: selected.sourceLabel,
+    provenancePolicyVersion: selected.provenancePolicyVersion,
+    isLegacyScopeFallback: selected.priceScope === null
+  };
+  return {
+    status: "resolved",
+    value,
+    retailSanityBand: diagnosticBand
+  };
+}
+
+// server/engines/material-pricing/rollout-comparison.ts
+import { createHash as createHash3 } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
+
+// server/engines/material-pricing/ev03-identity-backfill.ts
+init_database_safety();
+init_policy();
+
+// server/engines/material-pricing/rollout-comparison.ts
+init_policy();
+var EV03_ROLLOUT_EVIDENCE_VERSION = "ev03-rollout-comparison-v2";
+var EV03_ELIGIBILITY_QUERY_VERSION = "ev02-linked-legacy-assumptions-v1";
+var EV03_MAX_ROLLOUT_EVIDENCE_COMPRESSED_BYTES = 1024 * 1024;
+var EV03_MAX_ROLLOUT_EVIDENCE_DECOMPRESSED_BYTES = 8 * 1024 * 1024;
+function canonicalize2(value) {
+  if (value === null || typeof value === "string" || typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new Error("Rollout evidence cannot contain non-finite numbers");
+    }
+    return value;
+  }
+  if (Array.isArray(value)) return value.map(canonicalize2);
+  if (typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).filter(([, item]) => item !== void 0).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonicalize2(item)])
+    );
+  }
+  throw new Error(`Unsupported rollout evidence value: ${typeof value}`);
+}
+function sha256(value) {
+  return createHash3("sha256").update(JSON.stringify(canonicalize2(value))).digest("hex");
+}
+function referenceKey(reference2) {
+  return `${reference2.source}:${reference2.legacyId}`;
+}
+function governedFingerprint(snapshot) {
+  return {
+    productId: snapshot.productId,
+    specificationId: snapshot.specificationId,
+    benchmarkProposalId: snapshot.benchmarkProposalId,
+    benchmarkVersionId: snapshot.benchmarkVersionId,
+    benchmarkVersion: snapshot.provenance.benchmarkVersion,
+    resolvedPriceScope: snapshot.resolvedPriceScope,
+    unitBasis: snapshot.unitBasis,
+    resolvedGeography: snapshot.resolvedGeography,
+    resolverPolicyVersion: snapshot.policyVersion,
+    provenancePolicyVersion: snapshot.provenance.provenancePolicyVersion,
+    min: snapshot.priceMin,
+    mid: snapshot.priceMid,
+    max: snapshot.priceMax
+  };
+}
+function assertUniqueReferences(label, references) {
+  const seen = /* @__PURE__ */ new Set();
+  for (const reference2 of references) {
+    if (!Number.isInteger(reference2.legacyId) || reference2.legacyId <= 0) {
+      throw new Error(`${label} contains an invalid legacy identity`);
+    }
+    const key = referenceKey(reference2);
+    if (seen.has(key)) throw new Error(`${label} contains duplicate ${key}`);
+    seen.add(key);
+  }
+}
+function compareLegacyAndGovernedMaterialPrices(input) {
+  assertUniqueReferences(
+    "Eligible legacy set",
+    input.legacyRanges.map((range) => range.reference)
+  );
+  assertUniqueReferences(
+    "Governed snapshot set",
+    input.snapshots.map((snapshot) => snapshot.reference)
+  );
+  const eligibleKeys = new Set(
+    input.legacyRanges.map((range) => referenceKey(range.reference))
+  );
+  const unexpectedSnapshot = input.snapshots.find(
+    (snapshot) => !eligibleKeys.has(referenceKey(snapshot.reference))
+  );
+  if (unexpectedSnapshot) {
+    throw new Error(
+      `Governed snapshot set contains ineligible ${referenceKey(unexpectedSnapshot.reference)}`
+    );
+  }
+  const snapshots = new Map(
+    input.snapshots.map((snapshot) => [
+      referenceKey(snapshot.reference),
+      snapshot
+    ])
+  );
+  return input.legacyRanges.map((legacy) => {
+    const expected = {
+      min: legacy.priceMin,
+      mid: exactDecimalMidpoint(legacy.priceMin, legacy.priceMax),
+      max: legacy.priceMax
+    };
+    const snapshot = snapshots.get(referenceKey(legacy.reference));
+    if (!snapshot || snapshot.state === "insufficient") {
+      return {
+        reference: legacy.reference,
+        state: "insufficient",
+        legacy: expected,
+        governed: null,
+        differences: [],
+        insufficiencyReason: snapshot?.state === "insufficient" ? snapshot.reason : "identity_not_found"
+      };
+    }
+    const governed = governedFingerprint(snapshot);
+    const differences = [];
+    if (expected.min !== governed.min) differences.push("min");
+    if (expected.mid !== governed.mid) differences.push("mid");
+    if (expected.max !== governed.max) differences.push("max");
+    return {
+      reference: legacy.reference,
+      state: differences.length === 0 ? "equal" : "different",
+      legacy: expected,
+      governed,
+      differences
+    };
+  });
+}
+var FORBIDDEN_EVIDENCE_KEYS = /^(organizationId|orgId|supplierQuoteId|quoteRef|contactRef|sourceLabel|supplierName|supplierContact|supplierUrl|provenance|presentationProvenance|internalProvenance|description)$/i;
+function assertNoConfidentialFields(value, path = "evidence") {
+  if (Array.isArray(value)) {
+    value.forEach(
+      (item, index2) => assertNoConfidentialFields(item, `${path}[${index2}]`)
+    );
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  for (const [key, item] of Object.entries(value)) {
+    if (FORBIDDEN_EVIDENCE_KEYS.test(key)) {
+      throw new Error(
+        `Confidential field is forbidden in rollout evidence: ${path}.${key}`
+      );
+    }
+    assertNoConfidentialFields(item, `${path}.${key}`);
+  }
+}
+function assertMaterialPricingComparisonEvidence(evidence) {
+  if (evidence.version !== EV03_ROLLOUT_EVIDENCE_VERSION || evidence.eligibilityQueryVersion !== EV03_ELIGIBILITY_QUERY_VERSION || evidence.digestAlgorithm !== "sha256") {
+    throw new Error("Unsupported EV-03 rollout evidence contract");
+  }
+  if (!Number.isInteger(evidence.eligibleRowCount) || evidence.eligibleRowCount <= 0 || evidence.comparisonRowCount !== evidence.eligibleRowCount || evidence.comparisons.length !== evidence.eligibleRowCount) {
+    throw new Error("Rollout evidence does not cover every eligible EV-02 row");
+  }
+  assertUniqueReferences(
+    "Rollout comparisons",
+    evidence.comparisons.map((row) => row.reference)
+  );
+  assertNoConfidentialFields(evidence);
+  const counts = {
+    equal: evidence.comparisons.filter((row) => row.state === "equal").length,
+    different: evidence.comparisons.filter((row) => row.state === "different").length,
+    insufficient: evidence.comparisons.filter(
+      (row) => row.state === "insufficient"
+    ).length
+  };
+  if (evidence.equalRowCount !== counts.equal || evidence.differentRowCount !== counts.different || evidence.insufficientRowCount !== counts.insufficient || counts.equal + counts.different + counts.insufficient !== evidence.eligibleRowCount) {
+    throw new Error("Rollout evidence summary counts diverge");
+  }
+  const eligibleSet = evidence.comparisons.map((comparison) => ({
+    reference: comparison.reference,
+    priceMin: comparison.legacy.min,
+    priceMax: comparison.legacy.max
+  })).sort(
+    (a, b) => referenceKey(a.reference).localeCompare(referenceKey(b.reference))
+  );
+  const sortedComparisons = [...evidence.comparisons].sort(
+    (a, b) => referenceKey(a.reference).localeCompare(referenceKey(b.reference))
+  );
+  if (!/^[a-f0-9]{64}$/.test(evidence.eligibleSetDigest) || evidence.eligibleSetDigest !== sha256(eligibleSet) || !/^[a-f0-9]{64}$/.test(evidence.comparisonsDigest) || evidence.comparisonsDigest !== sha256(sortedComparisons)) {
+    throw new Error("Rollout evidence content digest mismatch");
+  }
+  const { evidenceDigest, ...unsigned } = evidence;
+  if (!/^[a-f0-9]{64}$/.test(evidenceDigest) || evidenceDigest !== sha256(unsigned)) {
+    throw new Error("Rollout evidence SHA-256 mismatch");
+  }
+}
+function assertMaterialPricingEvidenceMatchesLiveEligibleSet(evidence, liveRanges) {
+  assertMaterialPricingComparisonEvidence(evidence);
+  assertUniqueReferences(
+    "Live eligible legacy set",
+    liveRanges.map((range) => range.reference)
+  );
+  const liveEligibleSet = liveRanges.map((range) => ({
+    reference: range.reference,
+    priceMin: range.priceMin,
+    priceMax: range.priceMax
+  })).sort(
+    (a, b) => referenceKey(a.reference).localeCompare(referenceKey(b.reference))
+  );
+  if (liveEligibleSet.length !== evidence.eligibleRowCount || sha256(liveEligibleSet) !== evidence.eligibleSetDigest) {
+    throw new Error(
+      "EV-03 rollout evidence does not match the complete live eligible set"
+    );
+  }
+}
+function assertGovernedSnapshotsMatchApprovedEvidence(evidence, snapshots) {
+  assertMaterialPricingComparisonEvidence(evidence);
+  assertUniqueReferences(
+    "Live governed snapshot set",
+    snapshots.map((snapshot) => snapshot.reference)
+  );
+  const approved = new Map(
+    evidence.comparisons.map((comparison) => [
+      referenceKey(comparison.reference),
+      comparison.governed
+    ])
+  );
+  for (const snapshot of snapshots) {
+    const expected = approved.get(referenceKey(snapshot.reference));
+    if (expected === void 0) continue;
+    if (snapshot.state === "resolved" && snapshot.requestedPriceScope === "supply_and_install" && snapshot.resolvedPriceScope === "supply_and_install") {
+      continue;
+    }
+    if (expected === null || snapshot.state !== "resolved" || sha256(governedFingerprint(snapshot)) !== sha256(expected)) {
+      throw new Error(
+        `EV-03 governed snapshot drifted from approved evidence for ${referenceKey(snapshot.reference)}`
+      );
+    }
+  }
+}
+function buildMaterialPricingRuntimeComparisonEvidence(input) {
+  assertMaterialPricingComparisonEvidence(input.baselineEvidence);
+  if (!Number.isFinite(input.resolverAsOf.getTime())) {
+    throw new Error("Runtime comparison requires a valid explicit clock");
+  }
+  assertUniqueReferences("Runtime comparison request", input.references);
+  const baselineByReference = new Map(
+    input.baselineEvidence.comparisons.map((comparison) => [
+      referenceKey(comparison.reference),
+      comparison
+    ])
+  );
+  const legacyRanges = input.references.flatMap((reference2) => {
+    const baseline = baselineByReference.get(referenceKey(reference2));
+    return baseline ? [
+      {
+        reference: reference2,
+        priceMin: baseline.legacy.min,
+        priceMax: baseline.legacy.max
+      }
+    ] : [];
+  });
+  const legacyKeys = new Set(
+    legacyRanges.map((range) => referenceKey(range.reference))
+  );
+  const comparisons = compareLegacyAndGovernedMaterialPrices({
+    legacyRanges,
+    snapshots: input.governedSnapshots.filter(
+      (snapshot) => legacyKeys.has(referenceKey(snapshot.reference))
+    )
+  }).map((comparison) => ({
+    reference: comparison.reference,
+    state: comparison.state,
+    differences: comparison.differences,
+    ...comparison.insufficiencyReason === void 0 ? {} : { insufficiencyReason: comparison.insufficiencyReason }
+  }));
+  const unsigned = {
+    version: "ev03-runtime-comparison-v1",
+    digestAlgorithm: "sha256",
+    baselineEvidenceDigest: input.baselineEvidence.evidenceDigest,
+    requestedPriceScope: input.requestedPriceScope,
+    requestedGeography: input.requestedGeography,
+    resolverAsOf: input.resolverAsOf.toISOString(),
+    comparisonRowCount: comparisons.length,
+    equalRowCount: comparisons.filter((row) => row.state === "equal").length,
+    differentRowCount: comparisons.filter((row) => row.state === "different").length,
+    insufficientRowCount: comparisons.filter(
+      (row) => row.state === "insufficient"
+    ).length,
+    comparisons
+  };
+  assertNoConfidentialFields(unsigned);
+  return { ...unsigned, comparisonDigest: sha256(unsigned) };
+}
+function assertGoldenMaterialPriceEquality(comparisons) {
+  const failures = comparisons.filter(
+    (comparison) => comparison.state !== "equal"
+  );
+  if (failures.length > 0) {
+    throw new Error(
+      `Governed material-price equality failed for ${failures.length}/${comparisons.length} eligible rows`
+    );
+  }
+}
+function assertMaterialPricingRolloutGate(gate) {
+  const effective = gate ?? { mode: "legacy" };
+  if (effective.mode === "legacy") return "legacy";
+  assertMaterialPricingComparisonEvidence(effective.evidence);
+  if (effective.mode === "compare") return "compare";
+  assertGoldenMaterialPriceEquality(effective.evidence.comparisons);
+  if (!/^user-approved:\d{4}-\d{2}-\d{2}:ev03-governed-cutover$/.test(
+    effective.cutoverApproval.reference
+  )) {
+    throw new Error(
+      "Governed material pricing requires explicit EV-03 cutover approval"
+    );
+  }
+  if (effective.cutoverApproval.approvedEvidenceDigest !== effective.evidence.evidenceDigest) {
+    throw new Error(
+      "Governed cutover approval does not bind the evidence SHA-256"
+    );
+  }
+  return "governed";
+}
+function loadMaterialPricingRolloutGate(environment = process.env) {
+  const mode = environment.MIYAR_EV03_PRICING_MODE ?? "legacy";
+  if (mode === "legacy") return { mode: "legacy" };
+  if (mode !== "compare" && mode !== "governed") {
+    throw new Error(`Unsupported MIYAR_EV03_PRICING_MODE: ${mode}`);
+  }
+  const inline = environment.MIYAR_EV03_ROLLOUT_EVIDENCE_JSON;
+  const evidencePath = environment.MIYAR_EV03_ROLLOUT_EVIDENCE_PATH;
+  const gzipBase64 = environment.MIYAR_EV03_ROLLOUT_EVIDENCE_GZIP_BASE64;
+  if ((inline ? 1 : 0) + (evidencePath ? 1 : 0) + (gzipBase64 ? 1 : 0) !== 1) {
+    throw new Error(
+      "EV-03 compare/governed mode requires exactly one rollout evidence source"
+    );
+  }
+  let serialized;
+  if (gzipBase64) {
+    const maxEncodedBytes = Math.ceil(EV03_MAX_ROLLOUT_EVIDENCE_COMPRESSED_BYTES / 3) * 4 + 4;
+    if (Buffer.byteLength(gzipBase64, "utf8") > maxEncodedBytes || gzipBase64.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(gzipBase64)) {
+      throw new Error(
+        "EV-03 compressed rollout evidence is not canonical bounded base64"
+      );
+    }
+    const compressed = Buffer.from(gzipBase64, "base64");
+    if (compressed.length === 0 || compressed.length > EV03_MAX_ROLLOUT_EVIDENCE_COMPRESSED_BYTES || compressed.toString("base64") !== gzipBase64) {
+      throw new Error(
+        "EV-03 compressed rollout evidence exceeds the compressed size limit"
+      );
+    }
+    let decompressed;
+    try {
+      decompressed = gunzipSync(compressed, {
+        maxOutputLength: EV03_MAX_ROLLOUT_EVIDENCE_DECOMPRESSED_BYTES
+      });
+    } catch {
+      throw new Error(
+        "EV-03 compressed rollout evidence is invalid or exceeds the decompressed size limit"
+      );
+    }
+    if (decompressed.length === 0 || decompressed.length > EV03_MAX_ROLLOUT_EVIDENCE_DECOMPRESSED_BYTES) {
+      throw new Error(
+        "EV-03 compressed rollout evidence exceeds the decompressed size limit"
+      );
+    }
+    try {
+      serialized = new TextDecoder("utf-8", { fatal: true }).decode(
+        decompressed
+      );
+    } catch {
+      throw new Error("EV-03 compressed rollout evidence is not valid UTF-8");
+    }
+  } else {
+    serialized = inline ?? readFileSync(evidencePath, { encoding: "utf8", flag: "r" });
+  }
+  let evidence;
+  try {
+    evidence = JSON.parse(serialized);
+  } catch {
+    throw new Error("EV-03 rollout evidence is not valid JSON");
+  }
+  assertMaterialPricingComparisonEvidence(evidence);
+  if (mode === "compare") return { mode, evidence };
+  return {
+    mode,
+    evidence,
+    cutoverApproval: {
+      reference: environment.MIYAR_EV03_GOVERNED_CUTOVER_APPROVAL_REF ?? "",
+      approvedEvidenceDigest: environment.MIYAR_EV03_GOVERNED_EVIDENCE_SHA256 ?? ""
+    }
+  };
+}
+
+// server/engines/material-pricing/material-resolution.ts
+var SAFE_SOURCE_LABEL = {
+  supplier_quote: "Organization supplier quote",
+  official_statistic: "Official statistic",
+  consultancy_benchmark: "Consultancy-derived benchmark",
+  market_observation: "Governed market-observation benchmark",
+  retail_sanity: "Retail sanity band",
+  assumption: "MIYAR assumption"
+};
+function resolveProjectMaterialPriceGeography(value) {
+  return typeof value === "string" && UAE_PRICE_GEOGRAPHIES.includes(value) ? value : "uae";
+}
+function attachPaintCoverageProfiles(snapshots, coverageProfiles) {
+  return snapshots.map((snapshot) => {
+    if (snapshot.state !== "resolved" || snapshot.unitBasis !== "per_litre") {
+      return snapshot;
+    }
+    const matches = coverageProfiles.filter(
+      (profile2) => profile2.productId === snapshot.productId && profile2.specId === snapshot.specificationId
+    );
+    if (matches.length === 0) {
+      return { ...snapshot, paintCoverageState: "fallback" };
+    }
+    if (matches.length > 1) {
+      return { ...snapshot, paintCoverageState: "invalid" };
+    }
+    const profile = matches[0];
+    const coverage = Number(profile.coverageM2PerLitrePerCoat);
+    const wastePct = Number(profile.wastePct);
+    const packSizes = profile.packSizesLitres.map(Number);
+    if (profile.lineageValid === false || profile.reviewedBy === null || profile.reviewedBy <= 0 || !(profile.reviewedAt instanceof Date) || !Number.isFinite(profile.reviewedAt.getTime()) || profile.reviewedAt.getTime() > new Date(snapshot.resolverAsOf).getTime() || !/^sha256:[a-f0-9]{64}$/i.test(profile.sourceDocumentDigest) || !profile.policyVersion.trim() || !Number.isFinite(coverage) || coverage <= 0 || !Number.isInteger(profile.coatCount) || profile.coatCount <= 0 || !Number.isFinite(wastePct) || wastePct < 0 || packSizes.length === 0 || packSizes.some((size) => !Number.isFinite(size) || size <= 0)) {
+      return { ...snapshot, paintCoverageState: "invalid" };
+    }
+    return {
+      ...snapshot,
+      paintCoverageState: "approved",
+      paintCoverageProfile: {
+        profileId: profile.id,
+        policyVersion: profile.policyVersion,
+        coverageM2PerLitrePerCoat: profile.coverageM2PerLitrePerCoat,
+        coatCount: profile.coatCount,
+        wastePct: profile.wastePct,
+        effectiveAt: profile.effectiveAt.toISOString(),
+        sourceDocumentDigest: profile.sourceDocumentDigest,
+        packSizesLitres: profile.packSizesLitres
+      }
+    };
+  });
+}
+function mapIdentity(row) {
+  const isLibrary = row.source === "material_library";
+  return {
+    ...row,
+    reference: { source: row.source, legacyId: row.legacyId },
+    canonicalCategory: isLibrary ? materialLibraryCategoryToCanonical(row.category) : materialCatalogCategoryToCanonical(row.category),
+    finishLevel: isLibrary ? materialLibraryTierToFinish(row.tier) : materialCatalogTierToFinish(row.tier),
+    unitBasis: normalizeUnitBasis(row.unit)
+  };
+}
+function specificationKey(input) {
+  return [
+    input.category,
+    input.finishLevel,
+    input.unitBasis,
+    input.geography
+  ].join("\0");
+}
+function insufficiency(input) {
+  return {
+    state: "insufficient",
+    policyVersion: MATERIAL_RESOLUTION_POLICY_VERSION,
+    reference: input.reference,
+    resolverAsOf: input.asOf.toISOString(),
+    requestedGeography: input.requestedGeography,
+    requestedPriceScope: input.priceScope,
+    reason: input.reason,
+    ...input.productId === void 0 ? {} : { productId: input.productId },
+    ...input.specificationId === void 0 ? {} : { specificationId: input.specificationId }
+  };
+}
+function mapResolverReason(reason4) {
+  return reason4;
+}
+function safeProvenance(input) {
+  return {
+    sourceLadderRung: input.sourceLadderRung,
+    sourceLabel: input.isLegacyScopeFallback ? "Legacy scope-unknown assumption" : SAFE_SOURCE_LABEL[input.sourceLadderRung],
+    provenancePolicyVersion: input.provenancePolicyVersion ?? "legacy_unknown",
+    benchmarkVersion: input.benchmarkVersion,
+    compatibilityFallback: input.isLegacyScopeFallback
+  };
+}
+function resolveMaterialPriceSnapshotsFromRows(input) {
+  if (!Number.isFinite(input.asOf.getTime())) {
+    throw new Error("Material resolution requires a valid explicit asOf clock");
+  }
+  const identityByReference = new Map(
+    input.identities.map((row) => [
+      `${row.source}:${row.legacyId}`,
+      mapIdentity(row)
+    ])
+  );
+  const specificationsByKey = /* @__PURE__ */ new Map();
+  for (const specification of input.specifications) {
+    const key = specificationKey(specification);
+    const rows = specificationsByKey.get(key) ?? [];
+    rows.push(specification);
+    specificationsByKey.set(key, rows);
+  }
+  const candidatesBySpecId = /* @__PURE__ */ new Map();
+  for (const candidate2 of input.candidates) {
+    const rows = candidatesBySpecId.get(candidate2.specId) ?? [];
+    rows.push(candidate2);
+    candidatesBySpecId.set(candidate2.specId, rows);
+  }
+  return input.references.map((reference2) => {
+    const identity = identityByReference.get(
+      `${reference2.source}:${reference2.legacyId}`
+    );
+    if (!identity || identity.productId === null) {
+      return insufficiency({
+        reference: reference2,
+        asOf: input.asOf,
+        requestedGeography: input.requestedGeography,
+        priceScope: input.priceScope,
+        reason: "identity_not_found"
+      });
+    }
+    if (identity.productOrgId !== null && identity.productOrgId !== input.organizationId) {
+      return insufficiency({
+        reference: reference2,
+        asOf: input.asOf,
+        requestedGeography: input.requestedGeography,
+        priceScope: input.priceScope,
+        reason: "identity_not_found"
+      });
+    }
+    if (identity.productCanonicalCategory !== identity.canonicalCategory) {
+      return insufficiency({
+        reference: reference2,
+        asOf: input.asOf,
+        requestedGeography: input.requestedGeography,
+        priceScope: input.priceScope,
+        reason: "identity_not_found"
+      });
+    }
+    if (identity.finishLevel === null) {
+      return insufficiency({
+        reference: reference2,
+        productId: identity.productId,
+        asOf: input.asOf,
+        requestedGeography: input.requestedGeography,
+        priceScope: input.priceScope,
+        reason: "unknown_finish_level"
+      });
+    }
+    if (identity.unitBasis === null) {
+      return insufficiency({
+        reference: reference2,
+        productId: identity.productId,
+        asOf: input.asOf,
+        requestedGeography: input.requestedGeography,
+        priceScope: input.priceScope,
+        reason: "unknown_unit_basis"
+      });
+    }
+    const productId = identity.productId;
+    const geographies = input.requestedGeography === "uae" ? ["uae"] : [input.requestedGeography, "uae"];
+    let lastReason = "specification_not_found";
+    let lastSpecificationId;
+    for (const geography of geographies) {
+      const specifications2 = specificationsByKey.get(
+        specificationKey({
+          category: identity.canonicalCategory,
+          finishLevel: identity.finishLevel,
+          unitBasis: identity.unitBasis,
+          geography
+        })
+      );
+      if (!specifications2 || specifications2.length === 0) continue;
+      lastSpecificationId = specifications2.length === 1 ? specifications2[0].id : void 0;
+      const resolutions = specifications2.map((specification) => ({
+        specification,
+        resolution: resolveGovernedMaterialValueFromCandidates(
+          {
+            specId: specification.id,
+            productId,
+            organizationId: input.organizationId,
+            priceScope: input.priceScope,
+            asOf: input.asOf,
+            allowLegacyUnknownScope: input.allowLegacyUnknownScope
+          },
+          candidatesBySpecId.get(specification.id) ?? []
+        )
+      }));
+      const ambiguous = resolutions.some(
+        (row) => row.resolution.status === "insufficient" && row.resolution.reason === "ambiguous_governed_value"
+      );
+      const resolved2 = resolutions.filter(
+        (row) => row.resolution.status === "resolved"
+      );
+      if (ambiguous || resolved2.length > 1) {
+        lastReason = "ambiguous_governed_value";
+        break;
+      }
+      if (resolved2.length === 1) {
+        const { specification, resolution } = resolved2[0];
+        return {
+          state: "resolved",
+          policyVersion: MATERIAL_RESOLUTION_POLICY_VERSION,
+          reference: reference2,
+          productId,
+          specificationId: specification.id,
+          benchmarkProposalId: resolution.value.benchmarkProposalId,
+          benchmarkVersionId: resolution.value.benchmarkVersionId,
+          resolverAsOf: input.asOf.toISOString(),
+          requestedGeography: input.requestedGeography,
+          resolvedGeography: resolution.value.geography,
+          usedUaeFallback: input.requestedGeography !== "uae" && resolution.value.geography === "uae",
+          requestedPriceScope: input.priceScope,
+          resolvedPriceScope: resolution.value.priceScope,
+          currency: "AED",
+          unitBasis: resolution.value.unitBasis,
+          priceMin: resolution.value.p25,
+          priceMid: resolution.value.p50,
+          priceMax: resolution.value.p75,
+          weightedMean: resolution.value.weightedMean,
+          provenance: safeProvenance(resolution.value)
+        };
+      }
+      const firstInsufficient = resolutions.find(
+        (row) => row.resolution.status === "insufficient"
+      );
+      if (firstInsufficient?.resolution.status === "insufficient") {
+        lastReason = mapResolverReason(firstInsufficient.resolution.reason);
+      }
+    }
+    return insufficiency({
+      reference: reference2,
+      productId,
+      specificationId: lastSpecificationId,
+      asOf: input.asOf,
+      requestedGeography: input.requestedGeography,
+      priceScope: input.priceScope,
+      reason: lastReason
+    });
+  });
+}
+async function resolveGovernedMaterialPriceSnapshots(input, options = { globalOnly: false }) {
+  const materialLibraryIds = input.references.filter((reference2) => reference2.source === "material_library").map((reference2) => reference2.legacyId);
+  const materialCatalogIds = input.references.filter((reference2) => reference2.source === "materials_catalog").map((reference2) => reference2.legacyId);
+  const identities = await (options.globalOnly ? listGlobalMaterialResolutionIdentities({
+    materialLibraryIds,
+    materialCatalogIds
+  }) : listMaterialResolutionIdentities({
+    materialLibraryIds,
+    materialCatalogIds
+  }));
+  const mapped = identities.map(mapIdentity);
+  const geographies = Array.from(
+    /* @__PURE__ */ new Set([input.requestedGeography, "uae"])
+  );
+  const specifications2 = await listMaterialResolutionSpecifications({
+    categories: Array.from(new Set(mapped.map((row) => row.canonicalCategory))),
+    finishLevels: Array.from(
+      new Set(
+        mapped.map((row) => row.finishLevel).filter((value) => value !== null)
+      )
+    ),
+    unitBases: Array.from(
+      new Set(
+        mapped.map((row) => row.unitBasis).filter((value) => value !== null)
+      )
+    ),
+    geographies
+  });
+  const candidates = await (options.globalOnly ? listGlobalGovernedValueCandidatesForSpecifications({
+    specIds: specifications2.map((specification) => specification.id)
+  }) : listGovernedValueCandidatesForSpecifications({
+    specIds: specifications2.map((specification) => specification.id),
+    organizationId: input.organizationId
+  }));
+  const snapshots = resolveMaterialPriceSnapshotsFromRows({
+    ...input,
+    identities,
+    specifications: specifications2,
+    candidates,
+    allowLegacyUnknownScope: input.allowLegacyUnknownScope === true
+  });
+  const litreSnapshots = snapshots.filter(
+    (snapshot) => snapshot.state === "resolved" && snapshot.unitBasis === "per_litre"
+  );
+  const coverageProfiles = await listApprovedPaintCoverageProfiles({
+    productIds: litreSnapshots.map(
+      (snapshot) => snapshot.state === "resolved" ? snapshot.productId : void 0
+    ).filter((productId) => productId !== void 0),
+    asOf: input.asOf
+  });
+  return attachPaintCoverageProfiles(snapshots, coverageProfiles);
+}
+function legacyCompatibilitySnapshots(input) {
+  const governedByReference = new Map(
+    input.governed.map((snapshot) => [
+      `${snapshot.reference.source}:${snapshot.reference.legacyId}`,
+      snapshot
+    ])
+  );
+  const legacyById = new Map(input.legacyRows.map((row) => [row.legacyId, row]));
+  return input.requested.map((reference2) => {
+    const governed = governedByReference.get(
+      `${reference2.source}:${reference2.legacyId}`
+    );
+    const legacy = reference2.source === "material_library" ? legacyById.get(reference2.legacyId) : void 0;
+    if (governed?.state === "insufficient" && governed.reason === "identity_not_found" && governed.productId === void 0) {
+      return governed;
+    }
+    if (!legacy) {
+      if (governed) return governed;
+      return insufficiency({
+        reference: reference2,
+        asOf: input.asOf,
+        requestedGeography: input.requestedGeography,
+        priceScope: input.priceScope,
+        reason: "no_governed_value"
+      });
+    }
+    const midpoint = exactDecimalMidpoint(legacy.priceMin, legacy.priceMax);
+    return {
+      state: "resolved",
+      policyVersion: MATERIAL_RESOLUTION_POLICY_VERSION,
+      reference: reference2,
+      productId: legacy.productId,
+      specificationId: legacy.specId,
+      benchmarkProposalId: legacy.benchmarkProposalId,
+      benchmarkVersionId: legacy.benchmarkVersionId,
+      resolverAsOf: input.asOf.toISOString(),
+      requestedGeography: input.requestedGeography,
+      resolvedGeography: legacy.geography,
+      usedUaeFallback: input.requestedGeography !== "uae" && legacy.geography === "uae",
+      requestedPriceScope: input.priceScope,
+      resolvedPriceScope: "legacy_unknown",
+      currency: "AED",
+      unitBasis: legacy.unitBasis,
+      priceMin: legacy.priceMin,
+      priceMid: midpoint,
+      priceMax: legacy.priceMax,
+      weightedMean: midpoint,
+      provenance: {
+        sourceLadderRung: "assumption",
+        sourceLabel: "Legacy scope-unknown assumption",
+        provenancePolicyVersion: legacy.provenancePolicyVersion ?? "ev02-backfill-v1",
+        benchmarkVersion: legacy.benchmarkVersion,
+        compatibilityFallback: true
+      },
+      ...governed?.state === "resolved" && governed.unitBasis === "per_litre" ? {
+        paintCoverageState: governed.paintCoverageState,
+        paintCoverageProfile: governed.paintCoverageProfile
+      } : {}
+    };
+  });
+}
+function assertLegacyServingRowsMatchBaseline(input) {
+  const evidenceByReference = new Map(
+    input.gate.evidence.comparisons.map((comparison) => [
+      `${comparison.reference.source}:${comparison.reference.legacyId}`,
+      comparison
+    ])
+  );
+  for (const row of input.legacyRows) {
+    const evidence = evidenceByReference.get(
+      `material_library:${row.legacyId}`
+    );
+    if (!evidence || evidence.legacy.min !== row.priceMin || evidence.legacy.max !== row.priceMax) {
+      throw new Error(
+        `EV-03 legacy baseline is stale for material_library:${row.legacyId}`
+      );
+    }
+  }
+}
+function recordSanitizedRuntimeComparison(evidence) {
+  console.info(`[ev03-material-pricing-compare] ${JSON.stringify(evidence)}`);
+}
+function selectMaterialPricingRolloutSnapshots(input) {
+  if (input.mode === "governed") return [...input.governed];
+  if (input.mode === "compare") {
+    if (input.gate?.mode !== "compare") {
+      throw new Error("EV-03 compare mode requires comparison evidence");
+    }
+    assertLegacyServingRowsMatchBaseline({
+      legacyRows: input.legacyRows,
+      gate: input.gate
+    });
+    const comparison = buildMaterialPricingRuntimeComparisonEvidence({
+      baselineEvidence: input.gate.evidence,
+      references: input.requested,
+      governedSnapshots: input.governed,
+      requestedPriceScope: input.priceScope,
+      requestedGeography: input.requestedGeography,
+      resolverAsOf: input.asOf
+    });
+    (input.recordComparison ?? recordSanitizedRuntimeComparison)(comparison);
+  }
+  return legacyCompatibilitySnapshots(input);
+}
+async function resolveMaterialPriceSnapshots(input) {
+  const effectiveGate = input.rollout ?? loadMaterialPricingRolloutGate();
+  const mode = assertMaterialPricingRolloutGate(effectiveGate);
+  const liveEligibleRows = mode === "legacy" ? void 0 : await listLegacyCompatibilityPriceRows();
+  if (mode !== "legacy") {
+    if (effectiveGate.mode === "legacy") {
+      throw new Error("EV-03 rollout gate mode changed during validation");
+    }
+    assertMaterialPricingEvidenceMatchesLiveEligibleSet(
+      effectiveGate.evidence,
+      liveEligibleRows.map((row) => ({
+        reference: {
+          source: "material_library",
+          legacyId: row.legacyId
+        },
+        priceMin: row.priceMin,
+        priceMax: row.priceMax
+      }))
+    );
+  }
+  const governed = await resolveGovernedMaterialPriceSnapshots(input);
+  if (mode === "governed") {
+    if (effectiveGate.mode !== "governed") {
+      throw new Error("EV-03 governed gate changed during validation");
+    }
+    assertGovernedSnapshotsMatchApprovedEvidence(
+      effectiveGate.evidence,
+      governed
+    );
+    return governed;
+  }
+  const materialLibraryIds = input.references.filter((reference2) => reference2.source === "material_library").map((reference2) => reference2.legacyId);
+  const legacyRows = liveEligibleRows ?? await listLegacyCompatibilityPriceRows(materialLibraryIds);
+  return selectMaterialPricingRolloutSnapshots({
+    mode,
+    gate: effectiveGate,
+    requested: input.references,
+    governed,
+    legacyRows,
+    requestedGeography: input.requestedGeography,
+    priceScope: input.priceScope,
+    asOf: input.asOf,
+    recordComparison: input.recordComparison
+  });
 }
 
 // server/engines/design-brief.ts
@@ -23131,14 +26109,7 @@ var TIER_MATERIAL_TYPES = {
   "Luxury": ["stone", "glass", "steel", "wood"],
   "Ultra-luxury": ["stone", "glass", "steel", "aluminum", "wood"]
 };
-var TIER_PREMIUM_PCT = {
-  "Entry": 0,
-  "Mid": 3,
-  "Upper-mid": 8,
-  "Luxury": 18,
-  "Ultra-luxury": 30
-};
-function generateDesignBrief2(project, inputs, scoreResult, livePricing, materialConstants2, areaSalePricePerSqm, projectPurpose, floorPlanAnalysis, spaceBenchmark, mqiData) {
+function generateDesignBrief2(project, inputs, scoreResult, _legacyPricing, materialConstants2, areaSalePricePerSqm, projectPurpose, floorPlanAnalysis, spaceBenchmark, mqiData) {
   const style = inputs.des01Style || "Modern";
   const tier = inputs.mkt01Tier || "Upper-mid";
   const mood = STYLE_MOOD_MAP[style] || STYLE_MOOD_MAP.Other;
@@ -23162,15 +26133,7 @@ function generateDesignBrief2(project, inputs, scoreResult, livePricing, materia
   const budget = inputs.fin01BudgetCap ? Number(inputs.fin01BudgetCap) : null;
   const totalBudgetCap = budget && gfa ? budget * gfa : null;
   let costBand = "Standard (Fit-out)";
-  let dynamicCostPerSqm = null;
-  if (livePricing && Object.keys(livePricing).length > 0) {
-    const totalPerSqm = Object.values(livePricing).reduce((sum, cp) => sum + cp.weightedMean, 0);
-    dynamicCostPerSqm = totalPerSqm;
-    if (totalPerSqm > 8e3) costBand = "Ultra-Premium Luxury (Indicative benchmark estimate)";
-    else if (totalPerSqm > 4500) costBand = "Premium High-End (Indicative benchmark estimate)";
-    else if (totalPerSqm > 2500) costBand = "Upper-Standard Modern (Indicative benchmark estimate)";
-    else costBand = "Standard Fit-out (Indicative benchmark estimate)";
-  } else if (budget) {
+  if (budget) {
     if (budget > 8e3) costBand = "Ultra-Premium Luxury";
     else if (budget > 4500) costBand = "Premium High-End";
     else if (budget > 2500) costBand = "Upper-Standard Modern";
@@ -23237,40 +26200,9 @@ function generateDesignBrief2(project, inputs, scoreResult, livePricing, materia
   veNotes.push("Continuously evaluate sub-contractor BOQs against the MIYAR budget cap during the tender phase.");
   if (gfa && gfa > 2e3) veNotes.push("Leverage the large floor plate for bulk discount negotiations on flooring and ceiling tiles.");
   const distroList = BOQ_DISTRIBUTION[inputs.ctx01Typology] || BOQ_DISTRIBUTION.Commercial;
-  const boqToEvidenceCat = {
-    "Civil & MEP Works (Flooring, Ceilings, Partitions)": ["floors", "ceilings", "walls"],
-    "Civil & MEP Works (Partitions, HVAC, Data)": ["floors", "ceilings", "walls"],
-    "Civil & MEP Works": ["floors", "ceilings", "walls"],
-    "Fixed Joinery (Kitchens, Wardrobes, Doors)": ["joinery"],
-    "Feature Joinery & Reception": ["joinery"],
-    "Fixed Joinery & Millwork": ["joinery"],
-    "Sanitaryware & Wet Areas": ["sanitary"],
-    "Sanitaryware & Specialized Equipment": ["sanitary"],
-    "Pantry & Washrooms": ["sanitary", "kitchen"],
-    "FF&E (Loose Furniture, Lighting, Art)": ["ffe", "lighting"],
-    "FF&E (Custom Furniture, Drapery, Rugs)": ["ffe", "lighting"],
-    "Workstations & Loose Furniture": ["ffe"]
-  };
   const coreAllocations = distroList.map((d) => {
     let estCostStr = "TBD";
-    let usedLive = false;
-    if (livePricing && gfa) {
-      const mappedCats = boqToEvidenceCat[d.category] || [];
-      let catSqmCost = 0;
-      let matched = 0;
-      for (const ec of mappedCats) {
-        if (livePricing[ec]) {
-          catSqmCost += livePricing[ec].weightedMean;
-          matched++;
-        }
-      }
-      if (matched > 0) {
-        const catTotal = catSqmCost * gfa;
-        estCostStr = `AED ${Math.round(catTotal).toLocaleString()} (indicative benchmark estimate)`;
-        usedLive = true;
-      }
-    }
-    if (!usedLive && totalBudgetCap) {
+    if (totalBudgetCap) {
       const catTotal = d.percentage / 100 * totalBudgetCap;
       estCostStr = `AED ${Math.round(catTotal).toLocaleString()}`;
     }
@@ -23278,77 +26210,59 @@ function generateDesignBrief2(project, inputs, scoreResult, livePricing, materia
       category: d.category,
       percentage: d.percentage,
       estimatedCostLabel: estCostStr,
-      notes: usedLive ? `${d.notes} [Pricing basis: configured benchmark observations; verify source and observation date before use]` : d.notes
+      notes: d.notes
     };
   });
-  let pricingAnalytics;
+  let sustainabilityAnalytics;
   if (materialConstants2 && materialConstants2.length > 0 && gfa) {
-    const constLookup = new Map(materialConstants2.map((c) => [c.materialType, c]));
+    const constLookup = new Map(
+      materialConstants2.flatMap((c) => {
+        const carbonIntensity = Number(c.carbonIntensity);
+        const maintenanceFactor = Number(c.maintenanceFactor);
+        if (c.carbonIntensity === "" || c.maintenanceFactor === "" || !Number.isFinite(carbonIntensity) || carbonIntensity < 0 || !Number.isFinite(maintenanceFactor) || maintenanceFactor <= 0) {
+          return [];
+        }
+        return [[
+          c.materialType,
+          { carbonIntensity, maintenanceFactor }
+        ]];
+      })
+    );
     const tierTypes = TIER_MATERIAL_TYPES[tier] || TIER_MATERIAL_TYPES["Upper-mid"];
     const matchedTypes = tierTypes.filter((t2) => constLookup.has(t2));
-    const sqmPerType = matchedTypes.length > 0 ? gfa / matchedTypes.length : 0;
-    let totalCostAed = 0;
+    const sqmPerType = tierTypes.length > 0 ? gfa / tierTypes.length : 0;
+    const matchedAreaM2 = sqmPerType * matchedTypes.length;
     let totalCarbonKg = 0;
     let weightedMaintenanceSum = 0;
     const materialBreakdown = [];
     for (const mt of matchedTypes) {
       const c = constLookup.get(mt);
-      const costPerSqm = Number(c.costPerM2 ?? 0);
-      const carbonIntensity = Number(c.carbonIntensity ?? 0);
-      const maintenanceFactor = Number(c.maintenanceFactor ?? 3);
-      const lineCost = costPerSqm * sqmPerType;
+      const { carbonIntensity, maintenanceFactor } = c;
       const lineCarbonKg = carbonIntensity * sqmPerType;
-      totalCostAed += lineCost;
       totalCarbonKg += lineCarbonKg;
       weightedMaintenanceSum += maintenanceFactor * sqmPerType;
       materialBreakdown.push({
         materialType: mt,
         allocatedSqm: Math.round(sqmPerType),
-        costPerSqm,
-        lineCostAed: Math.round(lineCost),
+        carbonIntensityKgPerM2: carbonIntensity,
         carbonKg: Math.round(lineCarbonKg),
         maintenanceFactor
       });
     }
-    const costPerSqmAvg = matchedTypes.length > 0 ? totalCostAed / gfa : 0;
-    const avgMaintenanceFactor = gfa > 0 && matchedTypes.length > 0 ? weightedMaintenanceSum / gfa : 3;
-    const avgCarbonPerSqm = gfa > 0 ? totalCarbonKg / gfa : 0;
-    const sustainabilityGrade = avgCarbonPerSqm < 30 ? "A" : avgCarbonPerSqm < 60 ? "B" : avgCarbonPerSqm < 100 ? "C" : avgCarbonPerSqm < 150 ? "D" : "E";
-    const designPremiumPct = TIER_PREMIUM_PCT[tier] ?? 8;
-    const baseSalePrice = areaSalePricePerSqm ?? 25e3;
-    const salePriceSource = areaSalePricePerSqm ? "dld_transactions" : "hardcoded_fallback";
-    const designPremiumAed = Math.round(gfa * baseSalePrice * designPremiumPct / 100);
-    const fitoutRatio = baseSalePrice > 0 ? costPerSqmAvg / baseSalePrice : null;
-    const FITOUT_RATIOS = {
-      "Mid": { min: 0.08, max: 0.12 },
-      "Upper-mid": { min: 0.12, max: 0.18 },
-      "Luxury": { min: 0.18, max: 0.28 },
-      "Ultra-luxury": { min: 0.25, max: 0.35 }
-    };
-    const ratioLimits = FITOUT_RATIOS[tier] ?? { min: 0.12, max: 0.18 };
-    let overSpecWarning = null;
-    if (fitoutRatio !== null) {
-      if (fitoutRatio > ratioLimits.max) {
-        overSpecWarning = `\u26A0\uFE0F Fitout at ${(fitoutRatio * 100).toFixed(0)}% of sale price exceeds ${tier} norm of ${ratioLimits.max * 100}%. Consider reducing specification.`;
-      } else if (fitoutRatio < ratioLimits.min) {
-        overSpecWarning = `\u26A0\uFE0F Fitout at ${(fitoutRatio * 100).toFixed(0)}% of sale price is below ${tier} minimum of ${ratioLimits.min * 100}%. May not meet buyer expectations.`;
-      }
+    if (matchedAreaM2 > 0) {
+      const avgMaintenanceFactor = weightedMaintenanceSum / matchedAreaM2;
+      const avgCarbonPerSqm = totalCarbonKg / matchedAreaM2;
+      const sustainabilityGrade = avgCarbonPerSqm < 30 ? "A" : avgCarbonPerSqm < 60 ? "B" : avgCarbonPerSqm < 100 ? "C" : avgCarbonPerSqm < 150 ? "D" : "E";
+      sustainabilityAnalytics = {
+        totalCarbonKg: Math.round(totalCarbonKg),
+        avgCarbonIntensityKgPerM2: Math.round(avgCarbonPerSqm * 10) / 10,
+        avgMaintenanceFactor: Math.round(avgMaintenanceFactor * 10) / 10,
+        sustainabilityGrade,
+        coveragePct: Math.round(matchedTypes.length / tierTypes.length * 100),
+        materialBreakdown,
+        sustainabilitySource: "material_constants"
+      };
     }
-    pricingAnalytics = {
-      costPerSqmAvg: Math.round(costPerSqmAvg),
-      totalFitoutCostAed: Math.round(totalCostAed),
-      totalCarbonKg: Math.round(totalCarbonKg),
-      avgMaintenanceFactor: Math.round(avgMaintenanceFactor * 10) / 10,
-      sustainabilityGrade,
-      materialBreakdown,
-      pricingSource: "material_constants",
-      designPremiumAed,
-      designPremiumPct,
-      fitoutRatio,
-      overSpecWarning,
-      salePriceSource,
-      areaSalePricePerSqm: baseSalePrice
-    };
   }
   return {
     projectIdentity: {
@@ -23383,10 +26297,10 @@ function generateDesignBrief2(project, inputs, scoreResult, livePricing, materia
       coreAllocations
     },
     detailedBudget: {
-      costPerSqmTarget: dynamicCostPerSqm ? `AED ${Math.round(dynamicCostPerSqm).toLocaleString()}/sqm (indicative benchmark estimate)` : budget ? `AED ${budget.toLocaleString()}/sqm` : "Not specified",
+      costPerSqmTarget: budget ? `AED ${budget.toLocaleString()}/sqm` : "Not specified",
       totalBudgetCap: totalBudgetCap ? `AED ${totalBudgetCap.toLocaleString()}` : "Not specified",
       costBand,
-      costBasis: dynamicCostPerSqm !== null ? "configured_benchmarks" : budget ? "budget_cap" : "static_default",
+      costBasis: budget ? "budget_cap" : "static_default",
       flexibilityLevel: flexMap[inputs.fin02Flexibility] || flexMap[3],
       contingencyRecommendation: inputs.fin03ShockTolerance <= 2 ? "Allocate 15-20% Contractor Contingency" : "Allocate 10% Contractor Contingency",
       valueEngineeringMandates: veNotes
@@ -23425,7 +26339,7 @@ function generateDesignBrief2(project, inputs, scoreResult, livePricing, materia
         importDependencies: importDeps
       }
     },
-    pricingAnalytics,
+    sustainabilityAnalytics,
     // Phase 9: Space allocation section
     ...floorPlanAnalysis && spaceBenchmark ? {
       spaceAllocation: {
@@ -23590,7 +26504,7 @@ async function storageDelete(relKey) {
 }
 
 // server/routers/project.ts
-import { nanoid as nanoid3 } from "nanoid";
+import { nanoid as nanoid4 } from "nanoid";
 
 // shared/project-readiness.ts
 var INPUT_PROVENANCE_STATUSES = ["explicit", "assumed", "ai_suggested", "confirmed"];
@@ -24728,13 +27642,13 @@ async function generateInsights(input, options = {}) {
 init_db();
 init_llm();
 init_schema();
-import { eq as eq3, desc as desc2 } from "drizzle-orm";
+import { eq as eq4, desc as desc2 } from "drizzle-orm";
 async function generateAutonomousDesignBrief(projectId, locale = "en") {
   const db = await getDb();
   if (!db) throw new Error("Database not connected");
-  const [project] = await db.select().from(projects).where(eq3(projects.id, projectId));
+  const [project] = await db.select().from(projects).where(eq4(projects.id, projectId));
   if (!project) throw new Error("Project not found");
-  const scoreRecords = await db.select().from(scoreMatrices).where(eq3(scoreMatrices.projectId, projectId)).orderBy(desc2(scoreMatrices.computedAt)).limit(1);
+  const scoreRecords = await db.select().from(scoreMatrices).where(eq4(scoreMatrices.projectId, projectId)).orderBy(desc2(scoreMatrices.computedAt)).limit(1);
   const scores = scoreRecords[0] || null;
   const systemPrompt = `
 You are an expert real estate development consultant and interior design strategist for MIYAR.
@@ -24816,7 +27730,7 @@ init_ai_operation();
 
 // server/_core/media-validation.ts
 init_ai_operation();
-import { createHash as createHash3 } from "node:crypto";
+import { createHash as createHash4 } from "node:crypto";
 import sharp from "sharp";
 var MAX_MEDIA_BYTES = 50 * 1024 * 1024;
 var MAX_IMAGE_PIXELS = 4e7;
@@ -24909,7 +27823,7 @@ async function validateMediaBuffer(buffer, declaredMimeType, operation) {
     mimeType,
     kind,
     sizeBytes: buffer.length,
-    checksum: createHash3("sha256").update(buffer).digest("hex")
+    checksum: createHash4("sha256").update(buffer).digest("hex")
   };
 }
 function mediaTypeFromMime(mimeType) {
@@ -24930,7 +27844,770 @@ async function readValidatedProjectMedia(asset, operation) {
   }
 }
 
+// server/routers/design-boards.ts
+import { TRPCError as TRPCError8 } from "@trpc/server";
+import { nanoid as nanoid3 } from "nanoid";
+import { z as z4 } from "zod";
+
+// server/_core/design-resource-access.ts
+init_db();
+import { TRPCError as TRPCError7 } from "@trpc/server";
+var notFound2 = () => {
+  throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+};
+function requireDesignProject(projectId, orgId) {
+  return requireProjectForOrg(projectId, orgId);
+}
+function requireDesignAsset(assetId, orgId) {
+  return requireProjectResourceForOrg(assetId, orgId, {
+    lookupResource: getProjectAssetById,
+    getProjectId: (asset) => asset.projectId
+  });
+}
+function requireDesignBrief(briefId, orgId) {
+  return requireProjectResourceForOrg(briefId, orgId, {
+    lookupResource: getDesignBriefById,
+    getProjectId: (brief) => brief.projectId
+  });
+}
+function requireDesignVisual(visualId, orgId) {
+  return requireProjectResourceForOrg(visualId, orgId, {
+    lookupResource: getGeneratedVisualById,
+    getProjectId: (visual) => visual.projectId
+  });
+}
+function requireDesignBoard(boardId, orgId) {
+  return requireProjectResourceForOrg(boardId, orgId, {
+    lookupResource: getMaterialBoardById,
+    getProjectId: (board) => board.projectId
+  });
+}
+function requireDesignBoardJoin(joinId, orgId) {
+  return requireNestedProjectResourceForOrg(joinId, orgId, {
+    lookupResource: getMaterialToBoardById,
+    getParentId: (join) => join.boardId,
+    lookupParent: getMaterialBoardById,
+    getProjectId: (board) => board.projectId
+  });
+}
+function requireDesignScenario(scenarioId, orgId) {
+  return requireProjectOrgResourceForOrg(scenarioId, orgId, {
+    lookupResource: getScenarioById,
+    getProjectId: (scenario) => scenario.projectId,
+    getOrgId: (scenario) => scenario.orgId
+  });
+}
+function requireDesignReport(reportId, orgId) {
+  return requireProjectResourceForOrg(reportId, orgId, {
+    lookupResource: getReportById,
+    getProjectId: (report) => report.projectId
+  });
+}
+function requireDesignEvaluation(evaluationId, orgId) {
+  return requireProjectResourceForOrg(evaluationId, orgId, {
+    lookupResource: getScoreMatrixById,
+    getProjectId: (evaluation) => evaluation.projectId
+  });
+}
+function requireDesignPromptTemplate(templateId, orgId) {
+  return requireOrgResourceForOrg(templateId, orgId, {
+    lookupResource: getPromptTemplateById,
+    getOrgId: (template) => template.orgId
+  });
+}
+function requireDesignAssetLink(linkId, orgId) {
+  return requireNestedProjectResourceForOrg(linkId, orgId, {
+    lookupResource: getAssetLinkById,
+    getParentId: (link) => link.assetId,
+    lookupParent: getProjectAssetById,
+    getProjectId: (asset) => asset.projectId
+  });
+}
+var requireDesignLinkTarget = createPolymorphicResourceAuthorizer({
+  evaluation: requireDesignEvaluation,
+  report: requireDesignReport,
+  scenario: requireDesignScenario,
+  material_board: requireDesignBoard,
+  design_brief: requireDesignBrief,
+  visual: requireDesignVisual
+});
+var requireDesignCommentTarget = createPolymorphicResourceAuthorizer({
+  design_brief: requireDesignBrief,
+  material_board: requireDesignBoard,
+  visual: requireDesignVisual
+});
+function requireSameDesignProject(expectedProjectId, actualProjectId) {
+  if (expectedProjectId !== actualProjectId) {
+    return notFound2();
+  }
+}
+function requireScopedDesignMutation(succeeded) {
+  if (!succeeded) {
+    return notFound2();
+  }
+}
+function requireScopedDesignInsert(value) {
+  if (value === null || value === void 0) {
+    return notFound2();
+  }
+  return value;
+}
+async function requireMatchingDesignScenario(scenarioId, projectId, orgId) {
+  if (scenarioId === null || scenarioId === void 0) return;
+  const scenario = await requireDesignScenario(scenarioId, orgId);
+  requireSameDesignProject(projectId, scenario.project.id);
+}
+
+// server/routers/design-boards.ts
+init_db();
+init_quantity_policy();
+
+// server/routers/design-router-shared.ts
+init_db();
+async function bestEffortAudit(data) {
+  try {
+    await createAuditLog(data);
+  } catch {
+  }
+}
+function projectToInputs(p) {
+  return {
+    ctx01Typology: p.ctx01Typology ?? "Residential",
+    ctx02Scale: p.ctx02Scale ?? "Medium",
+    ctx03Gfa: p.ctx03Gfa ? Number(p.ctx03Gfa) : null,
+    totalFitoutArea: p.totalFitoutArea ? Number(p.totalFitoutArea) : null,
+    ctx04Location: p.ctx04Location ?? "Secondary",
+    ctx05Horizon: p.ctx05Horizon ?? "12-24m",
+    str01BrandClarity: p.str01BrandClarity ?? 3,
+    str02Differentiation: p.str02Differentiation ?? 3,
+    str03BuyerMaturity: p.str03BuyerMaturity ?? 3,
+    mkt01Tier: p.mkt01Tier ?? "Upper-mid",
+    mkt02Competitor: p.mkt02Competitor ?? 3,
+    mkt03Trend: p.mkt03Trend ?? 3,
+    fin01BudgetCap: p.fin01BudgetCap ? Number(p.fin01BudgetCap) : null,
+    fin02Flexibility: p.fin02Flexibility ?? 3,
+    fin03ShockTolerance: p.fin03ShockTolerance ?? 3,
+    fin04SalesPremium: p.fin04SalesPremium ?? 3,
+    des01Style: p.des01Style ?? "Modern",
+    des02MaterialLevel: p.des02MaterialLevel ?? 3,
+    des03Complexity: p.des03Complexity ?? 3,
+    des04Experience: p.des04Experience ?? 3,
+    des05Sustainability: p.des05Sustainability ?? 2,
+    exe01SupplyChain: p.exe01SupplyChain ?? 3,
+    exe02Contractor: p.exe02Contractor ?? 3,
+    exe03Approvals: p.exe03Approvals ?? 2,
+    exe04QaMaturity: p.exe04QaMaturity ?? 3,
+    add01SampleKit: p.add01SampleKit ?? false,
+    add02PortfolioMode: p.add02PortfolioMode ?? false,
+    add03DashboardExport: p.add03DashboardExport ?? true,
+    city: p.city ?? "Dubai",
+    sustainCertTarget: p.sustainCertTarget || "silver"
+  };
+}
+
+// server/routers/design-boards.ts
+function normalizeBoardQuantityUnit(value) {
+  const normalized = value?.trim().toLowerCase().replace(/\s+/g, "_");
+  switch (normalized) {
+    case "sqm":
+    case "m2":
+    case "m\xB2":
+    case "square_metre":
+    case "square_meter":
+      return "sqm";
+    case "lm":
+    case "linear_metre":
+    case "linear_meter":
+      return "lm";
+    case "piece":
+    case "pieces":
+    case "pc":
+    case "pcs":
+    case "unit":
+    case "units":
+    case "set":
+    case "sets":
+      return "piece";
+    case "pack":
+    case "packs":
+      return "pack";
+    case "litre":
+    case "litres":
+    case "liter":
+    case "liters":
+    case "l":
+      return "litre";
+    default:
+      return void 0;
+  }
+}
+function buildGovernedBoardSummary(input) {
+  const snapshotByMaterialId = new Map(
+    input.snapshots.map((snapshot) => [
+      snapshot.reference.source === "materials_catalog" ? snapshot.reference.legacyId : -1,
+      snapshot
+    ])
+  );
+  const resolverClocks = new Set(
+    input.snapshots.map((snapshot) => snapshot.resolverAsOf)
+  );
+  if (resolverClocks.size > 1) {
+    throw new Error("Board summary requires one resolver clock");
+  }
+  const reasons = {};
+  let pricedItemCount = 0;
+  let totalMin = 0;
+  let totalMid = 0;
+  let totalMax = 0;
+  const lines = input.rows.map((row) => {
+    const snapshot = snapshotByMaterialId.get(row.materialId);
+    let reason4 = null;
+    let quantity = null;
+    let quantityUnit = null;
+    let lineMin = null;
+    let lineMid = null;
+    let lineMax = null;
+    if (!snapshot) {
+      reason4 = "identity_not_found";
+    } else if (snapshot.state === "insufficient") {
+      reason4 = snapshot.reason;
+    } else if (snapshot.requestedPriceScope !== "supply_only") {
+      reason4 = "no_governed_value";
+    } else {
+      const explicitQuantity = Number(row.quantity);
+      const explicitQuantityUnit = normalizeBoardQuantityUnit(
+        row.unitOfMeasure
+      );
+      const quantityResolution = resolveQuantityForUnitBasis({
+        unitBasis: snapshot.unitBasis,
+        surfaceAreaM2: explicitQuantityUnit === "sqm" ? explicitQuantity : void 0,
+        explicitQuantity: Number.isFinite(explicitQuantity) && explicitQuantity > 0 ? explicitQuantity : void 0,
+        explicitQuantityUnit,
+        paintCoverageState: snapshot.paintCoverageState,
+        paintCoverageProfile: snapshot.paintCoverageProfile ? { status: "approved", ...snapshot.paintCoverageProfile } : void 0,
+        asOf: new Date(snapshot.resolverAsOf)
+      });
+      if (quantityResolution.state === "insufficient") {
+        reason4 = quantityResolution.reason;
+      } else {
+        const paintPurchase = quantityResolution.quantityUnit === "litre" ? roundUpToPaintPacks(
+          quantityResolution.quantity,
+          snapshot.paintCoverageProfile?.packSizesLitres ?? []
+        ) : null;
+        quantity = paintPurchase?.purchasedLitres ?? quantityResolution.quantity;
+        quantityUnit = quantityResolution.quantityUnit;
+        const priceMin = Number(snapshot.priceMin);
+        const priceMid = Number(snapshot.priceMid);
+        const priceMax = Number(snapshot.priceMax);
+        if (!Number.isFinite(priceMin) || !Number.isFinite(priceMid) || !Number.isFinite(priceMax) || priceMin <= 0 || priceMid <= 0 || priceMax <= 0) {
+          reason4 = "no_governed_value";
+        } else {
+          lineMin = Number((quantity * priceMin).toFixed(2));
+          lineMid = Number((quantity * priceMid).toFixed(2));
+          lineMax = Number((quantity * priceMax).toFixed(2));
+          totalMin += lineMin;
+          totalMid += lineMid;
+          totalMax += lineMax;
+          pricedItemCount += 1;
+        }
+      }
+    }
+    if (reason4) reasons[reason4] = (reasons[reason4] ?? 0) + 1;
+    return {
+      boardJoinId: row.id,
+      materialId: row.materialId,
+      state: reason4 ? "insufficient" : "resolved",
+      reason: reason4,
+      productId: snapshot?.state === "resolved" ? snapshot.productId : null,
+      specificationId: snapshot?.state === "resolved" ? snapshot.specificationId : null,
+      quantity,
+      quantityUnit,
+      totalAedMin: lineMin,
+      totalAedMid: lineMid,
+      totalAedMax: lineMax,
+      requestedGeography: snapshot?.requestedGeography ?? null,
+      resolvedGeography: snapshot?.state === "resolved" ? snapshot.resolvedGeography : null,
+      resolvedPriceScope: snapshot?.state === "resolved" ? snapshot.resolvedPriceScope : null,
+      presentationProvenance: snapshot?.state === "resolved" ? snapshot.provenance : null
+    };
+  });
+  const insufficientItemCount = input.rows.length - pricedItemCount;
+  const complete = input.rows.length > 0 && insufficientItemCount === 0;
+  return {
+    priceScope: "supply_only",
+    resolverAsOf: resolverClocks.size === 1 ? Array.from(resolverClocks)[0] : null,
+    coverage: {
+      state: input.rows.length === 0 || pricedItemCount === 0 ? "insufficient" : complete ? "complete" : "partial",
+      totalItemCount: input.rows.length,
+      pricedItemCount,
+      insufficientItemCount,
+      reasons
+    },
+    totalAedMin: complete ? Number(totalMin.toFixed(2)) : null,
+    totalAedMid: complete ? Number(totalMid.toFixed(2)) : null,
+    totalAedMax: complete ? Number(totalMax.toFixed(2)) : null,
+    lines
+  };
+}
+var designBoardsRouter = router({
+  pinVisualToBoard: designOrgMutationProcedure.input(
+    z4.object({
+      visualId: z4.number(),
+      boardId: z4.number()
+    })
+  ).mutation(async ({ ctx, input }) => {
+    const { resource: visual, project: visualProject } = await requireDesignVisual(input.visualId, ctx.orgId);
+    if (!visual || !visual.imageAssetId) {
+      throw new TRPCError8({
+        code: "NOT_FOUND",
+        message: "Visual not found or has no image"
+      });
+    }
+    const { project: boardProject } = await requireDesignBoard(
+      input.boardId,
+      ctx.orgId
+    );
+    const { project: assetProject } = await requireDesignAsset(
+      visual.imageAssetId,
+      ctx.orgId
+    );
+    requireSameDesignProject(visualProject.id, boardProject.id);
+    requireSameDesignProject(visualProject.id, assetProject.id);
+    const link = requireScopedDesignInsert(
+      await createAssetLinkForOrg(
+        {
+          assetId: visual.imageAssetId,
+          linkType: "material_board",
+          linkId: input.boardId
+        },
+        ctx.orgId
+      )
+    );
+    await createAuditLog({
+      orgId: ctx.orgId,
+      userId: ctx.user.id,
+      action: "visual.pin_to_board",
+      entityType: "generated_visual",
+      entityId: visual.id,
+      details: { boardId: input.boardId, linkId: link.id }
+    });
+    return { success: true, linkId: link.id };
+  }),
+  listPinnedVisuals: orgProcedure.input(z4.object({ boardId: z4.number() })).query(async ({ ctx, input }) => {
+    const { project: boardProject } = await requireDesignBoard(
+      input.boardId,
+      ctx.orgId
+    );
+    const links = await getAssetLinksByEntity(
+      "material_board",
+      input.boardId
+    );
+    const pinned = await Promise.all(
+      links.map(
+        async (link) => {
+          const { resource: asset, project: assetProject } = await requireDesignAsset(link.assetId, ctx.orgId);
+          requireSameDesignProject(boardProject.id, assetProject.id);
+          return {
+            linkId: link.id,
+            assetId: link.assetId,
+            imageUrl: asset?.storageUrl ?? null,
+            fileName: asset?.filename ?? null,
+            pinnedAt: link.createdAt
+          };
+        }
+      )
+    );
+    return pinned;
+  }),
+  unpinVisual: designOrgMutationProcedure.input(z4.object({ linkId: z4.number() })).mutation(async ({ ctx, input }) => {
+    const authorizedLink = await requireDesignAssetLink(
+      input.linkId,
+      ctx.orgId
+    );
+    if (authorizedLink.resource.linkType !== "material_board") {
+      throw new TRPCError8({
+        code: "NOT_FOUND",
+        message: "Resource not found"
+      });
+    }
+    const target = await requireDesignLinkTarget(
+      authorizedLink.resource.linkType,
+      authorizedLink.resource.linkId,
+      ctx.orgId
+    );
+    requireSameDesignProject(
+      authorizedLink.project.id,
+      target.value.project.id
+    );
+    requireScopedDesignMutation(
+      await deleteAssetLinkForOrg(input.linkId, ctx.orgId)
+    );
+    await createAuditLog({
+      orgId: ctx.orgId,
+      userId: ctx.user.id,
+      action: "visual.unpin_from_board",
+      entityType: "asset_link",
+      entityId: input.linkId
+    });
+    return { success: true };
+  }),
+  createBoard: designOrgMutationProcedure.input(
+    z4.object({
+      projectId: z4.number(),
+      boardName: z4.string(),
+      scenarioId: z4.number().optional(),
+      materialIds: z4.array(z4.number()).optional()
+    })
+  ).mutation(async ({ ctx, input }) => {
+    const project = await requireDesignProject(input.projectId, ctx.orgId);
+    if (input.scenarioId !== void 0) {
+      const scenario = await requireDesignScenario(
+        input.scenarioId,
+        ctx.orgId
+      );
+      requireSameDesignProject(project.id, scenario.project.id);
+    }
+    const materialIds = input.materialIds ?? [];
+    if (new Set(materialIds).size !== materialIds.length) {
+      throw new TRPCError8({
+        code: "BAD_REQUEST",
+        message: "Duplicate material IDs are not allowed"
+      });
+    }
+    const boardResult = requireScopedDesignInsert(
+      await createMaterialBoardWithMaterialsForOrg(
+        {
+          projectId: input.projectId,
+          scenarioId: input.scenarioId,
+          boardName: input.boardName,
+          createdBy: ctx.user.id
+        },
+        materialIds,
+        ctx.orgId
+      )
+    );
+    await bestEffortAudit({
+      orgId: ctx.orgId,
+      userId: ctx.user.id,
+      action: "board.create",
+      entityType: "material_board",
+      entityId: boardResult.id,
+      details: {
+        projectId: input.projectId,
+        materialCount: materialIds.length
+      }
+    });
+    return { id: boardResult.id };
+  }),
+  listBoards: orgProcedure.input(z4.object({ projectId: z4.number() })).query(async ({ ctx, input }) => {
+    await requireDesignProject(input.projectId, ctx.orgId);
+    const boards = await getMaterialBoardsByProject(input.projectId);
+    for (const board of boards) {
+      await requireMatchingDesignScenario(
+        board.scenarioId,
+        board.projectId,
+        ctx.orgId
+      );
+    }
+    return boards;
+  }),
+  getBoard: orgProcedure.input(z4.object({ boardId: z4.number() })).query(async ({ ctx, input }) => {
+    const { resource: board } = await requireDesignBoard(
+      input.boardId,
+      ctx.orgId
+    );
+    await requireMatchingDesignScenario(
+      board.scenarioId,
+      board.projectId,
+      ctx.orgId
+    );
+    const boardMaterials = await getMaterialsByBoard(input.boardId);
+    const materialDetails = [];
+    for (const bm of boardMaterials) {
+      const mat = await getMaterialById(bm.materialId);
+      if (mat)
+        materialDetails.push({
+          ...mat,
+          boardJoinId: bm.id,
+          quantity: bm.quantity,
+          unitOfMeasure: bm.unitOfMeasure,
+          boardNotes: bm.notes,
+          sortOrder: bm.sortOrder,
+          specNotes: bm.specNotes,
+          costBandOverride: bm.costBandOverride,
+          canonicalProductId: bm.productId,
+          canonicalSpecificationId: bm.specId,
+          canonicalIdentityState: bm.identityState
+        });
+    }
+    return { board, materials: materialDetails };
+  }),
+  addMaterialToBoard: designOrgMutationProcedure.input(
+    z4.object({
+      boardId: z4.number(),
+      materialId: z4.number(),
+      quantity: z4.number().optional(),
+      unitOfMeasure: z4.string().optional(),
+      notes: z4.string().optional()
+    })
+  ).mutation(async ({ ctx, input }) => {
+    await requireDesignBoard(input.boardId, ctx.orgId);
+    return requireScopedDesignInsert(
+      await addMaterialToBoardForOrg(
+        {
+          boardId: input.boardId,
+          materialId: input.materialId,
+          quantity: input.quantity ? String(input.quantity) : void 0,
+          unitOfMeasure: input.unitOfMeasure,
+          notes: input.notes
+        },
+        ctx.orgId
+      )
+    );
+  }),
+  removeMaterialFromBoard: designOrgMutationProcedure.input(z4.object({ joinId: z4.number() })).mutation(async ({ ctx, input }) => {
+    await requireDesignBoardJoin(input.joinId, ctx.orgId);
+    requireScopedDesignMutation(
+      await removeMaterialFromBoardForOrg(input.joinId, ctx.orgId)
+    );
+    return { success: true };
+  }),
+  deleteBoard: designOrgMutationProcedure.input(z4.object({ boardId: z4.number() })).mutation(async ({ ctx, input }) => {
+    await requireDesignBoard(input.boardId, ctx.orgId);
+    requireScopedDesignMutation(
+      await deleteMaterialBoardForOrg(input.boardId, ctx.orgId)
+    );
+    await createAuditLog({
+      orgId: ctx.orgId,
+      userId: ctx.user.id,
+      action: "board.delete",
+      entityType: "material_board",
+      entityId: input.boardId
+    });
+    return { success: true };
+  }),
+  updateBoardTile: designOrgMutationProcedure.input(
+    z4.object({
+      joinId: z4.number(),
+      specNotes: z4.string().nullish(),
+      costBandOverride: z4.string().nullish(),
+      quantity: z4.number().nullish(),
+      unitOfMeasure: z4.string().nullish(),
+      notes: z4.string().nullish()
+    })
+  ).mutation(async ({ ctx, input }) => {
+    await requireDesignBoardJoin(input.joinId, ctx.orgId);
+    const { joinId, ...rest } = input;
+    requireScopedDesignMutation(
+      await updateBoardTileForOrg(joinId, ctx.orgId, {
+        specNotes: rest.specNotes ?? void 0,
+        costBandOverride: rest.costBandOverride ?? void 0,
+        quantity: rest.quantity !== void 0 && rest.quantity !== null ? String(rest.quantity) : void 0,
+        unitOfMeasure: rest.unitOfMeasure ?? void 0,
+        notes: rest.notes ?? void 0
+      })
+    );
+    return { success: true };
+  }),
+  reorderBoardTiles: designOrgMutationProcedure.input(
+    z4.object({
+      boardId: z4.number(),
+      orderedJoinIds: z4.array(z4.number())
+    })
+  ).mutation(async ({ ctx, input }) => {
+    const board = await requireDesignBoard(input.boardId, ctx.orgId);
+    if (new Set(input.orderedJoinIds).size !== input.orderedJoinIds.length) {
+      throw new TRPCError8({
+        code: "BAD_REQUEST",
+        message: "Board tile identifiers must be unique"
+      });
+    }
+    for (const joinId of input.orderedJoinIds) {
+      const join = await requireDesignBoardJoin(joinId, ctx.orgId);
+      requireSameDesignProject(board.project.id, join.project.id);
+      if (join.parent.id !== input.boardId)
+        throw new TRPCError8({
+          code: "NOT_FOUND",
+          message: "Resource not found"
+        });
+    }
+    requireScopedDesignMutation(
+      await reorderBoardTilesForOrg(
+        input.boardId,
+        input.orderedJoinIds,
+        ctx.orgId
+      )
+    );
+    return { success: true };
+  }),
+  exportBoardPdf: designOrgMutationProcedure.input(
+    z4.object({
+      boardId: z4.number(),
+      locale: z4.enum(["en", "ar"]).default("en")
+    })
+  ).mutation(async ({ ctx, input }) => {
+    const { resource: board, project } = await requireDesignBoard(
+      input.boardId,
+      ctx.orgId
+    );
+    const boardMaterials = await getMaterialsByBoard(input.boardId);
+    const items = [];
+    for (const bm of boardMaterials) {
+      const mat = await getMaterialById(bm.materialId);
+      if (mat) {
+        items.push({
+          materialId: mat.id,
+          name: mat.name,
+          category: mat.category,
+          tier: mat.tier,
+          costLow: mat.typicalCostLow == null || !Number.isFinite(Number(mat.typicalCostLow)) ? null : Number(mat.typicalCostLow),
+          costHigh: mat.typicalCostHigh == null || !Number.isFinite(Number(mat.typicalCostHigh)) ? null : Number(mat.typicalCostHigh),
+          costUnit: mat.costUnit || "AED/unit",
+          leadTimeDays: mat.leadTimeDays || 30,
+          leadTimeBand: mat.leadTimeBand || "medium",
+          supplierName: mat.supplierName || "TBD",
+          specNotes: bm.specNotes || void 0,
+          costBandOverride: bm.costBandOverride || void 0,
+          quantity: bm.quantity ? String(bm.quantity) : void 0,
+          unitOfMeasure: bm.unitOfMeasure || void 0,
+          notes: bm.notes || void 0
+        });
+      }
+    }
+    const { generateBoardPdfHtml: generateBoardPdfHtml2 } = await Promise.resolve().then(() => (init_board_pdf(), board_pdf_exports));
+    const summary = computeBoardSummary(items);
+    const rfqLines = generateRfqLines(items);
+    const [modelVersion, benchmarkVersion, logicVersion] = await Promise.all([
+      getActiveModelVersion(),
+      getActiveBenchmarkVersion(),
+      getPublishedLogicVersion()
+    ]);
+    const html = generateBoardPdfHtml2({
+      boardName: board.boardName,
+      projectName: project.name,
+      items,
+      summary,
+      rfqLines,
+      locale: input.locale,
+      modelVersion: modelVersion?.versionTag,
+      benchmarkVersion: benchmarkVersion?.versionTag,
+      logicVersion: logicVersion?.name
+    });
+    let fileUrl = null;
+    try {
+      const fileKey = `boards/${board.projectId}/${board.id}-${nanoid3(8)}.html`;
+      const result = await storagePut(fileKey, html, "text/html");
+      fileUrl = result.url;
+    } catch (e) {
+      console.warn("[Board PDF] S3 upload failed:", e);
+    }
+    await createAuditLog({
+      orgId: ctx.orgId,
+      userId: ctx.user.id,
+      action: "board.export_pdf",
+      entityType: "material_board",
+      entityId: input.boardId,
+      details: { fileUrl, itemCount: items.length }
+    });
+    return { fileUrl, html };
+  }),
+  boardSummary: orgProcedure.input(z4.object({ boardId: z4.number() })).query(async ({ ctx, input }) => {
+    const { project } = await requireDesignBoard(input.boardId, ctx.orgId);
+    const boardMaterials = await getMaterialsByBoard(input.boardId);
+    const resolverAsOf = /* @__PURE__ */ new Date();
+    const priceSnapshots = await resolveMaterialPriceSnapshots({
+      references: boardMaterials.map((boardMaterial) => ({
+        source: "materials_catalog",
+        legacyId: boardMaterial.materialId
+      })),
+      organizationId: ctx.orgId,
+      priceScope: "supply_only",
+      requestedGeography: resolveProjectMaterialPriceGeography(
+        project.materialPriceGeography
+      ),
+      asOf: resolverAsOf,
+      allowLegacyUnknownScope: true
+    });
+    const governedSummary = buildGovernedBoardSummary({
+      rows: boardMaterials,
+      snapshots: priceSnapshots
+    });
+    const items = [];
+    for (const bm of boardMaterials) {
+      const mat = await getMaterialById(bm.materialId);
+      if (mat) {
+        items.push({
+          materialId: mat.id,
+          name: mat.name,
+          category: mat.category,
+          tier: mat.tier,
+          costLow: mat.typicalCostLow == null || !Number.isFinite(Number(mat.typicalCostLow)) ? null : Number(mat.typicalCostLow),
+          costHigh: mat.typicalCostHigh == null || !Number.isFinite(Number(mat.typicalCostHigh)) ? null : Number(mat.typicalCostHigh),
+          costUnit: mat.costUnit || "AED/unit",
+          leadTimeDays: mat.leadTimeDays || 30,
+          leadTimeBand: mat.leadTimeBand || "medium",
+          supplierName: mat.supplierName || "TBD"
+        });
+      }
+    }
+    return {
+      summary: computeBoardSummary(items),
+      rfqLines: generateRfqLines(items),
+      governedSummary
+    };
+  })
+});
+
 // server/routers/project.ts
+function isIssuedFullReportMaterialCoverageComplete(reconciliation, rooms = []) {
+  if (!reconciliation) return false;
+  const { materialCosts, allocations } = reconciliation;
+  const { coverage } = materialCosts;
+  const actualGroups = new Set(
+    allocations.groups.filter(
+      (group) => ["floor", "walls", "ceiling"].includes(group.element)
+    ).map((group) => `${group.roomId}\0${group.element}`)
+  );
+  const requiredGroups = rooms.length === 0 ? new Set(actualGroups) : new Set(
+    rooms.filter((room) => room.isFitOut).flatMap(
+      (room) => ["floor", "walls", "ceiling"].map(
+        (element) => `${room.roomCode}\0${element}`
+      )
+    )
+  );
+  return requiredGroups.size > 0 && actualGroups.size === requiredGroups.size && Array.from(requiredGroups).every((key) => actualGroups.has(key)) && allocations.rowCount > 0 && allocations.groupCount > 0 && allocations.allGroupsPass100Pct && allocations.allGroupsSurfaceReconcile && reconciliation.spaceProgram.reconciles === true && coverage.state === "complete" && coverage.totalItemCount === allocations.rowCount && coverage.pricedItemCount === coverage.totalItemCount && coverage.insufficientItemCount === 0 && materialCosts.allAllocationsPriced && materialCosts.pricedAllocationCount === allocations.rowCount && materialCosts.unpricedAllocationCount === 0 && materialCosts.min !== null && materialCosts.mid !== null && materialCosts.max !== null && materialCosts.min > 0 && materialCosts.mid > 0 && materialCosts.max > 0 && materialCosts.min <= materialCosts.mid && materialCosts.mid <= materialCosts.max;
+}
+function isGovernedBoardPricingCompleteForScoring(summary) {
+  return summary.coverage.state === "complete" && summary.coverage.totalItemCount > 0 && summary.coverage.pricedItemCount === summary.coverage.totalItemCount && summary.coverage.insufficientItemCount === 0 && summary.totalAedMin !== null && summary.totalAedMid !== null && summary.totalAedMax !== null;
+}
+async function applyGovernedBoardCostForScoring(input) {
+  const boards = await getMaterialBoardsByProject(input.projectId);
+  if (boards.length === 0) return;
+  const activeBoard = boards[0];
+  const rows = await getMaterialsByBoard(activeBoard.id);
+  const resolverAsOf = /* @__PURE__ */ new Date();
+  const snapshots = await resolveMaterialPriceSnapshots({
+    references: rows.map((row) => ({
+      source: "materials_catalog",
+      legacyId: row.materialId
+    })),
+    organizationId: input.organizationId,
+    priceScope: "supply_only",
+    requestedGeography: resolveProjectMaterialPriceGeography(
+      input.materialPriceGeography
+    ),
+    asOf: resolverAsOf,
+    allowLegacyUnknownScope: true
+  });
+  const summary = buildGovernedBoardSummary({ rows, snapshots });
+  if (!isGovernedBoardPricingCompleteForScoring(summary)) {
+    throw new TRPCError9({
+      code: "PRECONDITION_FAILED",
+      message: "PROJECT_BOARD_PRICING_INSUFFICIENT"
+    });
+  }
+  input.scoringInputs.boardMaterialsCost = summary.totalAedMid;
+}
 async function buildEvalConfig(modelVersion, expectedCost, benchmarkCount, overrideRate = 0) {
   const baseWeights = modelVersion.dimensionWeights;
   const publishedLogic = await getPublishedLogicVersion();
@@ -24956,90 +28633,131 @@ async function buildEvalConfig(modelVersion, expectedCost, benchmarkCount, overr
     overrideRate
   };
 }
-var unitMixItemSchema = z5.object({
-  unitType: z5.string(),
-  areaSqm: z5.number().min(0),
-  count: z5.number().int().min(1),
-  includeInFitout: z5.boolean().default(true)
+var unitMixItemSchema = z6.object({
+  unitType: z6.string(),
+  areaSqm: z6.number().min(0),
+  count: z6.number().int().min(1),
+  includeInFitout: z6.boolean().default(true)
 });
-var villaSpaceSchema = z5.object({
-  floor: z5.string(),
-  rooms: z5.array(z5.object({
-    name: z5.string(),
-    areaSqm: z5.number().min(0)
-  }))
+var villaSpaceSchema = z6.object({
+  floor: z6.string(),
+  rooms: z6.array(
+    z6.object({
+      name: z6.string(),
+      areaSqm: z6.number().min(0)
+    })
+  )
 });
-var nullableNumberInput = (schema) => z5.preprocess(
+var nullableNumberInput = (schema) => z6.preprocess(
   (value) => typeof value === "string" && value.trim() !== "" ? Number(value) : value,
   schema.nullable()
 ).optional();
-var projectInputSchema = z5.object({
-  name: z5.string().min(1).max(255),
-  description: z5.string().nullable().optional().transform((value) => value ?? void 0),
-  ctx01Typology: z5.enum(["Residential", "Mixed-use", "Hospitality", "Office", "Villa", "Gated Community", "Villa Development"]).default("Residential"),
-  ctx02Scale: z5.enum(["Small", "Medium", "Large"]).default("Medium"),
-  ctx03Gfa: nullableNumberInput(z5.number()),
+var projectInputSchema = z6.object({
+  name: z6.string().min(1).max(255),
+  description: z6.string().nullable().optional().transform((value) => value ?? void 0),
+  ctx01Typology: z6.enum([
+    "Residential",
+    "Mixed-use",
+    "Hospitality",
+    "Office",
+    "Villa",
+    "Gated Community",
+    "Villa Development"
+  ]).default("Residential"),
+  ctx02Scale: z6.enum(["Small", "Medium", "Large"]).default("Medium"),
+  ctx03Gfa: nullableNumberInput(z6.number()),
   // V4 — Fit-out area fields
-  totalFitoutArea: nullableNumberInput(z5.number()),
-  totalNonFinishArea: nullableNumberInput(z5.number()),
-  projectArchetype: z5.enum(["residential_multi", "office", "single_villa", "hospitality", "community"]).optional(),
-  officeFitoutCategory: z5.enum(["catA", "catB"]).optional(),
-  officeCustomRatio: nullableNumberInput(z5.number().min(0).max(100)),
-  ctx04Location: z5.enum(["Prime", "Secondary", "Emerging"]).default("Secondary"),
-  ctx05Horizon: z5.enum(["0-12m", "12-24m", "24-36m", "36m+"]).default("12-24m"),
-  str01BrandClarity: z5.number().min(1).max(5).default(3),
-  str02Differentiation: z5.number().min(1).max(5).default(3),
-  str03BuyerMaturity: z5.number().min(1).max(5).default(3),
-  mkt01Tier: z5.enum(["Mid", "Upper-mid", "Luxury", "Ultra-luxury"]).default("Upper-mid"),
-  mkt02Competitor: z5.number().min(1).max(5).default(3),
-  mkt03Trend: z5.number().min(1).max(5).default(3),
-  fin01BudgetCap: nullableNumberInput(z5.number()),
-  fin02Flexibility: z5.number().min(1).max(5).default(3),
-  fin03ShockTolerance: z5.number().min(1).max(5).default(3),
-  fin04SalesPremium: z5.number().min(1).max(5).default(3),
-  des01Style: z5.enum(["Modern", "Contemporary", "Minimal", "Classic", "Fusion", "Other"]).default("Modern"),
-  des02MaterialLevel: z5.number().min(1).max(5).default(3),
-  des03Complexity: z5.number().min(1).max(5).default(3),
-  des04Experience: z5.number().min(1).max(5).default(3),
-  des05Sustainability: z5.number().min(1).max(5).default(2),
-  exe01SupplyChain: z5.number().min(1).max(5).default(3),
-  exe02Contractor: z5.number().min(1).max(5).default(3),
-  exe03Approvals: z5.number().min(1).max(5).default(2),
-  exe04QaMaturity: z5.number().min(1).max(5).default(3),
-  add01SampleKit: z5.boolean().default(false),
-  add02PortfolioMode: z5.boolean().default(false),
-  add03DashboardExport: z5.boolean().default(true),
+  totalFitoutArea: nullableNumberInput(z6.number()),
+  totalNonFinishArea: nullableNumberInput(z6.number()),
+  projectArchetype: z6.enum([
+    "residential_multi",
+    "office",
+    "single_villa",
+    "hospitality",
+    "community"
+  ]).optional(),
+  officeFitoutCategory: z6.enum(["catA", "catB"]).optional(),
+  officeCustomRatio: nullableNumberInput(z6.number().min(0).max(100)),
+  ctx04Location: z6.enum(["Prime", "Secondary", "Emerging"]).default("Secondary"),
+  materialPriceGeography: z6.enum([
+    "dubai",
+    "abu_dhabi",
+    "sharjah",
+    "ajman",
+    "umm_al_quwain",
+    "ras_al_khaimah",
+    "fujairah",
+    "uae"
+  ]).nullable().optional(),
+  ctx05Horizon: z6.enum(["0-12m", "12-24m", "24-36m", "36m+"]).default("12-24m"),
+  str01BrandClarity: z6.number().min(1).max(5).default(3),
+  str02Differentiation: z6.number().min(1).max(5).default(3),
+  str03BuyerMaturity: z6.number().min(1).max(5).default(3),
+  mkt01Tier: z6.enum(["Mid", "Upper-mid", "Luxury", "Ultra-luxury"]).default("Upper-mid"),
+  mkt02Competitor: z6.number().min(1).max(5).default(3),
+  mkt03Trend: z6.number().min(1).max(5).default(3),
+  fin01BudgetCap: nullableNumberInput(z6.number()),
+  fin02Flexibility: z6.number().min(1).max(5).default(3),
+  fin03ShockTolerance: z6.number().min(1).max(5).default(3),
+  fin04SalesPremium: z6.number().min(1).max(5).default(3),
+  des01Style: z6.enum(["Modern", "Contemporary", "Minimal", "Classic", "Fusion", "Other"]).default("Modern"),
+  des02MaterialLevel: z6.number().min(1).max(5).default(3),
+  des03Complexity: z6.number().min(1).max(5).default(3),
+  des04Experience: z6.number().min(1).max(5).default(3),
+  des05Sustainability: z6.number().min(1).max(5).default(2),
+  exe01SupplyChain: z6.number().min(1).max(5).default(3),
+  exe02Contractor: z6.number().min(1).max(5).default(3),
+  exe03Approvals: z6.number().min(1).max(5).default(2),
+  exe04QaMaturity: z6.number().min(1).max(5).default(3),
+  add01SampleKit: z6.boolean().default(false),
+  add02PortfolioMode: z6.boolean().default(false),
+  add03DashboardExport: z6.boolean().default(true),
   // V5: Concrete Analytics Inputs
-  developerType: z5.enum(["Master Developer", "Private/Boutique", "Institutional Investor"]).optional(),
-  targetDemographic: z5.enum(["HNWI", "Families", "Young Professionals", "Investors"]).optional(),
-  salesStrategy: z5.enum(["Sell Off-Plan", "Sell on Completion", "Build-to-Rent"]).optional(),
-  competitiveDensity: z5.enum(["Low", "Moderate", "Saturated"]).optional(),
-  projectUsp: z5.enum(["Location/Views", "Amenities/Facilities", "Price/Value", "Design/Architecture"]).optional(),
-  targetYield: z5.enum(["< 5%", "5-7%", "7-9%", "> 9%"]).optional(),
-  procurementStrategy: z5.enum(["Turnkey", "Traditional", "Construction Management"]).optional(),
-  amenityFocus: z5.enum(["Wellness/Spa", "F&B/Social", "Minimal/Essential", "Business/Co-working"]).optional(),
-  techIntegration: z5.enum(["Basic", "Smart Home Ready", "Fully Integrated"]).optional(),
-  materialSourcing: z5.enum(["Local", "European", "Asian", "Global Mix"]).optional(),
-  handoverCondition: z5.enum(["Shell & Core", "Category A", "Category B", "Fully Furnished"]).optional(),
-  brandedStatus: z5.enum(["Unbranded", "Hospitality Branded", "Fashion/Automotive Branded"]).optional(),
-  salesChannel: z5.enum(["Local Brokerage", "International Roadshows", "Direct to VIP"]).optional(),
-  lifecycleFocus: z5.enum(["Short-term Resale", "Medium-term Hold", "Long-term Retention"]).optional(),
-  brandStandardConstraints: z5.enum(["High Flexibility", "Moderate Guidelines", "Strict Vendor List"]).optional(),
-  timelineFlexibility: z5.enum(["Highly Flexible", "Moderate Contingency", "Fixed / Zero Tolerance"]).optional(),
-  targetValueAdd: z5.enum(["Max Capital Appreciation", "Max Rental Yield", "Balanced Return", "Brand Flagship / Trophy"]).optional(),
-  unitMix: z5.array(unitMixItemSchema).optional(),
-  villaSpaces: z5.array(villaSpaceSchema).optional(),
-  developerGuidelines: z5.any().optional(),
+  developerType: z6.enum(["Master Developer", "Private/Boutique", "Institutional Investor"]).optional(),
+  targetDemographic: z6.enum(["HNWI", "Families", "Young Professionals", "Investors"]).optional(),
+  salesStrategy: z6.enum(["Sell Off-Plan", "Sell on Completion", "Build-to-Rent"]).optional(),
+  competitiveDensity: z6.enum(["Low", "Moderate", "Saturated"]).optional(),
+  projectUsp: z6.enum([
+    "Location/Views",
+    "Amenities/Facilities",
+    "Price/Value",
+    "Design/Architecture"
+  ]).optional(),
+  targetYield: z6.enum(["< 5%", "5-7%", "7-9%", "> 9%"]).optional(),
+  procurementStrategy: z6.enum(["Turnkey", "Traditional", "Construction Management"]).optional(),
+  amenityFocus: z6.enum([
+    "Wellness/Spa",
+    "F&B/Social",
+    "Minimal/Essential",
+    "Business/Co-working"
+  ]).optional(),
+  techIntegration: z6.enum(["Basic", "Smart Home Ready", "Fully Integrated"]).optional(),
+  materialSourcing: z6.enum(["Local", "European", "Asian", "Global Mix"]).optional(),
+  handoverCondition: z6.enum(["Shell & Core", "Category A", "Category B", "Fully Furnished"]).optional(),
+  brandedStatus: z6.enum(["Unbranded", "Hospitality Branded", "Fashion/Automotive Branded"]).optional(),
+  salesChannel: z6.enum(["Local Brokerage", "International Roadshows", "Direct to VIP"]).optional(),
+  lifecycleFocus: z6.enum(["Short-term Resale", "Medium-term Hold", "Long-term Retention"]).optional(),
+  brandStandardConstraints: z6.enum(["High Flexibility", "Moderate Guidelines", "Strict Vendor List"]).optional(),
+  timelineFlexibility: z6.enum(["Highly Flexible", "Moderate Contingency", "Fixed / Zero Tolerance"]).optional(),
+  targetValueAdd: z6.enum([
+    "Max Capital Appreciation",
+    "Max Rental Yield",
+    "Balanced Return",
+    "Brand Flagship / Trophy"
+  ]).optional(),
+  unitMix: z6.array(unitMixItemSchema).optional(),
+  villaSpaces: z6.array(villaSpaceSchema).optional(),
+  developerGuidelines: z6.any().optional(),
   // DLD integration fields
-  dldAreaId: z5.number().nullable().optional(),
-  dldAreaName: z5.string().optional(),
-  projectPurpose: z5.enum(["sell_offplan", "sell_ready", "rent", "mixed"]).default("sell_ready"),
+  dldAreaId: z6.number().nullable().optional(),
+  dldAreaName: z6.string().optional(),
+  projectPurpose: z6.enum(["sell_offplan", "sell_ready", "rent", "mixed"]).default("sell_ready"),
   // City & Sustainability Certification
-  city: z5.enum(["Dubai", "Abu Dhabi"]).default("Dubai"),
-  sustainCertTarget: z5.string().default("silver"),
-  inputProvenance: z5.record(z5.string(), z5.enum(INPUT_PROVENANCE_STATUSES)).optional()
+  city: z6.enum(["Dubai", "Abu Dhabi"]).default("Dubai"),
+  sustainCertTarget: z6.string().default("silver"),
+  inputProvenance: z6.record(z6.string(), z6.enum(INPUT_PROVENANCE_STATUSES)).optional()
 });
-function projectToInputs(p) {
+function projectToInputs2(p) {
   return {
     ctx01Typology: p.ctx01Typology ?? "Residential",
     ctx02Scale: p.ctx02Scale ?? "Medium",
@@ -25119,10 +28837,10 @@ var projectRouter = router({
     );
     return result;
   }),
-  get: orgProcedure.input(z5.object({ id: z5.number() })).query(async ({ ctx, input }) => {
+  get: orgProcedure.input(z6.object({ id: z6.number() })).query(async ({ ctx, input }) => {
     return requireProjectForOrg(input.id, ctx.orgId);
   }),
-  readiness: orgProcedure.input(z5.object({ id: z5.number() })).query(async ({ ctx, input }) => {
+  readiness: orgProcedure.input(z6.object({ id: z6.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.id, ctx.orgId);
     return getProjectReadiness(project);
   }),
@@ -25145,14 +28863,20 @@ var projectRouter = router({
       entityType: "project",
       entityId: result.id
     });
-    dispatchWebhook("project.created", { projectId: result.id, name: input.name, tier: input.mkt01Tier }).catch(() => {
+    dispatchWebhook("project.created", {
+      projectId: result.id,
+      name: input.name,
+      tier: input.mkt01Tier
+    }).catch(() => {
     });
     return result;
   }),
-  confirmInputs: orgMutationProcedure.input(z5.object({
-    id: z5.number(),
-    fields: z5.array(z5.enum(EVALUATION_REQUIRED_FIELDS)).min(1)
-  })).mutation(async ({ ctx, input }) => {
+  confirmInputs: orgMutationProcedure.input(
+    z6.object({
+      id: z6.number(),
+      fields: z6.array(z6.enum(EVALUATION_REQUIRED_FIELDS)).min(1)
+    })
+  ).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.id, ctx.orgId);
     const existing = createInitialProvenance(
       project.inputProvenance ?? {}
@@ -25160,14 +28884,16 @@ var projectRouter = router({
     for (const field of input.fields) {
       const value = project[field];
       if (value === null || value === void 0 || typeof value === "string" && !value.trim()) {
-        throw new TRPCError7({
+        throw new TRPCError9({
           code: "BAD_REQUEST",
           message: `${field} must have a value before it can be confirmed`
         });
       }
       existing[field] = "confirmed";
     }
-    if (!await updateProjectForOrg(input.id, ctx.orgId, { inputProvenance: existing })) {
+    if (!await updateProjectForOrg(input.id, ctx.orgId, {
+      inputProvenance: existing
+    })) {
       await requireProjectForOrg(input.id, ctx.orgId);
     }
     await createAuditLog({
@@ -25177,9 +28903,12 @@ var projectRouter = router({
       entityId: input.id,
       details: { fields: input.fields }
     });
-    return getProjectReadiness({ ...project, inputProvenance: existing });
+    return getProjectReadiness({
+      ...project,
+      inputProvenance: existing
+    });
   }),
-  update: orgMutationProcedure.input(z5.object({ id: z5.number() }).merge(projectInputSchema.partial())).mutation(async ({ ctx, input }) => {
+  update: orgMutationProcedure.input(z6.object({ id: z6.number() }).merge(projectInputSchema.partial())).mutation(async ({ ctx, input }) => {
     const { id, ...data } = input;
     const project = await requireProjectForOrg(id, ctx.orgId);
     if (project.status === "locked") {
@@ -25196,7 +28925,12 @@ var projectRouter = router({
       updateData.totalFitoutArea = data.totalFitoutArea ? String(data.totalFitoutArea) : null;
     if (data.totalNonFinishArea !== void 0)
       updateData.totalNonFinishArea = data.totalNonFinishArea ? String(data.totalNonFinishArea) : null;
-    if (!await updateProjectForOrg(id, ctx.orgId, updateData)) {
+    const updated = data.materialPriceGeography !== void 0 ? await updateProjectAndInvalidateMaterialPricingForOrg(
+      id,
+      ctx.orgId,
+      updateData
+    ) : await updateProjectForOrg(id, ctx.orgId, updateData);
+    if (!updated) {
       await requireProjectForOrg(id, ctx.orgId);
     }
     await createAuditLog({
@@ -25208,11 +28942,14 @@ var projectRouter = router({
     });
     return { success: true };
   }),
-  delete: orgAdminProcedure.input(z5.object({ id: z5.number() })).mutation(async ({ ctx, input }) => {
+  delete: orgAdminProcedure.input(z6.object({ id: z6.number() })).mutation(async ({ ctx, input }) => {
     await requireProjectForOrg(input.id, ctx.orgId);
     if (!await deleteProjectForOrg(input.id, ctx.orgId)) {
       await requireProjectForOrg(input.id, ctx.orgId);
-      throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError9({
+        code: "NOT_FOUND",
+        message: "Resource not found"
+      });
     }
     await createAuditLog({
       userId: ctx.user.id,
@@ -25222,11 +28959,13 @@ var projectRouter = router({
     });
     return { success: true };
   }),
-  evaluate: orgHeavyMutationProcedure.input(z5.object({ id: z5.number() })).mutation(async ({ ctx, input }) => {
+  evaluate: orgHeavyMutationProcedure.input(z6.object({ id: z6.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.id, ctx.orgId);
-    const readiness = getProjectReadiness(project);
+    const readiness = getProjectReadiness(
+      project
+    );
     if (!readiness.canEvaluate) {
-      throw new TRPCError7({
+      throw new TRPCError9({
         code: "PRECONDITION_FAILED",
         message: `Project inputs are incomplete: ${readiness.missingInputs.length} missing and ${readiness.unconfirmedAssumptions.length} unconfirmed`,
         cause: readiness
@@ -25234,7 +28973,13 @@ var projectRouter = router({
     }
     const modelVersion = await getActiveModelVersion();
     if (!modelVersion) throw new Error("No active model version found");
-    const inputs = projectToInputs(project);
+    const inputs = projectToInputs2(project);
+    await applyGovernedBoardCostForScoring({
+      projectId: input.id,
+      organizationId: ctx.orgId,
+      materialPriceGeography: project.materialPriceGeography,
+      scoringInputs: inputs
+    });
     let expectedCost = await getExpectedCost(
       inputs.ctx01Typology,
       inputs.ctx04Location,
@@ -25244,30 +28989,27 @@ var projectRouter = router({
       const dldBenchmark = await getDldAreaBenchmark(project.dldAreaId);
       if (dldBenchmark?.recommendedFitoutMid) {
         expectedCost = Number(dldBenchmark.recommendedFitoutMid);
-        console.log(`[Evaluate] Using DLD fitout benchmark: ${expectedCost} AED/sqm for area ${project.dldAreaName || project.dldAreaId}`);
+        console.log(
+          `[Evaluate] Using DLD fitout benchmark: ${expectedCost} AED/sqm for area ${project.dldAreaName || project.dldAreaId}`
+        );
       }
     }
     const boards = await getMaterialBoardsByProject(input.id);
     if (boards && boards.length > 0) {
       const activeBoard = boards[0];
       const boardMaterials = await getMaterialsByBoard(activeBoard.id);
-      let totalLow = 0;
-      let totalHigh = 0;
       let totalVariance = 0;
       for (const bm of boardMaterials) {
         const mat = await getMaterialById(bm.materialId);
         if (mat) {
-          const qty = Number(bm.quantity) || 1;
-          totalLow += (Number(mat.typicalCostLow) || 0) * qty;
-          totalHigh += (Number(mat.typicalCostHigh) || 0) * qty;
-          const matMaint = parseFloat(String(mat.maintenanceFactor || "0.05"));
+          const matMaint = parseFloat(
+            String(mat.maintenanceFactor || "0.05")
+          );
           totalVariance += (matMaint - 0.05) * 100;
         }
       }
-      if (totalHigh > 0) {
-        inputs.boardMaterialsCost = (totalLow + totalHigh) / 2;
+      if (totalVariance !== 0) {
         inputs.boardMaintenanceVariance = totalVariance;
-        console.log(`[Evaluate] Using vendor cost override: ${inputs.boardMaterialsCost} AED for project ${input.id}`);
       }
     }
     const benchmarks = await getBenchmarks(
@@ -25299,34 +29041,54 @@ var projectRouter = router({
         inputs.spaceEfficiencyScore = spaceResult.overallEfficiencyScore;
         inputs.spaceCriticalCount = spaceResult.totalCritical;
         inputs.spaceEfficiencyEvidence = spaceResult.evidence;
-        console.log(`[Evaluate] Space efficiency: ${spaceResult.overallEfficiencyScore}/100, ${spaceResult.totalCritical} critical deviations`);
+        console.log(
+          `[Evaluate] Space efficiency: ${spaceResult.overallEfficiencyScore}/100, ${spaceResult.totalCritical} critical deviations`
+        );
         if (spaceResult.totalCritical >= 2) {
           try {
             const hasDldAreaContext = spaceResult.evidence.status === "measured" && spaceResult.evidence.benchmarkBasis === "dld_area" && spaceResult.evidence.transactionCount > 0;
-            const criticalRooms = spaceResult.recommendations.filter((r) => r.severity === "critical").map((r) => `${r.roomName} (${r.currentPercent}% vs ${r.benchmarkPercent}% benchmark)`).join(", ");
-            await insertProjectInsightForOrg({
-              projectId: input.id,
-              insightType: "positioning_gap",
-              severity: "warning",
-              title: `Space Planning: ${spaceResult.totalCritical} Critical Deviations`,
-              body: hasDldAreaContext ? `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside MIYAR ratio guidelines: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100. DLD transaction count is shown separately as area context and does not calibrate the guideline.` : `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside MIYAR UAE space benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.`,
-              actionableRecommendation: hasDldAreaContext ? "Review floor plan allocations in Space Planner against the MIYAR ratio guideline; treat DLD records as separate area context." : "Review floor plan allocations in Space Planner against the MIYAR UAE space benchmark.",
-              dataPoints: { spaceResult }
-            }, ctx.orgId);
+            const criticalRooms = spaceResult.recommendations.filter((r) => r.severity === "critical").map(
+              (r) => `${r.roomName} (${r.currentPercent}% vs ${r.benchmarkPercent}% benchmark)`
+            ).join(", ");
+            await insertProjectInsightForOrg(
+              {
+                projectId: input.id,
+                insightType: "positioning_gap",
+                severity: "warning",
+                title: `Space Planning: ${spaceResult.totalCritical} Critical Deviations`,
+                body: hasDldAreaContext ? `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside MIYAR ratio guidelines: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100. DLD transaction count is shown separately as area context and does not calibrate the guideline.` : `Project floor plan has ${spaceResult.totalCritical} rooms significantly outside MIYAR UAE space benchmarks: ${criticalRooms}. Efficiency score: ${spaceResult.overallEfficiencyScore}/100.`,
+                actionableRecommendation: hasDldAreaContext ? "Review floor plan allocations in Space Planner against the MIYAR ratio guideline; treat DLD records as separate area context." : "Review floor plan allocations in Space Planner against the MIYAR UAE space benchmark.",
+                dataPoints: { spaceResult }
+              },
+              ctx.orgId
+            );
           } catch (alertErr) {
-            console.warn("[Phase9] Space insight creation failed (non-blocking):", alertErr);
+            console.warn(
+              "[Phase9] Space insight creation failed (non-blocking):",
+              alertErr
+            );
           }
         }
       } catch (e) {
-        console.warn("[Evaluate] Space benchmarking failed (non-blocking):", e);
+        console.warn(
+          "[Evaluate] Space benchmarking failed (non-blocking):",
+          e
+        );
       }
     }
-    const evidenceRecords2 = await listOrganizationEvidenceRecords(ctx.orgId, {
-      projectId: input.id,
-      limit: 500
-    });
+    const evidenceRecords2 = await listOrganizationEvidenceRecords(
+      ctx.orgId,
+      {
+        projectId: input.id,
+        limit: 500
+      }
+    );
     const budgetFitMethod = evidenceRecords2.length >= 20 ? "evidence_backed" : "benchmark_static";
-    const config = await buildEvalConfig(modelVersion, expectedCost, benchmarks.length);
+    const config = await buildEvalConfig(
+      modelVersion,
+      expectedCost,
+      benchmarks.length
+    );
     const scoreResult = evaluate(inputs, config);
     const activeBV = await getActiveBenchmarkVersion();
     const matrixResult = await createScoreMatrix({
@@ -25356,7 +29118,12 @@ var projectRouter = router({
       const allScores = (await getComparableScoreMatricesForOrg(ctx.orgId)).map((row) => row.scoreMatrix);
       const latestMatrix = await getScoreMatrixById(matrixResult.id);
       if (latestMatrix) {
-        const derived = computeDerivedFeatures(project, latestMatrix, allBenchmarks, allScores);
+        const derived = computeDerivedFeatures(
+          project,
+          latestMatrix,
+          allBenchmarks,
+          allScores
+        );
         await createProjectIntelligence({
           projectId: input.id,
           scoreMatrixId: matrixResult.id,
@@ -25396,7 +29163,12 @@ var projectRouter = router({
       };
       const biasAlerts2 = detectBiases2(inputs, scoreResult, biasCtx);
       if (biasAlerts2.length > 0) {
-        const severityMap = { low: 1, medium: 2, high: 3, critical: 4 };
+        const severityMap = {
+          low: 1,
+          medium: 2,
+          high: 3,
+          critical: 4
+        };
         await createBiasAlerts(
           biasAlerts2.map((alert) => ({
             projectId: input.id,
@@ -25421,7 +29193,9 @@ var projectRouter = router({
             severityMap[alert.severity] || 2
           );
         }
-        console.log(`[V11] Detected ${biasAlerts2.length} cognitive bias(es) for project ${input.id}`);
+        console.log(
+          `[V11] Detected ${biasAlerts2.length} cognitive bias(es) for project ${input.id}`
+        );
       }
     } catch (e) {
       console.warn("[V11] Bias detection failed (non-blocking):", e);
@@ -25438,7 +29212,10 @@ var projectRouter = router({
       action: "project.evaluate",
       entityType: "score_matrix",
       entityId: matrixResult.id,
-      details: { compositeScore: scoreResult.compositeScore, decisionStatus: scoreResult.decisionStatus },
+      details: {
+        compositeScore: scoreResult.compositeScore,
+        decisionStatus: scoreResult.decisionStatus
+      },
       benchmarkVersionId: activeBV?.id
     });
     dispatchWebhook("project.evaluated", {
@@ -25450,7 +29227,9 @@ var projectRouter = router({
     }).catch(() => {
     });
     try {
-      const trendSnaps = await getTrendSnapshotsForOrg(ctx.orgId, { limit: 50 });
+      const trendSnaps = await getTrendSnapshotsForOrg(ctx.orgId, {
+        limit: 50
+      });
       const trends = trendSnaps.map((s) => ({
         metric: s.metric,
         category: s.category,
@@ -25470,21 +29249,28 @@ var projectRouter = router({
           geography: project.location
         }
       };
-      const insights = await generateInsights(insightInput, { enrichWithLLM: true });
+      const insights = await generateInsights(insightInput, {
+        enrichWithLLM: true
+      });
       for (const insight of insights) {
-        await insertProjectInsightForOrg({
-          projectId: input.id,
-          insightType: insight.type,
-          severity: insight.severity,
-          title: insight.title,
-          body: insight.body,
-          actionableRecommendation: insight.actionableRecommendation,
-          confidenceScore: String(insight.confidenceScore),
-          triggerCondition: insight.triggerCondition,
-          dataPoints: insight.dataPoints
-        }, ctx.orgId);
+        await insertProjectInsightForOrg(
+          {
+            projectId: input.id,
+            insightType: insight.type,
+            severity: insight.severity,
+            title: insight.title,
+            body: insight.body,
+            actionableRecommendation: insight.actionableRecommendation,
+            confidenceScore: String(insight.confidenceScore),
+            triggerCondition: insight.triggerCondition,
+            dataPoints: insight.dataPoints
+          },
+          ctx.orgId
+        );
       }
-      console.log(`[V3-09] Generated ${insights.length} insights for project ${input.id}`);
+      console.log(
+        `[V3-09] Generated ${insights.length} insights for project ${input.id}`
+      );
     } catch (e) {
       console.warn("[V3-09] Insight generation failed (non-blocking):", e);
     }
@@ -25494,7 +29280,13 @@ var projectRouter = router({
       const dldBench = await getDldAreaBenchmark(project.dldAreaId);
       if (dldBench?.saleP50) {
         const fitoutCost = Number(project.fin01BudgetCap || expectedCost);
-        const tierMap = { "Entry": "economy", "Mid": "mid", "Upper-mid": "premium", "Luxury": "luxury", "Ultra-luxury": "ultra_luxury" };
+        const tierMap = {
+          Entry: "economy",
+          Mid: "mid",
+          "Upper-mid": "premium",
+          Luxury: "luxury",
+          "Ultra-luxury": "ultra_luxury"
+        };
         dldMarketPosition = computeMarketPosition3(
           fitoutCost,
           Number(dldBench.saleP50),
@@ -25503,36 +29295,55 @@ var projectRouter = router({
           dldBench.saleP75 ? Number(dldBench.saleP75) : void 0
         );
         if (dldMarketPosition.riskFlag) {
-          console.log(`[Evaluate] DLD Spec Risk: ${dldMarketPosition.riskFlag} \u2014 ${dldMarketPosition.riskMessage}`);
+          console.log(
+            `[Evaluate] DLD Spec Risk: ${dldMarketPosition.riskFlag} \u2014 ${dldMarketPosition.riskMessage}`
+          );
         }
       }
     }
-    return { scoreMatrixId: matrixResult.id, ...scoreResult, dldMarketPosition };
+    return {
+      scoreMatrixId: matrixResult.id,
+      ...scoreResult,
+      dldMarketPosition
+    };
   }),
-  getScores: orgProcedure.input(z5.object({ projectId: z5.number() })).query(async ({ ctx, input }) => {
+  getScores: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getScoreMatricesByProject(input.projectId);
   }),
-  sensitivity: orgProcedure.input(z5.object({ id: z5.number() })).query(async ({ ctx, input }) => {
+  sensitivity: orgProcedure.input(z6.object({ id: z6.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.id, ctx.orgId);
     const modelVersion = await getActiveModelVersion();
     if (!modelVersion) return [];
-    const inputs = projectToInputs(project);
+    const inputs = projectToInputs2(project);
     const scoreMatrices2 = await getScoreMatricesByProject(input.id);
     const latestSnapshot = scoreMatrices2[0]?.inputSnapshot;
     if (latestSnapshot) {
       const savedEvidence = resolveSpaceEfficiencyEvidence(latestSnapshot);
       const savedScore = Number(latestSnapshot.spaceEfficiencyScore);
-      if (Number.isFinite(savedScore)) inputs.spaceEfficiencyScore = savedScore;
+      if (Number.isFinite(savedScore))
+        inputs.spaceEfficiencyScore = savedScore;
       inputs.spaceEfficiencyEvidence = savedEvidence.status === "legacy_unknown" ? void 0 : savedEvidence;
     }
-    const expectedCost = await getExpectedCost(inputs.ctx01Typology, inputs.ctx04Location, inputs.mkt01Tier);
-    const benchmarks = await getBenchmarks(inputs.ctx01Typology, inputs.ctx04Location, inputs.mkt01Tier);
-    const config = await buildEvalConfig(modelVersion, expectedCost, benchmarks.length);
+    const expectedCost = await getExpectedCost(
+      inputs.ctx01Typology,
+      inputs.ctx04Location,
+      inputs.mkt01Tier
+    );
+    const benchmarks = await getBenchmarks(
+      inputs.ctx01Typology,
+      inputs.ctx04Location,
+      inputs.mkt01Tier
+    );
+    const config = await buildEvalConfig(
+      modelVersion,
+      expectedCost,
+      benchmarks.length
+    );
     return runSensitivityAnalysis(inputs, config);
   }),
   // ─── V2: ROI Narrative Engine ──────────────────────────────────────
-  roi: orgProcedure.input(z5.object({ projectId: z5.number() })).query(async ({ ctx, input }) => {
+  roi: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const scores = await getScoreMatricesByProject(input.projectId);
     if (scores.length === 0) return null;
@@ -25543,7 +29354,9 @@ var projectRouter = router({
       reworkCostPct: Number(roiConfig.reworkCostPct),
       tenderIterationCost: Number(roiConfig.tenderIterationCost),
       designCycleCost: Number(roiConfig.designCycleCost),
-      budgetVarianceMultiplier: Number(roiConfig.budgetVarianceMultiplier),
+      budgetVarianceMultiplier: Number(
+        roiConfig.budgetVarianceMultiplier
+      ),
       timeAccelerationWeeks: roiConfig.timeAccelerationWeeks ?? 6,
       conservativeMultiplier: Number(roiConfig.conservativeMultiplier),
       aggressiveMultiplier: Number(roiConfig.aggressiveMultiplier)
@@ -25560,7 +29373,9 @@ var projectRouter = router({
       horizon: project.ctx05Horizon || "12-24m",
       spaceEfficiencyScore: Number(latest.inputSnapshot?.spaceEfficiencyScore) || void 0,
       spaceEfficiencyEvidence: (() => {
-        const evidence = resolveSpaceEfficiencyEvidence(latest.inputSnapshot);
+        const evidence = resolveSpaceEfficiencyEvidence(
+          latest.inputSnapshot
+        );
         return evidence.status === "legacy_unknown" ? void 0 : evidence;
       })()
     };
@@ -25581,7 +29396,7 @@ var projectRouter = router({
     return { ...roiResult, dldContext };
   }),
   // ─── V2: 5-Lens Validation Framework ──────────────────────────────
-  fiveLens: orgProcedure.input(z5.object({ projectId: z5.number() })).query(async ({ ctx, input }) => {
+  fiveLens: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const scores = await getScoreMatricesByProject(input.projectId);
     if (scores.length === 0) return null;
@@ -25590,7 +29405,7 @@ var projectRouter = router({
     return computeFiveLens(project, latest, benchmarks);
   }),
   // ─── V2: Project Intelligence ─────────────────────────────────────
-  intelligence: orgProcedure.input(z5.object({ projectId: z5.number() })).query(async ({ ctx, input }) => {
+  intelligence: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const intel = await getProjectIntelligenceByProject(input.projectId);
     return intel.length > 0 ? intel[0] : null;
@@ -25599,51 +29414,70 @@ var projectRouter = router({
   scenarioTemplates: orgProcedure.query(async () => {
     return SCENARIO_TEMPLATES;
   }),
-  applyScenarioTemplate: orgHeavyMutationProcedure.input(z5.object({
-    projectId: z5.number(),
-    templateKey: z5.string()
-  })).mutation(async ({ ctx, input }) => {
+  applyScenarioTemplate: orgHeavyMutationProcedure.input(
+    z6.object({
+      projectId: z6.number(),
+      templateKey: z6.string()
+    })
+  ).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const template = getScenarioTemplate(input.templateKey);
     if (!template) throw new Error("Template not found");
-    const baseInputs = projectToInputs(project);
+    const baseInputs = projectToInputs2(project);
     const scenarioInputs2 = { ...baseInputs, ...template.overrides };
+    await applyGovernedBoardCostForScoring({
+      projectId: input.projectId,
+      organizationId: ctx.orgId,
+      materialPriceGeography: project.materialPriceGeography,
+      scoringInputs: scenarioInputs2
+    });
     const modelVersion = await getActiveModelVersion();
     if (!modelVersion) throw new Error("No active model version");
     const boards = await getMaterialBoardsByProject(input.projectId);
     if (boards && boards.length > 0) {
       const activeBoard = boards[0];
       const boardMaterials = await getMaterialsByBoard(activeBoard.id);
-      let totalLow = 0;
-      let totalHigh = 0;
       let totalVariance = 0;
       for (const bm of boardMaterials) {
         const mat = await getMaterialById(bm.materialId);
         if (mat) {
-          const qty = Number(bm.quantity) || 1;
-          totalLow += (Number(mat.typicalCostLow) || 0) * qty;
-          totalHigh += (Number(mat.typicalCostHigh) || 0) * qty;
-          const matMaint = parseFloat(String(mat.maintenanceFactor || "0.05"));
+          const matMaint = parseFloat(
+            String(mat.maintenanceFactor || "0.05")
+          );
           totalVariance += (matMaint - 0.05) * 100;
         }
       }
-      if (totalHigh > 0) {
-        scenarioInputs2.boardMaterialsCost = (totalLow + totalHigh) / 2;
+      if (totalVariance !== 0) {
         scenarioInputs2.boardMaintenanceVariance = totalVariance;
       }
     }
-    const expectedCost = await getExpectedCost(scenarioInputs2.ctx01Typology, scenarioInputs2.ctx04Location, scenarioInputs2.mkt01Tier);
-    const benchmarks = await getBenchmarks(scenarioInputs2.ctx01Typology, scenarioInputs2.ctx04Location, scenarioInputs2.mkt01Tier);
-    const config = await buildEvalConfig(modelVersion, expectedCost, benchmarks.length);
+    const expectedCost = await getExpectedCost(
+      scenarioInputs2.ctx01Typology,
+      scenarioInputs2.ctx04Location,
+      scenarioInputs2.mkt01Tier
+    );
+    const benchmarks = await getBenchmarks(
+      scenarioInputs2.ctx01Typology,
+      scenarioInputs2.ctx04Location,
+      scenarioInputs2.mkt01Tier
+    );
+    const config = await buildEvalConfig(
+      modelVersion,
+      expectedCost,
+      benchmarks.length
+    );
     const scoreResult = evaluate(scenarioInputs2, config);
-    const result = await createScenarioRecordForOrg({
-      projectId: input.projectId,
-      name: template.name,
-      description: template.description,
-      variableOverrides: template.overrides,
-      isTemplate: true,
-      templateKey: input.templateKey
-    }, ctx.orgId);
+    const result = await createScenarioRecordForOrg(
+      {
+        projectId: input.projectId,
+        name: template.name,
+        description: template.description,
+        variableOverrides: template.overrides,
+        isTemplate: true,
+        templateKey: input.templateKey
+      },
+      ctx.orgId
+    );
     if (!result) {
       await requireProjectForOrg(input.projectId, ctx.orgId);
       throw new Error("Failed to create scenario");
@@ -25653,36 +29487,57 @@ var projectRouter = router({
       action: "scenario.template_applied",
       entityType: "scenario",
       entityId: result.id,
-      details: { templateKey: input.templateKey, score: scoreResult.compositeScore }
+      details: {
+        templateKey: input.templateKey,
+        score: scoreResult.compositeScore
+      }
     });
     return { id: result.id, ...scoreResult, tradeoffs: template.tradeoffs };
   }),
   // ─── V2: Constraint Solver ────────────────────────────────────────
-  solveConstraints: orgMutationProcedure.input(z5.object({
-    projectId: z5.number(),
-    constraints: z5.array(z5.object({
-      variable: z5.string(),
-      operator: z5.enum(["eq", "gte", "lte", "in"]),
-      value: z5.union([z5.number(), z5.string(), z5.array(z5.union([z5.number(), z5.string()]))])
-    }))
-  })).mutation(async ({ ctx, input }) => {
+  solveConstraints: orgMutationProcedure.input(
+    z6.object({
+      projectId: z6.number(),
+      constraints: z6.array(
+        z6.object({
+          variable: z6.string(),
+          operator: z6.enum(["eq", "gte", "lte", "in"]),
+          value: z6.union([
+            z6.number(),
+            z6.string(),
+            z6.array(z6.union([z6.number(), z6.string()]))
+          ])
+        })
+      )
+    })
+  ).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
-    const baseProject = projectToInputs(project);
+    const baseProject = projectToInputs2(project);
     return solveConstraints(baseProject, input.constraints);
   }),
   // ─── V2: Enhanced Report Generation ───────────────────────────────
-  generateReport: orgHeavyMutationProcedure.input(z5.object({
-    projectId: z5.number(),
-    reportType: z5.enum(["validation_summary", "design_brief", "full_report", "autonomous_design_brief"]),
-    locale: z5.enum(["en", "ar"]).default("en")
-  })).mutation(async ({ ctx, input }) => {
+  generateReport: orgHeavyMutationProcedure.input(
+    z6.object({
+      projectId: z6.number(),
+      reportType: z6.enum([
+        "validation_summary",
+        "design_brief",
+        "full_report",
+        "autonomous_design_brief"
+      ]),
+      locale: z6.enum(["en", "ar"]).default("en")
+    })
+  ).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const requiresBoardAnnex = input.reportType === "design_brief" || input.reportType === "full_report";
     let reportBoardSnapshot = null;
     let boardAnnex;
     if (requiresBoardAnnex) {
       try {
-        reportBoardSnapshot = await getReportBoardSnapshotForOrg(input.projectId, ctx.orgId);
+        reportBoardSnapshot = await getReportBoardSnapshotForOrg(
+          input.projectId,
+          ctx.orgId
+        );
         boardAnnex = buildBoardAnnexData(reportBoardSnapshot);
       } catch (error) {
         console.error("[Report] Board annex retrieval failed", {
@@ -25690,16 +29545,17 @@ var projectRouter = router({
           reportType: input.reportType,
           error: error instanceof Error ? error.message : String(error)
         });
-        throw new TRPCError7({
+        throw new TRPCError9({
           code: "INTERNAL_SERVER_ERROR",
           message: "REPORT_BOARD_RETRIEVAL_FAILED"
         });
       }
     }
     const scores = await getScoreMatricesByProject(input.projectId);
-    if (scores.length === 0) throw new Error("No scores available. Evaluate first.");
+    if (scores.length === 0)
+      throw new Error("No scores available. Evaluate first.");
     const latest = scores[0];
-    const inputs = projectToInputs(project);
+    const inputs = projectToInputs2(project);
     const modelVersion = await getActiveModelVersion();
     if (!modelVersion) throw new Error("No active model version");
     let boardMaterials = [];
@@ -25709,13 +29565,13 @@ var projectRouter = router({
         materialId: item.materialId,
         quantity: item.quantity,
         material: {
-          typicalCostLow: item.costLow,
-          typicalCostHigh: item.costHigh,
           maintenanceFactor: item.maintenanceFactor
         }
       }));
     } else if (!reportBoardSnapshot) {
-      const legacyBoards = await getMaterialBoardsByProject(input.projectId);
+      const legacyBoards = await getMaterialBoardsByProject(
+        input.projectId
+      );
       if (legacyBoards.length > 0) {
         boardMaterials = (await getMaterialsByBoard(legacyBoards[0].id)).map((item) => ({
           ...item,
@@ -25724,27 +29580,35 @@ var projectRouter = router({
       }
     }
     if (boardMaterials.length > 0) {
-      let totalLow = 0;
-      let totalHigh = 0;
       let totalVariance = 0;
       for (const bm of boardMaterials) {
         const mat = bm.material ?? await getMaterialById(bm.materialId);
         if (mat) {
-          const qty = Number(bm.quantity) || 1;
-          totalLow += (Number(mat.typicalCostLow) || 0) * qty;
-          totalHigh += (Number(mat.typicalCostHigh) || 0) * qty;
-          const matMaint = parseFloat(String(mat.maintenanceFactor ?? "0.05"));
+          const matMaint = parseFloat(
+            String(mat.maintenanceFactor ?? "0.05")
+          );
           totalVariance += (matMaint - 0.05) * 100;
         }
       }
-      if (totalHigh > 0) {
-        inputs.boardMaterialsCost = (totalLow + totalHigh) / 2;
+      if (totalVariance !== 0) {
         inputs.boardMaintenanceVariance = totalVariance;
       }
     }
-    const expectedCost = await getExpectedCost(inputs.ctx01Typology, inputs.ctx04Location, inputs.mkt01Tier);
-    const benchmarks = await getBenchmarks(inputs.ctx01Typology, inputs.ctx04Location, inputs.mkt01Tier);
-    const config = await buildEvalConfig(modelVersion, expectedCost, benchmarks.length);
+    const expectedCost = await getExpectedCost(
+      inputs.ctx01Typology,
+      inputs.ctx04Location,
+      inputs.mkt01Tier
+    );
+    const benchmarks = await getBenchmarks(
+      inputs.ctx01Typology,
+      inputs.ctx04Location,
+      inputs.mkt01Tier
+    );
+    const config = await buildEvalConfig(
+      modelVersion,
+      expectedCost,
+      benchmarks.length
+    );
     const scoreResult = {
       dimensions: {
         sa: Number(latest.saScore),
@@ -25769,20 +29633,28 @@ var projectRouter = router({
       ...inputs,
       spaceEfficiencyScore: Number(latest.inputSnapshot?.spaceEfficiencyScore) || void 0,
       spaceEfficiencyEvidence: (() => {
-        const evidence = resolveSpaceEfficiencyEvidence(latest.inputSnapshot);
+        const evidence = resolveSpaceEfficiencyEvidence(
+          latest.inputSnapshot
+        );
         return evidence.status === "legacy_unknown" ? void 0 : evidence;
       })()
     };
     const sensitivity = runSensitivityAnalysis(sensitivityInputs, config);
     const allBenchmarks = await getAllBenchmarkData();
-    const fiveLens = computeFiveLens(project, latest, allBenchmarks);
+    const fiveLens = computeFiveLens(
+      project,
+      latest,
+      allBenchmarks
+    );
     const roiConfig = await getActiveRoiConfig();
     const coefficients = roiConfig ? {
       hourlyRate: Number(roiConfig.hourlyRate),
       reworkCostPct: Number(roiConfig.reworkCostPct),
       tenderIterationCost: Number(roiConfig.tenderIterationCost),
       designCycleCost: Number(roiConfig.designCycleCost),
-      budgetVarianceMultiplier: Number(roiConfig.budgetVarianceMultiplier),
+      budgetVarianceMultiplier: Number(
+        roiConfig.budgetVarianceMultiplier
+      ),
       timeAccelerationWeeks: roiConfig.timeAccelerationWeeks ?? 6,
       conservativeMultiplier: Number(roiConfig.conservativeMultiplier),
       aggressiveMultiplier: Number(roiConfig.aggressiveMultiplier)
@@ -25799,39 +29671,115 @@ var projectRouter = router({
       horizon: project.ctx05Horizon || "12-24m",
       spaceEfficiencyScore: Number(latest.inputSnapshot?.spaceEfficiencyScore) || void 0,
       spaceEfficiencyEvidence: (() => {
-        const evidence = resolveSpaceEfficiencyEvidence(latest.inputSnapshot);
+        const evidence = resolveSpaceEfficiencyEvidence(
+          latest.inputSnapshot
+        );
         return evidence.status === "legacy_unknown" ? void 0 : evidence;
       })()
     };
     const roiResult = computeRoi(roiInputs, coefficients);
     const roi = input.reportType === "full_report" ? computeROI(inputs, scoreResult.compositeScore, 15e4) : void 0;
     let reportData;
+    const reportMaterialAsOf = /* @__PURE__ */ new Date();
+    let reportStoredRooms;
+    let reportStoredAllocations;
     let designArtifacts;
     if (input.reportType === "validation_summary") {
-      reportData = generateValidationSummary(project.name, project.id, inputs, scoreResult, sensitivity);
-    } else if (input.reportType === "design_brief") {
+      reportData = generateValidationSummary(
+        project.name,
+        project.id,
+        inputs,
+        scoreResult,
+        sensitivity
+      );
+    } else if (input.reportType === "design_brief" || input.reportType === "full_report") {
       const { buildDesignVocabulary: buildDesignVocabulary2 } = await Promise.resolve().then(() => (init_vocabulary(), vocabulary_exports));
       const { buildSpaceProgram: buildSpaceProgram2 } = await Promise.resolve().then(() => (init_space_program(), space_program_exports));
-      const { buildFinishSchedule: buildFinishSchedule2 } = await Promise.resolve().then(() => (init_finish_schedule(), finish_schedule_exports));
       const { buildColorPalette: buildColorPalette2 } = await Promise.resolve().then(() => (init_color_palette(), color_palette_exports));
-      const { buildRFQPack: buildRFQPack2 } = await Promise.resolve().then(() => (init_rfq_generator(), rfq_generator_exports));
+      const {
+        buildRFQPackFromAllocations: buildRFQPackFromAllocations2,
+        expectedCanonicalRfqMaterialLineCount: expectedCanonicalRfqMaterialLineCount2
+      } = await Promise.resolve().then(() => (init_rfq_generator(), rfq_generator_exports));
       const { buildDMComplianceChecklist: buildDMComplianceChecklist2 } = await Promise.resolve().then(() => (init_dm_compliance(), dm_compliance_exports));
       const vocab = buildDesignVocabulary2(project);
-      const { totalFitoutBudgetAed, rooms } = buildSpaceProgram2(project);
+      const { totalFitoutBudgetAed } = buildSpaceProgram2(project);
+      [reportStoredRooms, reportStoredAllocations] = await Promise.all([
+        getSpaceProgramRooms(input.projectId, ctx.orgId),
+        getMaterialAllocations(input.projectId, ctx.orgId)
+      ]);
+      const reportRfqRooms = reportStoredRooms.filter((room) => room.isFitOut).map((room) => ({ id: room.roomCode, name: room.roomName }));
       const materials = await getMaterialLibrary();
-      const finishSchedule = buildFinishSchedule2(project, vocab, rooms, materials);
-      const colorPalette = await buildColorPalette2(project, vocab);
+      const authorizedDesignProject = {
+        ...project,
+        organizationId: ctx.orgId
+      };
+      const rfqPriceSnapshots = await resolveMaterialPriceSnapshots({
+        references: Array.from(
+          new Set(
+            reportStoredAllocations.map((allocation) => allocation.materialLibraryId).filter((id) => id !== null)
+          )
+        ).map((legacyId) => ({
+          source: "material_library",
+          legacyId
+        })),
+        organizationId: ctx.orgId,
+        priceScope: "supply_and_install",
+        requestedGeography: resolveProjectMaterialPriceGeography(
+          project.materialPriceGeography
+        ),
+        asOf: reportMaterialAsOf,
+        allowLegacyUnknownScope: true
+      });
+      const finishSchedule = reportStoredAllocations.map((allocation) => ({
+        projectId: project.id,
+        organizationId: ctx.orgId,
+        roomId: allocation.roomId,
+        roomName: allocation.roomName,
+        element: allocation.element === "walls" ? "wall_primary" : allocation.element,
+        materialLibraryId: allocation.materialLibraryId,
+        productId: allocation.productId,
+        specId: allocation.specId,
+        identityState: allocation.productId !== null && allocation.specId !== null ? "resolved" : "unresolved",
+        overrideSpec: null,
+        notes: "Canonical identity and quantity originate from the persisted MQI allocation."
+      }));
+      const colorPalette = await buildColorPalette2(
+        authorizedDesignProject,
+        vocab
+      );
       const complianceChecklist = buildDMComplianceChecklist2(
         project.id,
         ctx.orgId,
         project
       );
-      const rfqPack = buildRFQPack2(
+      const rfqPack = buildRFQPackFromAllocations2(
         project.id,
         ctx.orgId,
-        finishSchedule,
-        rooms,
-        materials
+        reportStoredAllocations,
+        materials,
+        rfqPriceSnapshots,
+        reportRfqRooms
+      );
+      const materialRfqLines = rfqPack.filter(
+        (line) => line.lineKind === "material"
+      );
+      const issuedRfqIsComplete = materialRfqLines.length === expectedCanonicalRfqMaterialLineCount2(
+        reportStoredAllocations,
+        reportRfqRooms
+      ) && materialRfqLines.length > 0 && rfqPack.every(
+        (line) => line.resolutionState === "resolved" && line.totalAedMin !== null && line.totalAedMax !== null && Number.isFinite(line.totalAedMin) && Number.isFinite(line.totalAedMax)
+      );
+      if (!issuedRfqIsComplete) {
+        throw new TRPCError9({
+          code: "PRECONDITION_FAILED",
+          message: "REPORT_RFQ_PRICING_INSUFFICIENT"
+        });
+      }
+      const rfqMin = Number(
+        rfqPack.reduce((total, line) => total + line.totalAedMin, 0).toFixed(2)
+      );
+      const rfqMax = Number(
+        rfqPack.reduce((total, line) => total + line.totalAedMax, 0).toFixed(2)
       );
       designArtifacts = {
         finishSchedule,
@@ -25841,20 +29789,43 @@ var projectRouter = router({
           projectId: project.id,
           version: 1,
           createdBy: ctx.user.id,
-          projectIdentity: { name: project.name, location: project.ctx04Location },
+          projectIdentity: {
+            name: project.name,
+            location: project.ctx04Location
+          },
           designNarrative: {
             positioningStatement: colorPalette.geminiRationale || "Curated aesthetic alignment."
           },
           materialSpecifications: { vocab, finishSchedule },
           boqFramework: { coreAllocations: [] },
-          detailedBudget: { totalFitoutBudgetAed, rfqMin: 0, rfqMax: 0 },
-          designerInstructions: { deliverablesChecklist: complianceChecklist }
+          detailedBudget: { totalFitoutBudgetAed, rfqMin, rfqMax },
+          designerInstructions: {
+            deliverablesChecklist: complianceChecklist
+          }
         },
+        // Drizzle decimal insert fields are string-typed while the RFQ
+        // engine preserves its established numeric presentation contract.
         rfqItems: rfqPack
       };
-      reportData = generateDesignBrief(project.name, project.id, inputs, scoreResult, sensitivity);
+      reportData = input.reportType === "design_brief" ? generateDesignBrief(
+        project.name,
+        project.id,
+        inputs,
+        scoreResult,
+        sensitivity
+      ) : generateFullReport(
+        project.name,
+        project.id,
+        inputs,
+        scoreResult,
+        sensitivity,
+        roi
+      );
     } else if (input.reportType === "autonomous_design_brief") {
-      const mdContent = await generateAutonomousDesignBrief(project.id, input.locale);
+      const mdContent = await generateAutonomousDesignBrief(
+        project.id,
+        input.locale
+      );
       reportData = {
         reportType: "autonomous_design_brief",
         generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
@@ -25863,7 +29834,14 @@ var projectRouter = router({
         content: mdContent
       };
     } else {
-      reportData = generateFullReport(project.name, project.id, inputs, scoreResult, sensitivity, roi);
+      reportData = generateFullReport(
+        project.name,
+        project.id,
+        inputs,
+        scoreResult,
+        sensitivity,
+        roi
+      );
     }
     const activeBV = await getActiveBenchmarkVersion();
     const benchmarkVersionTag = activeBV?.versionTag || "v1.0-baseline";
@@ -25871,9 +29849,13 @@ var projectRouter = router({
     const logicVersionTag = publishedLV?.name || "v1.0-default";
     let evidenceRefs = [];
     try {
-      const allEvidence = await listOrganizationEvidenceRecords(ctx.orgId, {
-        projectId: input.projectId
-      });
+      const allEvidence = await listOrganizationEvidenceRecords(
+        ctx.orgId,
+        {
+          projectId: input.projectId,
+          presentationSafe: true
+        }
+      );
       if (allEvidence.length > 0) {
         evidenceRefs = allEvidence.map((e) => ({
           title: e.title || e.itemName,
@@ -25889,17 +29871,41 @@ var projectRouter = router({
     }
     let workflowReconciliation;
     if (input.reportType === "full_report") {
-      const [storedRooms, storedAllocations, materialLibrary2] = await Promise.all([
-        getSpaceProgramRooms(input.projectId, ctx.orgId),
-        getMaterialAllocations(input.projectId, ctx.orgId),
-        getMaterialLibrary()
-      ]);
+      const storedRooms = reportStoredRooms ?? await getSpaceProgramRooms(input.projectId, ctx.orgId);
+      const storedAllocations = reportStoredAllocations ?? await getMaterialAllocations(input.projectId, ctx.orgId);
+      const materialLibraryIds = Array.from(
+        new Set(
+          storedAllocations.map((allocation) => allocation.materialLibraryId).filter((id) => id !== null)
+        )
+      );
+      const priceSnapshots = await resolveMaterialPriceSnapshots({
+        references: materialLibraryIds.map((legacyId) => ({
+          source: "material_library",
+          legacyId
+        })),
+        organizationId: ctx.orgId,
+        requestedGeography: resolveProjectMaterialPriceGeography(
+          project.materialPriceGeography
+        ),
+        priceScope: "supply_only",
+        asOf: reportMaterialAsOf,
+        allowLegacyUnknownScope: true
+      });
       workflowReconciliation = buildWorkflowSpaceMqiReconciliation({
         projectFitOutAreaM2: project.totalFitoutArea,
         rooms: storedRooms,
         allocations: storedAllocations,
-        materialLibrary: materialLibrary2
+        priceSnapshots
       });
+      if (!isIssuedFullReportMaterialCoverageComplete(
+        workflowReconciliation,
+        storedRooms
+      )) {
+        throw new TRPCError9({
+          code: "PRECONDITION_FAILED",
+          message: "REPORT_MATERIAL_PRICING_INSUFFICIENT"
+        });
+      }
     }
     const pdfInput = {
       projectName: project.name,
@@ -25918,24 +29924,32 @@ var projectRouter = router({
       boardAnnex,
       workflowReconciliation,
       autonomousContent: input.reportType === "autonomous_design_brief" ? reportData.content : void 0,
-      designBrief: input.reportType === "design_brief" || input.reportType === "full_report" ? generateDesignBrief2({ name: project.name, description: project.description }, inputs, scoreResult) : void 0
+      designBrief: input.reportType === "design_brief" || input.reportType === "full_report" ? generateDesignBrief2(
+        { name: project.name, description: project.description },
+        inputs,
+        scoreResult
+      ) : void 0
     };
     const html = generateReportHTML(input.reportType, pdfInput);
     let fileUrl = null;
     let storageKey = null;
     try {
-      const fileKey = `reports/${project.id}/${input.reportType}-${nanoid3(8)}.html`;
+      const fileKey = `reports/${project.id}/${input.reportType}-${nanoid4(8)}.html`;
       const result = await storagePut(fileKey, html, "text/html");
       storageKey = result.persistent ? result.key : null;
       fileUrl = result.url;
     } catch (e) {
-      console.warn("[Report] S3 upload failed, storing HTML content inline:", e);
+      console.warn(
+        "[Report] S3 upload failed, storing HTML content inline:",
+        e
+      );
     }
     let persistence;
     try {
       persistence = await createReportArtifactsForOrg({
         projectId: input.projectId,
         orgId: ctx.orgId,
+        expectedMaterialPricingRevision: designArtifacts === void 0 ? void 0 : project.materialPricingRevision,
         report: {
           projectId: input.projectId,
           scoreMatrixId: latest.id,
@@ -25960,14 +29974,20 @@ var projectRouter = router({
     if (!persistence) {
       if (storageKey) await cleanupRejectedUpload(storageKey);
       await requireProjectForOrg(input.projectId, ctx.orgId);
-      throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError9({
+        code: "NOT_FOUND",
+        message: "Resource not found"
+      });
     }
     await createAuditLog({
       userId: ctx.user.id,
       action: "report.generate",
       entityType: "report",
       entityId: input.projectId,
-      details: { reportType: input.reportType, stored: Boolean(storageKey || fileUrl) },
+      details: {
+        reportType: input.reportType,
+        stored: Boolean(storageKey || fileUrl)
+      },
       benchmarkVersionId: activeBV?.id
     });
     dispatchWebhook("report.generated", {
@@ -25986,29 +30006,33 @@ var projectRouter = router({
       roiNarrative: input.reportType === "full_report" ? roiResult : void 0
     };
   }),
-  listReports: orgProcedure.input(z5.object({ projectId: z5.number() })).query(async ({ ctx, input }) => {
+  listReports: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const reports = await getReportsByProject(input.projectId);
-    return Promise.all(reports.map(async (report) => {
-      const { storageKey, ...publicReport } = report;
-      if (!storageKey) return publicReport;
-      try {
-        const signed = await storageGet(storageKey);
-        return { ...publicReport, fileUrl: signed.url };
-      } catch (error) {
-        console.warn("[Report] Failed to refresh stored report URL", {
-          reportId: report.id,
-          error: error instanceof Error ? error.message : String(error)
-        });
-        return publicReport;
-      }
-    }));
+    return Promise.all(
+      reports.map(async (report) => {
+        const { storageKey, ...publicReport } = report;
+        if (!storageKey) return publicReport;
+        try {
+          const signed = await storageGet(storageKey);
+          return { ...publicReport, fileUrl: signed.url };
+        } catch (error) {
+          console.warn("[Report] Failed to refresh stored report URL", {
+            reportId: report.id,
+            error: error instanceof Error ? error.message : String(error)
+          });
+          return publicReport;
+        }
+      })
+    );
   }),
   // ─── V4: Area Verification Gate ───────────────────────────────────────────
-  extractAreas: orgHeavyMutationProcedure.input(z5.object({
-    projectId: z5.number(),
-    assetId: z5.number()
-  })).mutation(async ({ ctx, input }) => {
+  extractAreas: orgHeavyMutationProcedure.input(
+    z6.object({
+      projectId: z6.number(),
+      assetId: z6.number()
+    })
+  ).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const { resource: asset } = await requireProjectResourceForOrg(
       input.assetId,
@@ -26019,35 +30043,51 @@ var projectRouter = router({
       }
     );
     if (asset.projectId !== project.id) {
-      throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError9({
+        code: "NOT_FOUND",
+        message: "Resource not found"
+      });
     }
-    if (!asset.storagePath) throw new TRPCError7({ code: "BAD_REQUEST", message: "Asset has no stored media" });
-    const extraction = await createPdfExtractionForOrg({
-      projectId: input.projectId,
-      assetId: input.assetId,
-      extractionMethod: "vision_ai",
-      status: "pending"
-    }, ctx.orgId);
+    if (!asset.storagePath)
+      throw new TRPCError9({
+        code: "BAD_REQUEST",
+        message: "Asset has no stored media"
+      });
+    const extraction = await createPdfExtractionForOrg(
+      {
+        projectId: input.projectId,
+        assetId: input.assetId,
+        extractionMethod: "vision_ai",
+        status: "pending"
+      },
+      ctx.orgId
+    );
     if (!extraction) {
-      throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError9({
+        code: "NOT_FOUND",
+        message: "Resource not found"
+      });
     }
     try {
       const { extractRoomsFromMedia: extractRoomsFromMedia2 } = await Promise.resolve().then(() => (init_pdf_extraction(), pdf_extraction_exports));
-      const media = await readValidatedProjectMedia(asset, "project.area-extraction");
-      const result = await extractRoomsFromMedia2(
-        media,
-        {
-          typology: project.ctx01Typology || void 0,
-          gfa: getPricingArea(project) || void 0,
-          archetype: project.projectArchetype || void 0
-        }
+      const media = await readValidatedProjectMedia(
+        asset,
+        "project.area-extraction"
       );
+      const result = await extractRoomsFromMedia2(media, {
+        typology: project.ctx01Typology || void 0,
+        gfa: getPricingArea(project) || void 0,
+        archetype: project.projectArchetype || void 0
+      });
       if (!await updatePdfExtractionForOrg(extraction.id, ctx.orgId, {
         status: "extracted",
         extractedRooms: result.rooms,
         totalExtractedArea: String(result.totalArea)
       })) {
-        throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError9({
+          code: "NOT_FOUND",
+          message: "Resource not found"
+        });
       }
       await createAuditLog({
         userId: ctx.user.id,
@@ -26075,12 +30115,14 @@ var projectRouter = router({
       throw error;
     }
   }),
-  verifyAreas: orgMutationProcedure.input(z5.object({
-    projectId: z5.number(),
-    extractionId: z5.number(),
-    action: z5.enum(["verify", "reject"]),
-    adjustedTotalArea: z5.number().optional()
-  })).mutation(async ({ ctx, input }) => {
+  verifyAreas: orgMutationProcedure.input(
+    z6.object({
+      projectId: z6.number(),
+      extractionId: z6.number(),
+      action: z6.enum(["verify", "reject"]),
+      adjustedTotalArea: z6.number().optional()
+    })
+  ).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const { resource: extraction } = await requireProjectResourceForOrg(
       input.extractionId,
@@ -26091,7 +30133,10 @@ var projectRouter = router({
       }
     );
     if (extraction.projectId !== project.id) {
-      throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+      throw new TRPCError9({
+        code: "NOT_FOUND",
+        message: "Resource not found"
+      });
     }
     if (input.action === "verify") {
       const verifiedArea = input.adjustedTotalArea ?? Number(extraction.totalExtractedArea);
@@ -26102,7 +30147,10 @@ var projectRouter = router({
         ctx.user.id,
         verifiedArea
       )) {
-        throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError9({
+          code: "NOT_FOUND",
+          message: "Resource not found"
+        });
       }
       await createAuditLog({
         userId: ctx.user.id,
@@ -26122,7 +30170,10 @@ var projectRouter = router({
         verifiedBy: ctx.user.id,
         verifiedAt: /* @__PURE__ */ new Date()
       })) {
-        throw new TRPCError7({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError9({
+          code: "NOT_FOUND",
+          message: "Resource not found"
+        });
       }
       await createAuditLog({
         userId: ctx.user.id,
@@ -26134,15 +30185,15 @@ var projectRouter = router({
       return { success: true, verifiedArea: null };
     }
   }),
-  getExtractions: orgProcedure.input(z5.object({ projectId: z5.number() })).query(async ({ ctx, input }) => {
+  getExtractions: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getPdfExtractionsByProject(input.projectId);
   })
 });
 
 // server/routers/scenario.ts
-import { z as z6 } from "zod";
-import { TRPCError as TRPCError8 } from "@trpc/server";
+import { z as z7 } from "zod";
+import { TRPCError as TRPCError10 } from "@trpc/server";
 init_db();
 init_db();
 
@@ -26362,8 +30413,8 @@ function rankScenarios(scenarios2) {
 
 // server/routers/scenario.ts
 init_schema();
-import { eq as eq4, desc as desc3 } from "drizzle-orm";
-function projectToInputs2(p) {
+import { eq as eq5, desc as desc3 } from "drizzle-orm";
+function projectToInputs3(p) {
   return {
     ctx01Typology: p.ctx01Typology ?? "Residential",
     ctx02Scale: p.ctx02Scale ?? "Medium",
@@ -26398,15 +30449,15 @@ function projectToInputs2(p) {
   };
 }
 var scenarioRouter = router({
-  list: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
+  list: orgProcedure.input(z7.object({ projectId: z7.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     return getScenariosByProject(input.projectId);
   }),
-  create: orgMutationProcedure.input(z6.object({
-    projectId: z6.number(),
-    name: z6.string().min(1),
-    description: z6.string().optional(),
-    variableOverrides: z6.record(z6.string(), z6.any())
+  create: orgMutationProcedure.input(z7.object({
+    projectId: z7.number(),
+    name: z7.string().min(1),
+    description: z7.string().optional(),
+    variableOverrides: z7.record(z7.string(), z7.any())
   })).mutation(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const result = await createScenarioRecordForOrg({
@@ -26427,7 +30478,7 @@ var scenarioRouter = router({
     });
     return result;
   }),
-  delete: orgMutationProcedure.input(z6.object({ id: z6.number() })).mutation(async ({ ctx, input }) => {
+  delete: orgMutationProcedure.input(z7.object({ id: z7.number() })).mutation(async ({ ctx, input }) => {
     await requireProjectResourceForOrg(input.id, ctx.orgId, {
       lookupResource: getScenarioById,
       getProjectId: (scenario) => scenario.projectId
@@ -26440,11 +30491,11 @@ var scenarioRouter = router({
     }
     return { success: true };
   }),
-  compare: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
+  compare: orgProcedure.input(z7.object({ projectId: z7.number() })).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const modelVersion = await getActiveModelVersion();
     if (!modelVersion) return [];
-    const baseInputs = projectToInputs2(project);
+    const baseInputs = projectToInputs3(project);
     const expectedCost = await getExpectedCost(
       baseInputs.ctx01Typology,
       baseInputs.ctx04Location,
@@ -26473,11 +30524,11 @@ var scenarioRouter = router({
     return runScenarioComparison(baseInputs, scenarioInputs2, config);
   }),
   // ─── D1: Stress Test ────────────────────────────────────────────────
-  stressTest: orgMutationProcedure.input(z6.object({
-    scenarioId: z6.number(),
-    stressCondition: z6.enum(["cost_surge", "demand_collapse", "market_shift", "data_disruption"]),
-    baselineBudgetAed: z6.number(),
-    tier: z6.string()
+  stressTest: orgMutationProcedure.input(z7.object({
+    scenarioId: z7.number(),
+    stressCondition: z7.enum(["cost_surge", "demand_collapse", "market_shift", "data_disruption"]),
+    baselineBudgetAed: z7.number(),
+    tier: z7.string()
   })).mutation(async ({ ctx, input }) => {
     await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
       lookupResource: getScenarioById,
@@ -26502,26 +30553,26 @@ var scenarioRouter = router({
     }
     return result;
   }),
-  listStressTests: orgProcedure.input(z6.object({ scenarioId: z6.number() })).query(async ({ ctx, input }) => {
+  listStressTests: orgProcedure.input(z7.object({ scenarioId: z7.number() })).query(async ({ ctx, input }) => {
     await requireProjectResourceForOrg(input.scenarioId, ctx.orgId, {
       lookupResource: getScenarioById,
       getProjectId: (scenario) => scenario.projectId
     });
     const drizzle2 = await getDb();
     if (!drizzle2) return [];
-    return drizzle2.select().from(scenarioStressTests).where(eq4(scenarioStressTests.scenarioId, input.scenarioId)).orderBy(desc3(scenarioStressTests.createdAt));
+    return drizzle2.select().from(scenarioStressTests).where(eq5(scenarioStressTests.scenarioId, input.scenarioId)).orderBy(desc3(scenarioStressTests.createdAt));
   }),
   // ─── D2: Economic Model (ROI) ──────────────────────────────────────
-  calculateRoi: orgMutationProcedure.input(z6.object({
-    projectId: z6.number(),
-    scenarioId: z6.number().optional(),
-    tier: z6.string(),
-    scale: z6.string(),
-    totalBudgetAed: z6.number(),
-    totalDevelopmentValue: z6.number(),
-    complexityScore: z6.number(),
-    serviceFeeAed: z6.number(),
-    decisionSpeedAdjustment: z6.number().optional()
+  calculateRoi: orgMutationProcedure.input(z7.object({
+    projectId: z7.number(),
+    scenarioId: z7.number().optional(),
+    tier: z7.string(),
+    scale: z7.string(),
+    totalBudgetAed: z7.number(),
+    totalDevelopmentValue: z7.number(),
+    complexityScore: z7.number(),
+    serviceFeeAed: z7.number(),
+    decisionSpeedAdjustment: z7.number().optional()
   })).mutation(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     if (input.scenarioId !== void 0) {
@@ -26534,7 +30585,7 @@ var scenarioRouter = router({
         }
       );
       if (authorized.project.id !== input.projectId) {
-        throw new TRPCError8({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError10({ code: "NOT_FOUND", message: "Resource not found" });
       }
     }
     const roi = calculateProjectRoi({
@@ -26560,12 +30611,12 @@ var scenarioRouter = router({
     return roi;
   }),
   // ─── D3: Risk Surface Map ──────────────────────────────────────────
-  generateRiskSurface: orgMutationProcedure.input(z6.object({
-    projectId: z6.number(),
-    tier: z6.string(),
-    horizon: z6.string(),
-    location: z6.string(),
-    complexityScore: z6.number()
+  generateRiskSurface: orgMutationProcedure.input(z7.object({
+    projectId: z7.number(),
+    tier: z7.string(),
+    horizon: z7.string(),
+    location: z7.string(),
+    complexityScore: z7.number()
   })).mutation(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const domains = [
@@ -26610,14 +30661,14 @@ var scenarioRouter = router({
       )
     };
   }),
-  getRiskSurface: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
+  getRiskSurface: orgProcedure.input(z7.object({ projectId: z7.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const drizzle2 = await getDb();
     if (!drizzle2) return [];
-    return drizzle2.select().from(riskSurfaceMaps).where(eq4(riskSurfaceMaps.projectId, input.projectId)).orderBy(desc3(riskSurfaceMaps.createdAt));
+    return drizzle2.select().from(riskSurfaceMaps).where(eq5(riskSurfaceMaps.projectId, input.projectId)).orderBy(desc3(riskSurfaceMaps.createdAt));
   }),
   // ─── D4: Scenario Ranking ─────────────────────────────────────────
-  rank: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
+  rank: orgProcedure.input(z7.object({ projectId: z7.number() })).query(async ({ ctx, input }) => {
     const drizzle2 = await getDb();
     if (!drizzle2) return [];
     await requireProjectForOrg(input.projectId, ctx.orgId);
@@ -26625,11 +30676,11 @@ var scenarioRouter = router({
     if (scenarios2.length === 0) return [];
     const profiles = [];
     for (const s of scenarios2) {
-      const stressTests = await drizzle2.select().from(scenarioStressTests).where(eq4(scenarioStressTests.scenarioId, s.id));
+      const stressTests = await drizzle2.select().from(scenarioStressTests).where(eq5(scenarioStressTests.scenarioId, s.id));
       const avgResilience = stressTests.length > 0 ? Math.round(stressTests.reduce((sum, t2) => sum + t2.resilienceScore, 0) / stressTests.length) : 70;
-      const roiRows = await drizzle2.select().from(projectRoiModels).where(eq4(projectRoiModels.scenarioId, s.id)).orderBy(desc3(projectRoiModels.createdAt)).limit(1);
+      const roiRows = await drizzle2.select().from(projectRoiModels).where(eq5(projectRoiModels.scenarioId, s.id)).orderBy(desc3(projectRoiModels.createdAt)).limit(1);
       const netRoi = roiRows.length > 0 ? Number(roiRows[0].netRoiPercent) : 0;
-      const riskMaps = await drizzle2.select().from(riskSurfaceMaps).where(eq4(riskSurfaceMaps.projectId, input.projectId));
+      const riskMaps = await drizzle2.select().from(riskSurfaceMaps).where(eq5(riskSurfaceMaps.projectId, input.projectId));
       const avgRisk = riskMaps.length > 0 ? Math.round(riskMaps.reduce((sum, r) => sum + r.compositeRiskScore, 0) / riskMaps.length) : 50;
       profiles.push({
         scenarioId: s.id,
@@ -26642,27 +30693,33 @@ var scenarioRouter = router({
     return rankScenarios(profiles);
   }),
   // ─── Phase F: Monte Carlo Simulation ────────────────────────────────────
-  runMonteCarlo: orgHeavyMutationProcedure.input(z6.object({
-    projectId: z6.number(),
-    iterations: z6.number().min(100).max(5e4).default(1e4),
-    horizonMonths: z6.number().min(1).max(60).default(18),
-    costVolatilityPct: z6.number().min(1).max(50).default(12),
-    trendVolatility: z6.number().min(0).max(20).default(3)
+  runMonteCarlo: orgHeavyMutationProcedure.input(z7.object({
+    projectId: z7.number(),
+    iterations: z7.number().min(100).max(5e4).default(1e4),
+    horizonMonths: z7.number().min(1).max(60).default(18),
+    costVolatilityPct: z7.number().min(1).max(50).default(12),
+    trendVolatility: z7.number().min(0).max(20).default(3)
   })).mutation(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
     const { runMonteCarloSimulation: runMonteCarloSimulation2 } = await Promise.resolve().then(() => (init_monte_carlo(), monte_carlo_exports));
-    const baseCost = Number(project.fin01BudgetCap || 0);
-    const gfa = getPricingArea(project) || 500;
+    const baseCost = Number(project.fin01BudgetCap);
+    const gfa = getPricingArea(project);
+    if (!Number.isFinite(baseCost) || baseCost <= 0 || !Number.isFinite(gfa) || gfa <= 0) {
+      throw new TRPCError10({
+        code: "PRECONDITION_FAILED",
+        message: "MONTE_CARLO_COST_INPUTS_INSUFFICIENT"
+      });
+    }
     const trendPct = 3;
     const marketCond = project.marketCondition || "balanced";
     const result = runMonteCarloSimulation2({
-      baseCostPerSqm: baseCost > 0 ? baseCost / gfa : 2500,
+      baseCostPerSqm: baseCost / gfa,
       gfa,
       trendAnnualPct: trendPct,
       trendVolatility: input.trendVolatility,
       marketCondition: marketCond,
       horizonMonths: input.horizonMonths,
-      budgetCap: baseCost > 0 ? baseCost : void 0,
+      budgetCap: baseCost,
       iterations: input.iterations,
       costVolatilityPct: input.costVolatilityPct
     });
@@ -26690,13 +30747,13 @@ var scenarioRouter = router({
     }
     return result;
   }),
-  getSimulations: orgProcedure.input(z6.object({ projectId: z6.number() })).query(async ({ ctx, input }) => {
+  getSimulations: orgProcedure.input(z7.object({ projectId: z7.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const d = await getDb();
     if (!d) return [];
-    return d.select().from(monteCarloSimulations).where(eq4(monteCarloSimulations.projectId, input.projectId)).orderBy(desc3(monteCarloSimulations.createdAt)).limit(10);
+    return d.select().from(monteCarloSimulations).where(eq5(monteCarloSimulations.projectId, input.projectId)).orderBy(desc3(monteCarloSimulations.createdAt)).limit(10);
   }),
-  getSimulation: orgProcedure.input(z6.object({ id: z6.number() })).query(async ({ ctx, input }) => {
+  getSimulation: orgProcedure.input(z7.object({ id: z7.number() })).query(async ({ ctx, input }) => {
     const authorized = await requireProjectResourceForOrg(
       input.id,
       ctx.orgId,
@@ -26710,7 +30767,7 @@ var scenarioRouter = router({
 });
 
 // server/routers/admin.ts
-import { z as z7 } from "zod";
+import { z as z8 } from "zod";
 init_db();
 
 // server/engines/portfolio.ts
@@ -26926,7 +30983,7 @@ var MATERIAL_TO_EVIDENCE_CATEGORY = {
   accessory: "ffe",
   other: "other"
 };
-async function getLiveCategoryPricing(finishLevel) {
+async function getBrowseOnlyCategoryEstimates(finishLevel) {
   const normalizedFinish = finishLevel.toLowerCase();
   const allApproved = await listBenchmarkProposals("approved");
   const pricingDict = {};
@@ -26941,38 +30998,50 @@ async function getLiveCategoryPricing(finishLevel) {
       const keepExisting = unitPreference(existing.unit) < unitPreference(unit) || unitPreference(existing.unit) === unitPreference(unit) && existing.unit <= unit;
       if (keepExisting) continue;
     }
+    const p25 = Number(proposal.proposedP25);
+    const p50 = Number(proposal.proposedP50);
+    const p75 = Number(proposal.proposedP75);
+    const weightedMean = Number(proposal.weightedMean);
+    if (![p25, p50, p75, weightedMean].every(
+      (value) => Number.isFinite(value) && value > 0
+    ) || p25 > p50 || p50 > p75) {
+      continue;
+    }
     pricingDict[cat] = {
+      authority: "browse_only_estimate",
       category: cat,
       finishLevel: finish,
       unit,
-      p25: Number(proposal.proposedP25) || 0,
-      p50: Number(proposal.proposedP50) || 0,
-      p75: Number(proposal.proposedP75) || 0,
-      weightedMean: Number(proposal.weightedMean) || 0
+      p25,
+      p50,
+      p75,
+      weightedMean
     };
   }
   return pricingDict;
 }
-async function syncMaterialsWithBenchmarks() {
-  const allApproved = await listBenchmarkProposals("approved");
+async function syncBrowseOnlyCatalogEstimates() {
   const materials = await getAllMaterials();
   let updatedCount = 0;
   let matchedCount = 0;
   let skippedCount = 0;
+  const estimateCache = /* @__PURE__ */ new Map();
   for (const material of materials) {
     const evidenceCat = MATERIAL_TO_EVIDENCE_CATEGORY[material.category] || "other";
     const targetFinishLevel = catalogTierToFinish(material.tier);
-    const searchPrefix = `${evidenceCat}:${targetFinishLevel}:`;
-    const matchedProposal = allApproved.find(
-      (p) => p.benchmarkKey.startsWith(searchPrefix)
-    );
-    if (!matchedProposal) {
+    let estimates = estimateCache.get(targetFinishLevel);
+    if (!estimates) {
+      estimates = await getBrowseOnlyCategoryEstimates(targetFinishLevel);
+      estimateCache.set(targetFinishLevel, estimates);
+    }
+    const estimate = estimates[evidenceCat];
+    if (!estimate) {
       skippedCount++;
       continue;
     }
     matchedCount++;
-    const newLow = Number(matchedProposal.proposedP25);
-    const newHigh = Number(matchedProposal.proposedP75);
+    const newLow = estimate.p25;
+    const newHigh = estimate.p75;
     if (Number(material.typicalCostLow) !== newLow || Number(material.typicalCostHigh) !== newHigh) {
       await updateMaterial(material.id, {
         typicalCostLow: newLow.toFixed(2),
@@ -27210,28 +31279,28 @@ async function generateSyntheticBenchmarks() {
 var adminRouter = router({
   // ─── Benchmarks ──────────────────────────────────────────────────────
   benchmarks: router({
-    list: protectedProcedure.input(z7.object({
-      typology: z7.string().optional(),
-      location: z7.string().optional(),
-      marketTier: z7.string().optional()
+    list: protectedProcedure.input(z8.object({
+      typology: z8.string().optional(),
+      location: z8.string().optional(),
+      marketTier: z8.string().optional()
     }).optional()).query(async ({ input }) => {
       return getBenchmarks(input?.typology, input?.location, input?.marketTier);
     }),
-    create: adminProcedure.input(z7.object({
-      typology: z7.string(),
-      location: z7.string(),
-      marketTier: z7.string(),
-      materialLevel: z7.number(),
-      costPerSqftLow: z7.number().optional(),
-      costPerSqftMid: z7.number().optional(),
-      costPerSqftHigh: z7.number().optional(),
-      avgSellingPrice: z7.number().optional(),
-      absorptionRate: z7.number().optional(),
-      competitiveDensity: z7.number().optional(),
-      sourceType: z7.enum(["synthetic", "client_provided", "curated"]).default("synthetic"),
-      dataYear: z7.number().optional(),
-      region: z7.string().default("UAE"),
-      benchmarkVersionId: z7.number().optional()
+    create: adminProcedure.input(z8.object({
+      typology: z8.string(),
+      location: z8.string(),
+      marketTier: z8.string(),
+      materialLevel: z8.number(),
+      costPerSqftLow: z8.number().optional(),
+      costPerSqftMid: z8.number().optional(),
+      costPerSqftHigh: z8.number().optional(),
+      avgSellingPrice: z8.number().optional(),
+      absorptionRate: z8.number().optional(),
+      competitiveDensity: z8.number().optional(),
+      sourceType: z8.enum(["synthetic", "client_provided", "curated"]).default("synthetic"),
+      dataYear: z8.number().optional(),
+      region: z8.string().default("UAE"),
+      benchmarkVersionId: z8.number().optional()
     })).mutation(async ({ ctx, input }) => {
       const activeBV = await getActiveBenchmarkVersion();
       const result = await createBenchmark({
@@ -27252,7 +31321,7 @@ var adminRouter = router({
       });
       return result;
     }),
-    delete: adminProcedure.input(z7.object({ id: z7.number() })).mutation(async ({ ctx, input }) => {
+    delete: adminProcedure.input(z8.object({ id: z8.number() })).mutation(async ({ ctx, input }) => {
       await deleteBenchmark(input.id);
       await createAuditLog({
         userId: ctx.user.id,
@@ -27262,21 +31331,21 @@ var adminRouter = router({
       });
       return { success: true };
     }),
-    csvImport: adminProcedure.input(z7.object({
-      rows: z7.array(z7.object({
-        typology: z7.string(),
-        location: z7.string(),
-        marketTier: z7.string(),
-        materialLevel: z7.number(),
-        costPerSqftLow: z7.number().optional(),
-        costPerSqftMid: z7.number().optional(),
-        costPerSqftHigh: z7.number().optional(),
-        avgSellingPrice: z7.number().optional(),
-        absorptionRate: z7.number().optional(),
-        competitiveDensity: z7.number().optional(),
-        sourceType: z7.enum(["synthetic", "client_provided", "curated"]).default("client_provided"),
-        dataYear: z7.number().optional(),
-        region: z7.string().default("UAE")
+    csvImport: adminProcedure.input(z8.object({
+      rows: z8.array(z8.object({
+        typology: z8.string(),
+        location: z8.string(),
+        marketTier: z8.string(),
+        materialLevel: z8.number(),
+        costPerSqftLow: z8.number().optional(),
+        costPerSqftMid: z8.number().optional(),
+        costPerSqftHigh: z8.number().optional(),
+        avgSellingPrice: z8.number().optional(),
+        absorptionRate: z8.number().optional(),
+        competitiveDensity: z8.number().optional(),
+        sourceType: z8.enum(["synthetic", "client_provided", "curated"]).default("client_provided"),
+        dataYear: z8.number().optional(),
+        region: z8.string().default("UAE")
       }))
     })).mutation(async ({ ctx, input }) => {
       const activeBV = await getActiveBenchmarkVersion();
@@ -27311,9 +31380,9 @@ var adminRouter = router({
     active: protectedProcedure.query(async () => {
       return getActiveBenchmarkVersion();
     }),
-    create: adminProcedure.input(z7.object({
-      versionTag: z7.string(),
-      description: z7.string().optional()
+    create: adminProcedure.input(z8.object({
+      versionTag: z8.string(),
+      description: z8.string().optional()
     })).mutation(async ({ ctx, input }) => {
       const result = await createBenchmarkVersion({
         ...input,
@@ -27328,7 +31397,7 @@ var adminRouter = router({
       });
       return result;
     }),
-    publish: adminProcedure.input(z7.object({ id: z7.number() })).mutation(async ({ ctx, input }) => {
+    publish: adminProcedure.input(z8.object({ id: z8.number() })).mutation(async ({ ctx, input }) => {
       await publishBenchmarkVersion(input.id, ctx.user.id);
       await createAuditLog({
         userId: ctx.user.id,
@@ -27338,13 +31407,13 @@ var adminRouter = router({
       });
       return { success: true };
     }),
-    diff: adminProcedure.input(z7.object({
-      oldVersionId: z7.number(),
-      newVersionId: z7.number()
+    diff: adminProcedure.input(z8.object({
+      oldVersionId: z8.number(),
+      newVersionId: z8.number()
     })).query(async ({ input }) => {
       return getBenchmarkDiff(input.oldVersionId, input.newVersionId);
     }),
-    impactPreview: adminProcedure.input(z7.object({ versionId: z7.number() })).query(async ({ input }) => {
+    impactPreview: adminProcedure.input(z8.object({ versionId: z8.number() })).query(async ({ input }) => {
       const allScores = await getAllScoreMatrices();
       const currentBV = await getActiveBenchmarkVersion();
       if (!currentBV) return { affectedProjects: [], totalProjects: allScores.length };
@@ -27359,22 +31428,22 @@ var adminRouter = router({
   }),
   // ─── Benchmark Categories (V2) ──────────────────────────────────────
   benchmarkCategories: router({
-    list: adminProcedure.input(z7.object({
-      category: z7.string().optional(),
-      projectClass: z7.string().optional()
+    list: adminProcedure.input(z8.object({
+      category: z8.string().optional(),
+      projectClass: z8.string().optional()
     }).optional()).query(async ({ input }) => {
       return getAllBenchmarkCategories(input?.category, input?.projectClass);
     }),
-    create: adminProcedure.input(z7.object({
-      category: z7.enum(["materials", "finishes", "ffe", "procurement", "cost_bands", "tier_definitions", "style_families", "brand_archetypes", "risk_factors", "lead_times"]),
-      name: z7.string(),
-      description: z7.string().optional(),
-      projectClass: z7.enum(["mid", "upper", "luxury", "ultra_luxury"]),
-      market: z7.string().default("UAE"),
-      submarket: z7.string().default("Dubai"),
-      confidenceLevel: z7.enum(["high", "medium", "low"]).default("medium"),
-      sourceType: z7.enum(["manual", "admin", "imported", "curated"]).default("admin"),
-      data: z7.any()
+    create: adminProcedure.input(z8.object({
+      category: z8.enum(["materials", "finishes", "ffe", "procurement", "cost_bands", "tier_definitions", "style_families", "brand_archetypes", "risk_factors", "lead_times"]),
+      name: z8.string(),
+      description: z8.string().optional(),
+      projectClass: z8.enum(["mid", "upper", "luxury", "ultra_luxury"]),
+      market: z8.string().default("UAE"),
+      submarket: z8.string().default("Dubai"),
+      confidenceLevel: z8.enum(["high", "medium", "low"]).default("medium"),
+      sourceType: z8.enum(["manual", "admin", "imported", "curated"]).default("admin"),
+      data: z8.any()
     })).mutation(async ({ ctx, input }) => {
       const activeBV = await getActiveBenchmarkVersion();
       const result = await createBenchmarkCategory({
@@ -27390,12 +31459,12 @@ var adminRouter = router({
       });
       return result;
     }),
-    update: adminProcedure.input(z7.object({
-      id: z7.number(),
-      name: z7.string().optional(),
-      description: z7.string().optional(),
-      data: z7.any().optional(),
-      confidenceLevel: z7.enum(["high", "medium", "low"]).optional()
+    update: adminProcedure.input(z8.object({
+      id: z8.number(),
+      name: z8.string().optional(),
+      description: z8.string().optional(),
+      data: z8.any().optional(),
+      confidenceLevel: z8.enum(["high", "medium", "low"]).optional()
     })).mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       await updateBenchmarkCategory(id, data);
@@ -27407,7 +31476,7 @@ var adminRouter = router({
       });
       return { success: true };
     }),
-    delete: adminProcedure.input(z7.object({ id: z7.number() })).mutation(async ({ ctx, input }) => {
+    delete: adminProcedure.input(z8.object({ id: z8.number() })).mutation(async ({ ctx, input }) => {
       await deleteBenchmarkCategory(input.id);
       await createAuditLog({
         userId: ctx.user.id,
@@ -27423,12 +31492,12 @@ var adminRouter = router({
     list: adminProcedure.query(async () => {
       return getAllModelVersions();
     }),
-    create: adminProcedure.input(z7.object({
-      versionTag: z7.string(),
-      dimensionWeights: z7.any(),
-      variableWeights: z7.any(),
-      penaltyConfig: z7.any(),
-      notes: z7.string().optional()
+    create: adminProcedure.input(z8.object({
+      versionTag: z8.string(),
+      dimensionWeights: z8.any(),
+      variableWeights: z8.any(),
+      penaltyConfig: z8.any(),
+      notes: z8.string().optional()
     })).mutation(async ({ ctx, input }) => {
       const result = await createModelVersion({
         ...input,
@@ -27455,16 +31524,16 @@ var adminRouter = router({
     active: protectedProcedure.query(async () => {
       return getActiveRoiConfig();
     }),
-    create: adminProcedure.input(z7.object({
-      name: z7.string(),
-      hourlyRate: z7.number().default(350),
-      reworkCostPct: z7.number().default(0.12),
-      tenderIterationCost: z7.number().default(25e3),
-      designCycleCost: z7.number().default(45e3),
-      budgetVarianceMultiplier: z7.number().default(0.08),
-      timeAccelerationWeeks: z7.number().default(6),
-      conservativeMultiplier: z7.number().default(0.6),
-      aggressiveMultiplier: z7.number().default(1.4)
+    create: adminProcedure.input(z8.object({
+      name: z8.string(),
+      hourlyRate: z8.number().default(350),
+      reworkCostPct: z8.number().default(0.12),
+      tenderIterationCost: z8.number().default(25e3),
+      designCycleCost: z8.number().default(45e3),
+      budgetVarianceMultiplier: z8.number().default(0.08),
+      timeAccelerationWeeks: z8.number().default(6),
+      conservativeMultiplier: z8.number().default(0.6),
+      aggressiveMultiplier: z8.number().default(1.4)
     })).mutation(async ({ ctx, input }) => {
       const result = await createRoiConfig({
         ...input,
@@ -27485,16 +31554,16 @@ var adminRouter = router({
       });
       return result;
     }),
-    update: adminProcedure.input(z7.object({
-      id: z7.number(),
-      hourlyRate: z7.number().optional(),
-      reworkCostPct: z7.number().optional(),
-      tenderIterationCost: z7.number().optional(),
-      designCycleCost: z7.number().optional(),
-      budgetVarianceMultiplier: z7.number().optional(),
-      timeAccelerationWeeks: z7.number().optional(),
-      conservativeMultiplier: z7.number().optional(),
-      aggressiveMultiplier: z7.number().optional()
+    update: adminProcedure.input(z8.object({
+      id: z8.number(),
+      hourlyRate: z8.number().optional(),
+      reworkCostPct: z8.number().optional(),
+      tenderIterationCost: z8.number().optional(),
+      designCycleCost: z8.number().optional(),
+      budgetVarianceMultiplier: z8.number().optional(),
+      timeAccelerationWeeks: z8.number().optional(),
+      conservativeMultiplier: z8.number().optional(),
+      aggressiveMultiplier: z8.number().optional()
     })).mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       const updateData = {};
@@ -27518,12 +31587,12 @@ var adminRouter = router({
     list: adminProcedure.query(async () => {
       return getAllWebhookConfigs();
     }),
-    create: adminProcedure.input(z7.object({
-      name: z7.string(),
-      url: z7.string().url(),
-      secret: z7.string().optional(),
-      events: z7.array(z7.string()),
-      fieldMapping: z7.record(z7.string(), z7.string()).optional()
+    create: adminProcedure.input(z8.object({
+      name: z8.string(),
+      url: z8.string().url(),
+      secret: z8.string().optional(),
+      events: z8.array(z8.string()),
+      fieldMapping: z8.record(z8.string(), z8.string()).optional()
     })).mutation(async ({ ctx, input }) => {
       const result = await createWebhookConfig({
         ...input,
@@ -27537,14 +31606,14 @@ var adminRouter = router({
       });
       return result;
     }),
-    update: adminProcedure.input(z7.object({
-      id: z7.number(),
-      name: z7.string().optional(),
-      url: z7.string().url().optional(),
-      secret: z7.string().optional(),
-      events: z7.array(z7.string()).optional(),
-      fieldMapping: z7.record(z7.string(), z7.string()).optional(),
-      isActive: z7.boolean().optional()
+    update: adminProcedure.input(z8.object({
+      id: z8.number(),
+      name: z8.string().optional(),
+      url: z8.string().url().optional(),
+      secret: z8.string().optional(),
+      events: z8.array(z8.string()).optional(),
+      fieldMapping: z8.record(z8.string(), z8.string()).optional(),
+      isActive: z8.boolean().optional()
     })).mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
       await updateWebhookConfig(id, data);
@@ -27556,7 +31625,7 @@ var adminRouter = router({
       });
       return { success: true };
     }),
-    delete: adminProcedure.input(z7.object({ id: z7.number() })).mutation(async ({ ctx, input }) => {
+    delete: adminProcedure.input(z8.object({ id: z8.number() })).mutation(async ({ ctx, input }) => {
       await deleteWebhookConfig(input.id);
       await createAuditLog({
         userId: ctx.user.id,
@@ -27630,23 +31699,23 @@ var adminRouter = router({
   }),
   // ─── Audit Logs ──────────────────────────────────────────────────────
   auditLogs: router({
-    list: adminProcedure.input(z7.object({ limit: z7.number().default(50) }).optional()).query(async ({ input }) => {
+    list: adminProcedure.input(z8.object({ limit: z8.number().default(50) }).optional()).query(async ({ input }) => {
       return getAuditLogs(input?.limit ?? 50);
     })
   }),
   // ─── Override Records ────────────────────────────────────────────────
   overrides: router({
-    list: orgProcedure.input(z7.object({ projectId: z7.number() })).query(async ({ ctx, input }) => {
+    list: orgProcedure.input(z8.object({ projectId: z8.number() })).query(async ({ ctx, input }) => {
       await requireProjectForOrg(input.projectId, ctx.orgId);
       return getOverridesByProject(input.projectId);
     }),
-    create: orgMutationProcedure.input(z7.object({
-      projectId: z7.number(),
-      overrideType: z7.enum(["strategic", "market_insight", "risk_adjustment", "experimental"]),
-      authorityLevel: z7.number().min(1).max(5),
-      originalValue: z7.any(),
-      overrideValue: z7.any(),
-      justification: z7.string().min(10)
+    create: orgMutationProcedure.input(z8.object({
+      projectId: z8.number(),
+      overrideType: z8.enum(["strategic", "market_insight", "risk_adjustment", "experimental"]),
+      authorityLevel: z8.number().min(1).max(5),
+      originalValue: z8.any(),
+      overrideValue: z8.any(),
+      justification: z8.string().min(10)
     })).mutation(async ({ ctx, input }) => {
       await requireProjectForOrg(input.projectId, ctx.orgId);
       const result = await createOverrideRecordForOrg({
@@ -27670,7 +31739,7 @@ var adminRouter = router({
   // ─── Dynamic Pricing (V4) ─────────────────────────────────────────────
   pricing: router({
     syncMaterials: adminProcedure.mutation(async ({ ctx }) => {
-      const result = await syncMaterialsWithBenchmarks();
+      const result = await syncBrowseOnlyCatalogEstimates();
       await createAuditLog({
         userId: ctx.user.id,
         action: "pricing.sync_materials",
@@ -27679,11 +31748,11 @@ var adminRouter = router({
       });
       return result;
     }),
-    previewLive: adminProcedure.input(z7.object({
-      finishLevel: z7.enum(["basic", "standard", "premium", "luxury", "ultra_luxury"]).default("standard")
+    previewBrowseEstimates: adminProcedure.input(z8.object({
+      finishLevel: z8.enum(["basic", "standard", "premium", "luxury", "ultra_luxury"]).default("standard")
     }).optional()).query(async ({ input }) => {
       const level = input?.finishLevel || "standard";
-      return getLiveCategoryPricing(level);
+      return getBrowseOnlyCategoryEstimates(level);
     })
   }),
   // ─── Benchmark Seeder (Phase C.2) ────────────────────────────────────
@@ -27764,7 +31833,7 @@ async function buildEvalConfigForSeed(modelVersion, expectedCost, benchmarkCount
     overrideRate: 0
   };
 }
-function projectToInputs3(p) {
+function projectToInputs4(p) {
   return {
     ctx01Typology: p.ctx01Typology ?? "Residential",
     ctx02Scale: p.ctx02Scale ?? "Medium",
@@ -27883,7 +31952,7 @@ var seedRouter = router({
       if (!project) continue;
       const modelVersion = await getActiveModelVersion();
       if (!modelVersion) continue;
-      const inputs = projectToInputs3(project);
+      const inputs = projectToInputs4(project);
       const expectedCost = await getExpectedCost(
         inputs.ctx01Typology,
         inputs.ctx04Location,
@@ -28171,130 +32240,21 @@ var seedRouter = router({
 });
 
 // server/routers/design-assets.ts
-import { TRPCError as TRPCError11 } from "@trpc/server";
+import { TRPCError as TRPCError12 } from "@trpc/server";
 import crypto3 from "node:crypto";
-import { z as z9 } from "zod";
-
-// server/_core/design-resource-access.ts
-init_db();
-import { TRPCError as TRPCError9 } from "@trpc/server";
-var notFound2 = () => {
-  throw new TRPCError9({ code: "NOT_FOUND", message: "Resource not found" });
-};
-function requireDesignProject(projectId, orgId) {
-  return requireProjectForOrg(projectId, orgId);
-}
-function requireDesignAsset(assetId, orgId) {
-  return requireProjectResourceForOrg(assetId, orgId, {
-    lookupResource: getProjectAssetById,
-    getProjectId: (asset) => asset.projectId
-  });
-}
-function requireDesignBrief(briefId, orgId) {
-  return requireProjectResourceForOrg(briefId, orgId, {
-    lookupResource: getDesignBriefById,
-    getProjectId: (brief) => brief.projectId
-  });
-}
-function requireDesignVisual(visualId, orgId) {
-  return requireProjectResourceForOrg(visualId, orgId, {
-    lookupResource: getGeneratedVisualById,
-    getProjectId: (visual) => visual.projectId
-  });
-}
-function requireDesignBoard(boardId, orgId) {
-  return requireProjectResourceForOrg(boardId, orgId, {
-    lookupResource: getMaterialBoardById,
-    getProjectId: (board) => board.projectId
-  });
-}
-function requireDesignBoardJoin(joinId, orgId) {
-  return requireNestedProjectResourceForOrg(joinId, orgId, {
-    lookupResource: getMaterialToBoardById,
-    getParentId: (join) => join.boardId,
-    lookupParent: getMaterialBoardById,
-    getProjectId: (board) => board.projectId
-  });
-}
-function requireDesignScenario(scenarioId, orgId) {
-  return requireProjectOrgResourceForOrg(scenarioId, orgId, {
-    lookupResource: getScenarioById,
-    getProjectId: (scenario) => scenario.projectId,
-    getOrgId: (scenario) => scenario.orgId
-  });
-}
-function requireDesignReport(reportId, orgId) {
-  return requireProjectResourceForOrg(reportId, orgId, {
-    lookupResource: getReportById,
-    getProjectId: (report) => report.projectId
-  });
-}
-function requireDesignEvaluation(evaluationId, orgId) {
-  return requireProjectResourceForOrg(evaluationId, orgId, {
-    lookupResource: getScoreMatrixById,
-    getProjectId: (evaluation) => evaluation.projectId
-  });
-}
-function requireDesignPromptTemplate(templateId, orgId) {
-  return requireOrgResourceForOrg(templateId, orgId, {
-    lookupResource: getPromptTemplateById,
-    getOrgId: (template) => template.orgId
-  });
-}
-function requireDesignAssetLink(linkId, orgId) {
-  return requireNestedProjectResourceForOrg(linkId, orgId, {
-    lookupResource: getAssetLinkById,
-    getParentId: (link) => link.assetId,
-    lookupParent: getProjectAssetById,
-    getProjectId: (asset) => asset.projectId
-  });
-}
-var requireDesignLinkTarget = createPolymorphicResourceAuthorizer({
-  evaluation: requireDesignEvaluation,
-  report: requireDesignReport,
-  scenario: requireDesignScenario,
-  material_board: requireDesignBoard,
-  design_brief: requireDesignBrief,
-  visual: requireDesignVisual
-});
-var requireDesignCommentTarget = createPolymorphicResourceAuthorizer({
-  design_brief: requireDesignBrief,
-  material_board: requireDesignBoard,
-  visual: requireDesignVisual
-});
-function requireSameDesignProject(expectedProjectId, actualProjectId) {
-  if (expectedProjectId !== actualProjectId) {
-    return notFound2();
-  }
-}
-function requireScopedDesignMutation(succeeded) {
-  if (!succeeded) {
-    return notFound2();
-  }
-}
-function requireScopedDesignInsert(value) {
-  if (value === null || value === void 0) {
-    return notFound2();
-  }
-  return value;
-}
-async function requireMatchingDesignScenario(scenarioId, projectId, orgId) {
-  if (scenarioId === null || scenarioId === void 0) return;
-  const scenario = await requireDesignScenario(scenarioId, orgId);
-  requireSameDesignProject(projectId, scenario.project.id);
-}
+import { z as z10 } from "zod";
 
 // server/_core/geometry-authority.ts
 init_db();
 
 // server/engines/geometry/authority-policy.ts
-import { TRPCError as TRPCError10 } from "@trpc/server";
+import { TRPCError as TRPCError11 } from "@trpc/server";
 function allowsLegacyGeometryWrites(mode) {
   return mode !== "canonical";
 }
 function requireLegacyGeometryWriteAuthority(mode) {
   if (!allowsLegacyGeometryWrites(mode)) {
-    throw new TRPCError10({
+    throw new TRPCError11({
       code: "CONFLICT",
       message: "Legacy room and area values are read-only while canonical geometry is authoritative."
     });
@@ -28313,52 +32273,7 @@ async function requireLegacyGeometryWriterForProject(projectId, organizationId) 
 // server/routers/design-assets.ts
 init_db();
 init_floor_plan_analyzer();
-
-// server/routers/design-router-shared.ts
-init_db();
-async function bestEffortAudit(data) {
-  try {
-    await createAuditLog(data);
-  } catch {
-  }
-}
-function projectToInputs4(p) {
-  return {
-    ctx01Typology: p.ctx01Typology ?? "Residential",
-    ctx02Scale: p.ctx02Scale ?? "Medium",
-    ctx03Gfa: p.ctx03Gfa ? Number(p.ctx03Gfa) : null,
-    totalFitoutArea: p.totalFitoutArea ? Number(p.totalFitoutArea) : null,
-    ctx04Location: p.ctx04Location ?? "Secondary",
-    ctx05Horizon: p.ctx05Horizon ?? "12-24m",
-    str01BrandClarity: p.str01BrandClarity ?? 3,
-    str02Differentiation: p.str02Differentiation ?? 3,
-    str03BuyerMaturity: p.str03BuyerMaturity ?? 3,
-    mkt01Tier: p.mkt01Tier ?? "Upper-mid",
-    mkt02Competitor: p.mkt02Competitor ?? 3,
-    mkt03Trend: p.mkt03Trend ?? 3,
-    fin01BudgetCap: p.fin01BudgetCap ? Number(p.fin01BudgetCap) : null,
-    fin02Flexibility: p.fin02Flexibility ?? 3,
-    fin03ShockTolerance: p.fin03ShockTolerance ?? 3,
-    fin04SalesPremium: p.fin04SalesPremium ?? 3,
-    des01Style: p.des01Style ?? "Modern",
-    des02MaterialLevel: p.des02MaterialLevel ?? 3,
-    des03Complexity: p.des03Complexity ?? 3,
-    des04Experience: p.des04Experience ?? 3,
-    des05Sustainability: p.des05Sustainability ?? 2,
-    exe01SupplyChain: p.exe01SupplyChain ?? 3,
-    exe02Contractor: p.exe02Contractor ?? 3,
-    exe03Approvals: p.exe03Approvals ?? 2,
-    exe04QaMaturity: p.exe04QaMaturity ?? 3,
-    add01SampleKit: p.add01SampleKit ?? false,
-    add02PortfolioMode: p.add02PortfolioMode ?? false,
-    add03DashboardExport: p.add03DashboardExport ?? true,
-    city: p.city ?? "Dubai",
-    sustainCertTarget: p.sustainCertTarget || "silver"
-  };
-}
-
-// server/routers/design-assets.ts
-var assetCategorySchema = z9.enum([
+var assetCategorySchema = z10.enum([
   "brief",
   "brand",
   "budget",
@@ -28378,20 +32293,20 @@ function isOwnedUploadKey(orgId, projectId, key) {
   return key.startsWith(`projects/${orgId}/${projectId}/uploads/`);
 }
 var designAssetsRouter = router({
-  listAssets: orgProcedure.input(z9.object({ projectId: z9.number(), category: z9.string().optional() })).query(async ({ ctx, input }) => {
+  listAssets: orgProcedure.input(z10.object({ projectId: z10.number(), category: z10.string().optional() })).query(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     return getProjectAssets(input.projectId, input.category);
   }),
   createAssetUpload: designOrgMutationProcedure.input(
-    z9.object({
-      projectId: z9.number(),
-      mimeType: z9.string()
+    z10.object({
+      projectId: z10.number(),
+      mimeType: z10.string()
     })
   ).mutation(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     const mimeType = input.mimeType.toLowerCase();
     if (!isSupportedMediaMimeType(mimeType)) {
-      throw new TRPCError11({
+      throw new TRPCError12({
         code: "BAD_REQUEST",
         message: "This file type is not supported. Please choose a supported image, PDF, audio, or video file."
       });
@@ -28405,21 +32320,21 @@ var designAssetsRouter = router({
     };
   }),
   finalizeAssetUpload: designOrgMutationProcedure.input(
-    z9.object({
-      projectId: z9.number(),
-      storageKey: z9.string().min(1),
-      filename: z9.string().min(1).max(512),
-      mimeType: z9.string(),
+    z10.object({
+      projectId: z10.number(),
+      storageKey: z10.string().min(1),
+      filename: z10.string().min(1).max(512),
+      mimeType: z10.string(),
       category: assetCategorySchema.default("other"),
-      tags: z9.array(z9.string().max(100)).max(30).optional(),
-      notes: z9.string().max(5e3).optional(),
-      isClientVisible: z9.boolean().default(true),
-      purpose: z9.enum(["asset", "floor_plan"]).default("asset")
+      tags: z10.array(z10.string().max(100)).max(30).optional(),
+      notes: z10.string().max(5e3).optional(),
+      isClientVisible: z10.boolean().default(true),
+      purpose: z10.enum(["asset", "floor_plan"]).default("asset")
     })
   ).mutation(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     if (!isOwnedUploadKey(ctx.orgId, input.projectId, input.storageKey)) {
-      throw new TRPCError11({ code: "NOT_FOUND", message: "Upload not found" });
+      throw new TRPCError12({ code: "NOT_FOUND", message: "Upload not found" });
     }
     let media;
     try {
@@ -28459,7 +32374,7 @@ var designAssetsRouter = router({
         await cleanupRejectedUpload(input.storageKey);
       } catch {
       }
-      throw new TRPCError11({
+      throw new TRPCError12({
         code: "NOT_FOUND",
         message: "Resource not found"
       });
@@ -28484,12 +32399,12 @@ var designAssetsRouter = router({
     };
   }),
   uploadAsset: designOrgMutationProcedure.input(
-    z9.object({
-      projectId: z9.number(),
-      filename: z9.string(),
-      mimeType: z9.string(),
-      base64Data: z9.string().max(MAX_LEGACY_BASE64_CHARS),
-      category: z9.enum([
+    z10.object({
+      projectId: z10.number(),
+      filename: z10.string(),
+      mimeType: z10.string(),
+      base64Data: z10.string().max(MAX_LEGACY_BASE64_CHARS),
+      category: z10.enum([
         "brief",
         "brand",
         "budget",
@@ -28504,9 +32419,9 @@ var designAssetsRouter = router({
         "generated",
         "other"
       ]).default("other"),
-      tags: z9.array(z9.string()).optional(),
-      notes: z9.string().optional(),
-      isClientVisible: z9.boolean().default(true)
+      tags: z10.array(z10.string()).optional(),
+      notes: z10.string().optional(),
+      isClientVisible: z10.boolean().default(true)
     })
   ).mutation(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
@@ -28544,7 +32459,7 @@ var designAssetsRouter = router({
       );
     } catch (error) {
       reportIndeterminateUploadPersistence(uploaded.key, error);
-      throw new TRPCError11({
+      throw new TRPCError12({
         code: "INTERNAL_SERVER_ERROR",
         message: "Upload persistence could not be confirmed"
       });
@@ -28553,12 +32468,12 @@ var designAssetsRouter = router({
       try {
         await cleanupRejectedUpload(uploaded.key);
       } catch {
-        throw new TRPCError11({
+        throw new TRPCError12({
           code: "INTERNAL_SERVER_ERROR",
           message: "Upload cleanup failed"
         });
       }
-      throw new TRPCError11({
+      throw new TRPCError12({
         code: "NOT_FOUND",
         message: "Resource not found"
       });
@@ -28578,7 +32493,7 @@ var designAssetsRouter = router({
     });
     return { id: result.id, url: uploaded.url };
   }),
-  deleteAsset: designOrgMutationProcedure.input(z9.object({ assetId: z9.number() })).mutation(async ({ ctx, input }) => {
+  deleteAsset: designOrgMutationProcedure.input(z10.object({ assetId: z10.number() })).mutation(async ({ ctx, input }) => {
     const { resource: asset } = await requireDesignAsset(
       input.assetId,
       ctx.orgId
@@ -28597,12 +32512,12 @@ var designAssetsRouter = router({
     return { success: true };
   }),
   updateAsset: designOrgMutationProcedure.input(
-    z9.object({
-      assetId: z9.number(),
-      category: z9.string().optional(),
-      tags: z9.array(z9.string()).optional(),
-      notes: z9.string().optional(),
-      isClientVisible: z9.boolean().optional()
+    z10.object({
+      assetId: z10.number(),
+      category: z10.string().optional(),
+      tags: z10.array(z10.string()).optional(),
+      notes: z10.string().optional(),
+      isClientVisible: z10.boolean().optional()
     })
   ).mutation(async ({ ctx, input }) => {
     await requireDesignAsset(input.assetId, ctx.orgId);
@@ -28613,9 +32528,9 @@ var designAssetsRouter = router({
     return { success: true };
   }),
   linkAsset: designOrgMutationProcedure.input(
-    z9.object({
-      assetId: z9.number(),
-      linkType: z9.enum([
+    z10.object({
+      assetId: z10.number(),
+      linkType: z10.enum([
         "evaluation",
         "report",
         "scenario",
@@ -28623,7 +32538,7 @@ var designAssetsRouter = router({
         "design_brief",
         "visual"
       ]),
-      linkId: z9.number()
+      linkId: z10.number()
     })
   ).mutation(async ({ ctx, input }) => {
     const asset = await requireDesignAsset(input.assetId, ctx.orgId);
@@ -28637,7 +32552,7 @@ var designAssetsRouter = router({
       await createAssetLinkForOrg(input, ctx.orgId)
     );
   }),
-  getAssetLinks: orgProcedure.input(z9.object({ assetId: z9.number() })).query(async ({ ctx, input }) => {
+  getAssetLinks: orgProcedure.input(z10.object({ assetId: z10.number() })).query(async ({ ctx, input }) => {
     const asset = await requireDesignAsset(input.assetId, ctx.orgId);
     const links = await getAssetLinksByAsset(input.assetId);
     for (const link of links) {
@@ -28651,11 +32566,11 @@ var designAssetsRouter = router({
     return links;
   }),
   uploadFloorPlan: designOrgMutationProcedure.input(
-    z9.object({
-      projectId: z9.number(),
-      filename: z9.string(),
-      mimeType: z9.string(),
-      base64Data: z9.string().max(MAX_LEGACY_BASE64_CHARS)
+    z10.object({
+      projectId: z10.number(),
+      filename: z10.string(),
+      mimeType: z10.string(),
+      base64Data: z10.string().max(MAX_LEGACY_BASE64_CHARS)
     })
   ).mutation(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
@@ -28690,7 +32605,7 @@ var designAssetsRouter = router({
       );
     } catch (error) {
       reportIndeterminateUploadPersistence(uploaded.key, error);
-      throw new TRPCError11({
+      throw new TRPCError12({
         code: "INTERNAL_SERVER_ERROR",
         message: "Upload persistence could not be confirmed"
       });
@@ -28699,12 +32614,12 @@ var designAssetsRouter = router({
       try {
         await cleanupRejectedUpload(uploaded.key);
       } catch {
-        throw new TRPCError11({
+        throw new TRPCError12({
           code: "INTERNAL_SERVER_ERROR",
           message: "Upload cleanup failed"
         });
       }
-      throw new TRPCError11({
+      throw new TRPCError12({
         code: "NOT_FOUND",
         message: "Resource not found"
       });
@@ -28720,11 +32635,11 @@ var designAssetsRouter = router({
     });
     return { assetId: result.id, url: uploaded.url };
   }),
-  analyzeFloorPlan: designOrgMutationProcedure.input(z9.object({ projectId: z9.number() })).mutation(async ({ ctx, input }) => {
+  analyzeFloorPlan: designOrgMutationProcedure.input(z10.object({ projectId: z10.number() })).mutation(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
     await requireLegacyGeometryWriterForProject(input.projectId, ctx.orgId);
     if (!project.floorPlanAssetId) {
-      throw new TRPCError11({
+      throw new TRPCError12({
         code: "BAD_REQUEST",
         message: "No floor plan uploaded for this project"
       });
@@ -28732,7 +32647,7 @@ var designAssetsRouter = router({
     const { resource: asset, project: assetProject } = await requireDesignAsset(project.floorPlanAssetId, ctx.orgId);
     requireSameDesignProject(project.id, assetProject.id);
     if (!asset || !asset.storagePath) {
-      throw new TRPCError11({
+      throw new TRPCError12({
         code: "NOT_FOUND",
         message: "Floor plan asset not found or has no URL"
       });
@@ -28776,11 +32691,12 @@ var designAssetsRouter = router({
 });
 
 // server/routers/design-briefs.ts
-import { TRPCError as TRPCError12 } from "@trpc/server";
-import { nanoid as nanoid4 } from "nanoid";
-import { z as z10 } from "zod";
+import { TRPCError as TRPCError13 } from "@trpc/server";
+import { nanoid as nanoid5 } from "nanoid";
+import { z as z11 } from "zod";
 init_db();
 init_area_utils();
+init_material_quantity_engine();
 init_rfq_generator();
 init_space_benchmarking();
 init_space_program();
@@ -29170,7 +33086,7 @@ async function generateDesignBriefDocx(data) {
       ["Total Budget Cap", budget.totalBudgetCap ?? "\u2014"],
       ["Cost Band", budget.costBand ?? "\u2014"],
       // ADR-0009: the MQI cost basis label travels with every budget rendering.
-      ["Cost Basis", budget.mqiSummary?.costBasisLabel ? `${budget.mqiSummary.costBasisLabel}${Number(budget.mqiSummary.unpricedAllocationCount) > 0 ? ` \u2014 ${budget.mqiSummary.unpricedAllocationCount} unpriced allocations` : ""}` : "\u2014"],
+      ["Cost Basis", budget.mqiSummary?.costBasisLabel ? `${budget.mqiSummary.costBasisLabel}${Number(budget.mqiSummary.unpricedAllocationCount) > 0 ? ` \u2014 ${budget.mqiSummary.unpricedAllocationCount} unresolved allocations; aggregate unavailable` : ""}` : "\u2014"],
       ["Contingency Recommendation", budget.contingencyRecommendation ?? "\u2014"],
       ["Budget Flexibility Level", budget.flexibilityLevel ?? "\u2014"]
     ], rtl)
@@ -29341,13 +33257,12 @@ async function generateDesignBriefDocx(data) {
 }
 
 // server/routers/design-briefs.ts
-init_tier_policy();
 var designBriefsRouter = router({
   generateBrief: designOrgMutationProcedure.input(
-    z10.object({
-      projectId: z10.number(),
-      scenarioId: z10.number().optional(),
-      locale: z10.enum(["en", "ar"]).default("en")
+    z11.object({
+      projectId: z11.number(),
+      scenarioId: z11.number().optional(),
+      locale: z11.enum(["en", "ar"]).default("en")
     })
   ).mutation(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
@@ -29361,11 +33276,11 @@ var designBriefsRouter = router({
     const scores = await getScoreMatricesByProject(input.projectId);
     const latest = scores[0];
     if (!latest)
-      throw new TRPCError12({
+      throw new TRPCError13({
         code: "PRECONDITION_FAILED",
         message: "Project must be evaluated first"
       });
-    const inputs = projectToInputs4(project);
+    const inputs = projectToInputs(project);
     const scoreResult = {
       compositeScore: Number(latest.compositeScore),
       decisionStatus: latest.decisionStatus,
@@ -29377,8 +33292,6 @@ var designBriefsRouter = router({
         er: Number(latest.erScore)
       }
     };
-    const targetFinish = mkt01TierToFinish(inputs.mkt01Tier);
-    const livePricing = await getLiveCategoryPricing(targetFinish);
     const matConstants = await getMaterialConstants();
     const areaSaleMedian = await getAreaSaleMedianSqm(project.dldAreaId);
     let floorPlanAnalysis = void 0;
@@ -29449,7 +33362,9 @@ var designBriefsRouter = router({
             materialLibraryId: alloc.materialLibraryId,
             materialName: alloc.materialName,
             percentage: Number(alloc.allocationPct),
-            reasoning: alloc.aiReasoning || ""
+            reasoning: alloc.aiReasoning || "",
+            explicitQuantity: alloc.explicitQuantity === null ? null : Number(alloc.explicitQuantity),
+            explicitQuantityUnit: alloc.explicitQuantityUnit
           };
           const el = alloc.element;
           if (room[el]) room[el].push(slice);
@@ -29459,18 +33374,38 @@ var designBriefsRouter = router({
           designRationale: "Reconstructed from stored allocations",
           estimatedQualityLabel: "Stored"
         };
-        const materialLibrary2 = await getMaterialLibrary();
+        const resolverAsOf = /* @__PURE__ */ new Date();
+        const materialReferences = Array.from(
+          new Set(
+            allocationResult.rooms.flatMap(
+              (room) => [...room.floor, ...room.walls, ...room.ceiling, ...room.joinery].map((slice) => slice.materialLibraryId).filter((id) => id !== null)
+            )
+          )
+        ).map((legacyId) => ({
+          source: "material_library",
+          legacyId
+        }));
+        const priceSnapshots = await resolveMaterialPriceSnapshots({
+          references: materialReferences,
+          organizationId: ctx.orgId,
+          priceScope: "supply_only",
+          requestedGeography: resolveProjectMaterialPriceGeography(
+            project.materialPriceGeography
+          ),
+          asOf: resolverAsOf,
+          allowLegacyUnknownScope: true
+        });
         mqiCostResult = buildQuantityCostSummary(
           surfaces,
           allocationResult,
-          materialLibrary2,
+          priceSnapshots,
           {
             fin01BudgetCap: project.fin01BudgetCap ? Number(project.fin01BudgetCap) : null,
             ctx03Gfa: project.ctx03Gfa ? Number(project.ctx03Gfa) : null
           }
         );
         console.log(
-          `[GenerateBrief] MQI data enrichment: ${mqiCostResult.rooms.length} rooms, mid cost AED ${mqiCostResult.summary.totalFinishCostMid.toFixed(0)}`
+          `[GenerateBrief] MQI data enrichment: ${mqiCostResult.rooms.length} rooms, mid cost ${mqiCostResult.summary.totalFinishCostMid === null ? "insufficient" : `AED ${mqiCostResult.summary.totalFinishCostMid.toFixed(0)}`}`
         );
       }
     } catch (e) {
@@ -29483,7 +33418,7 @@ var designBriefsRouter = router({
       { name: project.name, description: project.description },
       inputs,
       scoreResult,
-      Object.keys(livePricing).length > 0 ? livePricing : void 0,
+      void 0,
       matConstants.length > 0 ? matConstants : void 0,
       areaSaleMedian,
       // DLD area median, replaces 25K fallback
@@ -29509,7 +33444,7 @@ var designBriefsRouter = router({
           materialSpecifications: briefData.materialSpecifications,
           boqFramework: {
             ...briefData.boqFramework,
-            pricingAnalytics: briefData.pricingAnalytics
+            sustainabilityAnalytics: briefData.sustainabilityAnalytics
           },
           detailedBudget: {
             ...briefData.detailedBudget,
@@ -29532,7 +33467,7 @@ var designBriefsRouter = router({
     });
     return { id: result.id, version: nextVersion, data: briefData };
   }),
-  listBriefs: orgProcedure.input(z10.object({ projectId: z10.number() })).query(async ({ ctx, input }) => {
+  listBriefs: orgProcedure.input(z11.object({ projectId: z11.number() })).query(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     const briefs = await getDesignBriefsByProject(input.projectId);
     for (const brief of briefs) {
@@ -29544,7 +33479,7 @@ var designBriefsRouter = router({
     }
     return briefs;
   }),
-  getBrief: orgProcedure.input(z10.object({ briefId: z10.number() })).query(async ({ ctx, input }) => {
+  getBrief: orgProcedure.input(z11.object({ briefId: z11.number() })).query(async ({ ctx, input }) => {
     const { resource } = await requireDesignBrief(input.briefId, ctx.orgId);
     await requireMatchingDesignScenario(
       resource.scenarioId,
@@ -29553,7 +33488,7 @@ var designBriefsRouter = router({
     );
     return resource;
   }),
-  getLatestBrief: orgProcedure.input(z10.object({ projectId: z10.number() })).query(async ({ ctx, input }) => {
+  getLatestBrief: orgProcedure.input(z11.object({ projectId: z11.number() })).query(async ({ ctx, input }) => {
     await requireDesignProject(input.projectId, ctx.orgId);
     const brief = await getLatestDesignBrief(input.projectId);
     if (brief)
@@ -29565,9 +33500,9 @@ var designBriefsRouter = router({
     return brief;
   }),
   generateRfqFromBrief: designOrgMutationProcedure.input(
-    z10.object({
-      projectId: z10.number(),
-      briefId: z10.number()
+    z11.object({
+      projectId: z11.number(),
+      briefId: z11.number()
     })
   ).mutation(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
@@ -29585,22 +33520,32 @@ var designBriefsRouter = router({
     const materialList = materials.map((m) => ({
       id: m.id,
       name: m.productName || "",
-      category: m.category || "",
-      tier: m.tier || "mid",
-      priceAedMin: m.priceAedMin ?? 0,
-      priceAedMax: m.priceAedMax ?? 0,
-      supplierName: m.supplierName || "TBD",
-      sourceType: m.sourceType
+      category: m.category || ""
     }));
+    const resolverAsOf = /* @__PURE__ */ new Date();
+    const priceSnapshots = await resolveMaterialPriceSnapshots({
+      references: materialList.map((material) => ({
+        source: "material_library",
+        legacyId: material.id
+      })),
+      organizationId: ctx.orgId,
+      priceScope: "supply_and_install",
+      requestedGeography: resolveProjectMaterialPriceGeography(
+        project.materialPriceGeography
+      ),
+      asOf: resolverAsOf,
+      allowLegacyUnknownScope: true
+    });
     const result = buildRFQFromBrief(
       input.projectId,
       ctx.orgId,
       briefData,
       input.briefId,
-      materialList
+      materialList,
+      priceSnapshots
     );
     if (result.items.length > 1e3) {
-      throw new TRPCError12({
+      throw new TRPCError13({
         code: "PRECONDITION_FAILED",
         message: "RFQ exceeds the 1,000 line limit"
       });
@@ -29609,7 +33554,8 @@ var designBriefsRouter = router({
       await insertRfqLineItemsForOrg(result.items, {
         projectId: input.projectId,
         briefId: input.briefId,
-        orgId: ctx.orgId
+        orgId: ctx.orgId,
+        materialPricingRevision: project.materialPricingRevision
       })
     );
     await bestEffortAudit({
@@ -29629,9 +33575,9 @@ var designBriefsRouter = router({
     return result;
   }),
   exportBriefDocx: designOrgMutationProcedure.input(
-    z10.object({
-      briefId: z10.number(),
-      locale: z10.enum(["en", "ar"]).default("en")
+    z11.object({
+      briefId: z11.number(),
+      locale: z11.enum(["en", "ar"]).default("en")
     })
   ).mutation(async ({ ctx, input }) => {
     const { resource: brief, project } = await requireDesignBrief(
@@ -29658,7 +33604,7 @@ var designBriefsRouter = router({
       benchmarkVersion: benchmarkVersion?.versionTag,
       logicVersion: logicVersion?.name
     });
-    const fileKey = `reports/${brief.projectId}/design-brief-v${brief.version}-${nanoid4(8)}.docx`;
+    const fileKey = `reports/${brief.projectId}/design-brief-v${brief.version}-${nanoid5(8)}.docx`;
     const { url } = await storagePut(
       fileKey,
       docxBuffer,
@@ -29667,9 +33613,9 @@ var designBriefsRouter = router({
     return { url };
   }),
   exportInvestorPdf: designOrgMutationProcedure.input(
-    z10.object({
-      projectId: z10.number(),
-      locale: z10.enum(["en", "ar"]).default("en")
+    z11.object({
+      projectId: z11.number(),
+      locale: z11.enum(["en", "ar"]).default("en")
     })
   ).mutation(async ({ ctx, input }) => {
     const { generateInvestorPdfHtml: generateInvestorPdfHtml2 } = await Promise.resolve().then(() => (init_investor_pdf(), investor_pdf_exports));
@@ -29707,14 +33653,14 @@ var designBriefsRouter = router({
     );
     const gfa = getPricingArea(project);
     const costPerSqm = gfa > 0 && totalFitoutBudget > 0 ? Math.round(totalFitoutBudget / gfa) : 0;
-    const TIER_PREMIUM_PCT2 = {
+    const TIER_PREMIUM_PCT = {
       Entry: 0,
       Mid: 3,
       "Upper-mid": 8,
       Luxury: 18,
       "Ultra-luxury": 30
     };
-    const salePremiumPct = TIER_PREMIUM_PCT2[project.mkt01Tier ?? "Upper-mid"] ?? 8;
+    const salePremiumPct = TIER_PREMIUM_PCT[project.mkt01Tier ?? "Upper-mid"] ?? 8;
     const estimatedSalesPremiumAed = gfa > 0 ? Math.round(gfa * 25e3 * salePremiumPct / 100) : 0;
     const TIER_GRADE = {
       Entry: "B",
@@ -29763,7 +33709,6 @@ var designBriefsRouter = router({
       materials: allMaterials,
       materialConstants: (materialConsts ?? []).map((c) => ({
         materialType: c.materialType,
-        costPerM2: Number(c.costPerM2),
         carbonIntensity: Number(c.carbonIntensity),
         sustainabilityGrade
       })),
@@ -29780,398 +33725,6 @@ var designBriefsRouter = router({
       logicVersion: logicVersion?.name
     });
     return { html, projectName: project.name ?? "Project" };
-  })
-});
-
-// server/routers/design-boards.ts
-import { TRPCError as TRPCError13 } from "@trpc/server";
-import { nanoid as nanoid5 } from "nanoid";
-import { z as z11 } from "zod";
-init_db();
-var designBoardsRouter = router({
-  pinVisualToBoard: designOrgMutationProcedure.input(
-    z11.object({
-      visualId: z11.number(),
-      boardId: z11.number()
-    })
-  ).mutation(async ({ ctx, input }) => {
-    const { resource: visual, project: visualProject } = await requireDesignVisual(input.visualId, ctx.orgId);
-    if (!visual || !visual.imageAssetId) {
-      throw new TRPCError13({
-        code: "NOT_FOUND",
-        message: "Visual not found or has no image"
-      });
-    }
-    const { project: boardProject } = await requireDesignBoard(
-      input.boardId,
-      ctx.orgId
-    );
-    const { project: assetProject } = await requireDesignAsset(
-      visual.imageAssetId,
-      ctx.orgId
-    );
-    requireSameDesignProject(visualProject.id, boardProject.id);
-    requireSameDesignProject(visualProject.id, assetProject.id);
-    const link = requireScopedDesignInsert(
-      await createAssetLinkForOrg(
-        {
-          assetId: visual.imageAssetId,
-          linkType: "material_board",
-          linkId: input.boardId
-        },
-        ctx.orgId
-      )
-    );
-    await createAuditLog({
-      orgId: ctx.orgId,
-      userId: ctx.user.id,
-      action: "visual.pin_to_board",
-      entityType: "generated_visual",
-      entityId: visual.id,
-      details: { boardId: input.boardId, linkId: link.id }
-    });
-    return { success: true, linkId: link.id };
-  }),
-  listPinnedVisuals: orgProcedure.input(z11.object({ boardId: z11.number() })).query(async ({ ctx, input }) => {
-    const { project: boardProject } = await requireDesignBoard(
-      input.boardId,
-      ctx.orgId
-    );
-    const links = await getAssetLinksByEntity(
-      "material_board",
-      input.boardId
-    );
-    const pinned = await Promise.all(
-      links.map(
-        async (link) => {
-          const { resource: asset, project: assetProject } = await requireDesignAsset(link.assetId, ctx.orgId);
-          requireSameDesignProject(boardProject.id, assetProject.id);
-          return {
-            linkId: link.id,
-            assetId: link.assetId,
-            imageUrl: asset?.storageUrl ?? null,
-            fileName: asset?.filename ?? null,
-            pinnedAt: link.createdAt
-          };
-        }
-      )
-    );
-    return pinned;
-  }),
-  unpinVisual: designOrgMutationProcedure.input(z11.object({ linkId: z11.number() })).mutation(async ({ ctx, input }) => {
-    const authorizedLink = await requireDesignAssetLink(
-      input.linkId,
-      ctx.orgId
-    );
-    if (authorizedLink.resource.linkType !== "material_board") {
-      throw new TRPCError13({
-        code: "NOT_FOUND",
-        message: "Resource not found"
-      });
-    }
-    const target = await requireDesignLinkTarget(
-      authorizedLink.resource.linkType,
-      authorizedLink.resource.linkId,
-      ctx.orgId
-    );
-    requireSameDesignProject(
-      authorizedLink.project.id,
-      target.value.project.id
-    );
-    requireScopedDesignMutation(
-      await deleteAssetLinkForOrg(input.linkId, ctx.orgId)
-    );
-    await createAuditLog({
-      orgId: ctx.orgId,
-      userId: ctx.user.id,
-      action: "visual.unpin_from_board",
-      entityType: "asset_link",
-      entityId: input.linkId
-    });
-    return { success: true };
-  }),
-  createBoard: designOrgMutationProcedure.input(
-    z11.object({
-      projectId: z11.number(),
-      boardName: z11.string(),
-      scenarioId: z11.number().optional(),
-      materialIds: z11.array(z11.number()).optional()
-    })
-  ).mutation(async ({ ctx, input }) => {
-    const project = await requireDesignProject(input.projectId, ctx.orgId);
-    if (input.scenarioId !== void 0) {
-      const scenario = await requireDesignScenario(
-        input.scenarioId,
-        ctx.orgId
-      );
-      requireSameDesignProject(project.id, scenario.project.id);
-    }
-    const materialIds = input.materialIds ?? [];
-    if (new Set(materialIds).size !== materialIds.length) {
-      throw new TRPCError13({
-        code: "BAD_REQUEST",
-        message: "Duplicate material IDs are not allowed"
-      });
-    }
-    const boardResult = requireScopedDesignInsert(
-      await createMaterialBoardWithMaterialsForOrg(
-        {
-          projectId: input.projectId,
-          scenarioId: input.scenarioId,
-          boardName: input.boardName,
-          createdBy: ctx.user.id
-        },
-        materialIds,
-        ctx.orgId
-      )
-    );
-    await bestEffortAudit({
-      orgId: ctx.orgId,
-      userId: ctx.user.id,
-      action: "board.create",
-      entityType: "material_board",
-      entityId: boardResult.id,
-      details: {
-        projectId: input.projectId,
-        materialCount: materialIds.length
-      }
-    });
-    return { id: boardResult.id };
-  }),
-  listBoards: orgProcedure.input(z11.object({ projectId: z11.number() })).query(async ({ ctx, input }) => {
-    await requireDesignProject(input.projectId, ctx.orgId);
-    const boards = await getMaterialBoardsByProject(input.projectId);
-    for (const board of boards) {
-      await requireMatchingDesignScenario(
-        board.scenarioId,
-        board.projectId,
-        ctx.orgId
-      );
-    }
-    return boards;
-  }),
-  getBoard: orgProcedure.input(z11.object({ boardId: z11.number() })).query(async ({ ctx, input }) => {
-    const { resource: board } = await requireDesignBoard(
-      input.boardId,
-      ctx.orgId
-    );
-    await requireMatchingDesignScenario(
-      board.scenarioId,
-      board.projectId,
-      ctx.orgId
-    );
-    const boardMaterials = await getMaterialsByBoard(input.boardId);
-    const materialDetails = [];
-    for (const bm of boardMaterials) {
-      const mat = await getMaterialById(bm.materialId);
-      if (mat)
-        materialDetails.push({
-          ...mat,
-          boardJoinId: bm.id,
-          quantity: bm.quantity,
-          unitOfMeasure: bm.unitOfMeasure,
-          boardNotes: bm.notes,
-          sortOrder: bm.sortOrder,
-          specNotes: bm.specNotes,
-          costBandOverride: bm.costBandOverride
-        });
-    }
-    return { board, materials: materialDetails };
-  }),
-  addMaterialToBoard: designOrgMutationProcedure.input(
-    z11.object({
-      boardId: z11.number(),
-      materialId: z11.number(),
-      quantity: z11.number().optional(),
-      unitOfMeasure: z11.string().optional(),
-      notes: z11.string().optional()
-    })
-  ).mutation(async ({ ctx, input }) => {
-    await requireDesignBoard(input.boardId, ctx.orgId);
-    return requireScopedDesignInsert(
-      await addMaterialToBoardForOrg(
-        {
-          boardId: input.boardId,
-          materialId: input.materialId,
-          quantity: input.quantity ? String(input.quantity) : void 0,
-          unitOfMeasure: input.unitOfMeasure,
-          notes: input.notes
-        },
-        ctx.orgId
-      )
-    );
-  }),
-  removeMaterialFromBoard: designOrgMutationProcedure.input(z11.object({ joinId: z11.number() })).mutation(async ({ ctx, input }) => {
-    await requireDesignBoardJoin(input.joinId, ctx.orgId);
-    requireScopedDesignMutation(
-      await removeMaterialFromBoardForOrg(input.joinId, ctx.orgId)
-    );
-    return { success: true };
-  }),
-  deleteBoard: designOrgMutationProcedure.input(z11.object({ boardId: z11.number() })).mutation(async ({ ctx, input }) => {
-    await requireDesignBoard(input.boardId, ctx.orgId);
-    requireScopedDesignMutation(
-      await deleteMaterialBoardForOrg(input.boardId, ctx.orgId)
-    );
-    await createAuditLog({
-      orgId: ctx.orgId,
-      userId: ctx.user.id,
-      action: "board.delete",
-      entityType: "material_board",
-      entityId: input.boardId
-    });
-    return { success: true };
-  }),
-  updateBoardTile: designOrgMutationProcedure.input(
-    z11.object({
-      joinId: z11.number(),
-      specNotes: z11.string().nullish(),
-      costBandOverride: z11.string().nullish(),
-      quantity: z11.number().nullish(),
-      unitOfMeasure: z11.string().nullish(),
-      notes: z11.string().nullish()
-    })
-  ).mutation(async ({ ctx, input }) => {
-    await requireDesignBoardJoin(input.joinId, ctx.orgId);
-    const { joinId, ...rest } = input;
-    requireScopedDesignMutation(
-      await updateBoardTileForOrg(joinId, ctx.orgId, {
-        specNotes: rest.specNotes ?? void 0,
-        costBandOverride: rest.costBandOverride ?? void 0,
-        quantity: rest.quantity !== void 0 && rest.quantity !== null ? String(rest.quantity) : void 0,
-        unitOfMeasure: rest.unitOfMeasure ?? void 0,
-        notes: rest.notes ?? void 0
-      })
-    );
-    return { success: true };
-  }),
-  reorderBoardTiles: designOrgMutationProcedure.input(
-    z11.object({
-      boardId: z11.number(),
-      orderedJoinIds: z11.array(z11.number())
-    })
-  ).mutation(async ({ ctx, input }) => {
-    const board = await requireDesignBoard(input.boardId, ctx.orgId);
-    if (new Set(input.orderedJoinIds).size !== input.orderedJoinIds.length) {
-      throw new TRPCError13({
-        code: "BAD_REQUEST",
-        message: "Board tile identifiers must be unique"
-      });
-    }
-    for (const joinId of input.orderedJoinIds) {
-      const join = await requireDesignBoardJoin(joinId, ctx.orgId);
-      requireSameDesignProject(board.project.id, join.project.id);
-      if (join.parent.id !== input.boardId)
-        throw new TRPCError13({
-          code: "NOT_FOUND",
-          message: "Resource not found"
-        });
-    }
-    requireScopedDesignMutation(
-      await reorderBoardTilesForOrg(
-        input.boardId,
-        input.orderedJoinIds,
-        ctx.orgId
-      )
-    );
-    return { success: true };
-  }),
-  exportBoardPdf: designOrgMutationProcedure.input(
-    z11.object({
-      boardId: z11.number(),
-      locale: z11.enum(["en", "ar"]).default("en")
-    })
-  ).mutation(async ({ ctx, input }) => {
-    const { resource: board, project } = await requireDesignBoard(
-      input.boardId,
-      ctx.orgId
-    );
-    const boardMaterials = await getMaterialsByBoard(input.boardId);
-    const items = [];
-    for (const bm of boardMaterials) {
-      const mat = await getMaterialById(bm.materialId);
-      if (mat) {
-        items.push({
-          materialId: mat.id,
-          name: mat.name,
-          category: mat.category,
-          tier: mat.tier,
-          costLow: Number(mat.typicalCostLow) || 0,
-          costHigh: Number(mat.typicalCostHigh) || 0,
-          costUnit: mat.costUnit || "AED/unit",
-          leadTimeDays: mat.leadTimeDays || 30,
-          leadTimeBand: mat.leadTimeBand || "medium",
-          supplierName: mat.supplierName || "TBD",
-          specNotes: bm.specNotes || void 0,
-          costBandOverride: bm.costBandOverride || void 0,
-          quantity: bm.quantity ? String(bm.quantity) : void 0,
-          unitOfMeasure: bm.unitOfMeasure || void 0,
-          notes: bm.notes || void 0
-        });
-      }
-    }
-    const { generateBoardPdfHtml: generateBoardPdfHtml2 } = await Promise.resolve().then(() => (init_board_pdf(), board_pdf_exports));
-    const summary = computeBoardSummary(items);
-    const rfqLines = generateRfqLines(items);
-    const [modelVersion, benchmarkVersion, logicVersion] = await Promise.all([
-      getActiveModelVersion(),
-      getActiveBenchmarkVersion(),
-      getPublishedLogicVersion()
-    ]);
-    const html = generateBoardPdfHtml2({
-      boardName: board.boardName,
-      projectName: project.name,
-      items,
-      summary,
-      rfqLines,
-      locale: input.locale,
-      modelVersion: modelVersion?.versionTag,
-      benchmarkVersion: benchmarkVersion?.versionTag,
-      logicVersion: logicVersion?.name
-    });
-    let fileUrl = null;
-    try {
-      const fileKey = `boards/${board.projectId}/${board.id}-${nanoid5(8)}.html`;
-      const result = await storagePut(fileKey, html, "text/html");
-      fileUrl = result.url;
-    } catch (e) {
-      console.warn("[Board PDF] S3 upload failed:", e);
-    }
-    await createAuditLog({
-      orgId: ctx.orgId,
-      userId: ctx.user.id,
-      action: "board.export_pdf",
-      entityType: "material_board",
-      entityId: input.boardId,
-      details: { fileUrl, itemCount: items.length }
-    });
-    return { fileUrl, html };
-  }),
-  boardSummary: orgProcedure.input(z11.object({ boardId: z11.number() })).query(async ({ ctx, input }) => {
-    await requireDesignBoard(input.boardId, ctx.orgId);
-    const boardMaterials = await getMaterialsByBoard(input.boardId);
-    const items = [];
-    for (const bm of boardMaterials) {
-      const mat = await getMaterialById(bm.materialId);
-      if (mat) {
-        items.push({
-          materialId: mat.id,
-          name: mat.name,
-          category: mat.category,
-          tier: mat.tier,
-          costLow: Number(mat.typicalCostLow) || 0,
-          costHigh: Number(mat.typicalCostHigh) || 0,
-          costUnit: mat.costUnit || "AED/unit",
-          leadTimeDays: mat.leadTimeDays || 30,
-          leadTimeBand: mat.leadTimeBand || "medium",
-          supplierName: mat.supplierName || "TBD"
-        });
-      }
-    }
-    return {
-      summary: computeBoardSummary(items),
-      rfqLines: generateRfqLines(items)
-    };
   })
 });
 
@@ -30529,7 +34082,7 @@ init_db();
 // server/engines/procurement/vendor-matching.ts
 init_db();
 init_schema();
-import { and as and2, eq as eq5 } from "drizzle-orm";
+import { and as and3, eq as eq6 } from "drizzle-orm";
 function allowedVendorStatuses(constraints) {
   if (constraints === "Strict Vendor List") return ["preferred_brand"];
   if (constraints === "Moderate Guidelines") return ["approved_vendor", "preferred_brand"];
@@ -30538,14 +34091,14 @@ function allowedVendorStatuses(constraints) {
 async function matchVendorsForProject(options) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const projectRows = await db.select().from(projects).where(and2(
-    eq5(projects.id, options.projectId),
-    eq5(projects.orgId, options.orgId)
+  const projectRows = await db.select().from(projects).where(and3(
+    eq6(projects.id, options.projectId),
+    eq6(projects.orgId, options.orgId)
   )).limit(1);
   if (projectRows.length === 0) throw new Error(`Project ${options.projectId} not found`);
   const project = projectRows[0];
   const allowedStatuses = allowedVendorStatuses(project.brandStandardConstraints);
-  const allMaterials = await db.select().from(materialsCatalog).where(eq5(materialsCatalog.isActive, true));
+  const allMaterials = await db.select().from(materialsCatalog).where(eq6(materialsCatalog.isActive, true));
   let matchedMaterials = allMaterials.filter(
     (m) => allowedStatuses.includes(m.brandStandardApproval || "open_market")
   );
@@ -30602,8 +34155,9 @@ var designMaterialsRouter = router({
       name: m.name,
       category: m.category,
       tier: m.tier,
-      costLow: Number(m.typicalCostLow) || 0,
-      costHigh: Number(m.typicalCostHigh) || 0,
+      costLow: m.typicalCostLow == null || !Number.isFinite(Number(m.typicalCostLow)) ? null : Number(m.typicalCostLow),
+      costHigh: m.typicalCostHigh == null || !Number.isFinite(Number(m.typicalCostHigh)) ? null : Number(m.typicalCostHigh),
+      pricingState: "browse_only_estimate",
       costUnit: m.costUnit || "AED/unit",
       leadTimeDays: m.leadTimeDays || 30,
       leadTimeBand: m.leadTimeBand || "medium",
@@ -30709,59 +34263,62 @@ var designMaterialsRouter = router({
   ).mutation(async ({ input }) => {
     const constants = await getMaterialConstants();
     const lookup = new Map(constants.map((c) => [c.materialType, c]));
-    let totalCostAed = 0;
     let totalCarbonKg = 0;
     let weightedMaintenanceSum = 0;
-    let totalArea = 0;
+    let matchedAreaM2 = 0;
+    const requestedAreaM2 = input.items.reduce(
+      (sum, item) => sum + item.areaM2,
+      0
+    );
     const breakdown = [];
     for (const item of input.items) {
       const c = lookup.get(item.materialType);
-      if (!c) {
+      const hasCarbon = c?.carbonIntensity !== null && c?.carbonIntensity !== void 0 && c?.carbonIntensity !== "";
+      const hasMaintenance = c?.maintenanceFactor !== null && c?.maintenanceFactor !== void 0 && c?.maintenanceFactor !== "";
+      const carbonIntensity = hasCarbon ? Number(c.carbonIntensity) : Number.NaN;
+      const maintenanceFactor = hasMaintenance ? Number(c.maintenanceFactor) : Number.NaN;
+      if (!c || !Number.isFinite(carbonIntensity) || carbonIntensity < 0 || !Number.isFinite(maintenanceFactor) || maintenanceFactor <= 0) {
         breakdown.push({
           materialType: item.materialType,
           areaM2: item.areaM2,
-          costPerM2: 0,
-          lineCostAed: 0,
-          carbonKg: 0,
-          maintenanceFactor: 3,
+          carbonIntensityKgPerM2: null,
+          carbonKg: null,
+          maintenanceFactor: null,
           matched: false
         });
         continue;
       }
-      const costPerM2 = Number(c.costPerM2 ?? 0);
-      const carbonIntensity = Number(c.carbonIntensity ?? 0);
-      const maintenanceFactor = Number(c.maintenanceFactor ?? 3);
-      const lineCost = costPerM2 * item.areaM2;
       const lineCarbonKg = carbonIntensity * item.areaM2;
-      totalCostAed += lineCost;
       totalCarbonKg += lineCarbonKg;
       weightedMaintenanceSum += maintenanceFactor * item.areaM2;
-      totalArea += item.areaM2;
+      matchedAreaM2 += item.areaM2;
       breakdown.push({
         materialType: item.materialType,
         areaM2: item.areaM2,
-        costPerM2,
-        lineCostAed: lineCost,
+        carbonIntensityKgPerM2: carbonIntensity,
         carbonKg: lineCarbonKg,
         maintenanceFactor,
         matched: true
       });
     }
-    const avgMaintenanceFactor = totalArea > 0 ? weightedMaintenanceSum / totalArea : 3;
-    const avgCarbonPerM2 = totalArea > 0 ? totalCarbonKg / totalArea : 0;
+    const avgMaintenanceFactor = matchedAreaM2 > 0 ? weightedMaintenanceSum / matchedAreaM2 : null;
+    const avgCarbonPerM2 = matchedAreaM2 > 0 ? totalCarbonKg / matchedAreaM2 : null;
     let sustainabilityGrade;
-    if (avgCarbonPerM2 < 30) sustainabilityGrade = "A";
+    if (avgCarbonPerM2 === null) sustainabilityGrade = null;
+    else if (avgCarbonPerM2 < 30) sustainabilityGrade = "A";
     else if (avgCarbonPerM2 < 60) sustainabilityGrade = "B";
     else if (avgCarbonPerM2 < 100) sustainabilityGrade = "C";
     else if (avgCarbonPerM2 < 150) sustainabilityGrade = "D";
     else sustainabilityGrade = "E";
     return {
-      totalCostAed: Math.round(totalCostAed),
-      totalCarbonKg: Math.round(totalCarbonKg),
-      avgMaintenanceFactor: Math.round(avgMaintenanceFactor * 10) / 10,
+      totalCarbonKg: matchedAreaM2 > 0 ? Math.round(totalCarbonKg) : null,
+      avgCarbonIntensityKgPerM2: avgCarbonPerM2 === null ? null : Math.round(avgCarbonPerM2 * 10) / 10,
+      avgMaintenanceFactor: avgMaintenanceFactor === null ? null : Math.round(avgMaintenanceFactor * 10) / 10,
       sustainabilityGrade,
-      totalAreaM2: totalArea,
-      costPerM2Avg: totalArea > 0 ? Math.round(totalCostAed / totalArea) : 0,
+      requestedAreaM2,
+      matchedAreaM2,
+      coveragePct: requestedAreaM2 > 0 ? Math.round(matchedAreaM2 / requestedAreaM2 * 100) : 0,
+      costAvailability: "governed_pricing_required",
       breakdown
     };
   })
@@ -30972,14 +34529,14 @@ var designSharingRouter = router({
       0
     );
     const gfa = getPricingArea(project);
-    const TIER_PREMIUM_PCT2 = {
+    const TIER_PREMIUM_PCT = {
       Entry: 0,
       Mid: 3,
       "Upper-mid": 8,
       Luxury: 18,
       "Ultra-luxury": 30
     };
-    const salePremiumPct = TIER_PREMIUM_PCT2[project.mkt01Tier ?? "Upper-mid"] ?? 8;
+    const salePremiumPct = TIER_PREMIUM_PCT[project.mkt01Tier ?? "Upper-mid"] ?? 8;
     const SQF = 10.7639;
     return {
       locale: input.locale,
@@ -31324,7 +34881,7 @@ var designVisualsRouter = router({
         ctx.orgId
       );
     }
-    let inputs = projectToInputs4(project);
+    let inputs = projectToInputs(project);
     if (input.scenarioId) {
       const scenarioInput = await getScenarioInput(input.scenarioId);
       if (scenarioInput?.jsonInput) {
@@ -31346,9 +34903,6 @@ var designVisualsRouter = router({
             category: mat.category,
             tier: mat.tier,
             supplierName: mat.supplierName,
-            costUnit: mat.costUnit,
-            costLow: Number(mat.typicalCostLow) || 0,
-            costHigh: Number(mat.typicalCostHigh) || 0,
             embodiedCarbon: mat.embodiedCarbon ? parseFloat(String(mat.embodiedCarbon)) : null,
             maintenanceFactor: mat.maintenanceFactor ? parseFloat(String(mat.maintenanceFactor)) : null,
             brandStandardApproval: mat.brandStandardApproval || null
@@ -31558,7 +35112,7 @@ var designVisualsRouter = router({
     })
   ).mutation(async ({ ctx, input }) => {
     const project = await requireDesignProject(input.projectId, ctx.orgId);
-    const inputs = projectToInputs4(project);
+    const inputs = projectToInputs(project);
     const boards = await getMaterialBoardsByProject(input.projectId);
     const enrichedMaterials = [];
     if (boards && boards.length > 0) {
@@ -31571,9 +35125,6 @@ var designVisualsRouter = router({
             category: mat.category,
             tier: mat.tier,
             supplierName: mat.supplierName,
-            costUnit: mat.costUnit,
-            costLow: Number(mat.typicalCostLow) || 0,
-            costHigh: Number(mat.typicalCostHigh) || 0,
             embodiedCarbon: mat.embodiedCarbon ? parseFloat(String(mat.embodiedCarbon)) : null,
             maintenanceFactor: mat.maintenanceFactor ? parseFloat(String(mat.maintenanceFactor)) : null,
             brandStandardApproval: mat.brandStandardApproval || null
@@ -31677,12 +35228,12 @@ init_db();
 
 // server/engines/geometry/dxf-geometry-boundary.ts
 init_geometry();
-import { createHash as createHash5 } from "node:crypto";
+import { createHash as createHash6 } from "node:crypto";
 import { Worker } from "node:worker_threads";
 
 // server/engines/geometry/canonical-geometry.ts
 init_geometry();
-import { createHash as createHash4 } from "node:crypto";
+import { createHash as createHash5 } from "node:crypto";
 var ZERO = BigInt(0);
 var ONE = BigInt(1);
 var TWO = BigInt(2);
@@ -31929,7 +35480,7 @@ function assertValidHoles(outer, holes, label, deadlineAtMilliseconds) {
   }
 }
 function hash(domain, payload) {
-  return createHash4("sha256").update(domain, "utf8").update("\0", "utf8").update(payload, "utf8").digest("hex");
+  return createHash5("sha256").update(domain, "utf8").update("\0", "utf8").update(payload, "utf8").digest("hex");
 }
 function canonicalPoint(point) {
   return { x: formatInteger(point.x), y: formatInteger(point.y) };
@@ -32539,7 +36090,7 @@ var DxfDeadlineError = class extends Error {
   }
 };
 function checksum(bytes) {
-  return createHash5("sha256").update(bytes).digest("hex");
+  return createHash6("sha256").update(bytes).digest("hex");
 }
 function issue(code, message) {
   return { code, message };
@@ -32597,7 +36148,7 @@ function stableDxfRoomId(sourceLineageId, entityHandle, levelElevation, sourceUn
       sourceUnit
     ).toString()
   });
-  const digest = createHash5("sha256").update(DXF_ROOM_ID_DOMAIN, "utf8").update("\0", "utf8").update(identityPayload, "utf8").digest("hex");
+  const digest = createHash6("sha256").update(DXF_ROOM_ID_DOMAIN, "utf8").update("\0", "utf8").update(identityPayload, "utf8").digest("hex");
   return `cad:${digest.slice(0, 60)}`;
 }
 function asInspection(value) {
@@ -34372,7 +37923,7 @@ async function processCsvUpload(buffer, sourceId, addedByUserId) {
 init_db();
 init_schema();
 init_database_safety();
-import { eq as eq9 } from "drizzle-orm";
+import { eq as eq10 } from "drizzle-orm";
 var UAE_SOURCES = [
   // ── Supplier Catalogs ─────────────────────────────────────────
   {
@@ -34981,10 +38532,10 @@ async function seedUAESources() {
   const errors = [];
   for (const source of UAE_SOURCES) {
     try {
-      const bySlug = await db.select({ id: sourceRegistry.id }).from(sourceRegistry).where(eq9(sourceRegistry.slug, source.slug)).limit(1);
+      const bySlug = await db.select({ id: sourceRegistry.id }).from(sourceRegistry).where(eq10(sourceRegistry.slug, source.slug)).limit(1);
       let targetId = bySlug[0]?.id;
       if (targetId === void 0) {
-        const legacyByUrl = await db.select({ id: sourceRegistry.id, slug: sourceRegistry.slug }).from(sourceRegistry).where(eq9(sourceRegistry.url, source.url)).limit(1);
+        const legacyByUrl = await db.select({ id: sourceRegistry.id, slug: sourceRegistry.slug }).from(sourceRegistry).where(eq10(sourceRegistry.url, source.url)).limit(1);
         if (legacyByUrl[0] && legacyByUrl[0].slug === null) {
           targetId = legacyByUrl[0].id;
         }
@@ -35010,7 +38561,7 @@ async function seedUAESources() {
         priceClass: source.priceClass ?? "unknown"
       };
       if (targetId !== void 0) {
-        await db.update(sourceRegistry).set(seedValues).where(eq9(sourceRegistry.id, targetId));
+        await db.update(sourceRegistry).set(seedValues).where(eq10(sourceRegistry.id, targetId));
         console.log(`[Seeder] \u{1F501} Updated source "${source.name}" (id=${targetId}, slug=${source.slug})`);
         updated++;
       } else {
@@ -36140,7 +39691,7 @@ init_orchestrator();
 init_connectors();
 init_db();
 init_schema();
-import { desc as desc5, eq as eq11, sql as sql4 } from "drizzle-orm";
+import { desc as desc5, eq as eq12, sql as sql4 } from "drizzle-orm";
 
 // server/engines/ingestion/scheduler.ts
 init_orchestrator();
@@ -36150,7 +39701,7 @@ init_dynamic();
 init_freshness();
 init_source_discovery();
 import cron from "node-cron";
-import { eq as eq10 } from "drizzle-orm";
+import { eq as eq11 } from "drizzle-orm";
 var scheduledTasks = [];
 var lastScheduledRunAt = null;
 var isSchedulerRunning = false;
@@ -36274,7 +39825,7 @@ var ingestionRouter = router({
   getRunDetail: protectedProcedure.input(z22.object({ runId: z22.string() })).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return null;
-    const runs = await db.select().from(ingestionRuns).where(eq11(ingestionRuns.runId, input.runId)).limit(1);
+    const runs = await db.select().from(ingestionRuns).where(eq12(ingestionRuns.runId, input.runId)).limit(1);
     return runs.length > 0 ? runs[0] : null;
   }),
   /**
@@ -36356,7 +39907,7 @@ var ingestionRouter = router({
   }).optional()).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return [];
-    const filter = input?.activeOnly !== false ? eq11(sourceRegistry.isActive, true) : void 0;
+    const filter = input?.activeOnly !== false ? eq12(sourceRegistry.isActive, true) : void 0;
     const sources = filter ? await db.select().from(sourceRegistry).where(filter).orderBy(desc5(sourceRegistry.updatedAt)) : await db.select().from(sourceRegistry).orderBy(desc5(sourceRegistry.updatedAt));
     return sources;
   }),
@@ -36403,7 +39954,7 @@ var ingestionRouter = router({
   toggleSource: adminProcedure.input(z22.object({ id: z22.number(), isActive: z22.boolean() })).mutation(async ({ input }) => {
     const db = await getDb();
     if (!db) throw new Error("DB not available");
-    await db.update(sourceRegistry).set({ isActive: input.isActive }).where(eq11(sourceRegistry.id, input.id));
+    await db.update(sourceRegistry).set({ isActive: input.isActive }).where(eq12(sourceRegistry.id, input.id));
     return { id: input.id, isActive: input.isActive };
   }),
   /**
@@ -36413,7 +39964,7 @@ var ingestionRouter = router({
     assertDatabaseAccess("ingest");
     const db = await getDb();
     if (!db) throw new Error("DB not available");
-    const [source] = await db.select().from(sourceRegistry).where(eq11(sourceRegistry.id, input.id)).limit(1);
+    const [source] = await db.select().from(sourceRegistry).where(eq12(sourceRegistry.id, input.id)).limit(1);
     if (!source) throw new Error("Source not found");
     const connector = createSourceConnector(source);
     const report = await runIngestion([connector], "manual", ctx.user.id);
@@ -36422,7 +39973,7 @@ var ingestionRouter = router({
       lastScrapedStatus: report.sourcesFailed > 0 ? "failed" : "success",
       lastRecordCount: report.evidenceCreated,
       consecutiveFailures: report.sourcesFailed > 0 ? sql4`${sourceRegistry.consecutiveFailures} + 1` : 0
-    }).where(eq11(sourceRegistry.id, input.id));
+    }).where(eq12(sourceRegistry.id, input.id));
     return report;
   }),
   /**
@@ -36443,7 +39994,7 @@ var ingestionRouter = router({
     if (!db) return [];
     let query = db.select().from(designTrends).orderBy(desc5(designTrends.mentionCount)).limit(input?.limit ?? 50);
     if (input?.category) {
-      query = query.where(eq11(designTrends.trendCategory, input.category));
+      query = query.where(eq12(designTrends.trendCategory, input.category));
     }
     return query;
   }),
@@ -36825,7 +40376,7 @@ async function analyseCompetitorLandscape(projects2, options = {}) {
 
 // server/routers/analytics.ts
 init_schema();
-import { eq as eq12 } from "drizzle-orm";
+import { eq as eq13 } from "drizzle-orm";
 
 // shared/data-corpus.ts
 var ORGANIZATION_CORPUS_POLICY_VERSION = "org-public-v1";
@@ -36916,7 +40467,7 @@ async function loadCompetitorLandscape() {
     entityName: competitorEntities.name
   }).from(competitorProjects).leftJoin(
     competitorEntities,
-    eq12(competitorProjects.competitorId, competitorEntities.id)
+    eq13(competitorProjects.competitorId, competitorEntities.id)
   );
   if (rows.length === 0) return void 0;
   const projects2 = rows.map((row) => ({
@@ -37045,7 +40596,7 @@ var analyticsRouter = router({
       entityName: competitorEntities.name
     }).from(competitorProjects).leftJoin(
       competitorEntities,
-      eq12(competitorProjects.competitorId, competitorEntities.id)
+      eq13(competitorProjects.competitorId, competitorEntities.id)
     );
     const projects2 = dbProjects.map((p) => {
       let pricePerSqft;
@@ -37258,131 +40809,21 @@ init_db();
 init_area_utils();
 
 // server/engines/predictive/cost-range.ts
-function weightedPercentile(values, percentile3) {
-  if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a.value - b.value);
-  const totalWeight = sorted.reduce((sum, v) => sum + v.weight, 0);
-  if (totalWeight === 0) return 0;
-  const target = percentile3 / 100 * totalWeight;
-  let cumWeight = 0;
-  for (let i = 0; i < sorted.length; i++) {
-    cumWeight += sorted[i].weight;
-    if (cumWeight >= target) {
-      return sorted[i].value;
-    }
-  }
-  return sorted[sorted.length - 1].value;
-}
-function gradeWeight(grade2) {
-  switch (grade2) {
-    case "A":
-      return 3;
-    case "B":
-      return 2;
-    case "C":
-      return 1;
-    default:
-      return 1;
-  }
-}
-function recencyBonus(captureDate) {
-  const now = Date.now();
-  const capture = new Date(captureDate).getTime();
-  const daysDiff = (now - capture) / (1e3 * 60 * 60 * 24);
-  return daysDiff < 90 ? 1 : 0;
-}
-function determineConfidence(dataPointCount, gradeACount) {
-  if (dataPointCount >= 15 && gradeACount >= 2) return "high";
-  if (dataPointCount >= 8) return "medium";
-  if (dataPointCount >= 3) return "low";
-  return "insufficient";
-}
-function predictCostRange(evidence, trends, options = {}) {
-  let filtered = evidence;
-  if (options.category) {
-    filtered = filtered.filter((e) => e.category === options.category);
-  }
-  if (options.geography) {
-    filtered = filtered.filter((e) => e.geography === options.geography);
-  }
-  let fallbackUsed = false;
-  let fallbackReason;
-  if (filtered.length < 3 && options.uaeWideEvidence && options.uaeWideEvidence.length >= 3) {
-    let uaeFiltered = options.uaeWideEvidence;
-    if (options.category) {
-      uaeFiltered = uaeFiltered.filter((e) => e.category === options.category);
-    }
-    if (uaeFiltered.length >= 3) {
-      filtered = uaeFiltered;
-      fallbackUsed = true;
-      fallbackReason = `Insufficient local data (${evidence.filter((e) => options.category ? e.category === options.category : true).length} records). Using UAE-wide fallback (${uaeFiltered.length} records).`;
-    }
-  }
-  if (filtered.length < 3) {
-    return {
-      p15: 0,
-      p50: 0,
-      p85: 0,
-      p95: 0,
-      unit: "AED/sqm",
-      currency: "AED",
-      trendAdjustment: 0,
-      trendDirection: "insufficient_data",
-      confidence: "insufficient",
-      dataPointCount: filtered.length,
-      gradeACount: filtered.filter((e) => e.reliabilityGrade === "A").length,
-      fallbackUsed,
-      fallbackReason: fallbackReason || "Insufficient data for prediction"
-    };
-  }
-  const weightedValues = filtered.map((e) => ({
-    value: e.priceTypical || (e.priceMin + e.priceMax) / 2,
-    weight: gradeWeight(e.reliabilityGrade) + recencyBonus(e.captureDate)
-  }));
-  const p15 = weightedPercentile(weightedValues, 15);
-  const p50 = weightedPercentile(weightedValues, 50);
-  const p85 = weightedPercentile(weightedValues, 85);
-  const p95 = weightedPercentile(weightedValues, 95);
-  const unitCounts = {};
-  for (const e of filtered) {
-    unitCounts[e.unit] = (unitCounts[e.unit] || 0) + 1;
-  }
-  const primaryUnit = Object.entries(unitCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "AED/sqm";
-  let trendAdjustment = 0;
-  let trendDirection = "insufficient_data";
-  if (trends.length > 0) {
-    const categoryTrend = options.category ? trends.find((t2) => t2.category === options.category && t2.confidence !== "insufficient") : void 0;
-    const bestTrend = categoryTrend || trends.find((t2) => t2.confidence !== "insufficient");
-    if (bestTrend) {
-      trendAdjustment = bestTrend.percentChange;
-      trendDirection = bestTrend.direction;
-    }
-  }
-  const gradeACount = filtered.filter((e) => e.reliabilityGrade === "A").length;
-  const confidence = determineConfidence(filtered.length, gradeACount);
-  const factor = 1 + trendAdjustment / 100;
-  const adjustedP15 = Math.round(p15 * factor * 100) / 100;
-  const adjustedP50 = Math.round(p50 * factor * 100) / 100;
-  const adjustedP85 = Math.round(p85 * factor * 100) / 100;
-  const adjustedP95 = Math.round(p95 * factor * 100) / 100;
+function insufficientCostRangePrediction(input) {
   return {
-    p15: Math.round(p15 * 100) / 100,
-    p50: Math.round(p50 * 100) / 100,
-    p85: Math.round(p85 * 100) / 100,
-    p95: Math.round(p95 * 100) / 100,
-    unit: primaryUnit,
+    p15: null,
+    p50: null,
+    p85: null,
+    p95: null,
+    unit: input?.unit ?? "AED/sqm",
     currency: "AED",
-    trendAdjustment: Math.round(trendAdjustment * 100) / 100,
-    trendDirection,
-    confidence,
-    dataPointCount: filtered.length,
-    gradeACount,
-    fallbackUsed,
-    fallbackReason,
-    adjustedP15,
-    adjustedP50,
-    adjustedP85,
-    adjustedP95
+    trendAdjustment: 0,
+    trendDirection: "insufficient_data",
+    confidence: "insufficient",
+    dataPointCount: input?.dataPointCount ?? 0,
+    gradeACount: input?.gradeACount ?? 0,
+    fallbackUsed: false,
+    fallbackReason: input?.reason ?? "Insufficient governed material-price data"
   };
 }
 
@@ -37648,6 +41089,12 @@ function matchScoreMatrixToPatterns(scores, availablePatterns) {
 }
 
 // server/routers/predictive.ts
+init_material_calculations();
+function unavailableGovernedMaterialCostRange() {
+  return insufficientCostRangePrediction({
+    reason: "No governed product/specification population is available for this predictive category"
+  });
+}
 var predictiveRouter = router({
   /**
    * V4-08: Get cost range prediction for a project category
@@ -37660,58 +41107,19 @@ var predictiveRouter = router({
     })
   ).query(async ({ ctx, input }) => {
     const project = await requireProjectForOrg(input.projectId, ctx.orgId);
-    const [projectEvidence, organizationEvidence, publicEvidence, trends] = await Promise.all([
-      listOrganizationEvidenceRecords(ctx.orgId, {
-        projectId: input.projectId,
-        category: input.category,
-        limit: 500
-      }),
-      listOrganizationEvidenceRecords(ctx.orgId, {
-        category: input.category,
-        limit: 1e3
-      }),
-      listPublicCorpusEvidence({
-        category: input.category,
-        limit: 1e3
-      }),
-      getTrendSnapshotsForOrg(ctx.orgId, {
-        category: input.category,
-        limit: 10
-      })
-    ]);
-    const toDataPoint = (e) => ({
-      priceMin: Number(e.priceMin) || 0,
-      priceTypical: Number(e.priceTypical) || 0,
-      priceMax: Number(e.priceMax) || 0,
-      unit: e.unit || "sqm",
-      reliabilityGrade: e.reliabilityGrade,
-      confidenceScore: e.confidenceScore,
-      captureDate: e.captureDate,
-      category: e.category,
-      geography: project.ctx04Location || "UAE"
-    });
-    const evidence = projectEvidence.map(toDataPoint);
-    const uaeWideEvidence = [...organizationEvidence, ...publicEvidence].map(
-      toDataPoint
+    const requestedGeography = resolveProjectMaterialPriceGeography(
+      project.materialPriceGeography
     );
-    const trendData = trends.map((t2) => ({
-      category: t2.category,
-      direction: t2.direction,
-      percentChange: Number(t2.percentChange) || 0,
-      confidence: t2.confidence
-    }));
-    const prediction = predictCostRange(evidence, trendData, {
-      category: input.category,
-      geography: input.geography || project.ctx04Location || void 0,
-      uaeWideEvidence
-    });
+    const prediction = unavailableGovernedMaterialCostRange();
     return {
       ...prediction,
-      status: prediction.confidence === "insufficient" ? "insufficient_data" : "ok",
+      status: "insufficient_data",
       corpusPolicyVersion: ORGANIZATION_CORPUS_POLICY_VERSION,
-      organizationSampleCount: organizationEvidence.length,
-      publicSampleCount: publicEvidence.length,
-      insufficiencyReason: prediction.confidence === "insufficient" ? "below_minimum_sample" : void 0
+      materialResolutionPolicyVersion: MATERIAL_RESOLUTION_POLICY_VERSION,
+      requestedGeography,
+      organizationSampleCount: 0,
+      publicSampleCount: 0,
+      insufficiencyReason: "no_governed_material_population"
     };
   }),
   /**
@@ -37819,29 +41227,22 @@ var predictiveRouter = router({
       trendPercentChange = Number(bestTrend.percentChange) || 0;
       trendDirection = bestTrend.direction || "insufficient_data";
     }
-    let boardMaterialsCost;
     let boardMaintenanceVariance = 0;
     const boards = await getMaterialBoardsByProject(input.projectId);
     if (boards && boards.length > 0) {
       const activeBoard = boards[0];
       const boardMaterials = await getMaterialsByBoard(activeBoard.id);
-      let totalLow = 0;
-      let totalHigh = 0;
       let totalVariance = 0;
       for (const bm of boardMaterials) {
         const mat = await getMaterialById(bm.materialId);
         if (mat) {
-          const qty = Number(bm.quantity) || 1;
-          totalLow += (Number(mat.typicalCostLow) || 0) * qty;
-          totalHigh += (Number(mat.typicalCostHigh) || 0) * qty;
           const matMaint = parseFloat(
             String(mat.maintenanceFactor || "0.05")
           );
           totalVariance += (matMaint - 0.05) * 100;
         }
       }
-      if (totalHigh > 0) {
-        boardMaterialsCost = (totalLow + totalHigh) / 2;
+      if (totalVariance !== 0) {
         boardMaintenanceVariance = totalVariance;
       }
     }
@@ -37861,7 +41262,6 @@ var predictiveRouter = router({
       brandStandardConstraints: project.brandStandardConstraints,
       timelineFlexibility: project.timelineFlexibility,
       targetValueAdd: project.targetValueAdd,
-      boardMaterialsCost,
       boardMaintenanceVariance
     });
     const organizationSampleCount = trends.filter(
@@ -37882,21 +41282,7 @@ var predictiveRouter = router({
   /**
    * V4-13: Get UAE-wide cost ranges by market tier for analytics dashboard
    */
-  getUaeCostRanges: orgProcedure.query(async ({ ctx }) => {
-    const [organizationEvidence, publicEvidence, trends] = await Promise.all([
-      listOrganizationEvidenceRecords(ctx.orgId, { limit: 2e3 }),
-      listPublicCorpusEvidence({ limit: 2e3 }),
-      getTrendSnapshotsForOrg(ctx.orgId, { limit: 50 })
-    ]);
-    const allEvidence = [...organizationEvidence, ...publicEvidence];
-    const tiers = [
-      "Economy",
-      "Mid",
-      "Upper-mid",
-      "Premium",
-      "Luxury",
-      "Ultra-luxury"
-    ];
+  getUaeCostRanges: orgProcedure.query(async () => {
     const categories = [
       "floors",
       "walls",
@@ -37910,38 +41296,18 @@ var predictiveRouter = router({
     ];
     const results = [];
     for (const category of categories) {
-      const catEvidence = allEvidence.filter((e) => e.category === category).map((e) => ({
-        priceMin: Number(e.priceMin) || 0,
-        priceTypical: Number(e.priceTypical) || 0,
-        priceMax: Number(e.priceMax) || 0,
-        unit: e.unit || "sqm",
-        reliabilityGrade: e.reliabilityGrade,
-        confidenceScore: e.confidenceScore,
-        captureDate: e.captureDate,
-        category: e.category,
-        geography: "UAE"
-      }));
-      const catTrends = trends.filter((t2) => t2.category === category).map((t2) => ({
-        category: t2.category,
-        direction: t2.direction,
-        percentChange: Number(t2.percentChange) || 0,
-        confidence: t2.confidence
-      }));
-      const prediction = predictCostRange(catEvidence, catTrends, { category });
+      const prediction = unavailableGovernedMaterialCostRange();
       results.push({
         tier: "All",
         category,
         prediction: {
           ...prediction,
-          status: prediction.confidence === "insufficient" ? "insufficient_data" : "ok",
+          status: "insufficient_data",
           corpusPolicyVersion: ORGANIZATION_CORPUS_POLICY_VERSION,
-          organizationSampleCount: organizationEvidence.filter(
-            (e) => e.category === category
-          ).length,
-          publicSampleCount: publicEvidence.filter(
-            (e) => e.category === category
-          ).length,
-          insufficiencyReason: prediction.confidence === "insufficient" ? "below_minimum_sample" : void 0
+          materialResolutionPolicyVersion: MATERIAL_RESOLUTION_POLICY_VERSION,
+          organizationSampleCount: 0,
+          publicSampleCount: 0,
+          insufficiencyReason: "no_governed_material_population"
         }
       });
     }
@@ -38122,27 +41488,6 @@ function summarizeLearningSignals(signals) {
 }
 
 // server/routers/learning.ts
-function toEvidenceDataPoint(evidence, geography) {
-  return {
-    priceMin: Number(evidence.priceMin) || 0,
-    priceTypical: Number(evidence.priceTypical) || 0,
-    priceMax: Number(evidence.priceMax) || 0,
-    unit: evidence.unit || "sqm",
-    reliabilityGrade: evidence.reliabilityGrade,
-    confidenceScore: evidence.confidenceScore,
-    captureDate: evidence.captureDate,
-    category: evidence.category,
-    geography
-  };
-}
-function toTrendDataPoint(trend) {
-  return {
-    category: trend.category,
-    direction: trend.direction,
-    percentChange: Number(trend.percentChange) || 0,
-    confidence: trend.confidence
-  };
-}
 async function buildScopedComparisonInputs(project, projectId, orgId) {
   const outcome = await getLatestProjectOutcomeForOrg(projectId, orgId);
   if (!outcome) {
@@ -38159,27 +41504,9 @@ async function buildScopedComparisonInputs(project, projectId, orgId) {
       message: "No score matrix found for project"
     });
   }
-  const [
-    projectEvidence,
-    organizationEvidence,
-    publicEvidence,
-    trends,
-    comparableRows
-  ] = await Promise.all([
-    listOrganizationEvidenceRecords(orgId, { projectId, limit: 500 }),
-    listOrganizationEvidenceRecords(orgId, { limit: 1e3 }),
-    listPublicCorpusEvidence({ limit: 1e3 }),
-    getTrendSnapshotsForOrg(orgId, { limit: 10 }),
+  const [comparableRows] = await Promise.all([
     getComparableScoreMatricesForOrg(orgId, projectId)
   ]);
-  const geography = project.ctx04Location || "UAE";
-  const evidence = projectEvidence.map(
-    (row) => toEvidenceDataPoint(row, geography)
-  );
-  const safeFallbackEvidence = [...organizationEvidence, ...publicEvidence].map(
-    (row) => toEvidenceDataPoint(row, geography)
-  );
-  const trendData = trends.map(toTrendDataPoint);
   const comparableOutcomes = comparableRows.map(
     ({ scoreMatrix: matrix, project: comparableProject }) => ({
       projectId: matrix.projectId,
@@ -38190,9 +41517,8 @@ async function buildScopedComparisonInputs(project, projectId, orgId) {
       geography: comparableProject.ctx04Location || void 0
     })
   );
-  const costPrediction = predictCostRange(evidence, trendData, {
-    geography: project.ctx04Location || void 0,
-    uaeWideEvidence: safeFallbackEvidence
+  const costPrediction = insufficientCostRangePrediction({
+    reason: "Learning inputs do not have a governed product/specification material population"
   });
   const outcomePrediction = predictOutcome(
     Number(scoreMatrix.compositeScore) || 0,
@@ -38207,8 +41533,8 @@ async function buildScopedComparisonInputs(project, projectId, orgId) {
   const corpus = {
     status: costPrediction.confidence === "insufficient" && comparableOutcomes.length === 0 ? "insufficient_data" : "ok",
     corpusPolicyVersion: ORGANIZATION_CORPUS_POLICY_VERSION,
-    organizationSampleCount: organizationEvidence.length,
-    publicSampleCount: publicEvidence.length,
+    organizationSampleCount: 0,
+    publicSampleCount: 0,
     confidence: comparableOutcomes.length === 0 ? costPrediction.confidence : outcomePrediction.confidenceLevel,
     insufficiencyReason: costPrediction.confidence === "insufficient" && comparableOutcomes.length === 0 ? "no_same_organization_comparables" : void 0
   };
@@ -38390,7 +41716,7 @@ var learningRouter = router({
 import { z as z26 } from "zod";
 init_db();
 init_schema();
-import { eq as eq14, and as and5, desc as desc7, sql as sql6 } from "drizzle-orm";
+import { eq as eq15, and as and6, desc as desc7, sql as sql6 } from "drizzle-orm";
 import { TRPCError as TRPCError24 } from "@trpc/server";
 
 // server/engines/autonomous/nl-engine.ts
@@ -38525,20 +41851,20 @@ ${JSON.stringify(truncatedData, null, 2)}` }
 init_llm();
 init_db();
 init_schema();
-import { and as and4, eq as eq13, desc as desc6 } from "drizzle-orm";
+import { and as and5, eq as eq14, desc as desc6 } from "drizzle-orm";
 async function generatePortfolioInsightsForOrg(orgId) {
   const db = await getDb();
   if (!db) throw new Error("Database error");
-  const allProjects = await db.select().from(projects).where(and4(
-    eq13(projects.status, "evaluated"),
-    eq13(projects.orgId, orgId)
+  const allProjects = await db.select().from(projects).where(and5(
+    eq14(projects.status, "evaluated"),
+    eq14(projects.orgId, orgId)
   ));
   if (allProjects.length === 0) {
     return "No evaluated projects available for portfolio analysis.";
   }
   const portfolioProjects2 = [];
   for (const p of allProjects) {
-    const scores = await db.select().from(scoreMatrices).where(eq13(scoreMatrices.projectId, p.id)).orderBy(desc6(scoreMatrices.computedAt)).limit(1);
+    const scores = await db.select().from(scoreMatrices).where(eq14(scoreMatrices.projectId, p.id)).orderBy(desc6(scoreMatrices.computedAt)).limit(1);
     if (scores.length > 0) {
       const s = scores[0];
       portfolioProjects2.push({
@@ -38621,14 +41947,14 @@ var autonomousRouter = router({
     if (!db) return [];
     let conditions = [];
     const targetStatus = input?.status || "active";
-    conditions.push(eq14(platformAlerts.status, targetStatus));
+    conditions.push(eq15(platformAlerts.status, targetStatus));
     if (input?.severity) {
-      conditions.push(eq14(platformAlerts.severity, input.severity));
+      conditions.push(eq15(platformAlerts.severity, input.severity));
     }
     if (input?.type) {
-      conditions.push(eq14(platformAlerts.alertType, input.type));
+      conditions.push(eq15(platformAlerts.alertType, input.type));
     }
-    return db.select().from(platformAlerts).where(conditions.length > 0 ? and5(...conditions) : void 0).orderBy(desc7(platformAlerts.createdAt));
+    return db.select().from(platformAlerts).where(conditions.length > 0 ? and6(...conditions) : void 0).orderBy(desc7(platformAlerts.createdAt));
   }),
   acknowledgeAlert: adminProcedure.input(z26.object({ id: z26.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
@@ -38637,7 +41963,7 @@ var autonomousRouter = router({
       status: "acknowledged",
       acknowledgedBy: ctx.user.id,
       acknowledgedAt: /* @__PURE__ */ new Date()
-    }).where(eq14(platformAlerts.id, input.id));
+    }).where(eq15(platformAlerts.id, input.id));
     return { success: true };
   }),
   resolveAlert: adminProcedure.input(z26.object({ id: z26.number() })).mutation(async ({ input }) => {
@@ -38645,7 +41971,7 @@ var autonomousRouter = router({
     if (!db) throw new Error("Database error");
     await db.update(platformAlerts).set({
       status: "resolved"
-    }).where(eq14(platformAlerts.id, input.id));
+    }).where(eq15(platformAlerts.id, input.id));
     return { success: true };
   }),
   nlQuery: protectedProcedure.input(z26.object({ query: z26.string() })).mutation(async ({ ctx, input }) => {
@@ -38653,8 +41979,8 @@ var autonomousRouter = router({
     if (!db) throw new TRPCError24({ code: "INTERNAL_SERVER_ERROR", message: "Database error" });
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1e3);
     const recentQueries = await db.select({ count: sql6`count(*)` }).from(nlQueryLog).where(
-      and5(
-        eq14(nlQueryLog.userId, ctx.user.id),
+      and6(
+        eq15(nlQueryLog.userId, ctx.user.id),
         sql6`${nlQueryLog.createdAt} > ${oneHourAgo}`
       )
     );
@@ -38684,7 +42010,7 @@ init_db();
 import { z as z27 } from "zod";
 init_schema();
 import { TRPCError as TRPCError25 } from "@trpc/server";
-import { eq as eq15, and as and6 } from "drizzle-orm";
+import { eq as eq16, and as and7 } from "drizzle-orm";
 import { nanoid as nanoid9 } from "nanoid";
 var organizationRouter = router({
   createOrg: protectedProcedure.input(z27.object({
@@ -38694,7 +42020,7 @@ var organizationRouter = router({
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError25({ code: "INTERNAL_SERVER_ERROR", message: "DB unconnected" });
-    const existing = await db.select().from(organizations).where(eq15(organizations.slug, input.slug)).limit(1);
+    const existing = await db.select().from(organizations).where(eq16(organizations.slug, input.slug)).limit(1);
     if (existing.length > 0) {
       throw new TRPCError25({ code: "CONFLICT", message: "Slug is already taken" });
     }
@@ -38710,7 +42036,7 @@ var organizationRouter = router({
       userId: ctx.user.id,
       role: "admin"
     });
-    await db.update(users).set({ orgId }).where(eq15(users.id, ctx.user.id));
+    await db.update(users).set({ orgId }).where(eq16(users.id, ctx.user.id));
     return { success: true, orgId };
   }),
   myOrgs: protectedProcedure.query(async ({ ctx }) => {
@@ -38719,7 +42045,7 @@ var organizationRouter = router({
     const result = await db.select({
       org: organizations,
       role: organizationMembers.role
-    }).from(organizationMembers).innerJoin(organizations, eq15(organizations.id, organizationMembers.orgId)).where(eq15(organizationMembers.userId, ctx.user.id));
+    }).from(organizationMembers).innerJoin(organizations, eq16(organizations.id, organizationMembers.orgId)).where(eq16(organizationMembers.userId, ctx.user.id));
     return result;
   }),
   inviteMember: orgAdminProcedure.input(z27.object({
@@ -38728,7 +42054,7 @@ var organizationRouter = router({
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError25({ code: "INTERNAL_SERVER_ERROR" });
-    const myMembership = await db.select().from(organizationMembers).where(and6(eq15(organizationMembers.orgId, ctx.orgId), eq15(organizationMembers.userId, ctx.user.id))).limit(1);
+    const myMembership = await db.select().from(organizationMembers).where(and7(eq16(organizationMembers.orgId, ctx.orgId), eq16(organizationMembers.userId, ctx.user.id))).limit(1);
     if (!myMembership[0] || myMembership[0].role !== "admin") {
       throw new TRPCError25({ code: "FORBIDDEN", message: "Only admins can invite members" });
     }
@@ -38748,13 +42074,13 @@ var organizationRouter = router({
     const db = await getDb();
     if (!db) throw new TRPCError25({ code: "INTERNAL_SERVER_ERROR" });
     return db.transaction(async (tx) => {
-      const inviteResult = await tx.select().from(organizationInvites).where(eq15(organizationInvites.token, input.token)).limit(1).for("update");
+      const inviteResult = await tx.select().from(organizationInvites).where(eq16(organizationInvites.token, input.token)).limit(1).for("update");
       const invite = inviteResult[0];
       if (!invite) throw new TRPCError25({ code: "NOT_FOUND", message: "Invalid invite token" });
       if (invite.expiresAt < /* @__PURE__ */ new Date()) throw new TRPCError25({ code: "BAD_REQUEST", message: "Invite expired" });
-      const memberships = await tx.select().from(organizationMembers).where(and6(
-        eq15(organizationMembers.orgId, invite.orgId),
-        eq15(organizationMembers.userId, ctx.user.id)
+      const memberships = await tx.select().from(organizationMembers).where(and7(
+        eq16(organizationMembers.orgId, invite.orgId),
+        eq16(organizationMembers.userId, ctx.user.id)
       )).limit(2).for("update");
       if (memberships.length > 1) {
         throw new TRPCError25({
@@ -38769,8 +42095,8 @@ var organizationRouter = router({
           role: invite.role
         });
       }
-      await tx.update(users).set({ orgId: invite.orgId }).where(eq15(users.id, ctx.user.id));
-      await tx.delete(organizationInvites).where(eq15(organizationInvites.id, invite.id));
+      await tx.update(users).set({ orgId: invite.orgId }).where(eq16(users.id, ctx.user.id));
+      await tx.delete(organizationInvites).where(eq16(organizationInvites.id, invite.id));
       return { success: true, orgId: invite.orgId };
     });
   })
@@ -39020,7 +42346,7 @@ var materialSchema = z30.object({
   element: z30.string(),
   productName: z30.string(),
   brand: z30.string(),
-  priceRange: z30.string(),
+  priceRange: z30.string().optional(),
   rationale: z30.string()
 });
 var kitchenSchema = z30.object({
@@ -39029,7 +42355,7 @@ var kitchenSchema = z30.object({
   cabinetStyle: z30.string(),
   cabinetFinish: z30.string(),
   countertopMaterial: z30.string(),
-  countertopPriceRange: z30.string(),
+  countertopPriceRange: z30.string().optional(),
   backsplash: z30.string(),
   sinkType: z30.string(),
   applianceLevel: z30.enum(["standard", "premium", "professional"]),
@@ -39166,7 +42492,7 @@ ${dldContext}` : ""}
 For EACH space, provide:
 1. **styleDirection** \u2014 A specific design direction (e.g., "Warm minimalism with brass accents and limestone textures")
 2. **colorScheme** \u2014 Specific colors (e.g., "Warm sand #D4C5A9, Charcoal #3A3A3A, Brass #B8860B")
-3. **materials** \u2014 For each element (floor, wall_primary, wall_feature, ceiling, joinery, hardware), recommend a specific product with brand and price range
+3. **materials** \u2014 For each element (floor, wall_primary, wall_feature, ceiling, joinery, hardware), recommend a specific product and brand; do not invent prices
 4. **budgetBreakdown** \u2014 % allocation per element within the room
 5. **rationale** \u2014 Why this style fits the project context
 6. **specialNotes** \u2014 Tips for the interior designer
@@ -39179,7 +42505,7 @@ For BATHROOM spaces (${BATHROOM_ROOMS.join(", ")}), also provide bathroomSpec wi
 - showerType, vanityStyle, vanityWidth, tilePattern, wallTile, floorTile
 - fixtureFinish, fixtureBrand, mirrorType, luxuryFeatures
 
-Match materials to the "${inputs.mkt01Tier}" market tier. Use UAE-available brands and realistic AED pricing.
+Match materials to the "${inputs.mkt01Tier}" market tier. Use UAE-available brands. Numerical pricing is resolved separately by deterministic governed code.
 
 Respond in JSON format matching GeminiDesignResponse schema:
 {
@@ -39202,7 +42528,7 @@ function buildMaterialSummary(materials, inputs) {
   }
   return Object.entries(grouped).map(([cat, items]) => {
     const list = items.map(
-      (m) => `  \u2022 ${m.productName} (${m.brand}) \u2014 ${m.tier} \u2014 ${m.priceAedMin || "?"}\u2013${m.priceAedMax || "?"} AED/${m.unitLabel}`
+      (m) => `  \u2022 ${m.productName} (${m.brand}) \u2014 ${m.tier} \u2014 ${m.unitLabel}`
     ).join("\n");
     return `**${cat}**:
 ${list}`;
@@ -39226,7 +42552,6 @@ function buildMarketIntelSummary(recentEvidence, inputs) {
     if (e.designStyle) line += ` (${e.designStyle})`;
     if (e.finishLevel) line += ` [${e.finishLevel} finish]`;
     if (e.brandsMentioned && e.brandsMentioned.length > 0) line += ` \u2014 brands: ${e.brandsMentioned.join(", ")}`;
-    if (e.priceMin || e.priceMax) line += ` \u2014 Price: ${e.priceMin || "?"}-${e.priceMax || "?"} ${e.unit || "AED"}`;
     return line;
   }).join("\n");
 }
@@ -39295,7 +42620,7 @@ function mapAIResponseToRecommendations(aiResponse, rooms, totalBudget2, materia
         brand: libraryMatch?.brand || m.brand,
         category: libraryMatch?.category || m.element,
         element: m.element,
-        priceRangeAed: libraryMatch ? `${libraryMatch.priceAedMin}\u2013${libraryMatch.priceAedMax} AED/${libraryMatch.unitLabel}` : m.priceRange,
+        priceRangeAed: "Governed price required",
         aiRationale: m.rationale
       };
     });
@@ -39310,6 +42635,7 @@ function mapAIResponseToRecommendations(aiResponse, rooms, totalBudget2, materia
       const tierMult = TIER_PRICE_MULTIPLIERS[inputs.mkt01Tier] || 1;
       kitchenSpec = {
         ...aiSpace.kitchenSpec,
+        countertopPriceRange: "Governed price required",
         estimatedCostAed: Math.round(roomBudget * 0.6 * tierMult)
       };
     }
@@ -39989,25 +43315,25 @@ var designAdvisorRouter = router({
 // server/routers/portfolio.ts
 import { z as z32 } from "zod";
 import { TRPCError as TRPCError26 } from "@trpc/server";
-import { createHash as createHash6 } from "node:crypto";
+import { createHash as createHash7 } from "node:crypto";
 init_db();
 init_schema();
-import { eq as eq16, and as and7, desc as desc8, inArray as inArray3 } from "drizzle-orm";
+import { eq as eq17, and as and8, desc as desc8, inArray as inArray4 } from "drizzle-orm";
 var portfolioRouter = router({
   // ─── List all portfolios for current org ──────────────────────────
   list: orgProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     if (!db) return [];
-    const rows = await db.select().from(portfolios).where(eq16(portfolios.organizationId, ctx.orgId)).orderBy(desc8(portfolios.updatedAt));
+    const rows = await db.select().from(portfolios).where(eq17(portfolios.organizationId, ctx.orgId)).orderBy(desc8(portfolios.updatedAt));
     const result = [];
     for (const p of rows) {
-      const links = await db.select({ projectId: portfolioProjects.projectId }).from(portfolioProjects).where(eq16(portfolioProjects.portfolioId, p.id));
+      const links = await db.select({ projectId: portfolioProjects.projectId }).from(portfolioProjects).where(eq17(portfolioProjects.portfolioId, p.id));
       let avgComposite = 0;
       let avgRisk = 0;
       let scoredCount = 0;
       if (links.length > 0) {
         const projectIds = links.map((l) => l.projectId);
-        const scores = await db.select().from(scoreMatrices).where(inArray3(scoreMatrices.projectId, projectIds)).orderBy(desc8(scoreMatrices.computedAt));
+        const scores = await db.select().from(scoreMatrices).where(inArray4(scoreMatrices.projectId, projectIds)).orderBy(desc8(scoreMatrices.computedAt));
         const latestByProject = /* @__PURE__ */ new Map();
         for (const s of scores) {
           if (!latestByProject.has(s.projectId)) {
@@ -40039,13 +43365,13 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) return null;
     const [portfolio] = await db.select().from(portfolios).where(
-      and7(
-        eq16(portfolios.id, input.id),
-        eq16(portfolios.organizationId, ctx.orgId)
+      and8(
+        eq17(portfolios.id, input.id),
+        eq17(portfolios.organizationId, ctx.orgId)
       )
     );
     if (!portfolio) return null;
-    const links = await db.select().from(portfolioProjects).where(eq16(portfolioProjects.portfolioId, input.id));
+    const links = await db.select().from(portfolioProjects).where(eq17(portfolioProjects.portfolioId, input.id));
     if (links.length === 0) {
       return {
         ...portfolio,
@@ -40054,16 +43380,16 @@ var portfolioRouter = router({
       };
     }
     const projectIds = links.map((l) => l.projectId);
-    const projectList = await db.select().from(projects).where(and7(
-      inArray3(projects.id, projectIds),
-      eq16(projects.orgId, ctx.orgId)
+    const projectList = await db.select().from(projects).where(and8(
+      inArray4(projects.id, projectIds),
+      eq17(projects.orgId, ctx.orgId)
     ));
     if (projectList.length !== new Set(projectIds).size) {
       throw new TRPCError26({ code: "NOT_FOUND", message: "Resource not found" });
     }
     const authorizedProjectIds = projectList.map((project) => project.id);
-    const allScores = await db.select().from(scoreMatrices).where(inArray3(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc8(scoreMatrices.computedAt));
-    const allIntel = await db.select().from(projectIntelligence).where(inArray3(projectIntelligence.projectId, authorizedProjectIds)).orderBy(desc8(projectIntelligence.computedAt));
+    const allScores = await db.select().from(scoreMatrices).where(inArray4(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc8(scoreMatrices.computedAt));
+    const allIntel = await db.select().from(projectIntelligence).where(inArray4(projectIntelligence.projectId, authorizedProjectIds)).orderBy(desc8(projectIntelligence.computedAt));
     const latestScoreByProject = /* @__PURE__ */ new Map();
     for (const s of allScores) {
       if (!latestScoreByProject.has(s.projectId)) {
@@ -40187,9 +43513,9 @@ var portfolioRouter = router({
     if (input.name !== void 0) updates.name = input.name;
     if (input.description !== void 0)
       updates.description = input.description;
-    const [result] = await db.update(portfolios).set(updates).where(and7(
-      eq16(portfolios.id, input.id),
-      eq16(portfolios.organizationId, ctx.orgId)
+    const [result] = await db.update(portfolios).set(updates).where(and8(
+      eq17(portfolios.id, input.id),
+      eq17(portfolios.organizationId, ctx.orgId)
     ));
     if (Number(result.affectedRows) !== 1) {
       throw new TRPCError26({ code: "NOT_FOUND", message: "Resource not found" });
@@ -40201,15 +43527,15 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database error");
     const deleted = await db.transaction(async (tx) => {
-      const rows = await tx.select({ id: portfolios.id }).from(portfolios).where(and7(
-        eq16(portfolios.id, input.id),
-        eq16(portfolios.organizationId, ctx.orgId)
+      const rows = await tx.select({ id: portfolios.id }).from(portfolios).where(and8(
+        eq17(portfolios.id, input.id),
+        eq17(portfolios.organizationId, ctx.orgId)
       )).limit(1).for("update");
       if (rows.length !== 1) return false;
-      await tx.delete(portfolioProjects).where(eq16(portfolioProjects.portfolioId, input.id));
-      const [result] = await tx.delete(portfolios).where(and7(
-        eq16(portfolios.id, input.id),
-        eq16(portfolios.organizationId, ctx.orgId)
+      await tx.delete(portfolioProjects).where(eq17(portfolioProjects.portfolioId, input.id));
+      const [result] = await tx.delete(portfolios).where(and8(
+        eq17(portfolios.id, input.id),
+        eq17(portfolios.organizationId, ctx.orgId)
       ));
       return Number(result.affectedRows) === 1;
     });
@@ -40229,18 +43555,18 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database error");
     const result = await db.transaction(async (tx) => {
-      const [portfolio] = await tx.select({ id: portfolios.id }).from(portfolios).where(and7(
-        eq16(portfolios.id, input.portfolioId),
-        eq16(portfolios.organizationId, ctx.orgId)
+      const [portfolio] = await tx.select({ id: portfolios.id }).from(portfolios).where(and8(
+        eq17(portfolios.id, input.portfolioId),
+        eq17(portfolios.organizationId, ctx.orgId)
       )).limit(1).for("update");
-      const [project] = await tx.select({ id: projects.id }).from(projects).where(and7(
-        eq16(projects.id, input.projectId),
-        eq16(projects.orgId, ctx.orgId)
+      const [project] = await tx.select({ id: projects.id }).from(projects).where(and8(
+        eq17(projects.id, input.projectId),
+        eq17(projects.orgId, ctx.orgId)
       )).limit(1).for("update");
       if (!portfolio || !project) return "not_found";
-      const existing = await tx.select({ portfolioId: portfolioProjects.portfolioId }).from(portfolioProjects).where(and7(
-        eq16(portfolioProjects.portfolioId, input.portfolioId),
-        eq16(portfolioProjects.projectId, input.projectId)
+      const existing = await tx.select({ portfolioId: portfolioProjects.portfolioId }).from(portfolioProjects).where(and8(
+        eq17(portfolioProjects.portfolioId, input.portfolioId),
+        eq17(portfolioProjects.projectId, input.projectId)
       )).limit(1);
       if (existing.length > 0) return "existing";
       await tx.insert(portfolioProjects).values({
@@ -40265,18 +43591,18 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database error");
     const removed = await db.transaction(async (tx) => {
-      const [portfolio] = await tx.select({ id: portfolios.id }).from(portfolios).where(and7(
-        eq16(portfolios.id, input.portfolioId),
-        eq16(portfolios.organizationId, ctx.orgId)
+      const [portfolio] = await tx.select({ id: portfolios.id }).from(portfolios).where(and8(
+        eq17(portfolios.id, input.portfolioId),
+        eq17(portfolios.organizationId, ctx.orgId)
       )).limit(1).for("update");
-      const [project] = await tx.select({ id: projects.id }).from(projects).where(and7(
-        eq16(projects.id, input.projectId),
-        eq16(projects.orgId, ctx.orgId)
+      const [project] = await tx.select({ id: projects.id }).from(projects).where(and8(
+        eq17(projects.id, input.projectId),
+        eq17(projects.orgId, ctx.orgId)
       )).limit(1).for("update");
       if (!portfolio || !project) return false;
-      await tx.delete(portfolioProjects).where(and7(
-        eq16(portfolioProjects.portfolioId, input.portfolioId),
-        eq16(portfolioProjects.projectId, input.projectId)
+      await tx.delete(portfolioProjects).where(and8(
+        eq17(portfolioProjects.portfolioId, input.portfolioId),
+        eq17(portfolioProjects.projectId, input.projectId)
       ));
       return true;
     });
@@ -40289,9 +43615,9 @@ var portfolioRouter = router({
   availableProjects: orgProcedure.input(z32.object({ portfolioId: z32.number() })).query(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) return [];
-    const [portfolio] = await db.select({ id: portfolios.id }).from(portfolios).where(and7(
-      eq16(portfolios.id, input.portfolioId),
-      eq16(portfolios.organizationId, ctx.orgId)
+    const [portfolio] = await db.select({ id: portfolios.id }).from(portfolios).where(and8(
+      eq17(portfolios.id, input.portfolioId),
+      eq17(portfolios.organizationId, ctx.orgId)
     ));
     if (!portfolio) {
       throw new TRPCError26({
@@ -40299,8 +43625,8 @@ var portfolioRouter = router({
         message: "Portfolio not found"
       });
     }
-    const allProjects = await db.select().from(projects).where(eq16(projects.orgId, ctx.orgId));
-    const linked = await db.select({ projectId: portfolioProjects.projectId }).from(portfolioProjects).where(eq16(portfolioProjects.portfolioId, input.portfolioId));
+    const allProjects = await db.select().from(projects).where(eq17(projects.orgId, ctx.orgId));
+    const linked = await db.select({ projectId: portfolioProjects.projectId }).from(portfolioProjects).where(eq17(portfolioProjects.portfolioId, input.portfolioId));
     const linkedIds = new Set(linked.map((l) => l.projectId));
     return allProjects.filter((p) => !linkedIds.has(p.id)).map((p) => ({
       id: p.id,
@@ -40315,27 +43641,27 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database unavailable");
     const [portfolio] = await db.select().from(portfolios).where(
-      and7(
-        eq16(portfolios.id, input.id),
-        eq16(portfolios.organizationId, ctx.orgId)
+      and8(
+        eq17(portfolios.id, input.id),
+        eq17(portfolios.organizationId, ctx.orgId)
       )
     );
     if (!portfolio) throw new Error("Portfolio not found");
-    const links = await db.select().from(portfolioProjects).where(eq16(portfolioProjects.portfolioId, input.id));
+    const links = await db.select().from(portfolioProjects).where(eq17(portfolioProjects.portfolioId, input.id));
     if (links.length === 0) {
       throw new Error("Portfolio has no projects \u2014 add projects before generating a report.");
     }
     const pIds = links.map((l) => l.projectId);
-    const projectList = await db.select().from(projects).where(and7(
-      inArray3(projects.id, pIds),
-      eq16(projects.orgId, ctx.orgId)
+    const projectList = await db.select().from(projects).where(and8(
+      inArray4(projects.id, pIds),
+      eq17(projects.orgId, ctx.orgId)
     ));
     if (projectList.length !== new Set(pIds).size) {
       throw new TRPCError26({ code: "NOT_FOUND", message: "Resource not found" });
     }
     const authorizedProjectIds = projectList.map((project) => project.id);
-    const allScores = await db.select().from(scoreMatrices).where(inArray3(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc8(scoreMatrices.computedAt));
-    const allIntel = await db.select().from(projectIntelligence).where(inArray3(projectIntelligence.projectId, authorizedProjectIds)).orderBy(desc8(projectIntelligence.computedAt));
+    const allScores = await db.select().from(scoreMatrices).where(inArray4(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc8(scoreMatrices.computedAt));
+    const allIntel = await db.select().from(projectIntelligence).where(inArray4(projectIntelligence.projectId, authorizedProjectIds)).orderBy(desc8(projectIntelligence.computedAt));
     const latestScoreByProject = /* @__PURE__ */ new Map();
     for (const s of allScores) {
       if (!latestScoreByProject.has(s.projectId)) {
@@ -40433,31 +43759,31 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database unavailable");
     const [portfolio] = await db.select().from(portfolios).where(
-      and7(
-        eq16(portfolios.id, input.id),
-        eq16(portfolios.organizationId, ctx.orgId)
+      and8(
+        eq17(portfolios.id, input.id),
+        eq17(portfolios.organizationId, ctx.orgId)
       )
     );
     if (!portfolio) throw new Error("Portfolio not found");
-    const links = await db.select().from(portfolioProjects).where(eq16(portfolioProjects.portfolioId, input.id));
+    const links = await db.select().from(portfolioProjects).where(eq17(portfolioProjects.portfolioId, input.id));
     if (links.length === 0) return { alerts: [], message: "No projects in portfolio" };
     const pIds = links.map((l) => l.projectId);
-    const projectList = await db.select().from(projects).where(and7(
-      inArray3(projects.id, pIds),
-      eq16(projects.orgId, ctx.orgId)
+    const projectList = await db.select().from(projects).where(and8(
+      inArray4(projects.id, pIds),
+      eq17(projects.orgId, ctx.orgId)
     ));
     if (projectList.length !== new Set(pIds).size) {
       throw new TRPCError26({ code: "NOT_FOUND", message: "Resource not found" });
     }
     const authorizedProjectIds = projectList.map((project) => project.id);
-    const allScores = await db.select().from(scoreMatrices).where(inArray3(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc8(scoreMatrices.computedAt));
+    const allScores = await db.select().from(scoreMatrices).where(inArray4(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc8(scoreMatrices.computedAt));
     const latestScoreByProject = /* @__PURE__ */ new Map();
     for (const s of allScores) {
       if (!latestScoreByProject.has(s.projectId)) {
         latestScoreByProject.set(s.projectId, s);
       }
     }
-    const allIntel = await db.select().from(projectIntelligence).where(inArray3(projectIntelligence.projectId, pIds)).orderBy(desc8(projectIntelligence.computedAt));
+    const allIntel = await db.select().from(projectIntelligence).where(inArray4(projectIntelligence.projectId, pIds)).orderBy(desc8(projectIntelligence.computedAt));
     const intelByProject = /* @__PURE__ */ new Map();
     for (const intel of allIntel) {
       if (!intelByProject.has(intel.projectId)) {
@@ -40555,7 +43881,7 @@ var portfolioRouter = router({
       });
     }
     for (const alert of candidates) {
-      alert.activeDedupKey = createHash6("sha256").update(JSON.stringify({
+      alert.activeDedupKey = createHash7("sha256").update(JSON.stringify({
         organizationId: ctx.orgId,
         portfolioId: portfolio.id,
         alertType: alert.alertType,
@@ -40589,7 +43915,7 @@ import { z as z33 } from "zod";
 init_db();
 init_db();
 init_schema();
-import { eq as eq17, desc as desc9, gte as gte2, and as and8, count } from "drizzle-orm";
+import { eq as eq18, desc as desc9, gte as gte2, and as and9, count } from "drizzle-orm";
 
 // server/engines/customer/health-score.ts
 function clamp2(v, min = 0, max2 = 100) {
@@ -40724,8 +44050,8 @@ var customerSuccessRouter = router({
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1e3);
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const recentLogs = await d.select().from(auditLogs).where(and8(
-      eq17(auditLogs.userId, userId),
+    const recentLogs = await d.select().from(auditLogs).where(and9(
+      eq18(auditLogs.userId, userId),
       gte2(auditLogs.createdAt, thirtyDaysAgo)
     ));
     const totalActions = recentLogs.length;
@@ -40738,7 +44064,7 @@ var customerSuccessRouter = router({
     const totalProjects = projects2?.length || 0;
     const evaluatedProjects = projects2?.filter((p) => p.status === "evaluated").length || 0;
     const scenarioActions = recentLogs.filter((l) => l.entityType === "scenario").length;
-    const simRows = await d.select({ c: count() }).from(monteCarloSimulations).where(eq17(monteCarloSimulations.userId, userId));
+    const simRows = await d.select({ c: count() }).from(monteCarloSimulations).where(eq18(monteCarloSimulations.userId, userId));
     const simulationsRun = simRows[0]?.c || 0;
     const biasScanActions = recentLogs.filter((l) => l.action === "bias.scan").length;
     const portfolioActions = recentLogs.filter((l) => l.entityType === "portfolio").length;
@@ -40747,7 +44073,7 @@ var customerSuccessRouter = router({
     ).length;
     const evaluatedProjScores = [];
     const avgProjectScore = evaluatedProjScores.length > 0 ? evaluatedProjScores.reduce((s, v) => s + v, 0) / evaluatedProjScores.length : 0;
-    const allBiasAlerts = await d.select().from(biasAlerts).where(eq17(biasAlerts.userId, userId));
+    const allBiasAlerts = await d.select().from(biasAlerts).where(eq18(biasAlerts.userId, userId));
     const biasAlertsTotal = allBiasAlerts.length;
     const biasAlertsDismissed = allBiasAlerts.filter((a) => a.dismissed === true).length;
     const thisMonthProjects = projects2?.filter(
@@ -40800,7 +44126,7 @@ var customerSuccessRouter = router({
   getHealth: protectedProcedure.query(async ({ ctx }) => {
     const d = await getDb();
     if (!d) return null;
-    const rows = await d.select().from(customerHealthScores).where(eq17(customerHealthScores.userId, ctx.user.id)).orderBy(desc9(customerHealthScores.createdAt)).limit(1);
+    const rows = await d.select().from(customerHealthScores).where(eq18(customerHealthScores.userId, ctx.user.id)).orderBy(desc9(customerHealthScores.createdAt)).limit(1);
     return rows[0] || null;
   }),
   // Recent activity feed
@@ -40808,7 +44134,7 @@ var customerSuccessRouter = router({
     const d = await getDb();
     if (!d) return [];
     const limit = input?.limit || 20;
-    return d.select().from(auditLogs).where(eq17(auditLogs.userId, ctx.user.id)).orderBy(desc9(auditLogs.createdAt)).limit(limit);
+    return d.select().from(auditLogs).where(eq18(auditLogs.userId, ctx.user.id)).orderBy(desc9(auditLogs.createdAt)).limit(limit);
   })
 });
 
@@ -40817,19 +44143,19 @@ import { z as z34 } from "zod";
 init_db();
 init_db();
 init_schema();
-import { eq as eq18, desc as desc10 } from "drizzle-orm";
+import { eq as eq19, desc as desc10 } from "drizzle-orm";
 
 // server/engines/sustainability/digital-twin.ts
 var MATERIAL_DB = {
-  concrete: { carbonIntensity: 0.159, density: 2400, typicalThickness: 0.25, recyclability: 0.65, maintenanceFactor: 5e-3, costPerM2: 350 },
-  steel: { carbonIntensity: 1.55, density: 7850, typicalThickness: 0.015, recyclability: 0.9, maintenanceFactor: 8e-3, costPerM2: 480 },
-  glass: { carbonIntensity: 0.86, density: 2500, typicalThickness: 0.012, recyclability: 0.4, maintenanceFactor: 0.015, costPerM2: 620 },
-  aluminum: { carbonIntensity: 8.24, density: 2700, typicalThickness: 3e-3, recyclability: 0.95, maintenanceFactor: 0.01, costPerM2: 750 },
-  timber: { carbonIntensity: 0.46, density: 600, typicalThickness: 0.1, recyclability: 0.7, maintenanceFactor: 0.02, costPerM2: 420 },
-  stone: { carbonIntensity: 0.079, density: 2600, typicalThickness: 0.03, recyclability: 0.3, maintenanceFactor: 3e-3, costPerM2: 550 },
-  gypsum: { carbonIntensity: 0.12, density: 1e3, typicalThickness: 0.013, recyclability: 0.2, maintenanceFactor: 0.01, costPerM2: 120 },
-  insulation: { carbonIntensity: 1.86, density: 30, typicalThickness: 0.1, recyclability: 0.15, maintenanceFactor: 2e-3, costPerM2: 180 },
-  ceramic: { carbonIntensity: 0.74, density: 2e3, typicalThickness: 0.01, recyclability: 0.1, maintenanceFactor: 5e-3, costPerM2: 280 }
+  concrete: { carbonIntensity: 0.159, density: 2400, typicalThickness: 0.25, recyclability: 0.65, maintenanceFactor: 5e-3 },
+  steel: { carbonIntensity: 1.55, density: 7850, typicalThickness: 0.015, recyclability: 0.9, maintenanceFactor: 8e-3 },
+  glass: { carbonIntensity: 0.86, density: 2500, typicalThickness: 0.012, recyclability: 0.4, maintenanceFactor: 0.015 },
+  aluminum: { carbonIntensity: 8.24, density: 2700, typicalThickness: 3e-3, recyclability: 0.95, maintenanceFactor: 0.01 },
+  timber: { carbonIntensity: 0.46, density: 600, typicalThickness: 0.1, recyclability: 0.7, maintenanceFactor: 0.02 },
+  stone: { carbonIntensity: 0.079, density: 2600, typicalThickness: 0.03, recyclability: 0.3, maintenanceFactor: 3e-3 },
+  gypsum: { carbonIntensity: 0.12, density: 1e3, typicalThickness: 0.013, recyclability: 0.2, maintenanceFactor: 0.01 },
+  insulation: { carbonIntensity: 1.86, density: 30, typicalThickness: 0.1, recyclability: 0.15, maintenanceFactor: 2e-3 },
+  ceramic: { carbonIntensity: 0.74, density: 2e3, typicalThickness: 0.01, recyclability: 0.1, maintenanceFactor: 5e-3 }
 };
 var CLIMATE_FACTOR = {
   dubai: 1.35,
@@ -40905,46 +44231,6 @@ function calculateOperationalEnergy(config) {
     equipment: Math.round(Math.max(0, equipment * config.gfa))
   };
 }
-function calculateLifecycleCost(config, energyCostPerKwh = 0.38) {
-  const specMult = SPEC_MULTIPLIER[config.specLevel] || 1;
-  let constructionCostPerM2 = 0;
-  for (const mix of config.materials) {
-    const mat = MATERIAL_DB[mix.material];
-    if (!mat) continue;
-    constructionCostPerM2 += mat.costPerM2 * (mix.percentage / 100) * specMult;
-  }
-  const constructionTotal = constructionCostPerM2 * config.gfa;
-  let annualMaintenancePct = 0;
-  for (const mix of config.materials) {
-    const mat = MATERIAL_DB[mix.material];
-    if (!mat) continue;
-    annualMaintenancePct += mat.maintenanceFactor * (mix.percentage / 100);
-  }
-  const annualMaintenance = constructionTotal * annualMaintenancePct;
-  const energy = calculateOperationalEnergy(config);
-  const annualEnergyCost = energy.total * energyCostPerKwh;
-  const escalation = 0.03;
-  const timeline = [];
-  let cumulative = constructionTotal;
-  for (let year = 0; year <= 30; year++) {
-    const escFactor = Math.pow(1 + escalation, year);
-    const maint = year === 0 ? 0 : annualMaintenance * escFactor;
-    const ener = year === 0 ? 0 : annualEnergyCost * escFactor;
-    cumulative += maint + ener;
-    timeline.push({
-      year,
-      cumulativeCost: Math.round(cumulative),
-      maintenanceCost: Math.round(maint),
-      energyCost: Math.round(ener),
-      constructionCost: year === 0 ? Math.round(constructionTotal) : 0
-    });
-  }
-  return {
-    total30yr: Math.round(cumulative),
-    perSqm: Math.round(cumulative / config.gfa),
-    timeline
-  };
-}
 function scoreCarbonEfficiency(carbonPerSqm) {
   if (carbonPerSqm <= 200) return 100;
   if (carbonPerSqm >= 1200) return 10;
@@ -41009,7 +44295,6 @@ function generateRecommendations2(carbonEff, energyRating, circularity, waterEff
 function computeDigitalTwin(config) {
   const carbon = calculateEmbodiedCarbon(config);
   const energy = calculateOperationalEnergy(config);
-  const lifecycle = calculateLifecycleCost(config);
   const carbonEfficiency = scoreCarbonEfficiency(carbon.perSqm);
   const energyRating = scoreEnergyRating(energy.perSqm, !!config.includeRenewables);
   const materialCircularity = scoreMaterialCircularity(config.materials);
@@ -41035,9 +44320,10 @@ function computeDigitalTwin(config) {
     coolingLoad: energy.cooling,
     lightingLoad: energy.lighting,
     equipmentLoad: energy.equipment,
-    lifecycleCost30yr: lifecycle.total30yr,
-    lifecycleCostPerSqm: lifecycle.perSqm,
-    lifecycle: lifecycle.timeline,
+    lifecycleCost30yr: null,
+    lifecycleCostPerSqm: null,
+    lifecycleCostResolutionState: "insufficient",
+    lifecycle: [],
     carbonEfficiency,
     energyRating,
     materialCircularity,
@@ -41536,7 +44822,8 @@ var sustainabilityRouter = router({
       carbonPerSqm: String(result.carbonPerSqm),
       operationalEnergy: String(result.operationalEnergy),
       energyPerSqm: String(result.energyPerSqm),
-      lifecycleCost30yr: String(result.lifecycleCost30yr),
+      lifecycleCost30yr: null,
+      lifecycleCostResolutionState: "insufficient",
       carbonBreakdown: result.carbonBreakdown,
       lifecycle: result.lifecycle,
       config: result.config
@@ -41547,7 +44834,8 @@ var sustainabilityRouter = router({
       grade: result.sustainabilityGrade,
       embodiedCarbon: String(result.totalEmbodiedCarbon),
       operationalEnergy: String(result.operationalEnergy),
-      lifecycleCost: String(result.lifecycleCost30yr),
+      lifecycleCost: null,
+      lifecycleCostResolutionState: "insufficient",
       carbonPerSqm: String(result.carbonPerSqm),
       energyRating: result.energyRating == null ? null : String(result.energyRating),
       renewablesEnabled: input.includeRenewables,
@@ -41562,13 +44850,13 @@ var sustainabilityRouter = router({
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const d = await getDb();
     if (!d) return [];
-    return d.select().from(digitalTwinModels).where(eq18(digitalTwinModels.projectId, input.projectId)).orderBy(desc10(digitalTwinModels.createdAt)).limit(10);
+    return d.select().from(digitalTwinModels).where(eq19(digitalTwinModels.projectId, input.projectId)).orderBy(desc10(digitalTwinModels.createdAt)).limit(10);
   }),
   getLatestTwin: orgProcedure.input(z34.object({ projectId: z34.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const d = await getDb();
     if (!d) return null;
-    const rows = await d.select().from(digitalTwinModels).where(eq18(digitalTwinModels.projectId, input.projectId)).orderBy(desc10(digitalTwinModels.createdAt)).limit(1);
+    const rows = await d.select().from(digitalTwinModels).where(eq19(digitalTwinModels.projectId, input.projectId)).orderBy(desc10(digitalTwinModels.createdAt)).limit(1);
     return rows[0] || null;
   }),
   evaluateCompliance: orgProcedure.input(z34.object({
@@ -41578,7 +44866,7 @@ var sustainabilityRouter = router({
     const d = await getDb();
     if (!d) throw new Error("Database unavailable");
     const city = project.city || "Dubai";
-    const rows = await d.select().from(digitalTwinModels).where(eq18(digitalTwinModels.projectId, input.projectId)).orderBy(desc10(digitalTwinModels.createdAt)).limit(1);
+    const rows = await d.select().from(digitalTwinModels).where(eq19(digitalTwinModels.projectId, input.projectId)).orderBy(desc10(digitalTwinModels.createdAt)).limit(1);
     const twin = rows[0];
     if (!twin) throw new Error("No digital twin computed yet. Run 'Compute Twin' first.");
     const config = twin.config || {};
@@ -42119,6 +45407,8 @@ import { z as z38 } from "zod";
 import { TRPCError as TRPCError27 } from "@trpc/server";
 init_db();
 init_space_program();
+init_material_quantity_engine();
+init_quantity_policy();
 var materialQuantityRouter = router({
   /**
    * generate — Full MQI pipeline
@@ -42181,7 +45471,9 @@ var materialQuantityRouter = router({
           materialLibraryId: alloc.materialLibraryId,
           materialName: alloc.materialName,
           percentage: Number(alloc.allocationPct),
-          reasoning: alloc.aiReasoning || "Locked by user"
+          reasoning: alloc.aiReasoning || "Locked by user",
+          explicitQuantity: alloc.explicitQuantity === null ? null : Number(alloc.explicitQuantity),
+          explicitQuantityUnit: alloc.explicitQuantityUnit
         });
       }
     }
@@ -42197,10 +45489,31 @@ var materialQuantityRouter = router({
       rooms,
       lockedAllocations.length > 0 ? lockedAllocations : void 0
     );
+    const resolverAsOf = /* @__PURE__ */ new Date();
+    const materialReferences = Array.from(
+      new Set(
+        allocationResult.rooms.flatMap(
+          (room) => [...room.floor, ...room.walls, ...room.ceiling, ...room.joinery].map((slice) => slice.materialLibraryId).filter((id) => id !== null)
+        )
+      )
+    ).map((legacyId) => ({
+      source: "material_library",
+      legacyId
+    }));
+    const priceSnapshots = await resolveMaterialPriceSnapshots({
+      references: materialReferences,
+      organizationId: orgId,
+      priceScope: "supply_only",
+      requestedGeography: resolveProjectMaterialPriceGeography(
+        project.materialPriceGeography
+      ),
+      asOf: resolverAsOf,
+      allowLegacyUnknownScope: true
+    });
     const costResult = buildQuantityCostSummary(
       surfaces,
       allocationResult,
-      materialLibrary2,
+      priceSnapshots,
       {
         fin01BudgetCap: project.fin01BudgetCap ? Number(project.fin01BudgetCap) : null,
         ctx03Gfa: project.ctx03Gfa ? Number(project.ctx03Gfa) : null
@@ -42212,6 +45525,8 @@ var materialQuantityRouter = router({
         for (const alloc of element.allocations) {
           const lockKey = `${room.roomId}:${element.element}`;
           if (lockedGroupMap.has(lockKey)) continue;
+          const snapshot = alloc.priceSnapshot;
+          const resolvedSnapshot = snapshot?.state === "resolved" ? snapshot : null;
           allocationsToInsert.push({
             projectId: input.projectId,
             organizationId: orgId,
@@ -42219,6 +45534,8 @@ var materialQuantityRouter = router({
             roomName: room.roomName,
             element: element.element,
             materialLibraryId: alloc.materialLibraryId,
+            productId: alloc.productId,
+            specId: alloc.specificationId,
             materialName: alloc.materialName,
             allocationPct: String(alloc.percentage),
             surfaceAreaM2: String(alloc.actualAreaM2),
@@ -42226,6 +45543,21 @@ var materialQuantityRouter = router({
             unitCostMax: alloc.unitCostMax ? String(alloc.unitCostMax) : null,
             totalCostMin: alloc.totalCostMin ? String(alloc.totalCostMin) : null,
             totalCostMax: alloc.totalCostMax ? String(alloc.totalCostMax) : null,
+            resolutionState: alloc.resolutionState,
+            resolutionReason: alloc.resolutionReason ?? null,
+            benchmarkProposalId: resolvedSnapshot?.benchmarkProposalId ?? null,
+            resolvedPriceScope: resolvedSnapshot?.resolvedPriceScope ?? null,
+            requestedGeography: snapshot?.requestedGeography ?? null,
+            resolvedGeography: resolvedSnapshot?.resolvedGeography ?? null,
+            resolvedUnitBasis: resolvedSnapshot?.unitBasis ?? null,
+            resolutionAsOf: snapshot ? new Date(snapshot.resolverAsOf) : resolverAsOf,
+            resolverPolicyVersion: snapshot?.policyVersion ?? "ev03-material-resolution-v1",
+            benchmarkVersionId: resolvedSnapshot?.benchmarkVersionId ?? null,
+            benchmarkVersion: resolvedSnapshot?.provenance.benchmarkVersion ?? null,
+            provenancePolicyVersion: resolvedSnapshot?.provenance.provenancePolicyVersion ?? null,
+            presentationProvenance: resolvedSnapshot?.provenance ?? null,
+            quantityPolicyVersion: alloc.quantityPolicyVersion,
+            quantityConversionInputs: alloc.quantityConversionInputs,
             aiReasoning: alloc.reasoning,
             isLocked: false
           });
@@ -42235,9 +45567,17 @@ var materialQuantityRouter = router({
     if (!await replaceMaterialAllocationsForOrg(
       input.projectId,
       orgId,
-      allocationsToInsert
+      allocationsToInsert,
+      {
+        materialPricingRevision: project.materialPricingRevision,
+        materialPriceGeography: project.materialPriceGeography
+      }
     )) {
       await requireProjectForOrg(input.projectId, orgId);
+      throw new TRPCError27({
+        code: "CONFLICT",
+        message: "Material pricing inputs changed while quantities were generated. Retry with the current project geography."
+      });
     }
     return costResult;
   }),
@@ -42274,10 +45614,14 @@ var materialQuantityRouter = router({
         materialName: alloc.materialName,
         allocationPct: Number(alloc.allocationPct),
         surfaceAreaM2: Number(alloc.surfaceAreaM2),
-        unitCostMin: Number(alloc.unitCostMin) || 0,
-        unitCostMax: Number(alloc.unitCostMax) || 0,
-        totalCostMin: Number(alloc.totalCostMin) || 0,
-        totalCostMax: Number(alloc.totalCostMax) || 0,
+        explicitQuantity: alloc.explicitQuantity === null ? null : Number(alloc.explicitQuantity),
+        explicitQuantityUnit: alloc.explicitQuantityUnit,
+        unitCostMin: alloc.unitCostMin === null ? null : Number(alloc.unitCostMin),
+        unitCostMax: alloc.unitCostMax === null ? null : Number(alloc.unitCostMax),
+        totalCostMin: alloc.totalCostMin === null ? null : Number(alloc.totalCostMin),
+        totalCostMax: alloc.totalCostMax === null ? null : Number(alloc.totalCostMax),
+        resolutionState: alloc.resolutionState,
+        resolutionReason: alloc.resolutionReason,
         aiReasoning: alloc.aiReasoning,
         isLocked: alloc.isLocked
       });
@@ -42289,6 +45633,158 @@ var materialQuantityRouter = router({
     };
   }),
   /**
+   * Adds the reviewed, explicit non-surface quantity needed for an issued
+   * joinery or sanitaryware line. Identity and organization are resolved on
+   * the server; callers cannot supply canonical IDs or provenance.
+   */
+  addExplicitAllocation: orgMutationProcedure.input(
+    z38.discriminatedUnion("element", [
+      z38.object({
+        projectId: z38.number(),
+        roomId: z38.string().min(1).max(20),
+        element: z38.literal("joinery"),
+        materialLibraryId: z38.number().int().positive(),
+        explicitQuantity: z38.number().positive().refine(
+          (value) => Math.abs(value * 1e3 - Math.round(value * 1e3)) < 1e-8,
+          "Quantity supports at most three decimal places"
+        ),
+        explicitQuantityUnit: z38.literal("lm")
+      }),
+      z38.object({
+        projectId: z38.number(),
+        roomId: z38.string().min(1).max(20),
+        element: z38.literal("sanitaryware"),
+        materialLibraryId: z38.number().int().positive(),
+        explicitQuantity: z38.number().int().positive(),
+        explicitQuantityUnit: z38.literal("piece")
+      })
+    ])
+  ).mutation(async ({ input, ctx }) => {
+    const project = await requireProjectForOrg(
+      input.projectId,
+      ctx.orgId
+    );
+    const [rooms, materialLibrary2] = await Promise.all([
+      getSpaceProgramRooms(input.projectId, ctx.orgId),
+      getMaterialLibrary()
+    ]);
+    const room = rooms.find(
+      (candidate2) => candidate2.roomCode === input.roomId
+    );
+    const material = materialLibrary2.find(
+      (candidate2) => candidate2.id === input.materialLibraryId
+    );
+    if (!room || !room.isFitOut || !material) {
+      throw new TRPCError27({
+        code: "NOT_FOUND",
+        message: "Resource not found"
+      });
+    }
+    if (material.category !== input.element) {
+      throw new TRPCError27({
+        code: "PRECONDITION_FAILED",
+        message: "MATERIAL_CATEGORY_INCOMPATIBLE"
+      });
+    }
+    const resolverAsOf = /* @__PURE__ */ new Date();
+    const explicitQuantity = Math.round(input.explicitQuantity * 1e3) / 1e3;
+    const [snapshot] = await resolveMaterialPriceSnapshots({
+      references: [{
+        source: "material_library",
+        legacyId: material.id
+      }],
+      organizationId: ctx.orgId,
+      priceScope: "supply_only",
+      requestedGeography: resolveProjectMaterialPriceGeography(
+        project.materialPriceGeography
+      ),
+      asOf: resolverAsOf,
+      allowLegacyUnknownScope: true
+    });
+    if (!snapshot || snapshot.state !== "resolved") {
+      if (snapshot?.state === "insufficient" && snapshot.reason === "identity_not_found" && snapshot.productId === void 0) {
+        throw new TRPCError27({
+          code: "NOT_FOUND",
+          message: "Resource not found"
+        });
+      }
+      throw new TRPCError27({
+        code: "PRECONDITION_FAILED",
+        message: "MATERIAL_PRICING_INSUFFICIENT"
+      });
+    }
+    const quantity = resolveQuantityForUnitBasis({
+      unitBasis: snapshot.unitBasis,
+      asOf: resolverAsOf,
+      explicitQuantity,
+      explicitQuantityUnit: input.explicitQuantityUnit,
+      paintCoverageProfile: snapshot.paintCoverageProfile ? { status: "approved", ...snapshot.paintCoverageProfile } : void 0
+    });
+    if (quantity.state !== "resolved") {
+      throw new TRPCError27({
+        code: "PRECONDITION_FAILED",
+        message: `MATERIAL_QUANTITY_INSUFFICIENT:${quantity.reason}`
+      });
+    }
+    const totalMin = Math.round(
+      quantity.quantity * Number(snapshot.priceMin) * 100
+    ) / 100;
+    const totalMax = Math.round(
+      quantity.quantity * Number(snapshot.priceMax) * 100
+    ) / 100;
+    const created = await createExplicitMaterialAllocationForOrg(
+      input.projectId,
+      ctx.orgId,
+      {
+        projectId: input.projectId,
+        organizationId: ctx.orgId,
+        roomId: room.roomCode,
+        roomName: room.roomName,
+        element: input.element,
+        materialLibraryId: material.id,
+        materialName: material.productName,
+        allocationPct: "100",
+        surfaceAreaM2: "0",
+        explicitQuantity: String(explicitQuantity),
+        explicitQuantityUnit: input.explicitQuantityUnit,
+        unitCostMin: snapshot.priceMin,
+        unitCostMax: snapshot.priceMax,
+        totalCostMin: String(totalMin),
+        totalCostMax: String(totalMax),
+        productId: snapshot.productId,
+        specId: snapshot.specificationId,
+        benchmarkProposalId: snapshot.benchmarkProposalId,
+        resolutionState: "resolved",
+        resolutionReason: null,
+        resolvedPriceScope: snapshot.resolvedPriceScope,
+        requestedGeography: snapshot.requestedGeography,
+        resolvedGeography: snapshot.resolvedGeography,
+        resolvedUnitBasis: snapshot.unitBasis,
+        resolutionAsOf: resolverAsOf,
+        resolverPolicyVersion: snapshot.policyVersion,
+        benchmarkVersionId: snapshot.benchmarkVersionId,
+        benchmarkVersion: snapshot.provenance.benchmarkVersion,
+        provenancePolicyVersion: snapshot.provenance.provenancePolicyVersion,
+        presentationProvenance: snapshot.provenance,
+        quantityPolicyVersion: quantity.policyVersion,
+        quantityConversionInputs: quantity.conversionInputs,
+        aiReasoning: "Explicit reviewed non-surface quantity.",
+        isLocked: true
+      },
+      {
+        materialPricingRevision: project.materialPricingRevision,
+        materialPriceGeography: project.materialPriceGeography
+      }
+    );
+    if (!created) {
+      throw new TRPCError27({
+        code: "CONFLICT",
+        message: "Explicit allocation already exists"
+      });
+    }
+    return created;
+  }),
+  /**
    * updateAllocation — Edit a single allocation
    * Server-side recalculation of costs
    */
@@ -42296,8 +45792,15 @@ var materialQuantityRouter = router({
     z38.object({
       allocationId: z38.number(),
       allocationPct: z38.number().min(0).max(100),
-      surfaceAreaM2: z38.number().min(0)
-    })
+      surfaceAreaM2: z38.number().min(0),
+      explicitQuantity: z38.number().positive().optional(),
+      explicitQuantityUnit: z38.enum(["sqm", "lm", "piece", "pack", "litre"]).optional()
+    }).refine(
+      (value) => value.explicitQuantity === void 0 === (value.explicitQuantityUnit === void 0),
+      {
+        message: "Explicit quantity and unit must be supplied together"
+      }
+    )
   ).mutation(async ({ input, ctx }) => {
     await requireProjectOrgResourceForOrg(input.allocationId, ctx.orgId, {
       lookupResource: getMaterialAllocationById,
@@ -42306,7 +45809,28 @@ var materialQuantityRouter = router({
     });
     if (!await updateMaterialAllocationForOrg(input.allocationId, ctx.orgId, {
       allocationPct: String(input.allocationPct),
-      surfaceAreaM2: String(input.surfaceAreaM2)
+      surfaceAreaM2: String(input.surfaceAreaM2),
+      explicitQuantity: input.explicitQuantity === void 0 ? null : String(input.explicitQuantity),
+      explicitQuantityUnit: input.explicitQuantityUnit ?? null,
+      unitCostMin: null,
+      unitCostMax: null,
+      totalCostMin: null,
+      totalCostMax: null,
+      benchmarkProposalId: null,
+      resolutionState: "insufficient",
+      resolutionReason: "quantity_required",
+      resolvedPriceScope: null,
+      requestedGeography: null,
+      resolvedGeography: null,
+      resolvedUnitBasis: null,
+      resolutionAsOf: null,
+      resolverPolicyVersion: null,
+      benchmarkVersionId: null,
+      benchmarkVersion: null,
+      provenancePolicyVersion: null,
+      presentationProvenance: null,
+      quantityPolicyVersion: null,
+      quantityConversionInputs: null
     })) {
       await requireProjectOrgResourceForOrg(input.allocationId, ctx.orgId, {
         lookupResource: getMaterialAllocationById,
@@ -42415,12 +45939,14 @@ ${rawContent.substring(0, 6e3)}`
     const text5 = typeof rawParsed === "string" ? rawParsed : Array.isArray(rawParsed) ? rawParsed.map((p) => typeof p === "string" ? p : p.text || "").join("") : "";
     try {
       const prices = JSON.parse(text5);
-      const minPrice = Number(prices.minPrice || prices.min || 0);
-      const maxPrice = Number(prices.maxPrice || prices.max || 0);
+      const parsedMin = Number(prices.minPrice ?? prices.min);
+      const parsedMax = Number(prices.maxPrice ?? prices.max);
+      const minPrice = Number.isFinite(parsedMin) && parsedMin > 0 ? parsedMin : null;
+      const maxPrice = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : null;
       if (!await updateMaterialSupplierSourceForOrg(input.sourceId, ctx.orgId, {
         lastScrapedAt: /* @__PURE__ */ new Date(),
-        lastPriceAedMin: minPrice > 0 ? String(minPrice) : void 0,
-        lastPriceAedMax: maxPrice > 0 ? String(maxPrice) : void 0
+        lastPriceAedMin: minPrice === null ? void 0 : String(minPrice),
+        lastPriceAedMax: maxPrice === null ? void 0 : String(maxPrice)
       })) {
         await requireOrgResourceForOrg(input.sourceId, ctx.orgId, {
           lookupResource: getMaterialSupplierSourceById,
@@ -42443,7 +45969,7 @@ ${rawContent.substring(0, 6e3)}`
 // server/routers/spaceProgram.ts
 import { z as z40 } from "zod";
 import { TRPCError as TRPCError29 } from "@trpc/server";
-import { createHash as createHash8 } from "node:crypto";
+import { createHash as createHash9 } from "node:crypto";
 init_db();
 
 // server/engines/design/typology-fitout-rules.ts
@@ -42995,7 +46521,7 @@ function redistributeBudget(rooms) {
 
 // server/routers/spaceProgram-geometry.ts
 import { TRPCError as TRPCError28 } from "@trpc/server";
-import { createHash as createHash7 } from "node:crypto";
+import { createHash as createHash8 } from "node:crypto";
 import { z as z39 } from "zod";
 init_db();
 init_geometry();
@@ -43116,7 +46642,7 @@ async function readAuthorizedDxf(input) {
       message: "Geometry asset is unavailable or oversized."
     });
   }
-  const checksum2 = createHash7("sha256").update(stored.buffer).digest("hex");
+  const checksum2 = createHash8("sha256").update(stored.buffer).digest("hex");
   if (checksum2 !== asset.checksum) {
     throw new TRPCError28({
       code: "CONFLICT",
@@ -43179,7 +46705,7 @@ function importIdempotencyKey(input) {
     sourceChecksum: input.sourceChecksum,
     sourceLineageId: input.sourceLineageId
   };
-  return createHash7("sha256").update(JSON.stringify(payload)).digest("hex");
+  return createHash8("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 var spaceProgramGeometryRouter = router({
   previewManualGeometry: orgHeavyMutationProcedure.input(
@@ -43261,7 +46787,7 @@ var spaceProgramGeometryRouter = router({
         levelId: `elevation:${canonical3.geometry.rooms.find((draftRoom) => draftRoom.spaceId === room.spaceId)?.levelElevationMicrometres ?? "0"}`
       }));
       sourceObservation = { rooms: input.source.rooms };
-      sourceChecksum = createHash7("sha256").update(JSON.stringify(sourceObservation)).digest("hex");
+      sourceChecksum = createHash8("sha256").update(JSON.stringify(sourceObservation)).digest("hex");
       assetChecksum = sourceChecksum;
       adapterVersion = "miyar-manual-v1";
     } else {
@@ -43588,7 +47114,7 @@ var legacySpaceProgramRouter = router({
       asset.storagePath,
       DXF_BOUNDARY_LIMITS.sourceBytes
     );
-    if (stored.sizeBytes <= 0 || stored.sizeBytes > DXF_BOUNDARY_LIMITS.sourceBytes || createHash8("sha256").update(stored.buffer).digest("hex") !== asset.checksum) {
+    if (stored.sizeBytes <= 0 || stored.sizeBytes > DXF_BOUNDARY_LIMITS.sourceBytes || createHash9("sha256").update(stored.buffer).digest("hex") !== asset.checksum) {
       throw new Error("Finalized CAD asset failed integrity validation");
     }
     let fileContent;
@@ -44569,8 +48095,8 @@ function evaluateBriefReadiness(facts) {
 
 // server/db/brief-workflow.ts
 init_db();
-import { createHash as createHash9 } from "node:crypto";
-import { and as and9, asc as asc2, desc as desc11, eq as eq19, inArray as inArray4, sql as sql9 } from "drizzle-orm";
+import { createHash as createHash10 } from "node:crypto";
+import { and as and10, asc as asc2, desc as desc11, eq as eq20, inArray as inArray5, sql as sql9 } from "drizzle-orm";
 init_schema();
 var BRIEF_SECTION_IDS2 = [
   "intent",
@@ -44596,7 +48122,7 @@ function canonical(value) {
   return `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`).join(",")}}`;
 }
 function hashBriefRequest(value) {
-  return createHash9("sha256").update(canonical(value)).digest("hex");
+  return createHash10("sha256").update(canonical(value)).digest("hex");
 }
 function normalizeApplicabilityStage(action) {
   return action === "propose" ? "proposed" : action === "accept_review" ? "reviewed" : action === "approve" ? "approved" : action === "withdraw" ? "withdrawn" : null;
@@ -44644,14 +48170,14 @@ async function lockTenant(tx, context3, projectId, requireAdmin = false) {
     memberRole: organizationMembers.role
   }).from(projects).innerJoin(
     organizationMembers,
-    and9(
-      eq19(organizationMembers.orgId, context3.organizationId),
-      eq19(organizationMembers.userId, context3.userId)
+    and10(
+      eq20(organizationMembers.orgId, context3.organizationId),
+      eq20(organizationMembers.userId, context3.userId)
     )
   ).where(
-    and9(
-      eq19(projects.id, projectId),
-      eq19(projects.orgId, context3.organizationId)
+    and10(
+      eq20(projects.id, projectId),
+      eq20(projects.orgId, context3.organizationId)
     )
   ).limit(1).for("update");
   if (!rows[0])
@@ -44675,10 +48201,10 @@ function normalizeBriefProfile(value) {
 async function lockStream(tx, context3, projectId, streamId) {
   await lockTenant(tx, context3, projectId);
   const rows = await tx.select().from(briefStreams).where(
-    and9(
-      eq19(briefStreams.organizationId, context3.organizationId),
-      eq19(briefStreams.projectId, projectId),
-      eq19(briefStreams.id, streamId)
+    and10(
+      eq20(briefStreams.organizationId, context3.organizationId),
+      eq20(briefStreams.projectId, projectId),
+      eq20(briefStreams.id, streamId)
     )
   ).limit(1).for("update");
   if (!rows[0])
@@ -44687,10 +48213,10 @@ async function lockStream(tx, context3, projectId, streamId) {
 }
 async function activeRole(tx, context3, streamId, role, sectionId) {
   const rows = await tx.select().from(briefRoleEvents).where(
-    and9(
-      eq19(briefRoleEvents.organizationId, context3.organizationId),
-      eq19(briefRoleEvents.streamId, streamId),
-      eq19(briefRoleEvents.subjectUserId, context3.userId),
+    and10(
+      eq20(briefRoleEvents.organizationId, context3.organizationId),
+      eq20(briefRoleEvents.streamId, streamId),
+      eq20(briefRoleEvents.subjectUserId, context3.userId),
       sql9`${briefRoleEvents.role}=${role}`,
       sectionId ? sql9`(${briefRoleEvents.sectionId} is null or ${briefRoleEvents.sectionId}=${sectionId})` : sql9`1=1`
     )
@@ -44711,11 +48237,11 @@ async function allocateEvents(tx, stream, operationId, actor, versionId, events)
   const first = Number(stream.nextEventSequence);
   const next = first + events.length;
   const allocation = await tx.update(briefStreams).set({ nextEventSequence: next }).where(
-    and9(
-      eq19(briefStreams.organizationId, actor.organizationId),
-      eq19(briefStreams.projectId, stream.projectId),
-      eq19(briefStreams.id, stream.id),
-      eq19(briefStreams.nextEventSequence, first)
+    and10(
+      eq20(briefStreams.organizationId, actor.organizationId),
+      eq20(briefStreams.projectId, stream.projectId),
+      eq20(briefStreams.id, stream.id),
+      eq20(briefStreams.nextEventSequence, first)
     )
   );
   if (Number(allocation[0]?.affectedRows) !== 1)
@@ -44751,18 +48277,18 @@ async function createBriefStream(input, context3) {
     if (input.scope?.type === "scenario") {
       const scenarioId = positive(input.scope.scenarioId, "scenarioId");
       const found = await tx.select({ id: scenarios.id }).from(scenarios).where(
-        and9(eq19(scenarios.id, scenarioId), eq19(scenarios.projectId, projectId))
+        and10(eq20(scenarios.id, scenarioId), eq20(scenarios.projectId, projectId))
       ).limit(1).for("update");
       if (!found[0])
         throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
     }
     const existing = await tx.select().from(briefOperations).where(
-      and9(
-        eq19(briefOperations.organizationId, context3.organizationId),
-        eq19(briefOperations.projectId, projectId),
-        eq19(briefOperations.actorUserId, context3.userId),
-        eq19(briefOperations.operation, "createStream"),
-        eq19(briefOperations.idempotencyKey, input.idempotencyKey)
+      and10(
+        eq20(briefOperations.organizationId, context3.organizationId),
+        eq20(briefOperations.projectId, projectId),
+        eq20(briefOperations.actorUserId, context3.userId),
+        eq20(briefOperations.operation, "createStream"),
+        eq20(briefOperations.idempotencyKey, input.idempotencyKey)
       )
     ).limit(1).for("update");
     if (existing[0]) {
@@ -44826,7 +48352,7 @@ async function createBriefStream(input, context3) {
     );
     if (input.initialAssignments?.length) {
       const assigneeIds = Array.from(new Set(input.initialAssignments.map((a) => positive(a.userId, "assignment userId"))));
-      const members = await tx.select({ userId: organizationMembers.userId }).from(organizationMembers).where(and9(eq19(organizationMembers.orgId, context3.organizationId), inArray4(organizationMembers.userId, assigneeIds))).for("update");
+      const members = await tx.select({ userId: organizationMembers.userId }).from(organizationMembers).where(and10(eq20(organizationMembers.orgId, context3.organizationId), inArray5(organizationMembers.userId, assigneeIds))).for("update");
       if (members.length !== assigneeIds.length)
         throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
       await tx.insert(briefRoleEvents).values(
@@ -44877,7 +48403,7 @@ async function createBriefStream(input, context3) {
       resultRevision: 1,
       result: value,
       completedAt: /* @__PURE__ */ new Date()
-    }).where(eq19(briefOperations.id, operationId));
+    }).where(eq20(briefOperations.id, operationId));
     return value;
   });
 }
@@ -44906,12 +48432,12 @@ async function executeBriefCommand(operation, input, context3) {
   return withBriefTransaction(db, async (tx) => {
     const stream = await lockStream(tx, context3, projectId, streamId);
     const previous = await tx.select().from(briefOperations).where(
-      and9(
-        eq19(briefOperations.organizationId, context3.organizationId),
-        eq19(briefOperations.projectId, projectId),
-        eq19(briefOperations.actorUserId, context3.userId),
-        eq19(briefOperations.operation, operation),
-        eq19(briefOperations.idempotencyKey, input.idempotencyKey)
+      and10(
+        eq20(briefOperations.organizationId, context3.organizationId),
+        eq20(briefOperations.projectId, projectId),
+        eq20(briefOperations.actorUserId, context3.userId),
+        eq20(briefOperations.operation, operation),
+        eq20(briefOperations.idempotencyKey, input.idempotencyKey)
       )
     ).limit(1).for("update");
     if (previous[0]) {
@@ -44944,20 +48470,20 @@ async function executeBriefCommand(operation, input, context3) {
     const operationId = Number(op[0].insertId);
     const versionId = input.versionId ? positive(input.versionId, "versionId") : Number(
       (await tx.select({ id: briefVersions.id }).from(briefVersions).where(
-        and9(
-          eq19(briefVersions.organizationId, context3.organizationId),
-          eq19(briefVersions.streamId, streamId)
+        and10(
+          eq20(briefVersions.organizationId, context3.organizationId),
+          eq20(briefVersions.streamId, streamId)
         )
       ).orderBy(desc11(briefVersions.versionNumber)).limit(1).for("update"))[0]?.id
     );
     if (!versionId)
       throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
     const versionRows = await tx.select().from(briefVersions).where(
-      and9(
-        eq19(briefVersions.organizationId, context3.organizationId),
-        eq19(briefVersions.projectId, projectId),
-        eq19(briefVersions.streamId, streamId),
-        eq19(briefVersions.id, versionId)
+      and10(
+        eq20(briefVersions.organizationId, context3.organizationId),
+        eq20(briefVersions.projectId, projectId),
+        eq20(briefVersions.streamId, streamId),
+        eq20(briefVersions.id, versionId)
       )
     ).limit(1).for("update");
     if (!versionRows[0])
@@ -45006,11 +48532,11 @@ async function executeBriefCommand(operation, input, context3) {
       });
       entityId = Number(inserted[0].insertId);
       const currentBinding = (await tx.select().from(briefVersionSections).where(
-        and9(
-          eq19(briefVersionSections.organizationId, context3.organizationId),
-          eq19(briefVersionSections.projectId, projectId),
-          eq19(briefVersionSections.versionId, versionId),
-          eq19(briefVersionSections.sectionId, sectionId)
+        and10(
+          eq20(briefVersionSections.organizationId, context3.organizationId),
+          eq20(briefVersionSections.projectId, projectId),
+          eq20(briefVersionSections.versionId, versionId),
+          eq20(briefVersionSections.sectionId, sectionId)
         )
       ).limit(1).for("update"))[0];
       if (!currentBinding)
@@ -45023,11 +48549,11 @@ async function executeBriefCommand(operation, input, context3) {
         classificationFingerprint: hashBriefRequest(suppliedClassifications),
         revision: sql9`${briefVersionSections.revision}+1`
       }).where(
-        and9(
-          eq19(briefVersionSections.organizationId, context3.organizationId),
-          eq19(briefVersionSections.projectId, projectId),
-          eq19(briefVersionSections.versionId, versionId),
-          eq19(briefVersionSections.sectionId, sectionId)
+        and10(
+          eq20(briefVersionSections.organizationId, context3.organizationId),
+          eq20(briefVersionSections.projectId, projectId),
+          eq20(briefVersionSections.versionId, versionId),
+          eq20(briefVersionSections.sectionId, sectionId)
         )
       );
       for (const dependency2 of input.dependencies ?? []) {
@@ -45059,17 +48585,17 @@ async function executeBriefCommand(operation, input, context3) {
       const role = operation.endsWith("submitEvidence") ? "section_owner" : operation.endsWith("acceptReview") ? "reviewer" : "approver";
       await activeRole(tx, context3, streamId, role, sectionId);
       const binding = (await tx.select().from(briefVersionSections).where(
-        and9(
-          eq19(briefVersionSections.organizationId, context3.organizationId),
-          eq19(briefVersionSections.versionId, versionId),
-          eq19(briefVersionSections.sectionId, sectionId)
+        and10(
+          eq20(briefVersionSections.organizationId, context3.organizationId),
+          eq20(briefVersionSections.versionId, versionId),
+          eq20(briefVersionSections.sectionId, sectionId)
         )
       ).limit(1).for("update"))[0];
       if (!binding?.sectionRevisionId)
         throw new BriefWorkflowError("INVALID", "Section has no revision");
       if (positive(input.revisionId, "revisionId") !== binding.sectionRevisionId)
         throw new BriefWorkflowError("CONFLICT", "Command targets a stale section revision");
-      const revision = (await tx.select().from(briefSectionRevisions).where(eq19(briefSectionRevisions.id, binding.sectionRevisionId)).limit(1))[0];
+      const revision = (await tx.select().from(briefSectionRevisions).where(eq20(briefSectionRevisions.id, binding.sectionRevisionId)).limit(1))[0];
       if (revision?.authorUserId === context3.userId && role !== "section_owner")
         throw new BriefWorkflowError(
           "FORBIDDEN",
@@ -45079,31 +48605,31 @@ async function executeBriefCommand(operation, input, context3) {
       if (binding.achievedState !== expected)
         throw new BriefWorkflowError("INVALID", `Section must be ${expected}`);
       if (role === "reviewer") {
-        const blocking = await tx.select({ id: briefFindings.id }).from(briefFindings).where(and9(
-          eq19(briefFindings.organizationId, context3.organizationId),
-          eq19(briefFindings.projectId, projectId),
-          eq19(briefFindings.streamId, streamId),
-          eq19(briefFindings.versionId, versionId),
-          eq19(briefFindings.bindingId, binding.id),
-          eq19(briefFindings.sectionRevisionId, binding.sectionRevisionId),
-          eq19(briefFindings.severity, "blocking")
+        const blocking = await tx.select({ id: briefFindings.id }).from(briefFindings).where(and10(
+          eq20(briefFindings.organizationId, context3.organizationId),
+          eq20(briefFindings.projectId, projectId),
+          eq20(briefFindings.streamId, streamId),
+          eq20(briefFindings.versionId, versionId),
+          eq20(briefFindings.bindingId, binding.id),
+          eq20(briefFindings.sectionRevisionId, binding.sectionRevisionId),
+          eq20(briefFindings.severity, "blocking")
         )).for("update");
-        const resolutionRows = blocking.length ? await tx.select().from(briefFindingResolutions).where(and9(
-          eq19(briefFindingResolutions.organizationId, context3.organizationId),
-          eq19(briefFindingResolutions.projectId, projectId),
-          eq19(briefFindingResolutions.streamId, streamId),
-          inArray4(briefFindingResolutions.findingId, blocking.map((f) => f.id))
+        const resolutionRows = blocking.length ? await tx.select().from(briefFindingResolutions).where(and10(
+          eq20(briefFindingResolutions.organizationId, context3.organizationId),
+          eq20(briefFindingResolutions.projectId, projectId),
+          eq20(briefFindingResolutions.streamId, streamId),
+          inArray5(briefFindingResolutions.findingId, blocking.map((f) => f.id))
         )).for("update") : [];
         if (blocking.some((f) => !resolutionRows.some((r) => r.findingId === f.id && r.stage === "accepted")))
           throw new BriefWorkflowError("INVALID", "Blocking findings must be resolved before review acceptance");
       }
       if (role === "approver") {
-        const conditionRows = await tx.select().from(briefConditionEvents).where(and9(
-          eq19(briefConditionEvents.organizationId, context3.organizationId),
-          eq19(briefConditionEvents.projectId, projectId),
-          eq19(briefConditionEvents.streamId, streamId),
-          eq19(briefConditionEvents.versionId, versionId),
-          eq19(briefConditionEvents.bindingId, binding.id)
+        const conditionRows = await tx.select().from(briefConditionEvents).where(and10(
+          eq20(briefConditionEvents.organizationId, context3.organizationId),
+          eq20(briefConditionEvents.projectId, projectId),
+          eq20(briefConditionEvents.streamId, streamId),
+          eq20(briefConditionEvents.versionId, versionId),
+          eq20(briefConditionEvents.bindingId, binding.id)
         )).for("update");
         const active = conditionRows.filter((c) => c.stage === "raised" && !conditionRows.some((accepted) => accepted.stage === "resolution_accepted" && conditionRows.some((submitted) => submitted.id === accepted.targetEventId && submitted.stage === "resolution_submitted" && submitted.targetEventId === c.id)));
         if (active.length) throw new BriefWorkflowError("INVALID", "Active conditions must be resolved before approval");
@@ -45118,11 +48644,11 @@ async function executeBriefCommand(operation, input, context3) {
             "Evidence requires at least one governed dependency"
           );
         const available = await tx.select({ id: briefDependencies.id }).from(briefDependencies).where(
-          and9(
-            eq19(briefDependencies.organizationId, context3.organizationId),
-            eq19(briefDependencies.projectId, projectId),
-            eq19(briefDependencies.bindingId, binding.id),
-            eq19(briefDependencies.sectionRevisionId, binding.sectionRevisionId)
+          and10(
+            eq20(briefDependencies.organizationId, context3.organizationId),
+            eq20(briefDependencies.projectId, projectId),
+            eq20(briefDependencies.bindingId, binding.id),
+            eq20(briefDependencies.sectionRevisionId, binding.sectionRevisionId)
           )
         );
         if (dependencyIds.some(
@@ -45150,7 +48676,7 @@ async function executeBriefCommand(operation, input, context3) {
       await tx.update(briefVersionSections).set({
         achievedState: next,
         revision: sql9`${briefVersionSections.revision}+1`
-      }).where(eq19(briefVersionSections.id, binding.id));
+      }).where(eq20(briefVersionSections.id, binding.id));
     } else if (operation.endsWith("createVersion")) {
       await activeRole(tx, context3, streamId, "author").catch(
         () => activeRole(tx, context3, streamId, "section_owner")
@@ -45160,18 +48686,18 @@ async function executeBriefCommand(operation, input, context3) {
         "predecessorVersionId"
       );
       const predecessor = (await tx.select().from(briefVersions).where(
-        and9(
-          eq19(briefVersions.organizationId, context3.organizationId),
-          eq19(briefVersions.streamId, streamId),
-          eq19(briefVersions.id, predecessorId)
+        and10(
+          eq20(briefVersions.organizationId, context3.organizationId),
+          eq20(briefVersions.streamId, streamId),
+          eq20(briefVersions.id, predecessorId)
         )
       ).limit(1).for("update"))[0];
       if (!predecessor)
         throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
       const latest = (await tx.select({ n: sql9`max(${briefVersions.versionNumber})` }).from(briefVersions).where(
-        and9(
-          eq19(briefVersions.organizationId, context3.organizationId),
-          eq19(briefVersions.streamId, streamId)
+        and10(
+          eq20(briefVersions.organizationId, context3.organizationId),
+          eq20(briefVersions.streamId, streamId)
         )
       ))[0];
       const n = Number(latest?.n ?? 0) + 1;
@@ -45189,9 +48715,9 @@ async function executeBriefCommand(operation, input, context3) {
       });
       entityId = Number(ins[0].insertId);
       const old = await tx.select().from(briefVersionSections).where(
-        and9(
-          eq19(briefVersionSections.organizationId, context3.organizationId),
-          eq19(briefVersionSections.versionId, predecessorId)
+        and10(
+          eq20(briefVersionSections.organizationId, context3.organizationId),
+          eq20(briefVersionSections.versionId, predecessorId)
         )
       ).orderBy(asc2(briefVersionSections.id));
       const carry = new Set(input.carryForwardSections ?? []);
@@ -45217,18 +48743,18 @@ async function executeBriefCommand(operation, input, context3) {
       const revoke = operation.endsWith("revokeRole");
       const requestedSubject = input.userId ?? input.subjectUserId;
       const subject = revoke ? null : positive(requestedSubject, "subjectUserId");
-      const targetGrant = revoke ? (await tx.select().from(briefRoleEvents).where(and9(
-        eq19(briefRoleEvents.organizationId, context3.organizationId),
-        eq19(briefRoleEvents.projectId, projectId),
-        eq19(briefRoleEvents.streamId, streamId),
-        eq19(briefRoleEvents.id, positive(input.grantEventId ?? input.targetGrantEventId, "grantEventId")),
-        eq19(briefRoleEvents.action, "granted")
+      const targetGrant = revoke ? (await tx.select().from(briefRoleEvents).where(and10(
+        eq20(briefRoleEvents.organizationId, context3.organizationId),
+        eq20(briefRoleEvents.projectId, projectId),
+        eq20(briefRoleEvents.streamId, streamId),
+        eq20(briefRoleEvents.id, positive(input.grantEventId ?? input.targetGrantEventId, "grantEventId")),
+        eq20(briefRoleEvents.action, "granted")
       )).limit(1).for("update"))[0] : null;
       if (revoke && !targetGrant) throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
       const member = (await tx.select().from(organizationMembers).where(
-        and9(
-          eq19(organizationMembers.orgId, context3.organizationId),
-          eq19(organizationMembers.userId, revoke ? targetGrant.subjectUserId : subject)
+        and10(
+          eq20(organizationMembers.orgId, context3.organizationId),
+          eq20(organizationMembers.userId, revoke ? targetGrant.subjectUserId : subject)
         )
       ).limit(1).for("update"))[0];
       if (!member)
@@ -45255,10 +48781,10 @@ async function executeBriefCommand(operation, input, context3) {
     } else if (operation.endsWith("recordFinding")) {
       await activeRole(tx, context3, streamId, "reviewer", sectionId);
       const binding = (await tx.select().from(briefVersionSections).where(
-        and9(
-          eq19(briefVersionSections.organizationId, context3.organizationId),
-          eq19(briefVersionSections.versionId, versionId),
-          eq19(briefVersionSections.sectionId, sectionId)
+        and10(
+          eq20(briefVersionSections.organizationId, context3.organizationId),
+          eq20(briefVersionSections.versionId, versionId),
+          eq20(briefVersionSections.sectionId, sectionId)
         )
       ).limit(1).for("update"))[0];
       if (!binding?.sectionRevisionId)
@@ -45268,7 +48794,7 @@ async function executeBriefCommand(operation, input, context3) {
         );
       if (positive(input.revisionId, "revisionId") !== binding.sectionRevisionId)
         throw new BriefWorkflowError("CONFLICT", "Finding targets a stale section revision");
-      const rev = (await tx.select().from(briefSectionRevisions).where(eq19(briefSectionRevisions.id, binding.sectionRevisionId)).limit(1))[0];
+      const rev = (await tx.select().from(briefSectionRevisions).where(eq20(briefSectionRevisions.id, binding.sectionRevisionId)).limit(1))[0];
       if (rev?.authorUserId === context3.userId)
         throw new BriefWorkflowError(
           "FORBIDDEN",
@@ -45292,12 +48818,12 @@ async function executeBriefCommand(operation, input, context3) {
     } else if (operation.endsWith("submitFindingResolution") || operation.endsWith("acceptFindingResolution")) {
       const findingId = positive(input.findingId, "findingId");
       const finding = (await tx.select().from(briefFindings).where(
-        and9(
-          eq19(briefFindings.organizationId, context3.organizationId),
-          eq19(briefFindings.projectId, projectId),
-          eq19(briefFindings.streamId, streamId),
-          eq19(briefFindings.versionId, versionId),
-          eq19(briefFindings.id, findingId)
+        and10(
+          eq20(briefFindings.organizationId, context3.organizationId),
+          eq20(briefFindings.projectId, projectId),
+          eq20(briefFindings.streamId, streamId),
+          eq20(briefFindings.versionId, versionId),
+          eq20(briefFindings.id, findingId)
         )
       ).limit(1).for("update"))[0];
       if (!finding)
@@ -45314,24 +48840,24 @@ async function executeBriefCommand(operation, input, context3) {
       let resolutionRevisionId = finding.sectionRevisionId;
       if (!accept) {
         resolutionRevisionId = positive(input.resolutionRevisionId, "resolutionRevisionId");
-        const resolutionRevision = (await tx.select({ id: briefSectionRevisions.id }).from(briefSectionRevisions).where(and9(
-          eq19(briefSectionRevisions.organizationId, context3.organizationId),
-          eq19(briefSectionRevisions.projectId, projectId),
-          eq19(briefSectionRevisions.id, resolutionRevisionId),
-          eq19(briefSectionRevisions.sectionId, sectionId ?? (await tx.select({ sectionId: briefVersionSections.sectionId }).from(briefVersionSections).where(eq19(briefVersionSections.id, finding.bindingId)).limit(1))[0]?.sectionId)
+        const resolutionRevision = (await tx.select({ id: briefSectionRevisions.id }).from(briefSectionRevisions).where(and10(
+          eq20(briefSectionRevisions.organizationId, context3.organizationId),
+          eq20(briefSectionRevisions.projectId, projectId),
+          eq20(briefSectionRevisions.id, resolutionRevisionId),
+          eq20(briefSectionRevisions.sectionId, sectionId ?? (await tx.select({ sectionId: briefVersionSections.sectionId }).from(briefVersionSections).where(eq20(briefVersionSections.id, finding.bindingId)).limit(1))[0]?.sectionId)
         )).limit(1).for("update"))[0];
         if (!resolutionRevision) throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
       }
       if (accept) {
         const submission = (await tx.select().from(briefFindingResolutions).where(
-          and9(
-            eq19(
+          and10(
+            eq20(
               briefFindingResolutions.organizationId,
               context3.organizationId
             ),
-            eq19(briefFindingResolutions.projectId, projectId),
-            eq19(briefFindingResolutions.streamId, streamId),
-            eq19(briefFindingResolutions.id, target)
+            eq20(briefFindingResolutions.projectId, projectId),
+            eq20(briefFindingResolutions.streamId, streamId),
+            eq20(briefFindingResolutions.id, target)
           )
         ).limit(1).for("update"))[0];
         if (!submission || submission.findingId !== findingId)
@@ -45368,10 +48894,10 @@ async function executeBriefCommand(operation, input, context3) {
       const role = stage === "reviewed" ? "reviewer" : stage === "approved" || stage === "withdrawn" ? "approver" : "section_owner";
       await activeRole(tx, context3, streamId, role, sectionId);
       const binding = (await tx.select().from(briefVersionSections).where(
-        and9(
-          eq19(briefVersionSections.organizationId, context3.organizationId),
-          eq19(briefVersionSections.versionId, versionId),
-          eq19(briefVersionSections.sectionId, sectionId)
+        and10(
+          eq20(briefVersionSections.organizationId, context3.organizationId),
+          eq20(briefVersionSections.versionId, versionId),
+          eq20(briefVersionSections.sectionId, sectionId)
         )
       ).limit(1).for("update"))[0];
       if (!binding)
@@ -45386,17 +48912,17 @@ async function executeBriefCommand(operation, input, context3) {
           "Review and approval require a target event"
         );
       const prior = target ? (await tx.select().from(briefApplicabilityEvents).where(
-        and9(
-          eq19(
+        and10(
+          eq20(
             briefApplicabilityEvents.organizationId,
             context3.organizationId
           ),
-          eq19(briefApplicabilityEvents.projectId, projectId),
-          eq19(briefApplicabilityEvents.streamId, streamId),
-          eq19(briefApplicabilityEvents.versionId, versionId),
-          eq19(briefApplicabilityEvents.bindingId, binding.id),
-          eq19(briefApplicabilityEvents.classificationFingerprint, binding.classificationFingerprint),
-          eq19(briefApplicabilityEvents.id, target)
+          eq20(briefApplicabilityEvents.projectId, projectId),
+          eq20(briefApplicabilityEvents.streamId, streamId),
+          eq20(briefApplicabilityEvents.versionId, versionId),
+          eq20(briefApplicabilityEvents.bindingId, binding.id),
+          eq20(briefApplicabilityEvents.classificationFingerprint, binding.classificationFingerprint),
+          eq20(briefApplicabilityEvents.id, target)
         )
       ).limit(1).for("update"))[0] : null;
       if (stage !== "proposed" && (!prior || prior.actorUserId === context3.userId))
@@ -45412,13 +48938,13 @@ async function executeBriefCommand(operation, input, context3) {
         if (prior?.stage !== "reviewed")
           throw new BriefWorkflowError("INVALID", "Applicability approval must target the review");
         if (!prior.targetEventId) throw new BriefWorkflowError("INVALID", "Applicability review lacks its proposal target");
-        const proposal = (await tx.select().from(briefApplicabilityEvents).where(and9(
-          eq19(briefApplicabilityEvents.organizationId, context3.organizationId),
-          eq19(briefApplicabilityEvents.projectId, projectId),
-          eq19(briefApplicabilityEvents.streamId, streamId),
-          eq19(briefApplicabilityEvents.versionId, versionId),
-          eq19(briefApplicabilityEvents.bindingId, binding.id),
-          eq19(briefApplicabilityEvents.id, prior.targetEventId)
+        const proposal = (await tx.select().from(briefApplicabilityEvents).where(and10(
+          eq20(briefApplicabilityEvents.organizationId, context3.organizationId),
+          eq20(briefApplicabilityEvents.projectId, projectId),
+          eq20(briefApplicabilityEvents.streamId, streamId),
+          eq20(briefApplicabilityEvents.versionId, versionId),
+          eq20(briefApplicabilityEvents.bindingId, binding.id),
+          eq20(briefApplicabilityEvents.id, prior.targetEventId)
         )).limit(1).for("update"))[0];
         if (!proposal || proposal.stage !== "proposed" || proposal.actorUserId === context3.userId || proposal.actorUserId === prior.actorUserId)
           throw new BriefWorkflowError("FORBIDDEN", "Applicability requires three independent actors");
@@ -45439,13 +48965,13 @@ async function executeBriefCommand(operation, input, context3) {
       });
       entityId = Number(ins[0].insertId);
       if (stage === "approved")
-        await tx.update(briefVersionSections).set({ applicability: "not_applicable" }).where(eq19(briefVersionSections.id, binding.id));
+        await tx.update(briefVersionSections).set({ applicability: "not_applicable" }).where(eq20(briefVersionSections.id, binding.id));
       if (stage === "withdrawn")
         await tx.update(briefVersionSections).set({
           applicability: "conditional",
           achievedState: binding.sectionRevisionId ? "drafted" : "missing",
           revision: sql9`${briefVersionSections.revision}+1`
-        }).where(eq19(briefVersionSections.id, binding.id));
+        }).where(eq20(briefVersionSections.id, binding.id));
       eventType = `applicability_${stage}`;
     } else if (operation.endsWith("raiseCondition") || operation.endsWith("submitConditionResolution") || operation.endsWith("acceptConditionResolution") || operation.endsWith("markDependencyChanged")) {
       const resolving = !operation.endsWith("raiseCondition") && !operation.endsWith("markDependencyChanged");
@@ -45462,12 +48988,12 @@ async function executeBriefCommand(operation, input, context3) {
       let original = null;
       if (conditionId)
         original = (await tx.select().from(briefConditionEvents).where(
-          and9(
-            eq19(briefConditionEvents.organizationId, context3.organizationId),
-            eq19(briefConditionEvents.projectId, projectId),
-            eq19(briefConditionEvents.streamId, streamId),
-            eq19(briefConditionEvents.versionId, versionId),
-            eq19(briefConditionEvents.id, conditionId)
+          and10(
+            eq20(briefConditionEvents.organizationId, context3.organizationId),
+            eq20(briefConditionEvents.projectId, projectId),
+            eq20(briefConditionEvents.streamId, streamId),
+            eq20(briefConditionEvents.versionId, versionId),
+            eq20(briefConditionEvents.id, conditionId)
           )
         ).limit(1).for("update"))[0];
       if (resolving && !original)
@@ -45475,13 +49001,13 @@ async function executeBriefCommand(operation, input, context3) {
       if (resolving && original.stage !== "raised")
         throw new BriefWorkflowError("INVALID", "Condition resolution must target a raised condition");
       if (accepting) {
-        const submission = (await tx.select().from(briefConditionEvents).where(and9(
-          eq19(briefConditionEvents.organizationId, context3.organizationId),
-          eq19(briefConditionEvents.projectId, projectId),
-          eq19(briefConditionEvents.streamId, streamId),
-          eq19(briefConditionEvents.versionId, versionId),
-          eq19(briefConditionEvents.bindingId, original.bindingId),
-          eq19(briefConditionEvents.id, submissionId)
+        const submission = (await tx.select().from(briefConditionEvents).where(and10(
+          eq20(briefConditionEvents.organizationId, context3.organizationId),
+          eq20(briefConditionEvents.projectId, projectId),
+          eq20(briefConditionEvents.streamId, streamId),
+          eq20(briefConditionEvents.versionId, versionId),
+          eq20(briefConditionEvents.bindingId, original.bindingId),
+          eq20(briefConditionEvents.id, submissionId)
         )).limit(1).for("update"))[0];
         if (!submission || submission.stage !== "resolution_submitted" || submission.targetEventId !== original.id)
           throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
@@ -45501,13 +49027,13 @@ async function executeBriefCommand(operation, input, context3) {
         throw new BriefWorkflowError("FORBIDDEN", "Condition owner required");
       const bindingId = original?.bindingId ?? Number(
         (await tx.select({ id: briefVersionSections.id }).from(briefVersionSections).where(
-          and9(
-            eq19(
+          and10(
+            eq20(
               briefVersionSections.organizationId,
               context3.organizationId
             ),
-            eq19(briefVersionSections.versionId, versionId),
-            eq19(briefVersionSections.sectionId, sectionId)
+            eq20(briefVersionSections.versionId, versionId),
+            eq20(briefVersionSections.sectionId, sectionId)
           )
         ).limit(1).for("update"))[0]?.id
       );
@@ -45540,21 +49066,21 @@ async function executeBriefCommand(operation, input, context3) {
         "approvalEventId"
       );
       const approval = (await tx.select().from(briefApprovals).where(
-        and9(
-          eq19(briefApprovals.organizationId, context3.organizationId),
-          eq19(briefApprovals.streamId, streamId),
-          eq19(briefApprovals.id, approvalId)
+        and10(
+          eq20(briefApprovals.organizationId, context3.organizationId),
+          eq20(briefApprovals.streamId, streamId),
+          eq20(briefApprovals.id, approvalId)
         )
       ).limit(1).for("update"))[0];
       if (!approval)
         throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
-      const priorWithdrawal = (await tx.select({ id: briefApprovals.id }).from(briefApprovals).where(and9(
-        eq19(briefApprovals.organizationId, context3.organizationId),
-        eq19(briefApprovals.projectId, projectId),
-        eq19(briefApprovals.streamId, streamId),
-        eq19(briefApprovals.versionId, versionId),
-        eq19(briefApprovals.targetApprovalId, approvalId),
-        eq19(briefApprovals.decision, "withdrawn")
+      const priorWithdrawal = (await tx.select({ id: briefApprovals.id }).from(briefApprovals).where(and10(
+        eq20(briefApprovals.organizationId, context3.organizationId),
+        eq20(briefApprovals.projectId, projectId),
+        eq20(briefApprovals.streamId, streamId),
+        eq20(briefApprovals.versionId, versionId),
+        eq20(briefApprovals.targetApprovalId, approvalId),
+        eq20(briefApprovals.decision, "withdrawn")
       )).limit(1).for("update"))[0];
       if (approval.decision !== "approved" || priorWithdrawal)
         throw new BriefWorkflowError("CONFLICT", "Approval is already withdrawn");
@@ -45569,16 +49095,16 @@ async function executeBriefCommand(operation, input, context3) {
         streamSequence: Number(stream.nextEventSequence)
       });
       entityId = Number(ins[0].insertId);
-      await tx.update(briefVersionSections).set({ achievedState: "reviewed" }).where(eq19(briefVersionSections.id, approval.bindingId));
+      await tx.update(briefVersionSections).set({ achievedState: "reviewed" }).where(eq20(briefVersionSections.id, approval.bindingId));
       eventType = "approval_withdrawn";
     } else if (operation.endsWith("issue")) {
       await activeRole(tx, context3, streamId, "issuer");
       await activeRole(tx, context3, streamId, "approver");
       const bindings = await tx.select().from(briefVersionSections).where(
-        and9(
-          eq19(briefVersionSections.organizationId, context3.organizationId),
-          eq19(briefVersionSections.streamId, streamId),
-          eq19(briefVersionSections.versionId, versionId)
+        and10(
+          eq20(briefVersionSections.organizationId, context3.organizationId),
+          eq20(briefVersionSections.streamId, streamId),
+          eq20(briefVersionSections.versionId, versionId)
         )
       ).orderBy(asc2(briefVersionSections.id)).for("update");
       if (bindings.length !== 10 || new Set(bindings.map((b) => b.sectionId)).size !== 10)
@@ -45592,18 +49118,18 @@ async function executeBriefCommand(operation, input, context3) {
           "Every section must be approved before issue"
         );
       for (const binding of bindings) {
-        const revision = (await tx.select().from(briefSectionRevisions).where(and9(
-          eq19(briefSectionRevisions.organizationId, context3.organizationId),
-          eq19(briefSectionRevisions.projectId, projectId),
-          eq19(briefSectionRevisions.id, binding.sectionRevisionId)
+        const revision = (await tx.select().from(briefSectionRevisions).where(and10(
+          eq20(briefSectionRevisions.organizationId, context3.organizationId),
+          eq20(briefSectionRevisions.projectId, projectId),
+          eq20(briefSectionRevisions.id, binding.sectionRevisionId)
         )).limit(1).for("update"))[0];
-        const approvalRows = await tx.select().from(briefApprovals).where(and9(
-          eq19(briefApprovals.organizationId, context3.organizationId),
-          eq19(briefApprovals.projectId, projectId),
-          eq19(briefApprovals.streamId, streamId),
-          eq19(briefApprovals.versionId, versionId),
-          eq19(briefApprovals.bindingId, binding.id),
-          eq19(briefApprovals.sectionRevisionId, binding.sectionRevisionId)
+        const approvalRows = await tx.select().from(briefApprovals).where(and10(
+          eq20(briefApprovals.organizationId, context3.organizationId),
+          eq20(briefApprovals.projectId, projectId),
+          eq20(briefApprovals.streamId, streamId),
+          eq20(briefApprovals.versionId, versionId),
+          eq20(briefApprovals.bindingId, binding.id),
+          eq20(briefApprovals.sectionRevisionId, binding.sectionRevisionId)
         )).for("update");
         const activeApprovals = approvalRows.filter((a) => a.decision === "approved" && !approvalRows.some((w) => w.decision === "withdrawn" && w.targetApprovalId === a.id));
         if (!revision || !activeApprovals.length || revision.authorUserId === context3.userId && !activeApprovals.some((a) => a.approverUserId !== context3.userId))
@@ -45631,10 +49157,10 @@ async function executeBriefCommand(operation, input, context3) {
           `Brief is not ready to issue: ${readiness.reasons.map((reason4) => reason4.code).join(", ")}`
         );
       const conditions = await tx.select().from(briefConditionEvents).where(
-        and9(
-          eq19(briefConditionEvents.organizationId, context3.organizationId),
-          eq19(briefConditionEvents.streamId, streamId),
-          eq19(briefConditionEvents.versionId, versionId)
+        and10(
+          eq20(briefConditionEvents.organizationId, context3.organizationId),
+          eq20(briefConditionEvents.streamId, streamId),
+          eq20(briefConditionEvents.versionId, versionId)
         )
       ).orderBy(asc2(briefConditionEvents.id));
       const active = conditions.filter(
@@ -45648,9 +49174,9 @@ async function executeBriefCommand(operation, input, context3) {
           "Active stale or blocked conditions prevent issue"
         );
       const maxIssue = (await tx.select({ n: sql9`max(${briefIssues.issueNumber})` }).from(briefIssues).where(
-        and9(
-          eq19(briefIssues.organizationId, context3.organizationId),
-          eq19(briefIssues.streamId, streamId)
+        and10(
+          eq20(briefIssues.organizationId, context3.organizationId),
+          eq20(briefIssues.streamId, streamId)
         )
       ))[0];
       const issueNumber = Number(maxIssue?.n ?? 0) + 1;
@@ -45697,13 +49223,13 @@ async function executeBriefCommand(operation, input, context3) {
         });
         const issueSectionId = Number(is[0].insertId);
         const approvals = await tx.select().from(briefApprovals).where(
-          and9(
-            eq19(briefApprovals.organizationId, context3.organizationId),
-            eq19(briefApprovals.projectId, projectId),
-            eq19(briefApprovals.streamId, streamId),
-            eq19(briefApprovals.versionId, versionId),
-            eq19(briefApprovals.bindingId, b.id),
-            eq19(briefApprovals.sectionRevisionId, b.sectionRevisionId)
+          and10(
+            eq20(briefApprovals.organizationId, context3.organizationId),
+            eq20(briefApprovals.projectId, projectId),
+            eq20(briefApprovals.streamId, streamId),
+            eq20(briefApprovals.versionId, versionId),
+            eq20(briefApprovals.bindingId, b.id),
+            eq20(briefApprovals.sectionRevisionId, b.sectionRevisionId)
           )
         );
         for (const a of approvals.filter((a2) => a2.decision === "approved" && !approvals.some((w) => w.decision === "withdrawn" && w.targetApprovalId === a2.id)))
@@ -45716,9 +49242,9 @@ async function executeBriefCommand(operation, input, context3) {
             approvalId: a.id
           });
         const deps = await tx.select().from(briefDependencies).where(
-          and9(
-            eq19(briefDependencies.organizationId, context3.organizationId),
-            eq19(briefDependencies.bindingId, b.id)
+          and10(
+            eq20(briefDependencies.organizationId, context3.organizationId),
+            eq20(briefDependencies.bindingId, b.id)
           )
         );
         for (const d of deps)
@@ -45734,13 +49260,13 @@ async function executeBriefCommand(operation, input, context3) {
           });
         if (b.applicability === "not_applicable") {
           const apps = await tx.select().from(briefApplicabilityEvents).where(
-            and9(
-              eq19(
+            and10(
+              eq20(
                 briefApplicabilityEvents.organizationId,
                 context3.organizationId
               ),
-              eq19(briefApplicabilityEvents.bindingId, b.id),
-              eq19(briefApplicabilityEvents.stage, "approved")
+              eq20(briefApplicabilityEvents.bindingId, b.id),
+              eq20(briefApplicabilityEvents.stage, "approved")
             )
           ).orderBy(desc11(briefApplicabilityEvents.id)).limit(1);
           if (!apps[0])
@@ -45758,11 +49284,11 @@ async function executeBriefCommand(operation, input, context3) {
           });
         }
       }
-      await tx.update(briefVersions).set({ status: "locked" }).where(eq19(briefVersions.id, versionId));
+      await tx.update(briefVersions).set({ status: "locked" }).where(eq20(briefVersions.id, versionId));
       await tx.update(briefVersionSections).set({ achievedState: "issued" }).where(
-        and9(
-          eq19(briefVersionSections.organizationId, context3.organizationId),
-          eq19(briefVersionSections.versionId, versionId)
+        and10(
+          eq20(briefVersionSections.organizationId, context3.organizationId),
+          eq20(briefVersionSections.versionId, versionId)
         )
       );
       eventType = "issue_created";
@@ -45772,10 +49298,10 @@ async function executeBriefCommand(operation, input, context3) {
         operation.endsWith("supersedeIssue") ? "priorIssueId" : "issueId"
       );
       const issue2 = (await tx.select().from(briefIssues).where(
-        and9(
-          eq19(briefIssues.organizationId, context3.organizationId),
-          eq19(briefIssues.streamId, streamId),
-          eq19(briefIssues.id, issueId)
+        and10(
+          eq20(briefIssues.organizationId, context3.organizationId),
+          eq20(briefIssues.streamId, streamId),
+          eq20(briefIssues.id, issueId)
         )
       ).limit(1).for("update"))[0];
       if (!issue2)
@@ -45786,11 +49312,11 @@ async function executeBriefCommand(operation, input, context3) {
           "successorIssueId"
         );
         const successor = (await tx.select().from(briefIssues).where(
-          and9(
-            eq19(briefIssues.organizationId, context3.organizationId),
-            eq19(briefIssues.projectId, projectId),
-            eq19(briefIssues.streamId, streamId),
-            eq19(briefIssues.id, successorId)
+          and10(
+            eq20(briefIssues.organizationId, context3.organizationId),
+            eq20(briefIssues.projectId, projectId),
+            eq20(briefIssues.streamId, streamId),
+            eq20(briefIssues.id, successorId)
           )
         ).limit(1).for("update"))[0];
         if (!successor || successor.issueNumber <= issue2.issueNumber)
@@ -45801,13 +49327,13 @@ async function executeBriefCommand(operation, input, context3) {
       }
       if (operation.endsWith("approveIssueWithdrawal")) {
         await activeRole(tx, context3, streamId, "approver");
-        const requestEvent = (await tx.select().from(briefEvents).where(and9(
-          eq19(briefEvents.organizationId, context3.organizationId),
-          eq19(briefEvents.projectId, projectId),
-          eq19(briefEvents.streamId, streamId),
-          eq19(briefEvents.id, positive(input.withdrawalRequestEventId, "withdrawalRequestEventId")),
-          eq19(briefEvents.eventType, "issue_withdrawal_requested"),
-          eq19(briefEvents.issueId, issueId)
+        const requestEvent = (await tx.select().from(briefEvents).where(and10(
+          eq20(briefEvents.organizationId, context3.organizationId),
+          eq20(briefEvents.projectId, projectId),
+          eq20(briefEvents.streamId, streamId),
+          eq20(briefEvents.id, positive(input.withdrawalRequestEventId, "withdrawalRequestEventId")),
+          eq20(briefEvents.eventType, "issue_withdrawal_requested"),
+          eq20(briefEvents.issueId, issueId)
         )).limit(1).for("update"))[0];
         if (!requestEvent) throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
         if (requestEvent.actorUserId === context3.userId)
@@ -45828,9 +49354,9 @@ async function executeBriefCommand(operation, input, context3) {
       );
     const nextRevision = stream.revision + 1;
     const revisionUpdate = await tx.update(briefStreams).set({ revision: nextRevision }).where(
-      and9(
-        eq19(briefStreams.id, streamId),
-        eq19(briefStreams.revision, stream.revision)
+      and10(
+        eq20(briefStreams.id, streamId),
+        eq20(briefStreams.revision, stream.revision)
       )
     );
     if (Number(revisionUpdate[0]?.affectedRows) !== 1)
@@ -45850,7 +49376,7 @@ async function executeBriefCommand(operation, input, context3) {
       resultRevision: nextRevision,
       result,
       completedAt: /* @__PURE__ */ new Date()
-    }).where(eq19(briefOperations.id, operationId));
+    }).where(eq20(briefOperations.id, operationId));
     return result;
   });
 }
@@ -45858,15 +49384,15 @@ async function scopedStream(input, context3) {
   const db = await database(), projectId = positive(input.projectId, "projectId"), streamId = positive(input.briefId ?? input.streamId, "briefId");
   const rows = await db.select().from(briefStreams).innerJoin(
     organizationMembers,
-    and9(
-      eq19(organizationMembers.orgId, context3.organizationId),
-      eq19(organizationMembers.userId, context3.userId)
+    and10(
+      eq20(organizationMembers.orgId, context3.organizationId),
+      eq20(organizationMembers.userId, context3.userId)
     )
   ).where(
-    and9(
-      eq19(briefStreams.organizationId, context3.organizationId),
-      eq19(briefStreams.projectId, projectId),
-      eq19(briefStreams.id, streamId)
+    and10(
+      eq20(briefStreams.organizationId, context3.organizationId),
+      eq20(briefStreams.projectId, projectId),
+      eq20(briefStreams.id, streamId)
     )
   ).limit(1);
   if (!rows[0])
@@ -45879,17 +49405,17 @@ async function getBriefSummary(input, context3) {
 }
 async function briefSummaryDto(db, stream) {
   const current = (await db.select({ id: briefVersions.id }).from(briefVersions).where(
-    and9(
-      eq19(briefVersions.organizationId, stream.organizationId),
-      eq19(briefVersions.projectId, stream.projectId),
-      eq19(briefVersions.streamId, stream.id)
+    and10(
+      eq20(briefVersions.organizationId, stream.organizationId),
+      eq20(briefVersions.projectId, stream.projectId),
+      eq20(briefVersions.streamId, stream.id)
     )
   ).orderBy(desc11(briefVersions.versionNumber)).limit(1))[0];
   const issue2 = (await db.select({ id: briefIssues.id }).from(briefIssues).where(
-    and9(
-      eq19(briefIssues.organizationId, stream.organizationId),
-      eq19(briefIssues.projectId, stream.projectId),
-      eq19(briefIssues.streamId, stream.id)
+    and10(
+      eq20(briefIssues.organizationId, stream.organizationId),
+      eq20(briefIssues.projectId, stream.projectId),
+      eq20(briefIssues.streamId, stream.id)
     )
   ).orderBy(desc11(briefIssues.issueNumber)).limit(1))[0];
   return {
@@ -45906,15 +49432,15 @@ async function briefSummaryDto(db, stream) {
 async function listBriefStreams(input, context3) {
   const db = await database();
   const streams = await db.select().from(briefStreams).where(
-    and9(
-      eq19(briefStreams.organizationId, context3.organizationId),
-      eq19(briefStreams.projectId, positive(input.projectId, "projectId"))
+    and10(
+      eq20(briefStreams.organizationId, context3.organizationId),
+      eq20(briefStreams.projectId, positive(input.projectId, "projectId"))
     )
   ).orderBy(desc11(briefStreams.id));
   const membership = (await db.select({ id: organizationMembers.id }).from(organizationMembers).where(
-    and9(
-      eq19(organizationMembers.orgId, context3.organizationId),
-      eq19(organizationMembers.userId, context3.userId)
+    and10(
+      eq20(organizationMembers.orgId, context3.organizationId),
+      eq20(organizationMembers.userId, context3.userId)
     )
   ).limit(1))[0];
   if (!membership)
@@ -45924,17 +49450,17 @@ async function listBriefStreams(input, context3) {
 async function getBriefVersion(input, context3) {
   const { db, stream } = await scopedStream(input, context3);
   const version = (await db.select().from(briefVersions).where(
-    and9(
-      eq19(briefVersions.organizationId, context3.organizationId),
-      eq19(briefVersions.streamId, stream.id),
-      eq19(briefVersions.id, positive(input.versionId, "versionId"))
+    and10(
+      eq20(briefVersions.organizationId, context3.organizationId),
+      eq20(briefVersions.streamId, stream.id),
+      eq20(briefVersions.id, positive(input.versionId, "versionId"))
     )
   ).limit(1))[0] ?? null;
   if (!version) return null;
   const sections = await db.select().from(briefVersionSections).where(
-    and9(
-      eq19(briefVersionSections.organizationId, context3.organizationId),
-      eq19(briefVersionSections.versionId, version.id)
+    and10(
+      eq20(briefVersionSections.organizationId, context3.organizationId),
+      eq20(briefVersionSections.versionId, version.id)
     )
   ).orderBy(asc2(briefVersionSections.id));
   return {
@@ -45951,14 +49477,14 @@ async function getBriefVersion(input, context3) {
 async function getBriefSection(input, context3) {
   const { db, stream } = await scopedStream(input, context3);
   const binding = (await db.select().from(briefVersionSections).where(
-    and9(
-      eq19(briefVersionSections.organizationId, context3.organizationId),
-      eq19(briefVersionSections.streamId, stream.id),
-      eq19(
+    and10(
+      eq20(briefVersionSections.organizationId, context3.organizationId),
+      eq20(briefVersionSections.streamId, stream.id),
+      eq20(
         briefVersionSections.versionId,
         positive(input.versionId, "versionId")
       ),
-      eq19(briefVersionSections.sectionId, input.sectionId)
+      eq20(briefVersionSections.sectionId, input.sectionId)
     )
   ).limit(1))[0] ?? null;
   if (!binding) return null;
@@ -45971,10 +49497,10 @@ async function getBriefSection(input, context3) {
   };
   if (!binding.sectionRevisionId) return { ...section2, content: null };
   const revision = (await db.select().from(briefSectionRevisions).where(
-    and9(
-      eq19(briefSectionRevisions.organizationId, context3.organizationId),
-      eq19(briefSectionRevisions.projectId, stream.projectId),
-      eq19(briefSectionRevisions.id, binding.sectionRevisionId)
+    and10(
+      eq20(briefSectionRevisions.organizationId, context3.organizationId),
+      eq20(briefSectionRevisions.projectId, stream.projectId),
+      eq20(briefSectionRevisions.id, binding.sectionRevisionId)
     )
   ).limit(1))[0];
   if (!revision) return { ...section2, content: null };
@@ -45996,46 +49522,46 @@ async function getBriefSection(input, context3) {
 async function listBriefAssignments(input, context3) {
   const { db, stream } = await scopedStream(input, context3);
   return db.select().from(briefRoleEvents).where(
-    and9(
-      eq19(briefRoleEvents.organizationId, context3.organizationId),
-      eq19(briefRoleEvents.streamId, stream.id)
+    and10(
+      eq20(briefRoleEvents.organizationId, context3.organizationId),
+      eq20(briefRoleEvents.streamId, stream.id)
     )
   ).orderBy(asc2(briefRoleEvents.id));
 }
 async function listBriefFindings(input, context3) {
   const { db, stream } = await scopedStream(input, context3);
   return db.select().from(briefFindings).where(
-    and9(
-      eq19(briefFindings.organizationId, context3.organizationId),
-      eq19(briefFindings.streamId, stream.id)
+    and10(
+      eq20(briefFindings.organizationId, context3.organizationId),
+      eq20(briefFindings.streamId, stream.id)
     )
   ).orderBy(asc2(briefFindings.id));
 }
 async function listBriefFindingResolutions(input, context3) {
   const { db, stream } = await scopedStream(input, context3);
   return db.select().from(briefFindingResolutions).where(
-    and9(
-      eq19(briefFindingResolutions.organizationId, context3.organizationId),
-      eq19(briefFindingResolutions.streamId, stream.id)
+    and10(
+      eq20(briefFindingResolutions.organizationId, context3.organizationId),
+      eq20(briefFindingResolutions.streamId, stream.id)
     )
   ).orderBy(asc2(briefFindingResolutions.id));
 }
 async function listBriefDependencies(input, context3) {
   const { db, stream } = await scopedStream(input, context3);
   return db.select().from(briefDependencies).where(
-    and9(
-      eq19(briefDependencies.organizationId, context3.organizationId),
-      eq19(briefDependencies.streamId, stream.id)
+    and10(
+      eq20(briefDependencies.organizationId, context3.organizationId),
+      eq20(briefDependencies.streamId, stream.id)
     )
   ).orderBy(asc2(briefDependencies.id));
 }
 async function listBriefConditions(input, context3) {
   const { db, stream } = await scopedStream(input, context3);
   return db.select().from(briefConditionEvents).where(
-    and9(
-      eq19(briefConditionEvents.organizationId, context3.organizationId),
-      eq19(briefConditionEvents.streamId, stream.id),
-      eq19(briefConditionEvents.versionId, positive(input.versionId, "versionId"))
+    and10(
+      eq20(briefConditionEvents.organizationId, context3.organizationId),
+      eq20(briefConditionEvents.streamId, stream.id),
+      eq20(briefConditionEvents.versionId, positive(input.versionId, "versionId"))
     )
   ).orderBy(asc2(briefConditionEvents.streamSequence));
 }
@@ -46083,7 +49609,7 @@ async function getBriefStudio(input, context3) {
     (assignment) => assignment.action === "granted" && !assignments.some((later) => later.action === "revoked" && later.targetGrantEventId === assignment.id)
   );
   const db = await database();
-  const memberChoices = await db.select({ id: users.id, name: users.name, organizationRole: organizationMembers.role }).from(organizationMembers).innerJoin(users, eq19(users.id, organizationMembers.userId)).where(eq19(organizationMembers.orgId, context3.organizationId)).orderBy(asc2(users.id));
+  const memberChoices = await db.select({ id: users.id, name: users.name, organizationRole: organizationMembers.role }).from(organizationMembers).innerJoin(users, eq20(users.id, organizationMembers.userId)).where(eq20(organizationMembers.orgId, context3.organizationId)).orderBy(asc2(users.id));
   const readiness = evaluateBriefReadiness(readinessFacts);
   const sections = await Promise.all(BRIEF_SECTION_IDS2.map(
     (sectionId) => getBriefSection({ ...input, sectionId }, context3)
@@ -46180,21 +49706,21 @@ async function getBriefStudio(input, context3) {
 async function listBriefEvents(input, context3) {
   const { db, stream } = await scopedStream(input, context3);
   return db.select().from(briefEvents).where(
-    and9(
-      eq19(briefEvents.organizationId, context3.organizationId),
-      eq19(briefEvents.streamId, stream.id)
+    and10(
+      eq20(briefEvents.organizationId, context3.organizationId),
+      eq20(briefEvents.streamId, stream.id)
     )
   ).orderBy(asc2(briefEvents.streamSequence));
 }
 async function listBriefIssues(input, context3) {
   const { db, stream } = await scopedStream(input, context3);
   const issues = await db.select().from(briefIssues).where(
-    and9(
-      eq19(briefIssues.organizationId, context3.organizationId),
-      eq19(briefIssues.streamId, stream.id)
+    and10(
+      eq20(briefIssues.organizationId, context3.organizationId),
+      eq20(briefIssues.streamId, stream.id)
     )
   ).orderBy(desc11(briefIssues.issueNumber));
-  const events = await db.select().from(briefEvents).where(and9(eq19(briefEvents.organizationId, context3.organizationId), eq19(briefEvents.streamId, stream.id))).orderBy(asc2(briefEvents.streamSequence));
+  const events = await db.select().from(briefEvents).where(and10(eq20(briefEvents.organizationId, context3.organizationId), eq20(briefEvents.streamId, stream.id))).orderBy(asc2(briefEvents.streamSequence));
   return issues.map((issue2) => {
     const statusEvent = events.filter((event) => event.issueId === issue2.id && (event.eventType === "issue_superseded" || event.eventType === "issue_withdrawal_approved")).at(-1);
     return { ...issue2, issueId: String(issue2.id), briefId: String(stream.id), versionId: String(issue2.versionId), purpose: issue2.issuePurpose, status: statusEvent?.eventType === "issue_withdrawal_approved" ? "withdrawn" : statusEvent?.eventType === "issue_superseded" ? "superseded" : "active" };
@@ -46205,10 +49731,10 @@ async function getBriefReadinessFacts(input, context3, transaction, lockedStream
   const { db, stream } = scoped;
   const versionId = positive(input.versionId, "versionId");
   const [queriedVersion] = lockedVersion ? [lockedVersion] : await db.select().from(briefVersions).where(
-    and9(
-      eq19(briefVersions.organizationId, context3.organizationId),
-      eq19(briefVersions.streamId, stream.id),
-      eq19(briefVersions.id, versionId)
+    and10(
+      eq20(briefVersions.organizationId, context3.organizationId),
+      eq20(briefVersions.streamId, stream.id),
+      eq20(briefVersions.id, versionId)
     )
   ).limit(1);
   const version = lockedVersion ?? queriedVersion;
@@ -46226,63 +49752,63 @@ async function getBriefReadinessFacts(input, context3, transaction, lockedStream
     revisions
   ] = await Promise.all([
     db.select().from(briefVersionSections).where(
-      and9(
-        eq19(briefVersionSections.organizationId, context3.organizationId),
-        eq19(briefVersionSections.streamId, stream.id),
-        eq19(briefVersionSections.versionId, versionId)
+      and10(
+        eq20(briefVersionSections.organizationId, context3.organizationId),
+        eq20(briefVersionSections.streamId, stream.id),
+        eq20(briefVersionSections.versionId, versionId)
       )
     ).orderBy(asc2(briefVersionSections.id)),
     db.select().from(briefRoleEvents).where(
-      and9(
-        eq19(briefRoleEvents.organizationId, context3.organizationId),
-        eq19(briefRoleEvents.streamId, stream.id)
+      and10(
+        eq20(briefRoleEvents.organizationId, context3.organizationId),
+        eq20(briefRoleEvents.streamId, stream.id)
       )
     ).orderBy(asc2(briefRoleEvents.id)),
     db.select().from(briefConditionEvents).where(
-      and9(
-        eq19(briefConditionEvents.organizationId, context3.organizationId),
-        eq19(briefConditionEvents.streamId, stream.id),
-        eq19(briefConditionEvents.versionId, versionId)
+      and10(
+        eq20(briefConditionEvents.organizationId, context3.organizationId),
+        eq20(briefConditionEvents.streamId, stream.id),
+        eq20(briefConditionEvents.versionId, versionId)
       )
     ).orderBy(asc2(briefConditionEvents.id)),
     db.select().from(briefFindings).where(
-      and9(
-        eq19(briefFindings.organizationId, context3.organizationId),
-        eq19(briefFindings.streamId, stream.id),
-        eq19(briefFindings.versionId, versionId)
+      and10(
+        eq20(briefFindings.organizationId, context3.organizationId),
+        eq20(briefFindings.streamId, stream.id),
+        eq20(briefFindings.versionId, versionId)
       )
     ),
     db.select().from(briefFindingResolutions).where(
-      and9(
-        eq19(briefFindingResolutions.organizationId, context3.organizationId),
-        eq19(briefFindingResolutions.streamId, stream.id)
+      and10(
+        eq20(briefFindingResolutions.organizationId, context3.organizationId),
+        eq20(briefFindingResolutions.streamId, stream.id)
       )
     ),
     db.select().from(briefApprovals).where(
-      and9(
-        eq19(briefApprovals.organizationId, context3.organizationId),
-        eq19(briefApprovals.streamId, stream.id),
-        eq19(briefApprovals.versionId, versionId)
+      and10(
+        eq20(briefApprovals.organizationId, context3.organizationId),
+        eq20(briefApprovals.streamId, stream.id),
+        eq20(briefApprovals.versionId, versionId)
       )
     ).orderBy(asc2(briefApprovals.streamSequence)),
     db.select().from(briefApplicabilityEvents).where(
-      and9(
-        eq19(briefApplicabilityEvents.organizationId, context3.organizationId),
-        eq19(briefApplicabilityEvents.streamId, stream.id),
-        eq19(briefApplicabilityEvents.versionId, versionId)
+      and10(
+        eq20(briefApplicabilityEvents.organizationId, context3.organizationId),
+        eq20(briefApplicabilityEvents.streamId, stream.id),
+        eq20(briefApplicabilityEvents.versionId, versionId)
       )
     ).orderBy(asc2(briefApplicabilityEvents.streamSequence)),
     db.select().from(briefDependencies).where(
-      and9(
-        eq19(briefDependencies.organizationId, context3.organizationId),
-        eq19(briefDependencies.streamId, stream.id),
-        eq19(briefDependencies.versionId, versionId)
+      and10(
+        eq20(briefDependencies.organizationId, context3.organizationId),
+        eq20(briefDependencies.streamId, stream.id),
+        eq20(briefDependencies.versionId, versionId)
       )
     ),
     db.select().from(briefSectionRevisions).where(
-      and9(
-        eq19(briefSectionRevisions.organizationId, context3.organizationId),
-        eq19(briefSectionRevisions.projectId, stream.projectId)
+      and10(
+        eq20(briefSectionRevisions.organizationId, context3.organizationId),
+        eq20(briefSectionRevisions.projectId, stream.projectId)
       )
     )
   ]);
@@ -46667,7 +50193,7 @@ var briefRouter = router({
 
 // server/routers/typology-packs.ts
 import { TRPCError as TRPCError31 } from "@trpc/server";
-import { createHash as createHash12 } from "node:crypto";
+import { createHash as createHash13 } from "node:crypto";
 import { z as z46 } from "zod";
 
 // shared/typology-pack.ts
@@ -46849,7 +50375,7 @@ var NEUTRAL_SYNTHETIC_TYPOLOGY_PACK = validateTypologyPack({
 });
 
 // server/engines/typology-pack.ts
-import { createHash as createHash10 } from "node:crypto";
+import { createHash as createHash11 } from "node:crypto";
 import { z as z45 } from "zod";
 var TypologyPackResolutionError = class extends Error {
   constructor(message) {
@@ -46877,7 +50403,7 @@ function canonicalizeTypologyPack(input) {
   return JSON.stringify(normalize(input));
 }
 function fingerprintTypologyPack(input) {
-  return createHash10("sha256").update(canonicalizeTypologyPack(input), "utf8").digest("hex");
+  return createHash11("sha256").update(canonicalizeTypologyPack(input), "utf8").digest("hex");
 }
 var BUILT_IN_TYPOLOGY_PACK_FINGERPRINT_MANIFEST = Object.freeze({
   "neutral-example@0.1.0": "6ad359c44b59dd982223519c819be2a2e176f4f1a854b707ab191d8bccf4c2e7"
@@ -46958,8 +50484,8 @@ function validateTypologyPackOverride(args) {
 }
 
 // server/db/typology-packs.ts
-import { and as and10, desc as desc12, eq as eq20, max } from "drizzle-orm";
-import { createHash as createHash11 } from "node:crypto";
+import { and as and11, desc as desc12, eq as eq21, max } from "drizzle-orm";
+import { createHash as createHash12 } from "node:crypto";
 init_db();
 init_schema();
 var TypologyPackStoreError = class extends Error {
@@ -46968,16 +50494,16 @@ var TypologyPackStoreError = class extends Error {
     this.code = code;
   }
 };
-var requestFingerprint = (value) => createHash11("sha256").update(canonicalizeTypologyPack(value), "utf8").digest("hex");
+var requestFingerprint = (value) => createHash12("sha256").update(canonicalizeTypologyPack(value), "utf8").digest("hex");
 async function database2() {
   const db = await getDb();
   if (!db) throw new TypologyPackStoreError("UNAVAILABLE", "Database unavailable");
   return db;
 }
 async function assertLiveMember(tx, context3) {
-  const memberships = await tx.select().from(organizationMembers).where(and10(
-    eq20(organizationMembers.orgId, context3.organizationId),
-    eq20(organizationMembers.userId, context3.userId)
+  const memberships = await tx.select().from(organizationMembers).where(and11(
+    eq21(organizationMembers.orgId, context3.organizationId),
+    eq21(organizationMembers.userId, context3.userId)
   )).limit(2).for("update");
   if (memberships.length !== 1) throw new TypologyPackStoreError("CONCEALED", "Typology pack not found");
   if (context3.requireAdmin && memberships[0].role !== "admin") {
@@ -46988,14 +50514,14 @@ async function createTypologyPackRevision(input, context3) {
   const db = await database2();
   return db.transaction(async (tx) => {
     await assertLiveMember(tx, context3);
-    const replay = await tx.select().from(typologyPackEvents).where(and10(
-      eq20(typologyPackEvents.organizationId, context3.organizationId),
-      eq20(typologyPackEvents.idempotencyKey, input.idempotencyKey)
+    const replay = await tx.select().from(typologyPackEvents).where(and11(
+      eq21(typologyPackEvents.organizationId, context3.organizationId),
+      eq21(typologyPackEvents.idempotencyKey, input.idempotencyKey)
     )).limit(1).for("update");
     const fingerprint = requestFingerprint({ action: "create", actorUserId: context3.userId, ...input });
     if (replay[0]) {
       if (replay[0].eventType !== "created" || replay[0].requestFingerprint !== fingerprint) throw new TypologyPackStoreError("CONFLICT", "Idempotency key was used for a different request");
-      const revisions = await tx.select().from(typologyPackRevisions).where(and10(eq20(typologyPackRevisions.organizationId, context3.organizationId), eq20(typologyPackRevisions.id, replay[0].revisionId))).limit(1);
+      const revisions = await tx.select().from(typologyPackRevisions).where(and11(eq21(typologyPackRevisions.organizationId, context3.organizationId), eq21(typologyPackRevisions.id, replay[0].revisionId))).limit(1);
       if (revisions[0]) return revisions[0];
       throw new TypologyPackStoreError("CONFLICT", "Idempotency record is inconsistent");
     }
@@ -47016,9 +50542,9 @@ async function createTypologyPackRevision(input, context3) {
       }
       throw error;
     }
-    const latest = await tx.select({ revisionNumber: max(typologyPackRevisions.revisionNumber) }).from(typologyPackRevisions).where(and10(
-      eq20(typologyPackRevisions.organizationId, context3.organizationId),
-      eq20(typologyPackRevisions.packKey, input.packKey)
+    const latest = await tx.select({ revisionNumber: max(typologyPackRevisions.revisionNumber) }).from(typologyPackRevisions).where(and11(
+      eq21(typologyPackRevisions.organizationId, context3.organizationId),
+      eq21(typologyPackRevisions.packKey, input.packKey)
     )).for("update");
     const revisionNumber = Number(latest[0]?.revisionNumber ?? 0) + 1;
     const result = await tx.insert(typologyPackRevisions).values({
@@ -47036,44 +50562,44 @@ async function createTypologyPackRevision(input, context3) {
     });
     const id = Number(result[0].insertId);
     await tx.insert(typologyPackEvents).values({ organizationId: context3.organizationId, revisionId: id, eventType: "created", actorUserId: context3.userId, reason: input.reason, idempotencyKey: input.idempotencyKey, requestFingerprint: fingerprint });
-    return (await tx.select().from(typologyPackRevisions).where(and10(eq20(typologyPackRevisions.organizationId, context3.organizationId), eq20(typologyPackRevisions.id, id))).limit(1))[0];
+    return (await tx.select().from(typologyPackRevisions).where(and11(eq21(typologyPackRevisions.organizationId, context3.organizationId), eq21(typologyPackRevisions.id, id))).limit(1))[0];
   });
 }
 async function transitionTypologyPackRevision(input, context3) {
   const db = await database2();
   return db.transaction(async (tx) => {
     await assertLiveMember(tx, { ...context3, requireAdmin: true });
-    const replay = await tx.select().from(typologyPackEvents).where(and10(eq20(typologyPackEvents.organizationId, context3.organizationId), eq20(typologyPackEvents.idempotencyKey, input.idempotencyKey))).limit(1).for("update");
+    const replay = await tx.select().from(typologyPackEvents).where(and11(eq21(typologyPackEvents.organizationId, context3.organizationId), eq21(typologyPackEvents.idempotencyKey, input.idempotencyKey))).limit(1).for("update");
     const fingerprint = requestFingerprint({ actorUserId: context3.userId, ...input });
     if (replay[0]) {
       if (replay[0].revisionId !== input.revisionId || replay[0].requestFingerprint !== fingerprint) throw new TypologyPackStoreError("CONFLICT", "Idempotency key was used for a different request");
-      return (await tx.select().from(typologyPackRevisions).where(and10(eq20(typologyPackRevisions.organizationId, context3.organizationId), eq20(typologyPackRevisions.id, replay[0].revisionId))).limit(1))[0];
+      return (await tx.select().from(typologyPackRevisions).where(and11(eq21(typologyPackRevisions.organizationId, context3.organizationId), eq21(typologyPackRevisions.id, replay[0].revisionId))).limit(1))[0];
     }
-    const revision = (await tx.select().from(typologyPackRevisions).where(and10(eq20(typologyPackRevisions.organizationId, context3.organizationId), eq20(typologyPackRevisions.id, input.revisionId))).limit(1).for("update"))[0];
+    const revision = (await tx.select().from(typologyPackRevisions).where(and11(eq21(typologyPackRevisions.organizationId, context3.organizationId), eq21(typologyPackRevisions.id, input.revisionId))).limit(1).for("update"))[0];
     if (!revision) throw new TypologyPackStoreError("CONCEALED", "Typology pack not found");
     if (input.action === "review" && (revision.status !== "draft" || revision.createdBy === context3.userId)) throw new TypologyPackStoreError("CONFLICT", "Only another administrator may review a draft revision");
     if (input.action === "approve" && (revision.status !== "reviewed" || revision.createdBy === context3.userId || revision.reviewedBy === context3.userId || revision.reviewDueAt <= /* @__PURE__ */ new Date())) throw new TypologyPackStoreError("CONFLICT", "Revision cannot be approved");
     if (input.action === "approve") {
-      const reviewers = await tx.select().from(organizationMembers).where(and10(eq20(organizationMembers.orgId, context3.organizationId), eq20(organizationMembers.userId, revision.reviewedBy))).limit(2).for("update");
+      const reviewers = await tx.select().from(organizationMembers).where(and11(eq21(organizationMembers.orgId, context3.organizationId), eq21(organizationMembers.userId, revision.reviewedBy))).limit(2).for("update");
       if (reviewers.length !== 1 || reviewers[0].role !== "admin") throw new TypologyPackStoreError("CONFLICT", "Revision reviewer is no longer an active administrator");
     }
     if (input.action === "withdraw" && revision.status === "withdrawn") throw new TypologyPackStoreError("CONFLICT", "Revision is already withdrawn");
     const now = /* @__PURE__ */ new Date();
     const fields = input.action === "review" ? { status: "reviewed", reviewedBy: context3.userId, reviewedAt: now } : input.action === "approve" ? { status: "approved", approvedBy: context3.userId, approvedAt: now } : { status: "withdrawn", withdrawnBy: context3.userId, withdrawnAt: now };
-    await tx.update(typologyPackRevisions).set(fields).where(and10(eq20(typologyPackRevisions.organizationId, context3.organizationId), eq20(typologyPackRevisions.id, input.revisionId)));
+    await tx.update(typologyPackRevisions).set(fields).where(and11(eq21(typologyPackRevisions.organizationId, context3.organizationId), eq21(typologyPackRevisions.id, input.revisionId)));
     await tx.insert(typologyPackEvents).values({ organizationId: context3.organizationId, revisionId: input.revisionId, eventType: input.action === "review" ? "reviewed" : input.action === "approve" ? "approved" : "withdrawn", actorUserId: context3.userId, reason: input.reason, idempotencyKey: input.idempotencyKey, requestFingerprint: fingerprint });
-    return (await tx.select().from(typologyPackRevisions).where(and10(eq20(typologyPackRevisions.organizationId, context3.organizationId), eq20(typologyPackRevisions.id, input.revisionId))).limit(1))[0];
+    return (await tx.select().from(typologyPackRevisions).where(and11(eq21(typologyPackRevisions.organizationId, context3.organizationId), eq21(typologyPackRevisions.id, input.revisionId))).limit(1))[0];
   });
 }
 async function listTypologyPackRevisions(context3) {
   const db = await database2();
   await assertLiveMember(db, context3);
-  return db.select().from(typologyPackRevisions).where(eq20(typologyPackRevisions.organizationId, context3.organizationId)).orderBy(desc12(typologyPackRevisions.createdAt));
+  return db.select().from(typologyPackRevisions).where(eq21(typologyPackRevisions.organizationId, context3.organizationId)).orderBy(desc12(typologyPackRevisions.createdAt));
 }
 async function getTypologyPackRevision(revisionId, context3) {
   const db = await database2();
   await assertLiveMember(db, context3);
-  return (await db.select().from(typologyPackRevisions).where(and10(eq20(typologyPackRevisions.organizationId, context3.organizationId), eq20(typologyPackRevisions.id, revisionId))).limit(1))[0] ?? null;
+  return (await db.select().from(typologyPackRevisions).where(and11(eq21(typologyPackRevisions.organizationId, context3.organizationId), eq21(typologyPackRevisions.id, revisionId))).limit(1))[0] ?? null;
 }
 
 // server/routers/typology-packs.ts
@@ -47125,7 +50651,7 @@ var typologyPackRouter = router({
         basePackFingerprint: input.base.fingerprint,
         payloadSchemaVersion: TYPOLOGY_PACK_SCHEMA_VERSION,
         payload: input.payload,
-        payloadFingerprint: createHash12("sha256").update(canonicalizeTypologyPack(input.payload), "utf8").digest("hex"),
+        payloadFingerprint: createHash13("sha256").update(canonicalizeTypologyPack(input.payload), "utf8").digest("hex"),
         reviewDueAt: new Date(input.reviewDueAt),
         reason: input.reason,
         idempotencyKey: input.idempotencyKey
@@ -47160,7 +50686,7 @@ var typologyPackRouter = router({
       if (!input.revisionId) return resolveTypologyPack({ reference: input.base, builtIns });
       const revision = await getTypologyPackRevision(input.revisionId, context2(ctx));
       if (!revision || revision.status !== "approved" || revision.reviewDueAt <= /* @__PURE__ */ new Date() || revision.basePackKey !== input.base.packId || revision.basePackVersion !== input.base.version || revision.basePackFingerprint !== input.base.fingerprint || !revision.approvedAt) throw new TRPCError31({ code: "NOT_FOUND", message: "Typology pack not found" });
-      if (revision.payloadFingerprint !== createHash12("sha256").update(canonicalizeTypologyPack(revision.payload), "utf8").digest("hex")) throw new TRPCError31({ code: "NOT_FOUND", message: "Typology pack not found" });
+      if (revision.payloadFingerprint !== createHash13("sha256").update(canonicalizeTypologyPack(revision.payload), "utf8").digest("hex")) throw new TRPCError31({ code: "NOT_FOUND", message: "Typology pack not found" });
       const payload = typologyPackOverridePayloadSchema.parse(revision.payload);
       return resolveTypologyPack({ reference: input.base, builtIns, organizationId: String(ctx.orgId), override: { organizationId: String(ctx.orgId), ...payload, status: "approved", approvedAt: revision.approvedAt.toISOString() } });
     } catch (error) {
@@ -47305,8 +50831,8 @@ var regulatoryPublicCitationSchema = z47.object({
 // server/db/regulatory-sources.ts
 init_db();
 init_schema();
-import { and as and11, asc as asc3, desc as desc13, eq as eq21, inArray as inArray5, or as or2 } from "drizzle-orm";
-import { createHash as createHash13 } from "node:crypto";
+import { and as and12, asc as asc3, desc as desc13, eq as eq22, inArray as inArray6, or as or3 } from "drizzle-orm";
+import { createHash as createHash14 } from "node:crypto";
 var RegulatorySourceStoreError = class extends Error {
   constructor(code, message) {
     super(message);
@@ -47330,7 +50856,7 @@ async function listRegulatorySources() {
 async function registerRegulatorySource(registration) {
   const db = await database3();
   return db.transaction(async (tx) => {
-    const existing = (await tx.select().from(regulatorySources).where(eq21(regulatorySources.sourceKey, registration.sourceKey)).limit(1).for("update"))[0];
+    const existing = (await tx.select().from(regulatorySources).where(eq22(regulatorySources.sourceKey, registration.sourceKey)).limit(1).for("update"))[0];
     const values = {
       sourceKey: registration.sourceKey,
       issuingAuthority: registration.issuingAuthority,
@@ -47349,13 +50875,13 @@ async function registerRegulatorySource(registration) {
       return existing;
     }
     const inserted = await tx.insert(regulatorySources).values(values);
-    return (await tx.select().from(regulatorySources).where(eq21(regulatorySources.id, Number(inserted[0].insertId))).limit(1))[0];
+    return (await tx.select().from(regulatorySources).where(eq22(regulatorySources.id, Number(inserted[0].insertId))).limit(1))[0];
   });
 }
 async function createRegulatorySourceRelation(input) {
   if (input.sourceVersionId === input.targetSourceVersionId) throw new RegulatorySourceStoreError("CONFLICT", "A source version cannot relate to itself");
   const db = await database3();
-  const relationFingerprint = createHash13("sha256").update(canonical2({
+  const relationFingerprint = createHash14("sha256").update(canonical2({
     ...input,
     clauseScope: [...input.clauseScope].sort(),
     effectiveFrom: input.effectiveFrom?.toISOString(),
@@ -47367,11 +50893,11 @@ async function createRegulatorySourceRelation(input) {
 async function createRegulatorySourceAssertion(input, options = {}) {
   const db = await database3();
   return db.transaction(async (tx) => {
-    const version = (await tx.select().from(regulatorySourceVersions).where(eq21(regulatorySourceVersions.id, input.sourceVersionId)).limit(1).for("update"))[0];
+    const version = (await tx.select().from(regulatorySourceVersions).where(eq22(regulatorySourceVersions.id, input.sourceVersionId)).limit(1).for("update"))[0];
     if (!version) throw new RegulatorySourceStoreError("NOT_FOUND", "Regulatory source version not found");
-    const assertionFingerprint = createHash13("sha256").update(canonical2({ ...input, validFrom: input.validFrom.toISOString(), validTo: input.validTo?.toISOString() }), "utf8").digest("hex");
+    const assertionFingerprint = createHash14("sha256").update(canonical2({ ...input, validFrom: input.validFrom.toISOString(), validTo: input.validTo?.toISOString() }), "utf8").digest("hex");
     const result = await tx.insert(regulatorySourceAssertions).values({ ...input, assertionFingerprint });
-    const assertions = await tx.select().from(regulatorySourceAssertions).where(eq21(regulatorySourceAssertions.sourceVersionId, input.sourceVersionId)).orderBy(asc3(regulatorySourceAssertions.id));
+    const assertions = await tx.select().from(regulatorySourceAssertions).where(eq22(regulatorySourceAssertions.sourceVersionId, input.sourceVersionId)).orderBy(asc3(regulatorySourceAssertions.id));
     const latest = new Map(assertions.map((assertion) => [assertion.assertionType, assertion]));
     const required = ["document_identity", "authenticity", "temporal_status", "jurisdiction", "permitted_use"];
     const now = options.now ?? /* @__PURE__ */ new Date();
@@ -47381,13 +50907,13 @@ async function createRegulatorySourceAssertion(input, options = {}) {
     });
     await tx.update(regulatorySourceVersions).set({
       status: complete ? "asserted" : version.status === "asserted" ? "stale" : version.status
-    }).where(eq21(regulatorySourceVersions.id, input.sourceVersionId));
+    }).where(eq22(regulatorySourceVersions.id, input.sourceVersionId));
     return { id: Number(result[0].insertId), assertionFingerprint, versionStatus: complete ? "asserted" : version.status === "asserted" ? "stale" : version.status };
   });
 }
 async function listRegulatorySourceVersions(sourceKey) {
   const db = await database3();
-  return db.select({ source: regulatorySources, version: regulatorySourceVersions }).from(regulatorySources).innerJoin(regulatorySourceVersions, eq21(regulatorySourceVersions.sourceId, regulatorySources.id)).where(eq21(regulatorySources.sourceKey, sourceKey)).orderBy(desc13(regulatorySourceVersions.createdAt));
+  return db.select({ source: regulatorySources, version: regulatorySourceVersions }).from(regulatorySources).innerJoin(regulatorySourceVersions, eq22(regulatorySourceVersions.sourceId, regulatorySources.id)).where(eq22(regulatorySources.sourceKey, sourceKey)).orderBy(desc13(regulatorySourceVersions.createdAt));
 }
 
 // server/routers/regulatory-sources.ts

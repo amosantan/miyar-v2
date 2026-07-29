@@ -323,6 +323,8 @@ const OWNERSHIP_PATHS: Record<string, string> = {
     "input.roomId -> space_program_rooms.id -> space_program_rooms.projectId/organizationId",
   roomIds:
     "input.roomIds[] -> space_program_rooms.id -> space_program_rooms.projectId/organizationId",
+  materialLibraryId:
+    "input.materialLibraryId -> material_library.id -> products.id -> products.orgId is global or the authenticated organization",
   geometryVersionId:
     "input.geometryVersionId -> spatial_graph_versions.id -> spatial_graph_versions.projectId/organizationId",
   expectedCurrentVersionId:

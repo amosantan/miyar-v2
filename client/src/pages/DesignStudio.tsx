@@ -802,8 +802,8 @@ function MaterialsTab({ projectId }: { projectId: number }) {
                                         <p className="text-xl font-bold">{boardSummary.data.summary.totalItems}</p>
                                     </CardContent></Card>
                                     <Card className="design-studio-glass"><CardContent className="py-3">
-                                        <p className="text-xs text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Est. Cost</p>
-                                        <p className="text-sm font-bold">{boardSummary.data.summary.estimatedCostLow.toLocaleString()} — {boardSummary.data.summary.estimatedCostHigh.toLocaleString()} AED</p>
+                                        <p className="text-xs text-muted-foreground flex items-center gap-1"><DollarSign className="h-3 w-3" /> Browse-only Catalog Estimate</p>
+                                        <p className="text-sm font-bold">{boardSummary.data.summary.estimatedCostLow === null || boardSummary.data.summary.estimatedCostHigh === null ? "Estimate unavailable" : `${boardSummary.data.summary.estimatedCostLow.toLocaleString()} — ${boardSummary.data.summary.estimatedCostHigh.toLocaleString()} AED`}</p>
                                     </CardContent></Card>
                                     <Card className="design-studio-glass"><CardContent className="py-3">
                                         <p className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> Longest Lead</p>
@@ -836,7 +836,7 @@ function MaterialsTab({ projectId }: { projectId: number }) {
                                                                 <div className="flex gap-2 text-xs text-muted-foreground">
                                                                     <Badge variant="outline" className="text-xs">{mat.category}</Badge>
                                                                     <Badge className={`text-xs ${tierColors[mat.tier] || ""}`}>{mat.tier}</Badge>
-                                                                    <span>{mat.typicalCostLow}–{mat.typicalCostHigh} {mat.costUnit}</span>
+                                                                    <span>{mat.typicalCostLow == null || mat.typicalCostHigh == null ? "Browse estimate unavailable" : `Browse estimate: ${mat.typicalCostLow}–${mat.typicalCostHigh} ${mat.costUnit}`}</span>
                                                                 </div>
                                                             </div>
                                                             <Button size="sm" variant="outline" onClick={() => addMaterialMutation.mutate({ boardId: selectedBoardId!, materialId: mat.id })}>Add</Button>
@@ -863,7 +863,7 @@ function MaterialsTab({ projectId }: { projectId: number }) {
                                                             <div className="flex gap-2 items-center flex-wrap mt-1 ml-7">
                                                                 <Badge variant="outline" className="text-xs">{mat.category}</Badge>
                                                                 <Badge className={`text-xs ${tierColors[mat.tier] || ""}`}>{mat.tier}</Badge>
-                                                                <span className="text-xs text-muted-foreground">{mat.typicalCostLow}–{mat.typicalCostHigh} {mat.costUnit}</span>
+                                                                <span className="text-xs text-muted-foreground">{mat.typicalCostLow == null || mat.typicalCostHigh == null ? "Browse estimate unavailable" : `Browse estimate: ${mat.typicalCostLow}–${mat.typicalCostHigh} ${mat.costUnit}`}</span>
                                                                 <span className={`text-xs ${leadColors[mat.leadTimeBand] || ""}`}>{mat.leadTimeDays}d lead</span>
                                                                 {mat.supplierName && <span className="text-xs text-muted-foreground">• {mat.supplierName}</span>}
                                                                 {mat.costBandOverride && <Badge variant="secondary" className="text-xs">{mat.costBandOverride}</Badge>}
@@ -921,15 +921,15 @@ function MaterialsTab({ projectId }: { projectId: number }) {
                             {boardSummary.data && boardSummary.data.rfqLines.length > 0 && (
                                 <Card className="design-studio-glass">
                                     <CardHeader>
-                                        <CardTitle className="text-base flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" /> RFQ-Ready Line Items</CardTitle>
-                                        <CardDescription>Export-ready procurement schedule</CardDescription>
+                                        <CardTitle className="text-base flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" /> Concept Material Schedule</CardTitle>
+                                        <CardDescription>Browse-only catalog estimates; governed pricing is required before RFQ or issue</CardDescription>
                                     </CardHeader>
                                     <CardContent>
                                         <div className="overflow-x-auto">
                                             <table className="w-full text-sm">
                                                 <thead><tr className="border-b text-left">
                                                     <th className="py-2 pr-4">#</th><th className="py-2 pr-4">Material</th><th className="py-2 pr-4">Category</th>
-                                                    <th className="py-2 pr-4">Est. Cost (AED)</th><th className="py-2 pr-4">Lead Time</th><th className="py-2">Supplier</th>
+                                                    <th className="py-2 pr-4">Browse Estimate (AED)</th><th className="py-2 pr-4">Lead Time</th><th className="py-2">Supplier</th>
                                                 </tr></thead>
                                                 <tbody>
                                                     {boardSummary.data.rfqLines.map((line: any) => (
@@ -984,7 +984,7 @@ function MaterialsTab({ projectId }: { projectId: number }) {
 
 function CostOverlayTab({ projectId }: { projectId: number }) {
     const [finishLevel, setFinishLevel] = useState("standard");
-    const livePricing = trpc.admin.pricing.previewLive.useQuery({ finishLevel: finishLevel as any });
+    const livePricing = trpc.admin.pricing.previewBrowseEstimates.useQuery({ finishLevel: finishLevel as any });
     const boards = trpc.design.listBoards.useQuery({ projectId }, { enabled: !!projectId });
 
     const categories = livePricing.data ? Object.entries(livePricing.data) : [];

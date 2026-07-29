@@ -66,8 +66,9 @@ export interface DigitalTwinResult {
     equipmentLoad: number;
 
     // Lifecycle
-    lifecycleCost30yr: number;     // AED
-    lifecycleCostPerSqm: number;   // AED/m²
+    lifecycleCost30yr: number | null;     // AED
+    lifecycleCostPerSqm: number | null;   // AED/m²
+    lifecycleCostResolutionState: "insufficient";
     lifecycle: LifecyclePoint[];
 
     // Scores
@@ -88,19 +89,18 @@ interface MaterialData {
     typicalThickness: number;   // metres (for qty estimation)
     recyclability: number;      // 0-1
     maintenanceFactor: number;  // annual % of install cost
-    costPerM2: number;          // AED/m² installed
 }
 
 const MATERIAL_DB: Record<MaterialType, MaterialData> = {
-    concrete: { carbonIntensity: 0.159, density: 2400, typicalThickness: 0.25, recyclability: 0.65, maintenanceFactor: 0.005, costPerM2: 350 },
-    steel: { carbonIntensity: 1.550, density: 7850, typicalThickness: 0.015, recyclability: 0.90, maintenanceFactor: 0.008, costPerM2: 480 },
-    glass: { carbonIntensity: 0.860, density: 2500, typicalThickness: 0.012, recyclability: 0.40, maintenanceFactor: 0.015, costPerM2: 620 },
-    aluminum: { carbonIntensity: 8.240, density: 2700, typicalThickness: 0.003, recyclability: 0.95, maintenanceFactor: 0.010, costPerM2: 750 },
-    timber: { carbonIntensity: 0.460, density: 600, typicalThickness: 0.10, recyclability: 0.70, maintenanceFactor: 0.020, costPerM2: 420 },
-    stone: { carbonIntensity: 0.079, density: 2600, typicalThickness: 0.03, recyclability: 0.30, maintenanceFactor: 0.003, costPerM2: 550 },
-    gypsum: { carbonIntensity: 0.120, density: 1000, typicalThickness: 0.013, recyclability: 0.20, maintenanceFactor: 0.010, costPerM2: 120 },
-    insulation: { carbonIntensity: 1.860, density: 30, typicalThickness: 0.10, recyclability: 0.15, maintenanceFactor: 0.002, costPerM2: 180 },
-    ceramic: { carbonIntensity: 0.740, density: 2000, typicalThickness: 0.01, recyclability: 0.10, maintenanceFactor: 0.005, costPerM2: 280 },
+    concrete: { carbonIntensity: 0.159, density: 2400, typicalThickness: 0.25, recyclability: 0.65, maintenanceFactor: 0.005 },
+    steel: { carbonIntensity: 1.550, density: 7850, typicalThickness: 0.015, recyclability: 0.90, maintenanceFactor: 0.008 },
+    glass: { carbonIntensity: 0.860, density: 2500, typicalThickness: 0.012, recyclability: 0.40, maintenanceFactor: 0.015 },
+    aluminum: { carbonIntensity: 8.240, density: 2700, typicalThickness: 0.003, recyclability: 0.95, maintenanceFactor: 0.010 },
+    timber: { carbonIntensity: 0.460, density: 600, typicalThickness: 0.10, recyclability: 0.70, maintenanceFactor: 0.020 },
+    stone: { carbonIntensity: 0.079, density: 2600, typicalThickness: 0.03, recyclability: 0.30, maintenanceFactor: 0.003 },
+    gypsum: { carbonIntensity: 0.120, density: 1000, typicalThickness: 0.013, recyclability: 0.20, maintenanceFactor: 0.010 },
+    insulation: { carbonIntensity: 1.860, density: 30, typicalThickness: 0.10, recyclability: 0.15, maintenanceFactor: 0.002 },
+    ceramic: { carbonIntensity: 0.740, density: 2000, typicalThickness: 0.01, recyclability: 0.10, maintenanceFactor: 0.005 },
 };
 
 // Climate factors (cooling degree days multiplier)
@@ -219,65 +219,6 @@ function calculateOperationalEnergy(config: DigitalTwinConfig): {
     };
 }
 
-// ─── Lifecycle Cost ─────────────────────────────────────────────────────────
-
-function calculateLifecycleCost(config: DigitalTwinConfig, energyCostPerKwh: number = 0.38): {
-    total30yr: number;
-    perSqm: number;
-    timeline: LifecyclePoint[];
-} {
-    const specMult = SPEC_MULTIPLIER[config.specLevel] || 1.0;
-
-    // Construction cost
-    let constructionCostPerM2 = 0;
-    for (const mix of config.materials) {
-        const mat = MATERIAL_DB[mix.material];
-        if (!mat) continue;
-        constructionCostPerM2 += mat.costPerM2 * (mix.percentage / 100) * specMult;
-    }
-    const constructionTotal = constructionCostPerM2 * config.gfa;
-
-    // Annual maintenance
-    let annualMaintenancePct = 0;
-    for (const mix of config.materials) {
-        const mat = MATERIAL_DB[mix.material];
-        if (!mat) continue;
-        annualMaintenancePct += mat.maintenanceFactor * (mix.percentage / 100);
-    }
-    const annualMaintenance = constructionTotal * annualMaintenancePct;
-
-    // Annual energy cost
-    const energy = calculateOperationalEnergy(config);
-    const annualEnergyCost = energy.total * energyCostPerKwh;
-
-    // 30-year timeline with 3% annual cost escalation
-    const escalation = 0.03;
-    const timeline: LifecyclePoint[] = [];
-    let cumulative = constructionTotal;
-
-    for (let year = 0; year <= 30; year++) {
-        const escFactor = Math.pow(1 + escalation, year);
-        const maint = year === 0 ? 0 : annualMaintenance * escFactor;
-        const ener = year === 0 ? 0 : annualEnergyCost * escFactor;
-
-        cumulative += maint + ener;
-
-        timeline.push({
-            year,
-            cumulativeCost: Math.round(cumulative),
-            maintenanceCost: Math.round(maint),
-            energyCost: Math.round(ener),
-            constructionCost: year === 0 ? Math.round(constructionTotal) : 0,
-        });
-    }
-
-    return {
-        total30yr: Math.round(cumulative),
-        perSqm: Math.round(cumulative / config.gfa),
-        timeline,
-    };
-}
-
 // ─── Sustainability Scores ──────────────────────────────────────────────────
 
 function scoreCarbonEfficiency(carbonPerSqm: number): number {
@@ -368,7 +309,6 @@ function generateRecommendations(
 export function computeDigitalTwin(config: DigitalTwinConfig): DigitalTwinResult {
     const carbon = calculateEmbodiedCarbon(config);
     const energy = calculateOperationalEnergy(config);
-    const lifecycle = calculateLifecycleCost(config);
 
     const carbonEfficiency = scoreCarbonEfficiency(carbon.perSqm);
     const energyRating = scoreEnergyRating(energy.perSqm, !!config.includeRenewables);
@@ -398,9 +338,10 @@ export function computeDigitalTwin(config: DigitalTwinConfig): DigitalTwinResult
         coolingLoad: energy.cooling,
         lightingLoad: energy.lighting,
         equipmentLoad: energy.equipment,
-        lifecycleCost30yr: lifecycle.total30yr,
-        lifecycleCostPerSqm: lifecycle.perSqm,
-        lifecycle: lifecycle.timeline,
+        lifecycleCost30yr: null,
+        lifecycleCostPerSqm: null,
+        lifecycleCostResolutionState: "insufficient",
+        lifecycle: [],
         carbonEfficiency,
         energyRating,
         materialCircularity,

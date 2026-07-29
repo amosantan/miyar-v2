@@ -439,7 +439,7 @@ export async function generateDesignBriefDocx(data: DesignBriefData): Promise<Bu
       ["Cost Band", budget.costBand ?? "—"],
       // ADR-0009: the MQI cost basis label travels with every budget rendering.
       ["Cost Basis", budget.mqiSummary?.costBasisLabel
-        ? `${budget.mqiSummary.costBasisLabel}${Number(budget.mqiSummary.unpricedAllocationCount) > 0 ? ` — ${budget.mqiSummary.unpricedAllocationCount} unpriced allocations` : ""}`
+        ? `${budget.mqiSummary.costBasisLabel}${Number(budget.mqiSummary.unpricedAllocationCount) > 0 ? ` — ${budget.mqiSummary.unpricedAllocationCount} unresolved allocations; aggregate unavailable` : ""}`
         : "—"],
       ["Contingency Recommendation", budget.contingencyRecommendation ?? "—"],
       ["Budget Flexibility Level", budget.flexibilityLevel ?? "—"],

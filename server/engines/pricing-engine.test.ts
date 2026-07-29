@@ -1,7 +1,7 @@
 /**
  * ADR-0009 coverage for the pricing engine: deterministic unit-collision
- * resolution in getLiveCategoryPricing and tier→finish delegation to the
- * versioned tier policy in syncMaterialsWithBenchmarks.
+ * resolution in getBrowseOnlyCategoryEstimates and tier→finish delegation to the
+ * versioned tier policy in syncBrowseOnlyCatalogEstimates.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,7 +12,7 @@ vi.mock("../db", () => ({
 }));
 
 import * as db from "../db";
-import { getLiveCategoryPricing, syncMaterialsWithBenchmarks } from "./pricing-engine";
+import { getBrowseOnlyCategoryEstimates, syncBrowseOnlyCatalogEstimates } from "./pricing-engine";
 
 function proposal(benchmarkKey: string, weightedMean: number) {
   return {
@@ -30,14 +30,14 @@ beforeEach(() => {
   vi.mocked(db.updateMaterial).mockClear();
 });
 
-describe("getLiveCategoryPricing", () => {
+describe("getBrowseOnlyCategoryEstimates", () => {
   it("filters to the requested finish level", async () => {
     vi.mocked(db.listBenchmarkProposals).mockResolvedValue([
       proposal("floors:premium:sqm", 300),
       proposal("floors:standard:sqm", 100),
     ] as never);
 
-    const pricing = await getLiveCategoryPricing("premium");
+    const pricing = await getBrowseOnlyCategoryEstimates("premium");
 
     expect(Object.keys(pricing)).toEqual(["floors"]);
     expect(pricing.floors.weightedMean).toBe(300);
@@ -51,7 +51,7 @@ describe("getLiveCategoryPricing", () => {
     ];
     for (const order of [rows, [...rows].reverse()]) {
       vi.mocked(db.listBenchmarkProposals).mockResolvedValue(order as never);
-      const pricing = await getLiveCategoryPricing("premium");
+      const pricing = await getBrowseOnlyCategoryEstimates("premium");
       expect(pricing.floors.unit).toBe("sqm");
       expect(pricing.floors.weightedMean).toBe(100);
     }
@@ -63,12 +63,12 @@ describe("getLiveCategoryPricing", () => {
       proposal("walls:luxury:sqft", 400),
     ] as never);
 
-    const pricing = await getLiveCategoryPricing("luxury");
+    const pricing = await getBrowseOnlyCategoryEstimates("luxury");
     expect(pricing.walls.unit).toBe("sqft");
   });
 });
 
-describe("syncMaterialsWithBenchmarks", () => {
+describe("syncBrowseOnlyCatalogEstimates", () => {
   it("maps catalog tiers through the versioned tier policy", async () => {
     vi.mocked(db.listBenchmarkProposals).mockResolvedValue([
       proposal("floors:basic:sqm", 60),
@@ -83,7 +83,7 @@ describe("syncMaterialsWithBenchmarks", () => {
       },
     ] as never);
 
-    const result = await syncMaterialsWithBenchmarks();
+    const result = await syncBrowseOnlyCatalogEstimates();
 
     expect(result.matchedCount).toBe(1);
     expect(db.updateMaterial).toHaveBeenCalledWith(11, {
@@ -100,7 +100,7 @@ describe("syncMaterialsWithBenchmarks", () => {
       { id: 12, category: "tile", tier: "economy", typicalCostLow: null, typicalCostHigh: null },
     ] as never);
 
-    const result = await syncMaterialsWithBenchmarks();
+    const result = await syncBrowseOnlyCatalogEstimates();
 
     expect(result.matchedCount).toBe(0);
     expect(result.skippedCount).toBe(1);

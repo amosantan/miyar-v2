@@ -86,6 +86,13 @@ export function buildFinishSchedule(
                 roomName: room.name,
                 element: element,
                 materialLibraryId: material ? material.id : null,
+                // New schedule rows are not historical legacy data. Preserve an
+                // exact EV-02 product link when available, while leaving the
+                // geography/scope-specific specification explicitly unresolved
+                // until the governed resolver selects it.
+                productId: material?.productId ?? null,
+                specId: null,
+                identityState: "unresolved",
                 overrideSpec: overrideSpec,
                 notes: material ? material.notes : null
             });

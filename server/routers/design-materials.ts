@@ -33,8 +33,17 @@ export const designMaterialsRouter = router({
         name: m.name,
         category: m.category,
         tier: m.tier,
-        costLow: Number(m.typicalCostLow) || 0,
-        costHigh: Number(m.typicalCostHigh) || 0,
+        costLow:
+          m.typicalCostLow == null ||
+          !Number.isFinite(Number(m.typicalCostLow))
+            ? null
+            : Number(m.typicalCostLow),
+        costHigh:
+          m.typicalCostHigh == null ||
+          !Number.isFinite(Number(m.typicalCostHigh))
+            ? null
+            : Number(m.typicalCostHigh),
+        pricingState: "browse_only_estimate" as const,
         costUnit: m.costUnit || "AED/unit",
         leadTimeDays: m.leadTimeDays || 30,
         leadTimeBand: m.leadTimeBand || "medium",
@@ -173,50 +182,65 @@ export const designMaterialsRouter = router({
       const constants = await db.getMaterialConstants();
       const lookup = new Map(constants.map((c: any) => [c.materialType, c]));
 
-      let totalCostAed = 0;
       let totalCarbonKg = 0;
       let weightedMaintenanceSum = 0;
-      let totalArea = 0;
+      let matchedAreaM2 = 0;
+      const requestedAreaM2 = input.items.reduce(
+        (sum, item) => sum + item.areaM2,
+        0
+      );
       const breakdown: Array<{
         materialType: string;
         areaM2: number;
-        costPerM2: number;
-        lineCostAed: number;
-        carbonKg: number;
-        maintenanceFactor: number;
+        carbonIntensityKgPerM2: number | null;
+        carbonKg: number | null;
+        maintenanceFactor: number | null;
         matched: boolean;
       }> = [];
 
       for (const item of input.items) {
         const c: any = lookup.get(item.materialType);
-        if (!c) {
+        const hasCarbon =
+          c?.carbonIntensity !== null &&
+          c?.carbonIntensity !== undefined &&
+          c?.carbonIntensity !== "";
+        const hasMaintenance =
+          c?.maintenanceFactor !== null &&
+          c?.maintenanceFactor !== undefined &&
+          c?.maintenanceFactor !== "";
+        const carbonIntensity = hasCarbon
+          ? Number(c.carbonIntensity)
+          : Number.NaN;
+        const maintenanceFactor = hasMaintenance
+          ? Number(c.maintenanceFactor)
+          : Number.NaN;
+        if (
+          !c ||
+          !Number.isFinite(carbonIntensity) ||
+          carbonIntensity < 0 ||
+          !Number.isFinite(maintenanceFactor) ||
+          maintenanceFactor <= 0
+        ) {
           breakdown.push({
             materialType: item.materialType,
             areaM2: item.areaM2,
-            costPerM2: 0,
-            lineCostAed: 0,
-            carbonKg: 0,
-            maintenanceFactor: 3,
+            carbonIntensityKgPerM2: null,
+            carbonKg: null,
+            maintenanceFactor: null,
             matched: false,
           });
           continue;
         }
-        const costPerM2 = Number(c.costPerM2 ?? 0);
-        const carbonIntensity = Number(c.carbonIntensity ?? 0); // kg CO²/m²
-        const maintenanceFactor = Number(c.maintenanceFactor ?? 3);
-        const lineCost = costPerM2 * item.areaM2;
         const lineCarbonKg = carbonIntensity * item.areaM2;
 
-        totalCostAed += lineCost;
         totalCarbonKg += lineCarbonKg;
         weightedMaintenanceSum += maintenanceFactor * item.areaM2;
-        totalArea += item.areaM2;
+        matchedAreaM2 += item.areaM2;
 
         breakdown.push({
           materialType: item.materialType,
           areaM2: item.areaM2,
-          costPerM2,
-          lineCostAed: lineCost,
+          carbonIntensityKgPerM2: carbonIntensity,
           carbonKg: lineCarbonKg,
           maintenanceFactor,
           matched: true,
@@ -224,24 +248,38 @@ export const designMaterialsRouter = router({
       }
 
       const avgMaintenanceFactor =
-        totalArea > 0 ? weightedMaintenanceSum / totalArea : 3;
+        matchedAreaM2 > 0 ? weightedMaintenanceSum / matchedAreaM2 : null;
 
       // Sustainability grade based on avg carbon intensity (kg/m²)
-      const avgCarbonPerM2 = totalArea > 0 ? totalCarbonKg / totalArea : 0;
-      let sustainabilityGrade: string;
-      if (avgCarbonPerM2 < 30) sustainabilityGrade = "A";
+      const avgCarbonPerM2 =
+        matchedAreaM2 > 0 ? totalCarbonKg / matchedAreaM2 : null;
+      let sustainabilityGrade: string | null;
+      if (avgCarbonPerM2 === null) sustainabilityGrade = null;
+      else if (avgCarbonPerM2 < 30) sustainabilityGrade = "A";
       else if (avgCarbonPerM2 < 60) sustainabilityGrade = "B";
       else if (avgCarbonPerM2 < 100) sustainabilityGrade = "C";
       else if (avgCarbonPerM2 < 150) sustainabilityGrade = "D";
       else sustainabilityGrade = "E";
 
       return {
-        totalCostAed: Math.round(totalCostAed),
-        totalCarbonKg: Math.round(totalCarbonKg),
-        avgMaintenanceFactor: Math.round(avgMaintenanceFactor * 10) / 10,
+        totalCarbonKg:
+          matchedAreaM2 > 0 ? Math.round(totalCarbonKg) : null,
+        avgCarbonIntensityKgPerM2:
+          avgCarbonPerM2 === null
+            ? null
+            : Math.round(avgCarbonPerM2 * 10) / 10,
+        avgMaintenanceFactor:
+          avgMaintenanceFactor === null
+            ? null
+            : Math.round(avgMaintenanceFactor * 10) / 10,
         sustainabilityGrade,
-        totalAreaM2: totalArea,
-        costPerM2Avg: totalArea > 0 ? Math.round(totalCostAed / totalArea) : 0,
+        requestedAreaM2,
+        matchedAreaM2,
+        coveragePct:
+          requestedAreaM2 > 0
+            ? Math.round((matchedAreaM2 / requestedAreaM2) * 100)
+            : 0,
+        costAvailability: "governed_pricing_required" as const,
         breakdown,
       };
     }),

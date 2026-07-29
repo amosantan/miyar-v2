@@ -518,12 +518,10 @@ export function explainMaterialSelection(
     name: string;
     tier: string;
     category: string;
-    typicalCostLow?: number;
-    typicalCostHigh?: number;
     leadTimeDays?: number;
   }>,
   projectTier: string,
-  budgetCap: number | null
+  _budgetCap: number | null
 ): MaterialExplainability[] {
   const tierRank: Record<string, number> = {
     economy: 1,
@@ -538,18 +536,16 @@ export function explainMaterialSelection(
   return materials.map((m) => {
     const matTierRank = tierRank[m.tier] ?? 3;
     const tierMatch = Math.abs(matTierRank - projectTierRank) <= 1;
-    const costBandMatch = budgetCap
-      ? (m.typicalCostHigh ?? 0) <= budgetCap * 1.15
-      : true;
+    // EV-03: browse-only catalog estimates cannot prove budget compliance.
+    const costBandMatch = true;
     const availabilityMatch = true; // simplified — would check regionAvailability
     const riskFactors: string[] = [];
 
     if (!tierMatch) riskFactors.push(`Tier mismatch: material is ${m.tier}, project targets ${projectTier}`);
-    if (!costBandMatch) riskFactors.push("Cost exceeds budget cap by >15%");
     if (m.leadTimeDays && m.leadTimeDays > 120) riskFactors.push(`Long lead time: ${m.leadTimeDays} days`);
 
-    const reason = tierMatch && costBandMatch
-      ? `${m.name} aligns with ${projectTier} tier positioning and falls within budget parameters.`
+    const reason = tierMatch
+      ? `${m.name} aligns with ${projectTier} tier positioning; governed pricing is required for budget compliance.`
       : `${m.name} selected but has ${riskFactors.length} risk factor(s) requiring review.`;
 
     return {

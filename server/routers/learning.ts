@@ -10,43 +10,18 @@ import {
 import * as db from "../db";
 import { compareOutcomeToPrediction } from "../engines/learning/outcome-comparator";
 import { summarizeLearningSignals } from "../engines/learning/post-mortem-evidence";
-import { predictCostRange, predictOutcome } from "../engines/predictive";
+import {
+  insufficientCostRangePrediction,
+  predictOutcome,
+} from "../engines/predictive";
 import type {
   ComparableOutcome,
-  EvidenceDataPoint,
-  TrendDataPoint,
 } from "../engines/predictive";
 import { requireProjectForOrg } from "../_core/project-access";
 import {
   ORGANIZATION_CORPUS_POLICY_VERSION,
   type CorpusMetadata,
 } from "../../shared/data-corpus";
-
-function toEvidenceDataPoint(
-  evidence: any,
-  geography: string
-): EvidenceDataPoint {
-  return {
-    priceMin: Number(evidence.priceMin) || 0,
-    priceTypical: Number(evidence.priceTypical) || 0,
-    priceMax: Number(evidence.priceMax) || 0,
-    unit: evidence.unit || "sqm",
-    reliabilityGrade: evidence.reliabilityGrade,
-    confidenceScore: evidence.confidenceScore,
-    captureDate: evidence.captureDate,
-    category: evidence.category,
-    geography,
-  };
-}
-
-function toTrendDataPoint(trend: any): TrendDataPoint {
-  return {
-    category: trend.category,
-    direction: trend.direction,
-    percentChange: Number(trend.percentChange) || 0,
-    confidence: trend.confidence,
-  };
-}
 
 async function buildScopedComparisonInputs(
   project: any,
@@ -70,28 +45,10 @@ async function buildScopedComparisonInputs(
     });
   }
 
-  const [
-    projectEvidence,
-    organizationEvidence,
-    publicEvidence,
-    trends,
-    comparableRows,
-  ] = await Promise.all([
-    db.listOrganizationEvidenceRecords(orgId, { projectId, limit: 500 }),
-    db.listOrganizationEvidenceRecords(orgId, { limit: 1000 }),
-    db.listPublicCorpusEvidence({ limit: 1000 }),
-    db.getTrendSnapshotsForOrg(orgId, { limit: 10 }),
+  const [comparableRows] = await Promise.all([
     db.getComparableScoreMatricesForOrg(orgId, projectId),
   ]);
 
-  const geography = project.ctx04Location || "UAE";
-  const evidence = projectEvidence.map((row: any) =>
-    toEvidenceDataPoint(row, geography)
-  );
-  const safeFallbackEvidence = [...organizationEvidence, ...publicEvidence].map(
-    (row: any) => toEvidenceDataPoint(row, geography)
-  );
-  const trendData = trends.map(toTrendDataPoint);
   const comparableOutcomes: ComparableOutcome[] = comparableRows.map(
     ({ scoreMatrix: matrix, project: comparableProject }: any) => ({
       projectId: matrix.projectId,
@@ -103,9 +60,9 @@ async function buildScopedComparisonInputs(
     })
   );
 
-  const costPrediction = predictCostRange(evidence, trendData, {
-    geography: project.ctx04Location || undefined,
-    uaeWideEvidence: safeFallbackEvidence,
+  const costPrediction = insufficientCostRangePrediction({
+    reason:
+      "Learning inputs do not have a governed product/specification material population",
   });
   const outcomePrediction = predictOutcome(
     Number(scoreMatrix.compositeScore) || 0,
@@ -125,8 +82,8 @@ async function buildScopedComparisonInputs(
         ? "insufficient_data"
         : "ok",
     corpusPolicyVersion: ORGANIZATION_CORPUS_POLICY_VERSION,
-    organizationSampleCount: organizationEvidence.length,
-    publicSampleCount: publicEvidence.length,
+    organizationSampleCount: 0,
+    publicSampleCount: 0,
     confidence:
       comparableOutcomes.length === 0
         ? costPrediction.confidence

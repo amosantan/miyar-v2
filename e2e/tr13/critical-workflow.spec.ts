@@ -352,14 +352,17 @@ test.describe("TR-13 critical workflow harness", () => {
     test.setTimeout(120_000);
     const scriptRequests: string[] = [];
     page.on("request", request => {
-      if (request.resourceType() === "script") scriptRequests.push(request.url());
+      if (request.resourceType() === "script")
+        scriptRequests.push(request.url());
     });
     await page
       .context()
       .grantPermissions(["clipboard-read", "clipboard-write"]);
     await login(page, users.admin);
     expect(hasLoadedClientModule(scriptRequests, "AIChatBox")).toBe(false);
-    expect(hasLoadedClientModule(scriptRequests, "MarkdownRenderer")).toBe(false);
+    expect(hasLoadedClientModule(scriptRequests, "MarkdownRenderer")).toBe(
+      false
+    );
     await page.getByRole("button", { name: "Open MIYAR Intelligence" }).click();
     await expect(
       page.getByRole("heading", { name: "MIYAR Intelligence" })
@@ -368,16 +371,14 @@ test.describe("TR-13 critical workflow harness", () => {
       page.getByText("Hello! I am the MIYAR AI Assistant.")
     ).toBeVisible();
     await expect
-      .poll(
-        () => hasLoadedClientModule(scriptRequests, "AIChatBox"),
-        { message: "AI chat must load only after the assistant opens" }
-      )
+      .poll(() => hasLoadedClientModule(scriptRequests, "AIChatBox"), {
+        message: "AI chat must load only after the assistant opens",
+      })
       .toBe(true);
     await expect
-      .poll(
-        () => hasLoadedClientModule(scriptRequests, "MarkdownRenderer"),
-        { message: "rich Markdown must load only when assistant content renders" }
-      )
+      .poll(() => hasLoadedClientModule(scriptRequests, "MarkdownRenderer"), {
+        message: "rich Markdown must load only when assistant content renders",
+      })
       .toBe(true);
     await page.getByRole("button", { name: "Close" }).click();
     await page.goto("/projects/new");
@@ -592,13 +593,25 @@ test.describe("TR-13 critical workflow harness", () => {
       workflowProjectName
     );
 
+    const insufficientFullReport = await trpcErrorRequest(
+      page,
+      "project.generateReport",
+      { projectId, reportType: "full_report", locale: "en" },
+      "POST"
+    );
+    expect(insufficientFullReport).toMatchObject({
+      status: 412,
+      code: "PRECONDITION_FAILED",
+      message: "REPORT_RFQ_PRICING_INSUFFICIENT",
+    });
+
     const storedReport = await trpcRequest<{
       projectId: number;
       projectName: string;
     }>(
       page,
       "project.generateReport",
-      { projectId, reportType: "full_report", locale: "en" },
+      { projectId, reportType: "validation_summary", locale: "en" },
       "POST"
     );
     expect(storedReport).toMatchObject({
@@ -612,13 +625,16 @@ test.describe("TR-13 critical workflow harness", () => {
       }>
     >(page, "project.listReports", { projectId }, "GET");
     expect(reports).toContainEqual(
-      expect.objectContaining({ reportType: "full_report" })
+      expect.objectContaining({ reportType: "validation_summary" })
     );
-    const storedFullReport = reports.find(
-      report => report.reportType === "full_report"
+    const storedValidationSummary = reports.find(
+      report => report.reportType === "validation_summary"
     );
-    expect(storedFullReport?.id).toBeDefined();
-    await prepareSyntheticInlineReportPreview(projectId, storedFullReport!.id);
+    expect(storedValidationSummary?.id).toBeDefined();
+    await prepareSyntheticInlineReportPreview(
+      projectId,
+      storedValidationSummary!.id
+    );
 
     await seedSyntheticAdvisorSharePrerequisite(projectId, workflowProjectName);
     const advisorBrief = await trpcRequest<{
@@ -701,12 +717,14 @@ test.describe("TR-13 critical workflow harness", () => {
     await expect(page.getByRole("heading", { name: "Reports" })).toBeVisible();
     await expectNoHorizontalOverflow(page);
     expect(hasLoadedClientModule(scriptRequests, "ReportRenderer")).toBe(false);
-    await page.getByRole("button", { name: "Open report preview" }).first().click();
+    await page
+      .getByRole("button", { name: "Open report preview" })
+      .first()
+      .click();
     await expect
-      .poll(
-        () => hasLoadedClientModule(scriptRequests, "ReportRenderer"),
-        { message: "report renderer must load only after preview opens" }
-      )
+      .poll(() => hasLoadedClientModule(scriptRequests, "ReportRenderer"), {
+        message: "report renderer must load only after preview opens",
+      })
       .toBe(true);
     await expectNoHorizontalOverflow(page);
     writeBrowserEvidence({
@@ -718,7 +736,8 @@ test.describe("TR-13 critical workflow harness", () => {
       evaluationRun: true,
       adminShareCreated: true,
       structuredBriefGeneratedThroughApi: true,
-      storedFullReportGeneratedThroughApi: true,
+      insufficientFullReportRejectedThroughApi: true,
+      storedValidationSummaryGeneratedThroughApi: true,
       aiAdvisorSharePrerequisite: "synthetic-browser-fixture",
       aiAdvisorGenerationCertifiedInVitestMysqlRouter: true,
       canonicalFirstProjectAuthority: true,

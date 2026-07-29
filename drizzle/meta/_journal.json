@@ -435,6 +435,13 @@
       "when": 1785265296808,
       "tag": "0061_ev02_evidence_price_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "5",
+      "when": 1785310524282,
+      "tag": "0062_ev03_material_consolidation",
+      "breakpoints": true
     }
   ]
 }

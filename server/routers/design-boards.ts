@@ -29,9 +29,213 @@ import {
   computeBoardSummary,
   generateRfqLines,
 } from "../engines/board-composer";
+import {
+  resolveMaterialPriceSnapshots,
+  resolveProjectMaterialPriceGeography,
+} from "../engines/material-pricing/material-resolution";
+import {
+  resolveQuantityForUnitBasis,
+  roundUpToPaintPacks,
+} from "../engines/material-pricing/quantity-policy";
+import type {
+  MaterialPriceInsufficiencyReason,
+  MaterialPriceSnapshot,
+} from "../../shared/material-calculations";
 import { storagePut } from "../storage";
 
 import { bestEffortAudit } from "./design-router-shared";
+
+type BoardQuantityUnit = "sqm" | "lm" | "piece" | "pack" | "litre";
+
+function normalizeBoardQuantityUnit(value: string | null | undefined):
+  BoardQuantityUnit | undefined {
+  const normalized = value?.trim().toLowerCase().replace(/\s+/g, "_");
+  switch (normalized) {
+    case "sqm":
+    case "m2":
+    case "m²":
+    case "square_metre":
+    case "square_meter":
+      return "sqm";
+    case "lm":
+    case "linear_metre":
+    case "linear_meter":
+      return "lm";
+    case "piece":
+    case "pieces":
+    case "pc":
+    case "pcs":
+    case "unit":
+    case "units":
+    case "set":
+    case "sets":
+      return "piece";
+    case "pack":
+    case "packs":
+      return "pack";
+    case "litre":
+    case "litres":
+    case "liter":
+    case "liters":
+    case "l":
+      return "litre";
+    default:
+      return undefined;
+  }
+}
+
+type GovernedBoardInputRow = {
+  id: number;
+  materialId: number;
+  quantity: string | number | null;
+  unitOfMeasure: string | null;
+};
+
+export function buildGovernedBoardSummary(input: {
+  rows: readonly GovernedBoardInputRow[];
+  snapshots: readonly MaterialPriceSnapshot[];
+}) {
+  const snapshotByMaterialId = new Map(
+    input.snapshots.map(snapshot => [
+      snapshot.reference.source === "materials_catalog"
+        ? snapshot.reference.legacyId
+        : -1,
+      snapshot,
+    ])
+  );
+  const resolverClocks = new Set(
+    input.snapshots.map(snapshot => snapshot.resolverAsOf)
+  );
+  if (resolverClocks.size > 1) {
+    throw new Error("Board summary requires one resolver clock");
+  }
+
+  const reasons: Partial<Record<MaterialPriceInsufficiencyReason, number>> = {};
+  let pricedItemCount = 0;
+  let totalMin = 0;
+  let totalMid = 0;
+  let totalMax = 0;
+  const lines = input.rows.map(row => {
+    const snapshot = snapshotByMaterialId.get(row.materialId);
+    let reason: MaterialPriceInsufficiencyReason | null = null;
+    let quantity: number | null = null;
+    let quantityUnit: BoardQuantityUnit | null = null;
+    let lineMin: number | null = null;
+    let lineMid: number | null = null;
+    let lineMax: number | null = null;
+
+    if (!snapshot) {
+      reason = "identity_not_found";
+    } else if (snapshot.state === "insufficient") {
+      reason = snapshot.reason;
+    } else if (snapshot.requestedPriceScope !== "supply_only") {
+      reason = "no_governed_value";
+    } else {
+      const explicitQuantity = Number(row.quantity);
+      const explicitQuantityUnit = normalizeBoardQuantityUnit(
+        row.unitOfMeasure
+      );
+      const quantityResolution = resolveQuantityForUnitBasis({
+        unitBasis: snapshot.unitBasis,
+        surfaceAreaM2:
+          explicitQuantityUnit === "sqm" ? explicitQuantity : undefined,
+        explicitQuantity:
+          Number.isFinite(explicitQuantity) && explicitQuantity > 0
+            ? explicitQuantity
+            : undefined,
+        explicitQuantityUnit,
+        paintCoverageState: snapshot.paintCoverageState,
+        paintCoverageProfile: snapshot.paintCoverageProfile
+          ? { status: "approved", ...snapshot.paintCoverageProfile }
+          : undefined,
+        asOf: new Date(snapshot.resolverAsOf),
+      });
+      if (quantityResolution.state === "insufficient") {
+        reason = quantityResolution.reason;
+      } else {
+        const paintPurchase =
+          quantityResolution.quantityUnit === "litre"
+            ? roundUpToPaintPacks(
+                quantityResolution.quantity,
+                snapshot.paintCoverageProfile?.packSizesLitres ?? []
+              )
+            : null;
+        quantity = paintPurchase?.purchasedLitres
+          ?? quantityResolution.quantity;
+        quantityUnit = quantityResolution.quantityUnit;
+        const priceMin = Number(snapshot.priceMin);
+        const priceMid = Number(snapshot.priceMid);
+        const priceMax = Number(snapshot.priceMax);
+        if (
+          !Number.isFinite(priceMin) ||
+          !Number.isFinite(priceMid) ||
+          !Number.isFinite(priceMax) ||
+          priceMin <= 0 ||
+          priceMid <= 0 ||
+          priceMax <= 0
+        ) {
+          reason = "no_governed_value";
+        } else {
+          lineMin = Number((quantity * priceMin).toFixed(2));
+          lineMid = Number((quantity * priceMid).toFixed(2));
+          lineMax = Number((quantity * priceMax).toFixed(2));
+          totalMin += lineMin;
+          totalMid += lineMid;
+          totalMax += lineMax;
+          pricedItemCount += 1;
+        }
+      }
+    }
+
+    if (reason) reasons[reason] = (reasons[reason] ?? 0) + 1;
+    return {
+      boardJoinId: row.id,
+      materialId: row.materialId,
+      state: reason ? ("insufficient" as const) : ("resolved" as const),
+      reason,
+      productId:
+        snapshot?.state === "resolved" ? snapshot.productId : null,
+      specificationId:
+        snapshot?.state === "resolved" ? snapshot.specificationId : null,
+      quantity,
+      quantityUnit,
+      totalAedMin: lineMin,
+      totalAedMid: lineMid,
+      totalAedMax: lineMax,
+      requestedGeography: snapshot?.requestedGeography ?? null,
+      resolvedGeography:
+        snapshot?.state === "resolved" ? snapshot.resolvedGeography : null,
+      resolvedPriceScope:
+        snapshot?.state === "resolved" ? snapshot.resolvedPriceScope : null,
+      presentationProvenance:
+        snapshot?.state === "resolved" ? snapshot.provenance : null,
+    };
+  });
+  const insufficientItemCount = input.rows.length - pricedItemCount;
+  const complete =
+    input.rows.length > 0 && insufficientItemCount === 0;
+  return {
+    priceScope: "supply_only" as const,
+    resolverAsOf:
+      resolverClocks.size === 1 ? Array.from(resolverClocks)[0] : null,
+    coverage: {
+      state:
+        input.rows.length === 0 || pricedItemCount === 0
+          ? ("insufficient" as const)
+          : complete
+            ? ("complete" as const)
+            : ("partial" as const),
+      totalItemCount: input.rows.length,
+      pricedItemCount,
+      insufficientItemCount,
+      reasons,
+    },
+    totalAedMin: complete ? Number(totalMin.toFixed(2)) : null,
+    totalAedMid: complete ? Number(totalMid.toFixed(2)) : null,
+    totalAedMax: complete ? Number(totalMax.toFixed(2)) : null,
+    lines,
+  };
+}
 
 export const designBoardsRouter = router({
   pinVisualToBoard: designOrgMutationProcedure
@@ -244,6 +448,9 @@ export const designBoardsRouter = router({
             sortOrder: bm.sortOrder,
             specNotes: bm.specNotes,
             costBandOverride: bm.costBandOverride,
+            canonicalProductId: bm.productId,
+            canonicalSpecificationId: bm.specId,
+            canonicalIdentityState: bm.identityState,
           });
       }
       return { board, materials: materialDetails };
@@ -386,8 +593,8 @@ export const designBoardsRouter = router({
         name: string;
         category: string;
         tier: string;
-        costLow: number;
-        costHigh: number;
+        costLow: number | null;
+        costHigh: number | null;
         costUnit: string;
         leadTimeDays: number;
         leadTimeBand: string;
@@ -406,8 +613,16 @@ export const designBoardsRouter = router({
             name: mat.name,
             category: mat.category,
             tier: mat.tier,
-            costLow: Number(mat.typicalCostLow) || 0,
-            costHigh: Number(mat.typicalCostHigh) || 0,
+            costLow:
+              mat.typicalCostLow == null ||
+              !Number.isFinite(Number(mat.typicalCostLow))
+                ? null
+                : Number(mat.typicalCostLow),
+            costHigh:
+              mat.typicalCostHigh == null ||
+              !Number.isFinite(Number(mat.typicalCostHigh))
+                ? null
+                : Number(mat.typicalCostHigh),
             costUnit: mat.costUnit || "AED/unit",
             leadTimeDays: mat.leadTimeDays || 30,
             leadTimeBand: mat.leadTimeBand || "medium",
@@ -465,8 +680,26 @@ export const designBoardsRouter = router({
   boardSummary: orgProcedure
     .input(z.object({ boardId: z.number() }))
     .query(async ({ ctx, input }) => {
-      await requireDesignBoard(input.boardId, ctx.orgId);
+      const { project } = await requireDesignBoard(input.boardId, ctx.orgId);
       const boardMaterials = await db.getMaterialsByBoard(input.boardId);
+      const resolverAsOf = new Date();
+      const priceSnapshots = await resolveMaterialPriceSnapshots({
+        references: boardMaterials.map(boardMaterial => ({
+          source: "materials_catalog" as const,
+          legacyId: boardMaterial.materialId,
+        })),
+        organizationId: ctx.orgId,
+        priceScope: "supply_only",
+        requestedGeography: resolveProjectMaterialPriceGeography(
+          project.materialPriceGeography
+        ),
+        asOf: resolverAsOf,
+        allowLegacyUnknownScope: true,
+      });
+      const governedSummary = buildGovernedBoardSummary({
+        rows: boardMaterials,
+        snapshots: priceSnapshots,
+      });
       const items = [];
       for (const bm of boardMaterials) {
         const mat = await db.getMaterialById(bm.materialId);
@@ -476,8 +709,16 @@ export const designBoardsRouter = router({
             name: mat.name,
             category: mat.category,
             tier: mat.tier,
-            costLow: Number(mat.typicalCostLow) || 0,
-            costHigh: Number(mat.typicalCostHigh) || 0,
+            costLow:
+              mat.typicalCostLow == null ||
+              !Number.isFinite(Number(mat.typicalCostLow))
+                ? null
+                : Number(mat.typicalCostLow),
+            costHigh:
+              mat.typicalCostHigh == null ||
+              !Number.isFinite(Number(mat.typicalCostHigh))
+                ? null
+                : Number(mat.typicalCostHigh),
             costUnit: mat.costUnit || "AED/unit",
             leadTimeDays: mat.leadTimeDays || 30,
             leadTimeBand: mat.leadTimeBand || "medium",
@@ -488,6 +729,7 @@ export const designBoardsRouter = router({
       return {
         summary: computeBoardSummary(items),
         rfqLines: generateRfqLines(items),
+        governedSummary,
       };
     }),
 });

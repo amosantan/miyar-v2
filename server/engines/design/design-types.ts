@@ -10,7 +10,7 @@ export interface MaterialRec {
     productName: string;
     brand: string;
     category: string;
-    element: string;            // "floor", "wall_primary", etc.
+    element: string;            // Legacy design element, e.g. "floor" or "wall_primary".
     priceRangeAed: string;      // "120-180 AED/sqm"
     alternativeId?: number | null;
     alternativeName?: string;
@@ -165,11 +165,13 @@ export interface GeminiDesignResponse {
             element: string;
             productName: string;
             brand: string;
-            priceRange: string;
+            priceRange?: string;
             rationale: string;
         }[];
         budgetBreakdown: { element: string; percentage: number }[];
-        kitchenSpec?: Omit<KitchenSpec, "estimatedCostAed">;
+        kitchenSpec?: Omit<KitchenSpec, "estimatedCostAed" | "countertopPriceRange"> & {
+            countertopPriceRange?: string;
+        };
         bathroomSpec?: Omit<BathroomSpec, "estimatedCostAed">;
     }[];
     overallDesignNarrative: string;

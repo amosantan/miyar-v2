@@ -1,14 +1,12 @@
 /**
  * BriefEditor.tsx — Phase 3: Brief → Numbers
  *
- * Interactive design spec editor that recalculates fitout cost,
- * carbon footprint, and an indicative sustainability proxy from
- * the `design.calculateSpec` tRPC endpoint + material_constants.
+ * Interactive design spec editor that recalculates carbon and maintenance
+ * indicators from material_constants. Cost requires governed pricing.
  */
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import EvidenceChainDrawer from "@/components/EvidenceChainDrawer";
 import DataFreshnessBanner from "@/components/DataFreshnessBanner";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,8 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import {
-    ArrowLeft, Calculator, Leaf, Wrench, TrendingUp,
-    RefreshCw, Loader2, ChevronRight, BarChart3, Building2, Scale,
+    ArrowLeft, Leaf, Wrench, TrendingUp,
+    RefreshCw, Loader2, ChevronRight, BarChart3, Building2,
 } from "lucide-react";
 // RICS NRM element mapping
 const RICS_CODES: Record<string, { code: string; element: string }> = {
@@ -69,12 +67,6 @@ const GRADE_BG: Record<string, string> = {
     D: "bg-orange-500/20", E: "bg-red-500/20",
 };
 
-function formatAed(n: number) {
-    if (n >= 1_000_000) return `AED ${(n / 1_000_000).toFixed(2)}M`;
-    if (n >= 1_000) return `AED ${Math.round(n / 1000)}K`;
-    return `AED ${Math.round(n).toLocaleString()}`;
-}
-
 // ─── Material Allocation Slider Row ──────────────────────────────────────────
 
 function MaterialRow({
@@ -88,10 +80,9 @@ function MaterialRow({
     enabled: boolean;
     onToggle: () => void;
     onPctChange: (v: number) => void;
-    constData?: { costPerM2: string | number; carbonIntensity: string | number; maintenanceFactor: string | number };
+    constData?: { carbonIntensity: string | number; maintenanceFactor: string | number };
 }) {
     const areaM2 = Math.round(gfa * pct);
-    const cost = constData ? Number(constData.costPerM2) * areaM2 : 0;
 
     return (
         <div className={`rounded-lg border p-3 transition-all ${enabled ? "border-primary/30 bg-primary/5" : "border-border/30 opacity-50"}`}>
@@ -105,22 +96,13 @@ function MaterialRow({
                     </button>
                     <span className="text-sm font-medium text-foreground capitalize">{type}</span>
                     {constData && (
-                        <EvidenceChainDrawer
-                            category={type === "glass" ? "walls" : type === "paint" ? "walls" : type === "insulation" ? "ceilings" : type === "ceramic" ? "floors" : type === "aluminum" ? "hardware" : type === "steel" ? "hardware" : type}
-                            trigger={
-                                <Badge variant="outline" className="text-[10px] cursor-pointer hover:bg-primary/10 transition-colors gap-1">
-                                    AED {Number(constData.costPerM2).toLocaleString()}/m²
-                                    <span className="text-primary/60">📎</span>
-                                </Badge>
-                            }
-                        />
+                        <Badge variant="outline" className="text-[10px]">
+                            {Number(constData.carbonIntensity).toLocaleString()} kg CO₂/m²
+                        </Badge>
                     )}
                 </div>
                 <div className="text-right">
                     <p className="text-xs text-muted-foreground">{areaM2} m²</p>
-                    {enabled && cost > 0 && (
-                        <p className="text-xs font-mono text-primary">{formatAed(cost)}</p>
-                    )}
                 </div>
             </div>
             {enabled && (
@@ -222,7 +204,7 @@ function BriefEditorContent() {
                     </Button>
                     <div>
                         <h1 className="text-xl font-bold text-foreground">
-                            Brief Editor <span className="text-sm font-normal text-muted-foreground">— Spec &amp; Cost</span>
+                            Brief Editor <span className="text-sm font-normal text-muted-foreground">— Spec &amp; Sustainability</span>
                         </h1>
                         <p className="text-sm text-muted-foreground">
                             {project?.name} · {tier} · {gfa.toLocaleString()} m² GFA
@@ -253,7 +235,7 @@ function BriefEditorContent() {
                             </CardTitle>
                             <p className="text-xs text-muted-foreground">
                                 Toggle material types and adjust area allocation (% of {gfa.toLocaleString()} m² GFA).
-                                Estimates recalculate from the configured UAE market constants.
+                                Carbon and maintenance indicators recalculate from sustainability constants.
                             </p>
                         </CardHeader>
                         <CardContent className="space-y-3">
@@ -289,22 +271,18 @@ function BriefEditorContent() {
                         )}
                         <CardHeader className="pb-3">
                             <CardTitle className="text-base flex items-center gap-2">
-                                <Calculator className="h-4 w-4 text-primary" />
-                                Project Cost Estimate
+                                <Leaf className="h-4 w-4 text-primary" />
+                                Sustainability Profile
                                 {isCalcFetching && <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground ml-1" />}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            {/* Total Cost */}
+                            {/* Pricing availability */}
                             <div className="text-center py-3 rounded-lg bg-primary/10 border border-primary/20">
-                                <p className="text-xs text-muted-foreground mb-1">Total Fitout Cost</p>
-                                <p className="text-3xl font-bold text-primary">
-                                    {calcResult ? formatAed(calcResult.totalCostAed) : "—"}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                    {calcResult && gfa > 0
-                                        ? `AED ${Math.round(calcResult.totalCostAed / gfa).toLocaleString()}/m² avg`
-                                        : ""}
+                                <p className="text-xs text-muted-foreground mb-1">Fitout Cost</p>
+                                <p className="text-lg font-semibold text-primary">Unavailable</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Governed pricing is required for an authoritative estimate.
                                 </p>
                             </div>
 
@@ -330,7 +308,7 @@ function BriefEditorContent() {
                             <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-secondary/30">
                                 <span className="text-xs text-muted-foreground">Carbon Footprint</span>
                                 <span className="text-sm font-mono text-foreground">
-                                    {calcResult ? `${calcResult.totalCarbonKg.toLocaleString()} kg CO₂` : "—"}
+                                    {calcResult?.totalCarbonKg != null ? `${calcResult.totalCarbonKg.toLocaleString()} kg CO₂` : "—"}
                                 </span>
                             </div>
 
@@ -353,7 +331,9 @@ function BriefEditorContent() {
                                                     </Badge>
                                                 )}
                                             </span>
-                                            <span className="text-foreground font-mono">{formatAed(b.costAed)}</span>
+                                            <span className="text-foreground font-mono">
+                                                {b.carbonKg != null ? `${b.carbonKg.toLocaleString()} kg CO₂` : "Unavailable"}
+                                            </span>
                                         </div>
                                     ))}
                                 </div>
@@ -361,13 +341,13 @@ function BriefEditorContent() {
                         </CardContent>
                     </Card>
 
-                    {/* ROI Uplift Panel */}
+                    {/* Sustainability context */}
                     {calcResult && (
                         <Card>
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm flex items-center gap-2">
                                     <TrendingUp className="h-4 w-4 text-emerald-400" />
-                                    Design ROI Bridge
+                                    Specification Context
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-2 text-xs">
@@ -376,8 +356,8 @@ function BriefEditorContent() {
                                     <Badge variant="outline" className="text-[10px]">{tier}</Badge>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Fitout Investment</span>
-                                    <span className="font-mono">{formatAed(calcResult.totalCostAed)}</span>
+                                    <span className="text-muted-foreground">Sustainability coverage</span>
+                                    <span className="font-mono">{calcResult.coveragePct}%</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Carbon Grade</span>
@@ -385,7 +365,7 @@ function BriefEditorContent() {
                                 </div>
                                 <Separator className="my-1" />
                                 <p className="text-[10px] text-muted-foreground italic">
-                                    Design tier premium and full ROI projection available in the Investor View.
+                                    Cost and ROI require governed pricing inputs; sustainability remains available here.
                                 </p>
                                 <Button
                                     size="sm"
@@ -400,12 +380,12 @@ function BriefEditorContent() {
                         </Card>
                     )}
 
-                    {/* Material Constants Reference */}
+                    {/* Sustainability Constants Reference */}
                     {materialConstants && materialConstants.length > 0 && (
                         <Card>
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">
-                                    UAE Market Constants
+                                    Sustainability Constants
                                     <DataFreshnessBanner className="mt-3" />
                                 </CardTitle>
                             </CardHeader>
@@ -415,7 +395,7 @@ function BriefEditorContent() {
                                         <div key={c.materialType} className="flex items-center gap-2 text-[11px]">
                                             <span className="flex-1 capitalize text-muted-foreground">{c.materialType}</span>
                                             <span className="font-mono text-foreground">
-                                                AED {Number(c.costPerM2).toLocaleString()}/m²
+                                                maintenance {Number(c.maintenanceFactor).toFixed(1)}/5
                                             </span>
                                             <span className="text-muted-foreground/60">
                                                 {Number(c.carbonIntensity).toFixed(0)} kg/m²
@@ -433,7 +413,7 @@ function BriefEditorContent() {
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-xs flex items-center gap-1.5">
                                     <TrendingUp className="h-3 w-3 text-emerald-400" />
-                                    <span className="text-muted-foreground uppercase tracking-wider">Market Benchmark</span>
+                                    <span className="text-muted-foreground uppercase tracking-wider">Governed Pricing Context</span>
                                 </CardTitle>
                                 <p className="text-[10px] text-muted-foreground">
                                     {benchmark.typology} · {benchmark.location} · {benchmark.marketTier}
@@ -453,20 +433,9 @@ function BriefEditorContent() {
                                         </div>
                                     );
                                 })}
-                                {benchmark.costPerSqmMid != null && calcResult && (
-                                    <div className="mt-2 pt-2 border-t border-border/30">
-                                        <div className="flex justify-between text-[11px]">
-                                            <span className="text-muted-foreground">Your estimate</span>
-                                            <span className={`font-mono font-semibold ${calcResult.costPerM2Avg <= benchmark.costPerSqmMid
-                                                ? "text-emerald-400"
-                                                : "text-amber-400"
-                                                }`}>
-                                                AED {calcResult.costPerM2Avg.toLocaleString()}/m²
-                                                {calcResult.costPerM2Avg <= benchmark.costPerSqmMid ? " ✓" : " ↑"}
-                                            </span>
-                                        </div>
-                                    </div>
-                                )}
+                                <p className="mt-2 pt-2 border-t border-border/30 text-[10px] text-muted-foreground">
+                                    Project cost is unavailable until governed pricing resolves the selected specification.
+                                </p>
                             </CardContent>
                         </Card>
                     )}

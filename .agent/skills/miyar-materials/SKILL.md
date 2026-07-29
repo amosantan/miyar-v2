@@ -33,7 +33,11 @@ These two approaches run in parallel. Bottom-up does NOT replace top-down scorin
 | `server/engines/design/finish-schedule.ts` | `buildFinishSchedule()` → one material per element (EXTEND, never replace) |
 | `server/engines/design/material-quantity-engine.ts` | NEW — surface area math + Gemini allocation + cost summary |
 | `server/routers/materialQuantity.ts` | NEW — tRPC procedures for MQI |
-| `drizzle/schema.ts` | `material_library`, `materials_catalog`, `material_constants`, `material_allocations`, `material_supplier_sources` |
+| `server/engines/material-pricing/material-resolution.ts` | Server-internal batch façade and safe resolution snapshots |
+| `server/engines/material-pricing/resolver.ts` | EV-02 governed-value ranking authority; never duplicate it |
+| `server/engines/material-pricing/quantity-policy.ts` | Exhaustive unit and approved paint quantity rules |
+| `shared/material-calculations.ts` | Canonical identity, completeness, insufficiency, and presentation provenance contracts |
+| `drizzle/schema.ts` | Canonical product/specification, governed values, profiles, and durable calculation snapshots |
 | `server/engines/visual-gen.ts` | `buildBoardAwarePromptContext()` — extend with allocation clause |
 | `server/engines/design/nano-banana-client.ts` | Room render + mood board prompts — inject material splits |
 
@@ -41,10 +45,22 @@ These two approaches run in parallel. Bottom-up does NOT replace top-down scorin
 
 ## Material Category System
 
-MIYAR uses TWO parallel material systems. Understand both before writing any material code:
+Legacy material systems remain for compatibility and browsing, but MIYAR has
+one authoritative calculation path:
 
-### System 1: `material_library` (primary pricing source for MQI)
-Granular room-element matching. Fields: `category`, `tier`, `style`, `brand`, `productName`, `priceAedMin`, `priceAedMax`.
+### Canonical system: product + specification + governed value
+
+Identify the product/specification, then call the server-internal EV-02 façade.
+The returned snapshot owns price scope, geography, unit basis, clock, benchmark
+identity, safe provenance, and insufficiency. MQI requests `supply_only`; RFQ
+requests `supply_and_install`; reports inherit the calculation scope.
+
+### Legacy system 1: `material_library`
+
+Granular room-element selection remains a compatibility reference. Its
+`priceAedMin/Max` columns are not calculation authority. Eligible legacy values
+may be reproduced only by the resolver's explicit, labelled unknown-scope
+compatibility mode.
 
 | category | Covers | Typical unit |
 |----------|--------|-------------|
@@ -59,19 +75,28 @@ Granular room-element matching. Fields: `category`, `tier`, `style`, `brand`, `p
 | `hardware` | Kitchen/wardrobe handles, drawer systems | AED/set |
 | `specialty` | Wallpaper, acoustic panels, feature materials | AED/sqm |
 
-### System 2: `materials_catalog` (FF&E library)
-Broader catalog with `typicalCostLow/High`. Used for furniture, fixtures, accessories. NOT used for surface area calculations — use `material_library` for that.
+### Legacy system 2: `materials_catalog` (FF&E library)
+
+Broader catalog for browsing, furniture, fixtures, and accessories.
+`typicalCostLow/High` are browse-only estimates. They must not enter MQI,
+scoring, RFQs, or issued totals.
 
 ### System 3: `material_constants` (sustainability engine)
-Scientific constants (carbonIntensity, density, costPerM2). Used for sustainability scoring, NOT for MQI cost calculations.
+Scientific constants support carbon and maintenance analysis.
+`costPerM2` is legacy and is not an authoritative material-price input.
 
-**Rule:** For MQI surface cost calculations, ALWAYS use `material_library.priceAedMin/Max`. Never use `material_constants.costPerM2` for client-facing pricing — it's a carbon reference, not a market price.
+**Rule:** Every material cost comes from the governed façade or is
+`insufficient`. Never coerce missing values to AED 0 and never read legacy
+pricing columns on a calculation path.
 
 ---
 
-## UAE Material Cost Reference (2024–2025 AED/sqm)
+## Historical fixture ranges (not calculation inputs)
 
-Use these as sanity checks when evaluating Gemini outputs or writing test fixtures:
+The following legacy ranges are retained only to understand old fixtures and
+golden compatibility tests. They are not current market evidence, must not be
+put into prompts or production calculations, and cannot replace a governed
+resolver snapshot.
 
 ### Flooring
 | Material | Affordable | Mid | Premium | Ultra |
@@ -235,7 +260,12 @@ Rules for the clause:
 ## Common Mistakes to Avoid
 
 ### 1. Using `material_constants.costPerM2` for market pricing
-That table has scientific averages for carbon calculations. AED 45/sqm for "stone" is NOT a market price — Calacatta marble is AED 350–600/sqm. Always use `material_library.priceAedMin/Max`.
+That table has scientific averages for carbon calculations. It is not a
+market-price authority. Authoritative calculations must identify the canonical
+product/specification and request a governed value through
+`resolveMaterialPriceSnapshots()`. A missing, incompatible, or unauthorized
+value is insufficient; never fall back to `material_constants.costPerM2`,
+`material_library.priceAed*`, or `materials_catalog.typicalCost*`.
 
 ### 2. Applying MQI budget split to the full project budget
 `fin01BudgetCap × gfa` = TOTAL project budget (structure + MEP + fit-out + FF&E).
@@ -273,9 +303,17 @@ Price extraction prompt for Gemini (after scraping supplier URL):
 Only include items with AED pricing. Return empty array if no prices found."
 ```
 
-Update `material_library` rows on successful scrape:
-- Match by `supplierName` + `category` + `tier`
-- Update `priceAedMin` and `priceAedMax` if new values are in range (±50% of existing — flag larger swings for admin review)
+Store successful extraction as an unapproved evidence proposal:
+- Preserve the source URL/document digest, observed unit, geography, scope,
+  observation clock, and extraction provenance.
+- Map to a canonical product/specification only through the governed ingestion
+  and review workflow; ambiguous mappings require human approval.
+- Never write scraped or AI-extracted prices into
+  `material_library.priceAedMin/Max` or
+  `materials_catalog.typicalCostMin/Max`.
+- Only a reviewed, published governed value may enter the resolver candidate
+  set. Large swings and incompatible units/scopes remain ineligible pending
+  review.
 
 ---
 

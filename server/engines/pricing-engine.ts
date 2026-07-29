@@ -1,10 +1,11 @@
 /**
- * MIYAR V4 — Dynamic Pricing Engine
+ * MIYAR V4 — Browse-only Catalog Estimate Engine
  *
  * Bridges the Market Intelligence Layer (V2) with the Design Translation Layer (V3).
  * Provides two core capabilities:
- *   1. getLiveCategoryPricing — retrieves approved benchmark P25/P50/P75 prices per category & finish level
- *   2. syncMaterialsWithBenchmarks — bulk-updates the materials catalog pricing from approved benchmarks
+ * These estimates support catalog browsing/admin maintenance only. They are
+ * never authoritative material prices and cannot feed calculations or issued
+ * artifacts.
  */
 
 import * as db from "../db";
@@ -13,6 +14,7 @@ import { catalogTierToFinish } from "./tier-policy";
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface CategoryPricing {
+    authority: "browse_only_estimate";
     category: string;
     finishLevel: string;
     unit: string;
@@ -57,7 +59,7 @@ const MATERIAL_TO_EVIDENCE_CATEGORY: Record<string, string> = {
  * @param finishLevel Target finish level (basic | standard | premium | luxury | ultra_luxury)
  * @returns Record keyed by evidence category (e.g. "floors", "walls") with pricing data
  */
-export async function getLiveCategoryPricing(
+export async function getBrowseOnlyCategoryEstimates(
     finishLevel: string
 ): Promise<Record<string, CategoryPricing>> {
     const normalizedFinish = finishLevel.toLowerCase();
@@ -90,14 +92,28 @@ export async function getLiveCategoryPricing(
                     existing.unit <= unit);
             if (keepExisting) continue;
         }
+        const p25 = Number(proposal.proposedP25);
+        const p50 = Number(proposal.proposedP50);
+        const p75 = Number(proposal.proposedP75);
+        const weightedMean = Number(proposal.weightedMean);
+        if (
+            ![p25, p50, p75, weightedMean].every(value =>
+                Number.isFinite(value) && value > 0
+            ) ||
+            p25 > p50 ||
+            p50 > p75
+        ) {
+            continue;
+        }
         pricingDict[cat] = {
+            authority: "browse_only_estimate",
             category: cat,
             finishLevel: finish,
             unit,
-            p25: Number(proposal.proposedP25) || 0,
-            p50: Number(proposal.proposedP50) || 0,
-            p75: Number(proposal.proposedP75) || 0,
-            weightedMean: Number(proposal.weightedMean) || 0,
+            p25,
+            p50,
+            p75,
+            weightedMean,
         };
     }
 
@@ -111,36 +127,33 @@ export async function getLiveCategoryPricing(
  * For each active material, we look up the corresponding evidence category and finish level,
  * find a matching approved benchmark, and update the material's cost range.
  */
-export async function syncMaterialsWithBenchmarks(): Promise<SyncResult> {
-    // Fetch all approved benchmarks
-    const allApproved = await db.listBenchmarkProposals("approved");
-
+export async function syncBrowseOnlyCatalogEstimates(): Promise<SyncResult> {
     // Fetch all active material catalog items
     const materials = await db.getAllMaterials();
 
     let updatedCount = 0;
     let matchedCount = 0;
     let skippedCount = 0;
+    const estimateCache = new Map<string, Record<string, CategoryPricing>>();
 
     for (const material of materials) {
         const evidenceCat = MATERIAL_TO_EVIDENCE_CATEGORY[material.category] || "other";
         const targetFinishLevel = catalogTierToFinish(material.tier);
-        const searchPrefix = `${evidenceCat}:${targetFinishLevel}:`;
-
-        // Find the matching approved benchmark proposal
-        const matchedProposal = allApproved.find(
-            (p: { benchmarkKey: string }) => p.benchmarkKey.startsWith(searchPrefix)
-        );
-
-        if (!matchedProposal) {
+        let estimates = estimateCache.get(targetFinishLevel);
+        if (!estimates) {
+            estimates = await getBrowseOnlyCategoryEstimates(targetFinishLevel);
+            estimateCache.set(targetFinishLevel, estimates);
+        }
+        const estimate = estimates[evidenceCat];
+        if (!estimate) {
             skippedCount++;
             continue;
         }
 
         matchedCount++;
 
-        const newLow = Number(matchedProposal.proposedP25);
-        const newHigh = Number(matchedProposal.proposedP75);
+        const newLow = estimate.p25;
+        const newHigh = estimate.p75;
 
         // Only update if prices have actually changed
         if (

@@ -8,7 +8,7 @@
  *
  * Rules:
  *   - Gemini SUGGESTS allocations only — never sets prices
- *   - Prices come from material_library.priceAedMin/Max
+ *   - Prices come only from EV-03 governed material-price snapshots
  *   - fin01BudgetCap is AED/sqft (total construction cost per sqft)
  *   - Budget formula: fin01BudgetCap × ctx03Gfa × SQFT_TO_SQM × FINISH_BUDGET_RATIO
  *   - Max 2 materials per surface (coerce if Gemini returns more)
@@ -19,7 +19,14 @@
 import type { Room } from "./space-program";
 import { invokeLLM } from "../../_core/llm";
 import type { MaterialLibrary } from "../../../drizzle/schema";
+import {
+    type MaterialAggregateCoverage,
+    type MaterialPriceInsufficiencyReason,
+    type MaterialPriceSnapshot,
+} from "../../../shared/material-calculations";
 import { libraryTiersForMkt01Tier } from "../tier-policy";
+import { exactDecimalMidpoint } from "../material-pricing/policy";
+import { resolveQuantityForUnitBasis } from "../material-pricing/quantity-policy";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,6 +43,8 @@ export interface AllocationSlice {
     materialName: string;
     percentage: number;
     reasoning: string;
+    explicitQuantity?: number | null;
+    explicitQuantityUnit?: "sqm" | "lm" | "piece" | "pack" | "litre" | null;
 }
 
 export interface RoomAllocation {
@@ -66,19 +75,29 @@ export interface RoomCostBreakdown {
             materialName: string;
             percentage: number;
             actualAreaM2: number;
-            unitCostMin: number;
-            unitCostMax: number;
-            totalCostMin: number;
-            totalCostMax: number;
-            /** False when no priced library row resolved; costs are then 0, never invented. */
+            productId: number | null;
+            specificationId: number | null;
+            unitCostMin: number | null;
+            unitCostMax: number | null;
+            totalCostMin: number | null;
+            totalCostMax: number | null;
+            resolutionState: "resolved" | "insufficient";
+            resolutionReason?: string;
+            priceSnapshot: MaterialPriceSnapshot | null;
+            quantityPolicyVersion: string | null;
+            quantityConversionInputs: Record<
+                string,
+                string | number | readonly string[]
+            > | null;
+            /** False when no governed value and compatible quantity resolved. */
             priced: boolean;
             reasoning: string;
         }>;
-        elementCostMin: number;
-        elementCostMax: number;
+        elementCostMin: number | null;
+        elementCostMax: number | null;
     }>;
-    roomCostMin: number;
-    roomCostMax: number;
+    roomCostMin: number | null;
+    roomCostMax: number | null;
 }
 
 export interface MaterialQuantityResult {
@@ -91,13 +110,13 @@ export interface MaterialQuantityResult {
         materialBreakdown: Array<{
             materialName: string;
             totalAreaM2: number;
-            totalCostMin: number;
-            totalCostMax: number;
+            totalCostMin: number | null;
+            totalCostMax: number | null;
             pctOfTotalSurface: number;
         }>;
-        totalFinishCostMin: number;
-        totalFinishCostMax: number;
-        totalFinishCostMid: number;
+        totalFinishCostMin: number | null;
+        totalFinishCostMax: number | null;
+        totalFinishCostMid: number | null;
         budgetCapAed: number | null;
         budgetUtilizationPct: number | null;
         isOverBudget: boolean;
@@ -105,6 +124,7 @@ export interface MaterialQuantityResult {
         qualityLabel: string;
         /** Allocation slices with no resolvable priced library row (ADR-0009). */
         unpricedAllocationCount: number;
+        aggregateCoverage: MaterialAggregateCoverage;
         /** Provenance basis of the priced library rows behind the totals. */
         costBasis: {
             policyVersion: string;
@@ -278,7 +298,7 @@ export async function generateMaterialAllocations(
         .slice(0, 60) // Cap to keep prompt token cost manageable
         .map(
             (m) =>
-                `id=${m.id} category=${m.category} tier=${m.tier} style=${m.style} brand="${m.brand}" product="${m.productName}" AED_min=${m.priceAedMin} AED_max=${m.priceAedMax} unit=${m.unitLabel}`
+                `id=${m.id} category=${m.category} tier=${m.tier} style=${m.style} brand="${m.brand}" product="${m.productName}" unit=${m.unitLabel}`
         )
         .join("\n");
 
@@ -372,7 +392,7 @@ RULES:
                                 },
                             },
                         },
-                        required: ["roomId"],
+                        required: ["roomId", "floor", "walls", "ceiling", "joinery"],
                     },
                 },
                 designRationale: { type: "string" },
@@ -525,18 +545,25 @@ RULES:
 export function buildQuantityCostSummary(
     surfaces: RoomSurfaces[],
     allocations: AllocationResult,
-    materialLibrary: MaterialLibrary[],
+    priceSnapshots: readonly MaterialPriceSnapshot[],
     project: { fin01BudgetCap?: number | null; ctx03Gfa?: number | null }
 ): MaterialQuantityResult {
-    const materialLibraryMap = new Map(materialLibrary.map((m) => [m.id, m]));
+    const priceByLibraryId = new Map(
+        priceSnapshots
+            .filter(snapshot => snapshot.reference.source === "material_library")
+            .map(snapshot => [snapshot.reference.legacyId, snapshot])
+    );
 
     const roomBreakdowns: RoomCostBreakdown[] = [];
     const materialTotals = new Map<
         string,
-        { totalAreaM2: number; totalCostMin: number; totalCostMax: number }
+        { totalAreaM2: number; totalCostMin: number; totalCostMax: number; complete: boolean }
     >();
     let unpricedAllocationCount = 0;
-    const pricedLibraryRowIds = new Set<number>();
+    let totalAllocationCount = 0;
+    let pricedAllocationCount = 0;
+    const insufficiencyReasons: MaterialAggregateCoverage["reasons"] = {};
+    const pricedSnapshots: MaterialPriceSnapshot[] = [];
 
     let totalFloorM2 = 0;
     let totalWallM2 = 0;
@@ -566,13 +593,56 @@ export function buildQuantityCostSummary(
         for (const elDef of elementDefs) {
             const slices =
                 roomAllocation?.[elDef.name as keyof RoomAllocation] as AllocationSlice[] | undefined;
-            if (!slices || slices.length === 0) continue;
+            if (!slices || slices.length === 0) {
+                if (elDef.name !== "joinery" && elDef.areaM2 > 0) {
+                    totalAllocationCount += 1;
+                    unpricedAllocationCount += 1;
+                    insufficiencyReasons.quantity_required =
+                        (insufficiencyReasons.quantity_required ?? 0) + 1;
+                    elements.push({
+                        element: elDef.name,
+                        surfaceAreaM2: elDef.areaM2,
+                        allocations: [],
+                        elementCostMin: null,
+                        elementCostMax: null,
+                    });
+                }
+                continue;
+            }
+
+            const allocationTotal = slices.reduce(
+                (sum, slice) => sum + Number(slice.percentage),
+                0
+            );
+            if (
+                !Number.isFinite(allocationTotal)
+                || allocationTotal <= 0
+                || Math.abs(allocationTotal - 100) > 0.01
+                || slices.some(slice =>
+                    !Number.isFinite(Number(slice.percentage))
+                    || Number(slice.percentage) <= 0
+                )
+            ) {
+                totalAllocationCount += 1;
+                unpricedAllocationCount += 1;
+                insufficiencyReasons.quantity_required =
+                    (insufficiencyReasons.quantity_required ?? 0) + 1;
+                elements.push({
+                    element: elDef.name,
+                    surfaceAreaM2: elDef.areaM2,
+                    allocations: [],
+                    elementCostMin: null,
+                    elementCostMax: null,
+                });
+                continue;
+            }
 
             let elementCostMin = 0;
             let elementCostMax = 0;
             const allocationDetails: RoomCostBreakdown["elements"][0]["allocations"] = [];
 
             for (const slice of slices) {
+                totalAllocationCount += 1;
                 const actualAreaM2 = elDef.areaM2 * (slice.percentage / 100);
 
                 // Look up unit costs from material library. ADR-0009 (F3):
@@ -581,32 +651,79 @@ export function buildQuantityCostSummary(
                 // unpriced (cost 0) instead of silently borrowing another
                 // material's price. This matches the report-reconciliation
                 // unpriced semantics.
-                let unitCostMin = 0;
-                let unitCostMax = 0;
+                let unitCostMin: number | null = null;
+                let unitCostMax: number | null = null;
+                let sliceCostMin: number | null = null;
+                let sliceCostMax: number | null = null;
+                let productId: number | null = null;
+                let specificationId: number | null = null;
+                let resolutionReason: string | undefined;
                 let priced = false;
+                let selectedSnapshot: MaterialPriceSnapshot | null = null;
+                let quantityPolicyVersion: string | null = null;
+                let quantityConversionInputs: Record<
+                    string,
+                    string | number | readonly string[]
+                > | null = null;
 
                 if (slice.materialLibraryId) {
-                    const libEntry = materialLibraryMap.get(slice.materialLibraryId);
-                    if (libEntry && libEntry.priceAedMin !== null && libEntry.priceAedMax !== null) {
-                        const priceMin = Number(libEntry.priceAedMin);
-                        const priceMax = Number(libEntry.priceAedMax);
-                        if (Number.isFinite(priceMin) && Number.isFinite(priceMax)) {
-                            unitCostMin = priceMin;
-                            unitCostMax = priceMax;
-                            priced = true;
-                            pricedLibraryRowIds.add(libEntry.id);
+                    const snapshot = priceByLibraryId.get(slice.materialLibraryId);
+                    if (snapshot) {
+                        selectedSnapshot = snapshot;
+                        if (snapshot.state === "resolved") {
+                            productId = snapshot.productId;
+                            specificationId = snapshot.specificationId;
+                            const quantity = resolveQuantityForUnitBasis({
+                                unitBasis: snapshot.unitBasis,
+                                surfaceAreaM2: actualAreaM2,
+                                explicitQuantity:
+                                    slice.explicitQuantity ?? undefined,
+                                explicitQuantityUnit:
+                                    slice.explicitQuantityUnit ?? undefined,
+                                paintCoverageState: snapshot.paintCoverageState,
+                                paintCoverageProfile: snapshot.paintCoverageProfile
+                                    ? {
+                                        status: "approved",
+                                        ...snapshot.paintCoverageProfile,
+                                    }
+                                    : undefined,
+                                asOf: new Date(snapshot.resolverAsOf),
+                            });
+                            if (quantity.state === "resolved") {
+                                quantityPolicyVersion = quantity.policyVersion;
+                                quantityConversionInputs = quantity.conversionInputs;
+                                const priceMin = Number(snapshot.priceMin);
+                                const priceMax = Number(snapshot.priceMax);
+                                if (Number.isFinite(priceMin) && Number.isFinite(priceMax)) {
+                                    unitCostMin = priceMin;
+                                    unitCostMax = priceMax;
+                                    sliceCostMin = quantity.quantity * unitCostMin;
+                                    sliceCostMax = quantity.quantity * unitCostMax;
+                                    priced = true;
+                                    pricedAllocationCount += 1;
+                                    pricedSnapshots.push(snapshot);
+                                }
+                            } else {
+                                resolutionReason = quantity.reason;
+                            }
+                        } else {
+                            productId = snapshot.productId ?? null;
+                            specificationId = snapshot.specificationId ?? null;
+                            resolutionReason = snapshot.reason;
                         }
                     }
                 }
                 if (!priced) {
                     unpricedAllocationCount += 1;
+                    if (!resolutionReason) resolutionReason = "identity_not_found";
+                    const reason = resolutionReason as MaterialPriceInsufficiencyReason;
+                    insufficiencyReasons[reason] = (insufficiencyReasons[reason] ?? 0) + 1;
                 }
 
-                const sliceCostMin = actualAreaM2 * unitCostMin;
-                const sliceCostMax = actualAreaM2 * unitCostMax;
-
-                elementCostMin += sliceCostMin;
-                elementCostMax += sliceCostMax;
+                if (sliceCostMin !== null && sliceCostMax !== null) {
+                    elementCostMin += sliceCostMin;
+                    elementCostMax += sliceCostMax;
+                }
 
                 allocationDetails.push({
                     materialLibraryId: slice.materialLibraryId,
@@ -615,8 +732,15 @@ export function buildQuantityCostSummary(
                     actualAreaM2: Number(actualAreaM2.toFixed(2)),
                     unitCostMin,
                     unitCostMax,
-                    totalCostMin: Number(sliceCostMin.toFixed(2)),
-                    totalCostMax: Number(sliceCostMax.toFixed(2)),
+                    totalCostMin: sliceCostMin === null ? null : Number(sliceCostMin.toFixed(2)),
+                    totalCostMax: sliceCostMax === null ? null : Number(sliceCostMax.toFixed(2)),
+                    productId,
+                    specificationId,
+                    resolutionState: priced ? "resolved" : "insufficient",
+                    ...(resolutionReason ? { resolutionReason } : {}),
+                    priceSnapshot: selectedSnapshot,
+                    quantityPolicyVersion,
+                    quantityConversionInputs,
                     priced,
                     reasoning: slice.reasoning,
                 });
@@ -626,25 +750,34 @@ export function buildQuantityCostSummary(
                     totalAreaM2: 0,
                     totalCostMin: 0,
                     totalCostMax: 0,
+                    complete: true,
                 };
                 existing.totalAreaM2 += actualAreaM2;
-                existing.totalCostMin += sliceCostMin;
-                existing.totalCostMax += sliceCostMax;
+                if (sliceCostMin === null || sliceCostMax === null) {
+                    existing.complete = false;
+                } else {
+                    existing.totalCostMin += sliceCostMin;
+                    existing.totalCostMax += sliceCostMax;
+                }
                 materialTotals.set(slice.materialName, existing);
             }
 
+            const elementComplete = allocationDetails.every(detail => detail.priced);
             elements.push({
                 element: elDef.name,
                 surfaceAreaM2: elDef.areaM2,
                 allocations: allocationDetails,
-                elementCostMin: Number(elementCostMin.toFixed(2)),
-                elementCostMax: Number(elementCostMax.toFixed(2)),
+                elementCostMin: elementComplete ? Number(elementCostMin.toFixed(2)) : null,
+                elementCostMax: elementComplete ? Number(elementCostMax.toFixed(2)) : null,
             });
 
-            roomCostMin += elementCostMin;
-            roomCostMax += elementCostMax;
+            if (elementComplete) {
+                roomCostMin += elementCostMin;
+                roomCostMax += elementCostMax;
+            }
         }
 
+        const roomComplete = elements.every(element => element.elementCostMin !== null);
         roomBreakdowns.push({
             roomId: surface.roomId,
             roomName: surface.roomName,
@@ -652,22 +785,47 @@ export function buildQuantityCostSummary(
             wallM2: surface.wallM2,
             ceilingM2: surface.ceilingM2,
             elements,
-            roomCostMin: Number(roomCostMin.toFixed(2)),
-            roomCostMax: Number(roomCostMax.toFixed(2)),
+            roomCostMin: roomComplete ? Number(roomCostMin.toFixed(2)) : null,
+            roomCostMax: roomComplete ? Number(roomCostMax.toFixed(2)) : null,
         });
     }
 
     // Compute totals
     const totalSurfaceM2 = totalFloorM2 + totalWallM2 + totalCeilingM2;
-    const totalFinishCostMin = roomBreakdowns.reduce(
-        (s, r) => s + r.roomCostMin,
-        0
-    );
-    const totalFinishCostMax = roomBreakdowns.reduce(
-        (s, r) => s + r.roomCostMax,
-        0
-    );
-    const totalFinishCostMid = (totalFinishCostMin + totalFinishCostMax) / 2;
+    const insufficientItemCount = totalAllocationCount - pricedAllocationCount;
+    const aggregateCoverage: MaterialAggregateCoverage = {
+        state:
+            totalAllocationCount === 0
+                ? "insufficient"
+                : insufficientItemCount === 0
+                ? "complete"
+                : pricedAllocationCount === 0
+                    ? "insufficient"
+                    : "partial",
+        totalItemCount: totalAllocationCount,
+        pricedItemCount: pricedAllocationCount,
+        insufficientItemCount,
+        reasons: insufficiencyReasons,
+    };
+    const allRoomsComplete =
+        roomBreakdowns.length > 0
+        && totalAllocationCount > 0
+        && roomBreakdowns.every(room => room.roomCostMin !== null);
+    const totalFinishCostMin = allRoomsComplete
+        ? roomBreakdowns.reduce((s, r) => s + (r.roomCostMin ?? 0), 0)
+        : null;
+    const totalFinishCostMax = allRoomsComplete
+        ? roomBreakdowns.reduce((s, r) => s + (r.roomCostMax ?? 0), 0)
+        : null;
+    const totalFinishCostMid =
+        totalFinishCostMin === null || totalFinishCostMax === null
+            ? null
+            : Number(
+                exactDecimalMidpoint(
+                    totalFinishCostMin.toFixed(2),
+                    totalFinishCostMax.toFixed(2)
+                )
+            );
 
     // Budget comparison
     // fin01BudgetCap = AED/sqft (total construction cost — NOT finish-only)
@@ -684,15 +842,15 @@ export function buildQuantityCostSummary(
             : null;
 
     const budgetUtilizationPct =
-        budgetCapAed && budgetCapAed > 0
+        budgetCapAed && budgetCapAed > 0 && totalFinishCostMid !== null
             ? Number(((totalFinishCostMid / budgetCapAed) * 100).toFixed(1))
             : null;
 
     const isOverBudget = budgetCapAed
-        ? totalFinishCostMid > budgetCapAed
+        ? totalFinishCostMid !== null && totalFinishCostMid > budgetCapAed
         : false;
     const overBudgetByAed = isOverBudget
-        ? Number((totalFinishCostMid - (budgetCapAed || 0)).toFixed(2))
+        ? Number(((totalFinishCostMid ?? 0) - (budgetCapAed || 0)).toFixed(2))
         : 0;
 
     // Material breakdown sorted by total area
@@ -700,8 +858,8 @@ export function buildQuantityCostSummary(
         .map(([name, totals]) => ({
             materialName: name,
             totalAreaM2: Number(totals.totalAreaM2.toFixed(2)),
-            totalCostMin: Number(totals.totalCostMin.toFixed(2)),
-            totalCostMax: Number(totals.totalCostMax.toFixed(2)),
+            totalCostMin: totals.complete ? Number(totals.totalCostMin.toFixed(2)) : null,
+            totalCostMax: totals.complete ? Number(totals.totalCostMax.toFixed(2)) : null,
             pctOfTotalSurface:
                 totalSurfaceM2 > 0
                     ? Number(((totals.totalAreaM2 / totalSurfaceM2) * 100).toFixed(1))
@@ -713,24 +871,36 @@ export function buildQuantityCostSummary(
     // rendering of these totals can carry an honest cost-basis label.
     // "Observed" covers market observations and supplier quotes; assumptions
     // and manual entries remain assumption-class.
-    const OBSERVED_SOURCE_TYPES = new Set(["market_observation", "supplier_quote"]);
-    let assumptionRowCount = 0;
-    let observedRowCount = 0;
-    for (const rowId of Array.from(pricedLibraryRowIds)) {
-        const row = materialLibraryMap.get(rowId);
-        if (!row) continue;
-        if (OBSERVED_SOURCE_TYPES.has(row.sourceType ?? "miyar_assumption")) {
-            observedRowCount += 1;
-        } else {
-            assumptionRowCount += 1;
-        }
-    }
+    const resolvedSnapshots = pricedSnapshots.filter(
+        (snapshot): snapshot is Extract<MaterialPriceSnapshot, { state: "resolved" }> =>
+            snapshot.state === "resolved"
+    );
+    const assumptionRowCount = resolvedSnapshots.filter(
+        snapshot => snapshot.provenance.sourceLadderRung === "assumption"
+    ).length;
+    const legacyCompatibilityRowCount = resolvedSnapshots.filter(
+        snapshot => snapshot.provenance.compatibilityFallback
+    ).length;
+    const ordinaryAssumptionRowCount =
+        assumptionRowCount - legacyCompatibilityRowCount;
+    const observedRowCount = resolvedSnapshots.length - assumptionRowCount;
     const costBasisLabel =
-        observedRowCount === 0
-            ? "MIYAR assumption"
-            : assumptionRowCount === 0
-                ? "Observed market data"
-                : "Mixed (MIYAR assumption + observed)";
+        legacyCompatibilityRowCount === resolvedSnapshots.length
+            && legacyCompatibilityRowCount > 0
+            ? "Legacy scope-unknown assumption"
+            : legacyCompatibilityRowCount > 0
+                ? `Mixed (${[
+                    "legacy scope-unknown assumption",
+                    ordinaryAssumptionRowCount > 0
+                        ? "MIYAR assumption"
+                        : null,
+                    observedRowCount > 0 ? "observed" : null,
+                ].filter(Boolean).join(" + ")})`
+                : observedRowCount === 0
+                    ? "MIYAR assumption"
+                    : assumptionRowCount === 0
+                        ? "Observed market data"
+                        : "Mixed (MIYAR assumption + observed)";
 
     return {
         rooms: roomBreakdowns,
@@ -740,17 +910,18 @@ export function buildQuantityCostSummary(
             totalCeilingM2: Number(totalCeilingM2.toFixed(2)),
             totalSurfaceM2: Number(totalSurfaceM2.toFixed(2)),
             materialBreakdown,
-            totalFinishCostMin: Number(totalFinishCostMin.toFixed(2)),
-            totalFinishCostMax: Number(totalFinishCostMax.toFixed(2)),
-            totalFinishCostMid: Number(totalFinishCostMid.toFixed(2)),
+            totalFinishCostMin: totalFinishCostMin === null ? null : Number(totalFinishCostMin.toFixed(2)),
+            totalFinishCostMax: totalFinishCostMax === null ? null : Number(totalFinishCostMax.toFixed(2)),
+            totalFinishCostMid: totalFinishCostMid === null ? null : Number(totalFinishCostMid.toFixed(2)),
             budgetCapAed,
             budgetUtilizationPct,
             isOverBudget,
             overBudgetByAed,
             qualityLabel: allocations.estimatedQualityLabel || "Standard",
             unpricedAllocationCount,
+            aggregateCoverage,
             costBasis: {
-                policyVersion: "material-library-provenance-v1",
+                policyVersion: "ev03-material-resolution-v1",
                 label: costBasisLabel,
                 assumptionRowCount,
                 observedRowCount,

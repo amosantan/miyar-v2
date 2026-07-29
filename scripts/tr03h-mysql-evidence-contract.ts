@@ -14,6 +14,7 @@ export const MYSQL_INTEGRATION_TESTS = [
   "tests/mysql/br05-typology-packs.mysql.test.ts",
   "tests/mysql/br06-regulatory-sources.mysql.test.ts",
   "tests/mysql/ev02-material-pricing.mysql.test.ts",
+  "tests/mysql/ev03-identity-backfill.mysql.test.ts",
 ] as const;
 
 export const MYSQL_EVIDENCE_FILE = ".agent/state/TR03H_MYSQL_EVIDENCE.json";
@@ -84,6 +85,16 @@ export const REQUIRED_MYSQL_EVIDENCE_FILES = [
   "scripts/ev02-planetscale-backfill.ts",
   "drizzle/0061_ev02_evidence_price_schema.sql",
   "drizzle/meta/0061_snapshot.json",
+  "tests/mysql/ev03-identity-backfill.mysql.test.ts",
+  "server/engines/material-pricing/ev03-identity-backfill.ts",
+  "scripts/ev03-identity-backfill.ts",
+  "scripts/ev03-planetscale-identity-backfill.ts",
+  "server/engines/material-pricing/material-resolution.ts",
+  "server/engines/material-pricing/rollout-comparison.ts",
+  "scripts/ev03-rollout-comparison.ts",
+  "scripts/ev03-planetscale-rollout-comparison.ts",
+  "drizzle/0062_ev03_material_consolidation.sql",
+  "drizzle/meta/0062_snapshot.json",
   "shared/typology-pack.ts",
   "server/engines/typology-pack.ts",
   "server/engines/typology-pack.test.ts",

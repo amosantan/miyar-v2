@@ -1,57 +1,197 @@
 # Current Task
 
-- ID: EV-02
-- Roadmap step: `EV-02`
-- Title: Implement the evidence and price schema safely
-- Status: PASS
+- ID: EV-03
+- Roadmap step: `EV-03`
+- Title: Consolidate material identity and calculation inputs
+- Status: ACTIVE
 - Owner: Codex
-- Started: 2026-07-28
-- Base: canonical `origin/main` at `2bce6a94fb779c0f968169689125bda92dae1eed`
-- Classification: Schema / data (P1)
-- Dependencies: `EV-01` (`CLOSED`, ADR-0011) and `TR-14` (`CLOSED`) — both satisfied.
-- Human gates: schema shape approved via ADR-0011; exact-target PlanetScale migration 0061 and production backfill approved by Amro Saleh on 2026-07-28 and completed against `amr-saleh-hotmail/miyar-v2/main`.
-- Completed: 2026-07-28
+- Started: 2026-07-29
+- Base: canonical `origin/main` at `83cae7864204787b183e046cdfb7dfe8c2254c6a`
+- Worktree: `/Users/amrosaleh/Maiyar/miyar-v2-ev03-material-consolidation`
+- Branch: `codex/ev03-material-consolidation`
+- Classification: Critical — schema/data/engine/report/scoring cutover
+- Dependencies: `EV-02` (`CLOSED`, production migration/backfill `PASS`)
 
 ## Goal
 
-Implement the ADR-0011 evidence/price-observation model as a safe, additive, expand-phase schema, with an idempotent backfill and a resolver read-API — changing only where numbers are read from, never any value.
-
-## Scope (from ADR-0011 and `docs/artifacts/EV-01_EVIDENCE_PRICE_MODEL.md` §3, §9)
-
-- New tables: `product` (identity), `specification` (spec key), `supplier_quote` (org-scoped, confidential-by-default).
-- Extend `evidence_records` → price observation (`productId`, `specId`, `priceScope`, delivery/MOQ/lead-time, `observationKind`), keeping it append-only.
-- Extend `benchmark_proposals` → governed benchmark (`specId`, `sourceKind` `observed | assumption`, `supersedesId`).
-- Resolver read-API: `specification → single governed value` carrying its source-ladder rung.
-- Idempotent, reversible backfill: `material_library` → assumption governed values (labels preserved); `evidence_records` → observations; `materials_catalog` → deduped products.
+Make the EV-02 governed resolver the sole numerical authority for material
+prices while preserving canonical product/specification identity, deterministic
+quantity conversions, tenant-safe provenance, and truthful insufficiency across
+MQI, schedules, boards, scoring, RFQs, reports, PDF, and DOCX output.
 
 ## Acceptance Criteria
 
-- [x] Additive migrations only; every default leaves existing rows truthful; no value, weight, threshold, or benchmark changes.
-- [x] Observations and quotes append-only; original evidence preserved.
-- [x] Uniqueness, unit, date, currency, org/global-scope, and confidentiality constraints per ADR-0011 §5.
-- [x] Product/specification identity and assumption migration use deterministic, versioned policies and exact decimal arithmetic.
-- [x] Resolver is organization-safe, uses an explicit `asOf` clock, follows the approved ladder, fails closed on ambiguity, and never serves raw observations.
-- [x] Legacy assumptions with unknown supply/install scope remain isolated and are available only through an explicitly labelled compatibility fallback.
-- [x] Backfill defaults to dry-run, refuses protected targets, runs twice with identical results, emits a rollback manifest, and restores the exact legacy state.
-- [x] Safe-target migration + restore rehearsal pass on disposable MySQL with representative legacy data.
-- [x] Full gate battery passes: check, DB-free suite, guarded MySQL with regenerated TR03H evidence, authorization, DB-safety, build, critical-workflow certification, diff review, and independent Sol review.
+- [x] All authoritative material-price consumers resolve through one typed,
+      server-internal batch facade over the EV-02 resolver; no parallel ranking
+      logic or public resolver route exists.
+- [x] Eligible legacy assumptions retain byte-equivalent AED min/mid/max values
+      only through the explicitly labelled unknown-scope compatibility path.
+- [x] MQI/material summaries request `supply_only`; RFQs request
+      `supply_and_install`; reports inherit scope; no scope is inferred or mixed.
+- [x] Optional explicit project price geography selects emirate then UAE;
+      missing legacy geography uses UAE and descriptive location text is never
+      treated as an emirate.
+- [x] Paint quantities use only an approved, versioned coverage profile or the
+      owner-approved fallback (10 m2/L/coat, two coats, 10% waste), with exact
+      inputs snapshotted and actual supplier pack sizes used for purchasing.
+- [x] Non-compatible units and the 43 EV-02 unresolved rows fail closed; missing
+      values never become AED 0 or enter issued/scoring totals.
+- [x] Durable calculation rows retain canonical product/specification identity,
+      resolution state, explicit clock/version, safe provenance, and truthful
+      historical `legacy_unverified` state without reconstructed provenance.
+- [x] Board catalog prices are browse-only estimates and cannot enter
+      authoritative scoring, RFQ, or issued totals without a governed value.
+- [x] Material RFQ lines contain no hard-coded unit rates; non-material fees
+      remain numerically unchanged in labelled, versioned policy constants.
+- [x] Internal confidential provenance is separated from presentation/public
+      provenance and cross-organization/private quote data cannot leak.
+- [x] Static guards forbid authoritative reads of legacy price columns,
+      sustainability `material_constants.costPerM2`, stale snapshots, and
+      hard-coded material rates outside explicit compatibility/backfill areas.
+- [x] The additive-plus-backward-compatible-nullability migration and
+      deterministic identity-only backfill pass dry-run, idempotency,
+      two-connection concurrency, restore, and dependency checks on disposable
+      MySQL.
+- [ ] Targeted tests, safe full suite, TypeScript, authorization/database audits,
+      build, workflow certification, rendered report inspection, authenticated
+      browser checks, complete diff review, and fresh independent Sol and Claude
+      reviews pass.
 
-## Retry and Approval Boundary
+## Implementation Evidence
 
-- Retry budget: three evidence-based attempts per failure class.
-- Allowed: local additive migrations, disposable-MySQL verification, reversible backfill rehearsal, scoped local commits.
-- Stop before: push, pull request, shared/production migration or backfill, deployment, external publication, or any numerical-policy change.
+- Focused resolver, RFQ, and canonical-allocation regression suite: 36/36
+  passed.
+- Database-free suite: 1,784 passed with 22 skipped after the final
+  provider-runner remediation.
+- Guarded disposable MySQL suite: 65/65 passed, including migration 0062,
+  exact compatibility for all 242 eligible EV-02 assumptions, identity
+  backfill/recovery/idempotency, malformed paint profiles, two-connection
+  source/target backfill races, stale-geography standalone/report RFQ races,
+  stale bulk-MQI revision/geography rejection, and orphan/private/category
+  identity rejection.
+  No provider-bound shared/production rehearsal has been executed.
+- TypeScript, material-price authority (16 calculation paths), authorization inventory (390/0),
+  database-safety audit (138/2/0), report certification (23/23), workflow
+  certification, production build, and bundle budgets pass.
+- Public application shell and console pass in the in-app browser. The
+  authenticated project-form check could not run without a local session key
+  and application database; the equivalent project-geography persistence and
+  invalidation behavior passed against disposable MySQL.
+- The first release-readiness re-review rejected the provider-runner candidate:
+  production manifests were not sufficiently minimized, the wrapper nonce
+  lacked a mismatch-bound pair, comparison admitted hypothetical
+  organization-zero rows, and rollback/deployed-evidence claims exceeded their
+  verification. The corrected tree now uses recursively minimized manifests,
+  an exact-date CLI/environment nonce pair, a quote-free strict-global
+  comparison path, conservative later-write rollback rejection, and
+  independently parsed artifact/summary binding. Focused 59/59, disposable
+  MySQL 65/65, DB-free 1,784/22, TypeScript, audits, reports, workflow, build,
+  and bundle budgets pass. Earlier review approvals do not apply until the
+  corrected tree completes fresh Sol and Claude review. The final
+  documentation-corrected tree then received `APPROVED / NO OBJECTION` from the
+  independent MIYAR Sol reviewer and `APPROVED_NO_OBJECTION` from Claude Opus.
+- The first final Sol pass found seven blocking gaps in predictive authority,
+  RFQ report persistence, board identity/summary, provenance invalidation,
+  private-product concealment, request-specific compare mode, and empty
+  completeness. All seven were remediated and covered before the broad gates
+  above were rerun.
+- The second Sol pass found three further blockers: full reports could persist
+  incomplete material reconciliation, project geography changes did not
+  invalidate standalone draft RFQs, and compatibility labels were generic.
+  Full reports now reject incomplete coverage before persistence; RFQs have
+  explicit draft/issued/legacy lifecycle with draft-only invalidation; and MQI,
+  reconciliation, PDF, and DOCX use the exact “legacy scope-unknown
+  assumption” label.
+- A deeper Sol audit then found six release blockers: source-CAS safety,
+  in-flight RFQ revision safety, malformed paint fallback, full-report
+  reconciliation, invalid price bands, and overstated production-runner
+  evidence. All are remediated and covered by the final green gates above.
+- The final exact-tree Sol re-review additionally checked bulk-MQI
+  revision/geography CAS, canonical joined-product existence/category
+  validation, and the allocation-driven joinery boundary. It returned
+  `APPROVED / NO OBJECTION`.
+- Claude Opus then returned `CHANGES_REQUIRED` after identifying a
+  finish-schedule enum migration/schema mismatch. Its claim that EV-03
+  contracted the material-allocation wall enum was disproved against base
+  `83cae786` (that table already used `walls`), but the underlying
+  finish-schedule drift was real: a live report path emits `sanitaryware`.
+  Migration 0062 now preserves every legacy finish-schedule wall variant and
+  appends only `sanitaryware`; schema, snapshot, pinned migration digest, and a
+  regression contract agree. The corrected migration passed a fresh 65/65
+  disposable-MySQL run, 1,774/22 DB-free suite, TypeScript, build, and workflow
+  certification. The final exact-tree MIYAR reviewer returned
+  `APPROVED / NO OBJECTION`, and Claude Opus returned
+  `APPROVED_NO_OBJECTION`.
+
+## Next Authorized Action
+
+Complete the provider-bound release-runner remediation and re-certify the exact
+candidate. Then publish it for hosted review before the first shared write.
+The owner has authorized the ordered EV-03 release package for
+`amr-saleh-hotmail/miyar-v2/main`: backup, migration 0062, dry-run and
+fingerprint-bound identity backfill, recovery proof, explicit legacy
+deployment, live comparison evidence, compare observation, digest-bound
+governed cutover, Git publication, merge, and deployment. Production remains
+on the legacy path until those gates pass in order.
+
+## Approved Decisions
+
+- Legacy scope: labelled compatibility fallback; never guess supply/install.
+- Consumer scope: MQI/material summaries `supply_only`; RFQ
+  `supply_and_install`.
+- Geography: optional explicit emirate; missing/legacy falls back to UAE.
+- Boards: `materials_catalog` prices are browse-only estimates.
+- Paint fallback: 10 m2/L per coat, two coats, 10% application waste; approved
+  product technical-data profiles override; litres canonical.
 
 ## Non-Goals
 
-- Cutting MQI / reconciliation / RFQ / reports over to the resolver — that is `EV-03`, where `material_library`'s single-writer dead-end is actually closed. EV-02 only builds the shape.
-- Changing any AED value, tier threshold, scoring weight, or benchmark (cost-consultant gate).
-- Applying migrations to shared/production databases without explicit exact-target authorization.
+- Do not approve or map the 43 ambiguous EV-02 rows.
+- Do not change an AED value, scoring weight, tier threshold, or benchmark.
+- Do not delete legacy material tables/columns; contraction is a later step.
+- Do not reorder or bypass the authorized release gates. Stop if the exact
+  target, migration digest, candidate commit, live evidence digest, or recovery
+  fingerprints diverge from the approved package.
 
-## Notes
+## Execution and Recovery
 
-- Canonical treatments are fixed by ADR-0011 §5: VAT-exclusive; `supply_only`/`supply_and_install` never mixed; emirate geography; the approved source ladder (quote › official stat › consultancy › market-obs benchmark › retail-only sanity › assumption); waste excluded; 3-year observation retention.
-- Any ADR-0011 §7 ruling may still be amended by a superseding ADR before implementation locks it in.
-- Release evidence: migration SHA-256 `06ce9d537ed5593252234ed44271a5f50ff202b8f67adc3c20ab3fb1ba1691aa` deployed additively through PlanetScale requests #10–#15 after successful backup `lts2fnegcfej`; all requests are `complete`. PR #52 merged the PlanetScale bulk apply/rollback path as `7dbddf2` after hosted CI and independent MIYAR Sol review passed.
-- Production backfill applied at `2026-07-28T20:34:26.493Z`: 2,957 products, 24 specifications, 242 unknown-scope governed assumptions, 2,957 legacy links, and 43 explicit insufficiencies (37 unknown unit basis; six incomplete price ranges). A second dry-run inserted zero rows. All links resolve, duplicate/dangling checks are zero, and the 285-row legacy numeric SHA-256 remains `4857602ad093bfb3fe54f095b03cd1ebc8a1fd88f3c3fdffd2d7542f8c8ba31a`.
-- Recovery manifest: owner-only `/Users/amrosaleh/.miyar/recovery/ev02-production-backfill-20260728.json`; production rollback additionally requires a verified write-quiescent window. `EV-03` remains the next executable step and owns calculation-consumer cutover.
+- Retry budget: three evidence-based attempts per unchanged failure class.
+- Every long-running command requires an explicit timeout or tool bound.
+- Sequence: freeze/publish candidate and pass review gates -> backup -> additive
+  schema -> production identity-only dry-run and inspect -> fingerprint-bound
+  production apply -> post-apply zero-action/idempotency and sealed recovery
+  manifest verification -> explicit legacy-mode application deployment ->
+  provider-bound live comparison evidence -> compare-mode observation ->
+  evidence-digest-bound governed cutover -> production smoke/observation ->
+  legacy-read prohibition.
+- Recovery clears only EV-03-owned fields after fingerprint and inbound
+  dependency checks and refuses when later writes are not old-code representable.
+
+## Human Gates
+
+- Mapping approval for any ambiguous legacy category/unit remains required; no
+  ambiguous row is approved by the release authorization.
+- Shared/production migration and identity backfill: approved by Amro Saleh on
+  2026-07-29 for the exact target and ordered EV-03 release package.
+- Comparison deployment, governed cutover, Git publication, merge, and
+  deployment: approved by Amro Saleh on 2026-07-29.
+- Any newly discovered numerical-policy change.
+
+## Release Preflight
+
+- PlanetScale OAuth is authenticated to `amr-saleh-hotmail`; the stale
+  machine-local service-token file is not used.
+- Canonical `origin/main` remains exact base `83cae786`.
+- No production or remote mutation occurred during preflight.
+- Release-runner data-minimization, attestation binding, strict-global
+  comparison, rollback compatibility, and artifact verification gaps are
+  remediated and locally re-certified. Fresh exact-tree Sol and Claude reviews
+  pass. Freeze and publish the immutable candidate for hosted checks before the
+  first shared write.
+
+## Baseline
+
+- Focused resolver/MQI/RFQ/reconciliation suite on the pre-worktree checkout:
+  6 files, 35 tests passed on 2026-07-29.
+- PR #53 merged as canonical `main` commit `83cae78`; re-inventory is required
+  before implementing the facade.

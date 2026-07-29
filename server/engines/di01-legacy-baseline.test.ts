@@ -18,6 +18,7 @@ import { calculateSurfaceAreas } from "./design/material-quantity-engine";
 import { parseDxf } from "./intake/dwg-parser";
 import { buildWorkflowSpaceMqiReconciliation } from "./report-reconciliation";
 import { getPricingArea } from "./area-utils";
+import { governedMaterialLibrarySnapshot } from "../../tests/fixtures/material-price-snapshots";
 
 describe("DI-01 provider-free legacy geometry baseline", () => {
   it("freezes the current residential template path", () => {
@@ -96,7 +97,13 @@ describe("DI-01 provider-free legacy geometry baseline", () => {
       projectFitOutAreaM2: 60,
       rooms: legacyStoredRooms,
       allocations: legacyLockedAllocations,
-      materialLibrary: legacyMaterialPrices,
+      priceSnapshots: legacyMaterialPrices.map(material =>
+        governedMaterialLibrarySnapshot({
+          legacyId: material.id,
+          priceMin: Number(material.priceAedMin),
+          priceMax: Number(material.priceAedMax),
+        })
+      ),
     });
     expect(result.spaceProgram).toMatchObject({ fitOutRoomAreaM2: 60, reconciles: true });
     expect(result.allocations).toMatchObject({ lockedRowCount: 2, lockedGroupCount: 1, allGroupsPass100Pct: true });

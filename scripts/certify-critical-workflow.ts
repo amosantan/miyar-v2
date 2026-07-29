@@ -16,6 +16,8 @@ import { initializeDatabaseSafety } from "../server/_core/database-safety";
 import {
   TR13_EXPECTED_RECONCILIATION,
   TR13_WORKFLOW_FIXTURE_VERSION,
+  tr13GovernedPricingEnvironment,
+  tr13GovernedSnapshotFromLiveRow,
 } from "../tests/fixtures/workflows/tr13-workflow-fixtures";
 import {
   assertTr13WorkflowEnvironment,
@@ -201,7 +203,13 @@ function assertIntegrationEvidence(evidence: JsonRecord): void {
       TR13_EXPECTED_RECONCILIATION.allocationSurfacesMatchFormula ||
     values.mqiTotalCostMin !== TR13_EXPECTED_RECONCILIATION.costAed.min ||
     values.mqiTotalCostMid !== TR13_EXPECTED_RECONCILIATION.costAed.mid ||
-    values.mqiTotalCostMax !== TR13_EXPECTED_RECONCILIATION.costAed.max
+    values.mqiTotalCostMax !== TR13_EXPECTED_RECONCILIATION.costAed.max ||
+    values.mqiPriceCoverage?.priced !==
+      TR13_EXPECTED_RECONCILIATION.priceCoverage.priced ||
+    values.mqiPriceCoverage?.unpriced !==
+      TR13_EXPECTED_RECONCILIATION.priceCoverage.unpriced ||
+    values.mqiPriceCoverage?.state !==
+      TR13_EXPECTED_RECONCILIATION.priceCoverage.state
   )
     fail("Real-MySQL numerical reconciliation is incomplete");
 }
@@ -257,7 +265,13 @@ function collectFinalEvidence() {
     runtimeReconciliation?.costAed?.mid !==
       TR13_EXPECTED_RECONCILIATION.costAed.mid ||
     runtimeReconciliation?.costAed?.max !==
-      TR13_EXPECTED_RECONCILIATION.costAed.max
+      TR13_EXPECTED_RECONCILIATION.costAed.max ||
+    runtimeReconciliation?.priceCoverage?.priced !==
+      TR13_EXPECTED_RECONCILIATION.priceCoverage.priced ||
+    runtimeReconciliation?.priceCoverage?.unpriced !==
+      TR13_EXPECTED_RECONCILIATION.priceCoverage.unpriced ||
+    runtimeReconciliation?.priceCoverage?.state !==
+      TR13_EXPECTED_RECONCILIATION.priceCoverage.state
   )
     fail("Real-appRouter Node/serverless runtime matrix is incomplete");
   if (
@@ -307,7 +321,8 @@ function collectFinalEvidence() {
     browser.createdProjectId !== browser.criticalWorkflowProjectId ||
     browser.sameProjectThroughoutCriticalJourney !== true ||
     browser.structuredBriefGeneratedThroughApi !== true ||
-    browser.storedFullReportGeneratedThroughApi !== true ||
+    browser.insufficientFullReportRejectedThroughApi !== true ||
+    browser.storedValidationSummaryGeneratedThroughApi !== true ||
     browser.aiAdvisorSharePrerequisite !== "synthetic-browser-fixture" ||
     browser.aiAdvisorGenerationCertifiedInVitestMysqlRouter !== true
   ) {
@@ -462,7 +477,10 @@ function writeManifest(input: {
     artifactBoundary: {
       structuredBrief: "design.generateBrief",
       publicAiAdvisorBrief: "designAdvisor.generateDesignBrief",
-      storedReport: "project.generateReport full_report",
+      governedStoredReport:
+        "project.generateReport full_report (guarded real-MySQL runtime matrix)",
+      browserStoredReport:
+        "project.generateReport validation_summary plus full_report insufficiency rejection",
       publicLinkExposes:
         "AI-advisor brief only; it does not expose the structured brief or stored report",
     },
@@ -550,6 +568,50 @@ if (child && provenance) {
       child,
       commands
     );
+    initializeDatabaseSafety("integration-test", {
+      databaseUrl: child.DATABASE_URL!,
+      loadDotenv: false,
+      nodeEnv: "test",
+      runtimeProfile: "test",
+    });
+    const rolloutConnection = await mysql.createConnection(child.DATABASE_URL!);
+    try {
+      const [eligibleRows] = await rolloutConnection.query<any[]>(
+        `select ml.id as legacyId, ml.price_aed_min as priceMin,
+                ml.price_aed_max as priceMax, bp.productId,
+                bp.specId as specificationId, bp.id as benchmarkProposalId,
+                bp.benchmarkVersionId,
+                coalesce(bv.versionTag, 'legacy-unversioned-benchmark') as benchmarkVersion,
+                bp.provenancePolicyVersion, s.unitBasis, s.geography
+         from material_library ml
+         join benchmark_proposals bp
+           on bp.legacyMaterialLibraryId=ml.id and bp.productId=ml.product_id
+         join specification s on s.id=bp.specId
+         left join benchmark_versions bv on bv.id=bp.benchmarkVersionId
+         where ml.price_aed_min is not null and ml.price_aed_max is not null
+           and bp.productId is not null
+           and bp.sourceKind='assumption'
+           and bp.sourceLadderRung='assumption'
+           and bp.orgId is null and bp.priceScope is null
+           and bp.keyPolicyVersion='ev02-backfill-v1'
+           and bp.status='approved' and bp.recommendation='publish'
+         order by ml.id`
+      );
+      child = tr13GovernedPricingEnvironment(
+        child,
+        eligibleRows.map(row => ({
+          reference: {
+            source: "material_library" as const,
+            legacyId: Number(row.legacyId),
+          },
+          priceMin: String(row.priceMin),
+          priceMax: String(row.priceMax),
+        })),
+        eligibleRows.map(tr13GovernedSnapshotFromLiveRow)
+      );
+    } finally {
+      await rolloutConnection.end();
+    }
     run(
       "db-free-public-share-header-edge-cases",
       "pnpm",
@@ -609,7 +671,9 @@ if (child && provenance) {
   try {
     const finalProvenance = resolveTr13SourceProvenance(ROOT);
     if (!sameTr13SourceProvenance(provenance, finalProvenance)) {
-      throw new Error("Tracked or untracked source changed during certification");
+      throw new Error(
+        "Tracked or untracked source changed during certification"
+      );
     }
     provenanceVerification.finalMatchesStart = true;
   } catch (provenanceError) {

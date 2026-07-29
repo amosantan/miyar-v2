@@ -4,14 +4,59 @@ This is the canonical location for current observed repository facts. It is not 
 
 ## Observation Metadata
 
-- Observed: 2026-07-21; production source commit re-observed 2026-07-23 after the EV-01b release; EV-02 implementation, migration, and production backfill re-observed 2026-07-28. See the dated release sections below for prior deployments.
-- Production source commit: `63523a7` on canonical `main`, merging EV-01b PR #46. GitHub production deployment `5578419171` reached `success` for the exact merge SHA; production smoke passed (see the EV-01b Release Observation section). Its production schema migrations 0059–0060 were applied first via PlanetScale deploy request #9 (`complete`).
-- Branch identity: canonical `origin/main` is `2bce6a9`, whose lineage includes EV-01b (`63523a7`), the EV-01 ADR approval, the KF-019 TR-13 recertification (`8108268`), and the EV-00 cost-path release.
+- Observed: 2026-07-21; production source commit re-observed 2026-07-23 after the EV-01b release; EV-02 implementation, migration, and production backfill re-observed 2026-07-28; local EV-03 implementation and release preflight re-observed 2026-07-29. See the dated release sections below for prior deployments.
+- Production source lineage includes canonical `main` `83cae786`, which merged the EV-02 production record after migration 0061 and its governed backfill completed. See the dated EV-01b and EV-02 release sections for immutable deployment and data evidence.
+- Branch identity: canonical `origin/main` is `83cae7864204787b183e046cdfb7dfe8c2254c6a`; EV-03 is isolated on `codex/ev03-material-consolidation` from that exact base.
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
 - Production: Vercel target `dpl_BTcfrGZ6px4iHvJfiETrK8zP8s5F` is `READY` for exact source commit `b68c341`; BR-04 is compiled into the production workspace and narrowly enabled for organization 1 and consumer `project_workspace`. Root/login, three health observations, unauthenticated brief rejection, and concealed-share privacy headers pass.
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Roadmap state: `EV-02` is closed with production migration/backfill `PASS`; `EV-03` is the single next executable step. `BR-05` is closed, while `BR-06`, EV-00's residual cost-policy decisions, and EV-01b's per-source terms decisions remain `NEEDS_HUMAN`. `BR-04B`–`BR-04E` remain dependency-gated successors. `DI-01` remains merged and closed through canonical commit `ce5e44a`; its shared migration and production release remain separately gated. `SC-05` and UX-01's independent authenticated-production recheck remain `NEEDS_HUMAN`; `KF-018` remains a separate pre-existing legacy-report compatibility defect.
+- Roadmap state: `EV-02` is closed with production migration/backfill `PASS`; `EV-03` is `ACTIVE` and remains the single next executable step. The owner authorized the exact shared migration/backfill, comparison, digest-bound governed cutover, Git publication, merge, and deployment on 2026-07-29; ambiguous mappings remain unapproved. Release-runner remediation is locally green and awaits final exact-tree review before publication. `BR-05` is closed, while `BR-06`, EV-00's residual cost-policy decisions, and EV-01b's per-source terms decisions remain `NEEDS_HUMAN`. `BR-04B`–`BR-04E` remain dependency-gated successors. `DI-01` remains merged and closed through canonical commit `ce5e44a`; its shared migration and production release remain separately gated. `SC-05` and UX-01's independent authenticated-production recheck remain `NEEDS_HUMAN`; `KF-018` remains a separate pre-existing legacy-report compatibility defect.
+
+## EV-03 Local Implementation Observation
+
+- On 2026-07-29, fresh worktree
+  `/Users/amrosaleh/Maiyar/miyar-v2-ev03-material-consolidation` on
+  `codex/ev03-material-consolidation` implemented EV-03 from canonical
+  `83cae786`. No shared/production database, remote Git, or deployment mutation
+  was performed.
+- Migration 0062 (additive fields/table plus a backward-compatible
+  `lifecycleCost` nullability widening), the identity-only backfill/recovery path, one
+  server-internal resolution façade, truthful legacy/compare/governed rollout,
+  explicit project price geography, governed paint quantities, safe provenance,
+  nullable aggregate completeness, and the material-consumer cutover are present
+  in the local diff.
+- Verification passes: focused release-remediation regression 59/59;
+  database-free 1,784 passed with 22 skipped; guarded disposable MySQL 65/65
+  with all 242 eligible EV-02 assumptions byte-equal; TypeScript; material
+  authority across 16 calculation paths; authorization 390/0; database safety
+  138/2/0; report certification 23/23; workflow certification;
+  production build and bundle budgets; TR-13 workflow/browser certification;
+  and public browser/console inspection. The first final Sol review identified
+  seven cross-layer blockers; a second pass identified incomplete full-report
+  persistence, standalone RFQ lifecycle/invalidation, and generic compatibility
+  labels. A deeper Sol audit added six blockers covering source-CAS backfill,
+  RFQ input revisions, malformed paint profiles, full-report reconciliation,
+  invalid price bands, and production-runner truthfulness. Final follow-up
+  findings covering bulk-MQI revision/geography races and orphan/category-
+  mismatched canonical products were also remediated. Claude subsequently
+  identified finish-schedule enum schema/migration drift: the valid part was
+  repaired by preserving all legacy wall variants and explicitly appending
+  `sanitaryware` in migration 0062, its snapshot, schema, pinned digest, and
+  regression contract. A later release review found manifest minimization,
+  wrapper-attestation binding, strict-global comparison, rollback compatibility,
+  and produced-artifact binding gaps. Those are remediated; fresh 65/65
+  disposable MySQL, 1,784/22 DB-free, TypeScript, build, and workflow runs pass.
+  Claude Opus approved the corrected implementation. The
+  documentation-corrected exact tree then received `APPROVED / NO OBJECTION`
+  from the independent MIYAR Sol reviewer and `APPROVED_NO_OBJECTION` from
+  Claude Opus.
+- Authenticated project-form inspection was unavailable because this isolated
+  run intentionally had no application database or session key. Project
+  geography persistence, invalidation, and tenant boundaries passed against
+  disposable MySQL. The release actions are authorized but none has occurred;
+  the immutable candidate and hosted checks remain prerequisites to the first
+  shared write.
 
 ## EV-02 Implementation and Production Release Observation
 

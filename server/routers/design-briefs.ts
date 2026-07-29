@@ -31,13 +31,15 @@ import {
   type AllocationSlice,
   type AllocationResult as MqiAllocationResult,
 } from "../engines/design/material-quantity-engine";
+import {
+  resolveMaterialPriceSnapshots,
+  resolveProjectMaterialPriceGeography,
+} from "../engines/material-pricing/material-resolution";
 import { buildRFQFromBrief } from "../engines/design/rfq-generator";
 import { benchmarkSpaceRatios } from "../engines/design/space-benchmarking";
 import { buildSpaceProgram } from "../engines/design/space-program";
 import { getAreaSaleMedianSqm } from "../engines/dld-analytics";
 import { generateDesignBriefDocx } from "../engines/docx-brief";
-import { getLiveCategoryPricing } from "../engines/pricing-engine";
-import { mkt01TierToFinish } from "../engines/tier-policy";
 import { storagePut } from "../storage";
 
 import { bestEffortAudit, projectToInputs } from "./design-router-shared";
@@ -82,11 +84,6 @@ export const designBriefsRouter = router({
         },
       };
 
-      // Fetch live market pricing for the project's finish level.
-      // ADR-0009: the mapping is owned by the versioned tier policy
-      // (identical v1 values).
-      const targetFinish = mkt01TierToFinish(inputs.mkt01Tier);
-      const livePricing = await getLiveCategoryPricing(targetFinish);
       // Phase 3: Fetch material_constants for structural cost analytics
       const matConstants = await db.getMaterialConstants();
 
@@ -186,6 +183,11 @@ export const designBriefsRouter = router({
               materialName: alloc.materialName,
               percentage: Number(alloc.allocationPct),
               reasoning: alloc.aiReasoning || "",
+              explicitQuantity:
+                alloc.explicitQuantity === null
+                  ? null
+                  : Number(alloc.explicitQuantity),
+              explicitQuantityUnit: alloc.explicitQuantityUnit,
             };
             const el = alloc.element as
               | "floor"
@@ -201,11 +203,33 @@ export const designBriefsRouter = router({
             estimatedQualityLabel: "Stored",
           };
 
-          const materialLibrary = await db.getMaterialLibrary();
+          const resolverAsOf = new Date();
+          const materialReferences = Array.from(
+            new Set(
+              allocationResult.rooms.flatMap(room =>
+                [...room.floor, ...room.walls, ...room.ceiling, ...room.joinery]
+                  .map(slice => slice.materialLibraryId)
+                  .filter((id): id is number => id !== null)
+              )
+            )
+          ).map(legacyId => ({
+            source: "material_library" as const,
+            legacyId,
+          }));
+          const priceSnapshots = await resolveMaterialPriceSnapshots({
+            references: materialReferences,
+            organizationId: ctx.orgId,
+            priceScope: "supply_only",
+            requestedGeography: resolveProjectMaterialPriceGeography(
+              (project as any).materialPriceGeography
+            ),
+            asOf: resolverAsOf,
+            allowLegacyUnknownScope: true,
+          });
           mqiCostResult = buildQuantityCostSummary(
             surfaces,
             allocationResult,
-            materialLibrary as any,
+            priceSnapshots,
             {
               fin01BudgetCap: project.fin01BudgetCap
                 ? Number(project.fin01BudgetCap)
@@ -214,7 +238,11 @@ export const designBriefsRouter = router({
             }
           );
           console.log(
-            `[GenerateBrief] MQI data enrichment: ${mqiCostResult.rooms.length} rooms, mid cost AED ${mqiCostResult.summary.totalFinishCostMid.toFixed(0)}`
+            `[GenerateBrief] MQI data enrichment: ${mqiCostResult.rooms.length} rooms, mid cost ${
+              mqiCostResult.summary.totalFinishCostMid === null
+                ? "insufficient"
+                : `AED ${mqiCostResult.summary.totalFinishCostMid.toFixed(0)}`
+            }`
           );
         }
       } catch (e) {
@@ -228,7 +256,7 @@ export const designBriefsRouter = router({
         { name: project.name, description: project.description },
         inputs,
         scoreResult,
-        Object.keys(livePricing).length > 0 ? livePricing : undefined,
+        undefined,
         matConstants.length > 0 ? matConstants : undefined,
         areaSaleMedian, // DLD area median, replaces 25K fallback
         project.projectPurpose as any, // Purpose adjusts material tier
@@ -252,7 +280,7 @@ export const designBriefsRouter = router({
             materialSpecifications: briefData.materialSpecifications,
             boqFramework: {
               ...briefData.boqFramework,
-              pricingAnalytics: briefData.pricingAnalytics,
+              sustainabilityAnalytics: briefData.sustainabilityAnalytics,
             },
             detailedBudget: {
               ...briefData.detailedBudget,
@@ -348,22 +376,29 @@ export const designBriefsRouter = router({
           brief.designerInstructions as DesignBriefData["designerInstructions"],
       };
 
-      // 3. Fetch authoritative material_library rows for enrichment.
-      // ADR-0009: RFQ rates come from the authoritative cost table, whose
-      // category/tier vocabulary the RFQ section mapping actually matches;
-      // materials_catalog stays scrape-fed staging (its rows carried no
-      // priceAedMin/Max, so the former mapping priced almost everything 0).
+      // 3. Resolve one governed supply-and-install snapshot batch for this
+      // authorized project operation. Descriptive material rows provide
+      // identity/display data only; their legacy price columns are not read.
       const materials = await db.getMaterialLibrary();
       const materialList = materials.map((m) => ({
         id: m.id,
         name: m.productName || "",
         category: m.category || "",
-        tier: m.tier || "mid",
-        priceAedMin: m.priceAedMin ?? 0,
-        priceAedMax: m.priceAedMax ?? 0,
-        supplierName: m.supplierName || "TBD",
-        sourceType: m.sourceType,
       }));
+      const resolverAsOf = new Date();
+      const priceSnapshots = await resolveMaterialPriceSnapshots({
+        references: materialList.map(material => ({
+          source: "material_library" as const,
+          legacyId: material.id,
+        })),
+        organizationId: ctx.orgId,
+        priceScope: "supply_and_install",
+        requestedGeography: resolveProjectMaterialPriceGeography(
+          project.materialPriceGeography
+        ),
+        asOf: resolverAsOf,
+        allowLegacyUnknownScope: true,
+      });
 
       // 4. Generate RFQ from Brief
       const result = buildRFQFromBrief(
@@ -371,7 +406,8 @@ export const designBriefsRouter = router({
         ctx.orgId,
         briefData,
         input.briefId,
-        materialList
+        materialList,
+        priceSnapshots
       );
 
       if (result.items.length > 1000) {
@@ -385,6 +421,7 @@ export const designBriefsRouter = router({
           projectId: input.projectId,
           briefId: input.briefId,
           orgId: ctx.orgId,
+          materialPricingRevision: project.materialPricingRevision,
         })
       );
 
@@ -584,7 +621,6 @@ export const designBriefsRouter = router({
         materials: allMaterials,
         materialConstants: (materialConsts ?? []).map((c: any) => ({
           materialType: c.materialType,
-          costPerM2: Number(c.costPerM2),
           carbonIntensity: Number(c.carbonIntensity),
           sustainabilityGrade,
         })),

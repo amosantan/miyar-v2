@@ -1,4 +1,11 @@
 import { calculateSurfaceAreas } from "./design/material-quantity-engine";
+import {
+  MATERIAL_RESOLUTION_POLICY_VERSION,
+  type MaterialAggregateCoverage,
+  type MaterialPriceInsufficiencyReason,
+  type MaterialPriceSnapshot,
+} from "../../shared/material-calculations";
+import { resolveQuantityForUnitBasis } from "./material-pricing/quantity-policy";
 
 const RECONCILIATION_VERSION = "workflow-space-mqi-reconciliation-v1" as const;
 const SURFACE_FORMULA_VERSION = "mqi-surface-area-v1" as const;
@@ -23,15 +30,9 @@ export interface ReportMaterialAllocation {
   materialLibraryId: number | null;
   allocationPct: unknown;
   surfaceAreaM2: unknown;
+  explicitQuantity?: unknown;
+  explicitQuantityUnit?: "sqm" | "lm" | "piece" | "pack" | "litre" | null;
   isLocked: boolean;
-}
-
-export interface ReportMaterialLibraryPrice {
-  id: number;
-  priceAedMin: unknown;
-  priceAedMax: unknown;
-  /** ADR-0009 provenance class; absent rows are treated as MIYAR assumptions. */
-  sourceType?: unknown;
 }
 
 export interface WorkflowSpaceMqiReconciliation {
@@ -40,7 +41,7 @@ export interface WorkflowSpaceMqiReconciliation {
     "projects",
     "space_program_rooms",
     "material_allocations",
-    "material_library",
+    "governed_material_values",
   ];
   spaceProgram: {
     storedRoomCount: number;
@@ -80,16 +81,16 @@ export interface WorkflowSpaceMqiReconciliation {
   };
   materialCosts: {
     currency: "AED";
-    source: "material_library.priceAedMin/priceAedMax";
+    source: "EV-02 governed material-price resolver";
     pricedAllocationCount: number;
     unpricedAllocationCount: number;
     allAllocationsPriced: boolean;
-    min: number;
-    mid: number;
-    max: number;
-    /** ADR-0009: provenance basis of the priced library rows behind min/mid/max. */
+    min: number | null;
+    mid: number | null;
+    max: number | null;
+    coverage: MaterialAggregateCoverage;
     basis: {
-      policyVersion: "material-library-provenance-v1";
+      policyVersion: typeof MATERIAL_RESOLUTION_POLICY_VERSION;
       label: string;
       assumptionRowCount: number;
       observedRowCount: number;
@@ -114,13 +115,13 @@ function round2(value: number): number {
 /**
  * Builds the exact workflow/space/MQI values rendered by a full report.
  * This function is deterministic and never uses stored allocation cost fields:
- * authoritative AED bounds come only from material_library.
+ * authoritative AED bounds come only from governed EV-02 resolver snapshots.
  */
 export function buildWorkflowSpaceMqiReconciliation(input: {
   projectFitOutAreaM2: unknown;
   rooms: readonly ReportSpaceProgramRoom[];
   allocations: readonly ReportMaterialAllocation[];
-  materialLibrary: readonly ReportMaterialLibraryPrice[];
+  priceSnapshots: readonly MaterialPriceSnapshot[];
 }): WorkflowSpaceMqiReconciliation {
   const fitOutRooms = input.rooms.filter(room => room.isFitOut);
   const roomAreaM2 = round2(fitOutRooms.reduce(
@@ -207,54 +208,100 @@ export function buildWorkflowSpaceMqiReconciliation(input: {
       || left.roomName.localeCompare(right.roomName)
     );
 
-  const libraryById = new Map(input.materialLibrary.map(material => [material.id, material]));
+  const priceByLibraryId = new Map(
+    input.priceSnapshots
+      .filter(snapshot => snapshot.reference.source === "material_library")
+      .map(snapshot => [snapshot.reference.legacyId, snapshot]),
+  );
   let pricedAllocationCount = 0;
   let unpricedAllocationCount = 0;
   let min = 0;
   let max = 0;
-  const pricedMaterialIds = new Set<number>();
+  const reasons: MaterialAggregateCoverage["reasons"] = {};
+  const pricedSnapshotKeys = new Set<string>();
   for (const allocation of input.allocations) {
-    const material = allocation.materialLibraryId === null
+    const snapshot = allocation.materialLibraryId === null
       ? undefined
-      : libraryById.get(allocation.materialLibraryId);
-    const priceMin = finiteNumber(material?.priceAedMin);
-    const priceMax = finiteNumber(material?.priceAedMax);
-    if (material === undefined || priceMin === null || priceMax === null) {
+      : priceByLibraryId.get(allocation.materialLibraryId);
+    let insufficiencyReason: MaterialPriceInsufficiencyReason | undefined;
+    if (snapshot === undefined) {
+      insufficiencyReason = "identity_not_found";
+    } else if (snapshot.state === "insufficient") {
+      insufficiencyReason = snapshot.reason;
+    }
+    const quantity = snapshot?.state === "resolved"
+      ? resolveQuantityForUnitBasis({
+          unitBasis: snapshot.unitBasis,
+          surfaceAreaM2:
+            allocation.element === "floor" ||
+            allocation.element === "walls" ||
+            allocation.element === "ceiling"
+              ? numberOrZero(allocation.surfaceAreaM2)
+              : undefined,
+          explicitQuantity:
+            allocation.explicitQuantity === undefined ||
+            allocation.explicitQuantity === null
+              ? undefined
+              : numberOrZero(allocation.explicitQuantity),
+          explicitQuantityUnit:
+            allocation.explicitQuantityUnit ?? undefined,
+          paintCoverageState: snapshot.paintCoverageState,
+          paintCoverageProfile: snapshot.paintCoverageProfile
+            ? { status: "approved", ...snapshot.paintCoverageProfile }
+            : undefined,
+          asOf: new Date(snapshot.resolverAsOf),
+        })
+      : undefined;
+    if (quantity?.state === "insufficient") {
+      insufficiencyReason = quantity.reason;
+    }
+    if (snapshot?.state !== "resolved" || quantity?.state !== "resolved") {
       unpricedAllocationCount += 1;
+      const reason = insufficiencyReason ?? "no_governed_value";
+      reasons[reason] = (reasons[reason] ?? 0) + 1;
       continue;
     }
-    const areaM2 = numberOrZero(allocation.surfaceAreaM2);
     pricedAllocationCount += 1;
-    pricedMaterialIds.add(material.id);
-    min += areaM2 * priceMin;
-    max += areaM2 * priceMax;
+    pricedSnapshotKeys.add(`${snapshot.productId}:${snapshot.specificationId}`);
+    min += quantity.quantity * Number(snapshot.priceMin);
+    max += quantity.quantity * Number(snapshot.priceMax);
   }
   min = round2(min);
   max = round2(max);
 
-  // ADR-0009: classify the priced rows' provenance so the rendered report can
-  // label the basis of these totals. Observed = market observation or supplier
-  // quote; everything else (including legacy rows without the column) is an
-  // explicit MIYAR assumption.
   let assumptionRowCount = 0;
+  let legacyCompatibilityRowCount = 0;
   let observedRowCount = 0;
-  for (const materialId of Array.from(pricedMaterialIds)) {
-    const material = libraryById.get(materialId);
-    const sourceType = typeof material?.sourceType === "string"
-      ? material.sourceType
-      : "miyar_assumption";
-    if (sourceType === "market_observation" || sourceType === "supplier_quote") {
-      observedRowCount += 1;
-    } else {
+  for (const snapshot of input.priceSnapshots) {
+    if (
+      snapshot.state !== "resolved"
+      || !pricedSnapshotKeys.has(`${snapshot.productId}:${snapshot.specificationId}`)
+    ) continue;
+    if (snapshot.provenance.sourceLadderRung === "assumption") {
       assumptionRowCount += 1;
-    }
+      if (snapshot.provenance.compatibilityFallback) {
+        legacyCompatibilityRowCount += 1;
+      }
+    } else observedRowCount += 1;
   }
+  const ordinaryAssumptionRowCount =
+    assumptionRowCount - legacyCompatibilityRowCount;
+  const pricedRowCount = assumptionRowCount + observedRowCount;
   const basisLabel =
-    observedRowCount === 0
-      ? "MIYAR assumption"
-      : assumptionRowCount === 0
-        ? "Observed market data"
-        : "Mixed (MIYAR assumption + observed)";
+    legacyCompatibilityRowCount === pricedRowCount
+      && legacyCompatibilityRowCount > 0
+      ? "Legacy scope-unknown assumption"
+      : legacyCompatibilityRowCount > 0
+        ? `Mixed (${[
+          "legacy scope-unknown assumption",
+          ordinaryAssumptionRowCount > 0 ? "MIYAR assumption" : null,
+          observedRowCount > 0 ? "observed" : null,
+        ].filter(Boolean).join(" + ")})`
+        : observedRowCount === 0
+          ? "MIYAR assumption"
+          : assumptionRowCount === 0
+            ? "Observed market data"
+            : "Mixed (MIYAR assumption + observed)";
 
   return {
     version: RECONCILIATION_VERSION,
@@ -262,7 +309,7 @@ export function buildWorkflowSpaceMqiReconciliation(input: {
       "projects",
       "space_program_rooms",
       "material_allocations",
-      "material_library",
+      "governed_material_values",
     ],
     spaceProgram: {
       storedRoomCount: input.rooms.length,
@@ -297,15 +344,29 @@ export function buildWorkflowSpaceMqiReconciliation(input: {
     },
     materialCosts: {
       currency: "AED",
-      source: "material_library.priceAedMin/priceAedMax",
+      source: "EV-02 governed material-price resolver",
       pricedAllocationCount,
       unpricedAllocationCount,
       allAllocationsPriced: input.allocations.length > 0 && unpricedAllocationCount === 0,
-      min,
-      mid: round2((min + max) / 2),
-      max,
+      min: unpricedAllocationCount === 0 && input.allocations.length > 0 ? min : null,
+      mid: unpricedAllocationCount === 0 && input.allocations.length > 0
+        ? round2((min + max) / 2)
+        : null,
+      max: unpricedAllocationCount === 0 && input.allocations.length > 0 ? max : null,
+      coverage: {
+        state:
+          input.allocations.length === 0 || pricedAllocationCount === 0
+            ? "insufficient"
+            : unpricedAllocationCount === 0
+              ? "complete"
+              : "partial",
+        totalItemCount: input.allocations.length,
+        pricedItemCount: pricedAllocationCount,
+        insufficientItemCount: unpricedAllocationCount,
+        reasons,
+      },
       basis: {
-        policyVersion: "material-library-provenance-v1",
+        policyVersion: MATERIAL_RESOLUTION_POLICY_VERSION,
         label: basisLabel,
         assumptionRowCount,
         observedRowCount,
