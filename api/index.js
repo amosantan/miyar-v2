@@ -154,6 +154,23 @@ function evaluateDatabaseAccess(input) {
   if (target.class === "absent") {
     return input.operation === "serve" ? decision(true, resolved2.profile, input.operation, resolved2.trustedDeployment, target, "DATABASE_DISABLED") : decision(false, resolved2.profile, input.operation, resolved2.trustedDeployment, target, "DATABASE_TARGET_REQUIRED");
   }
+  if (input.providerProxyDatabaseTarget !== void 0) {
+    const proxyTarget = inspectDatabaseTarget(`mysql://${input.providerProxyDatabaseTarget}`);
+    const approval2 = parseApproval(input.approval);
+    if (input.operation !== "migrate" || resolved2.profile !== "local" || target.class !== "safe-loopback" || proxyTarget.class !== "remote-shared" || !proxyTarget.canonical || target.database !== proxyTarget.database) {
+      return decision(false, resolved2.profile, input.operation, resolved2.trustedDeployment, target, "REMOTE_APPROVAL_INVALID");
+    }
+    if (!input.approval) {
+      return decision(false, resolved2.profile, input.operation, resolved2.trustedDeployment, target, "REMOTE_APPROVAL_REQUIRED");
+    }
+    if (!approval2) {
+      return decision(false, resolved2.profile, input.operation, resolved2.trustedDeployment, target, "REMOTE_APPROVAL_INVALID");
+    }
+    if (approval2.target !== proxyTarget.canonical) {
+      return decision(false, resolved2.profile, input.operation, resolved2.trustedDeployment, target, "REMOTE_APPROVAL_MISMATCH");
+    }
+    return approval2.operations.has(input.operation) ? decision(true, resolved2.profile, input.operation, resolved2.trustedDeployment, target, "REMOTE_APPROVAL_ALLOWED") : decision(false, resolved2.profile, input.operation, resolved2.trustedDeployment, target, "REMOTE_APPROVAL_INVALID");
+  }
   if (target.class === "safe-loopback") {
     const safeName = resolved2.profile === "test" ? target.database?.startsWith("miyar_test") || target.database?.startsWith("miyar_auth_test") : target.database?.startsWith("miyar_local") || target.database?.startsWith("miyar_dev");
     return safeName ? decision(true, resolved2.profile, input.operation, resolved2.trustedDeployment, target, "SAFE_LOOPBACK_ALLOWED") : decision(false, resolved2.profile, input.operation, resolved2.trustedDeployment, target, "LOCAL_DATABASE_NAME_INVALID");
@@ -201,7 +218,8 @@ function buildRuntimeContext(operation, options) {
     vercelEnv: options.vercelEnv ?? spawnedSafetyEnvironment.VERCEL_ENV,
     vercelUrl: options.vercelUrl ?? spawnedSafetyEnvironment.VERCEL_URL,
     approval: options.approval ?? spawnedSafetyEnvironment.MIYAR_DATABASE_APPROVAL,
-    deploymentDatabaseTarget: options.deploymentDatabaseTarget ?? spawnedSafetyEnvironment.MIYAR_DEPLOYMENT_DATABASE_TARGET
+    deploymentDatabaseTarget: options.deploymentDatabaseTarget ?? spawnedSafetyEnvironment.MIYAR_DEPLOYMENT_DATABASE_TARGET,
+    providerProxyDatabaseTarget: options.providerProxyDatabaseTarget
   };
   delete process.env.MIYAR_DATABASE_APPROVAL;
   return Object.freeze(context3);
@@ -24718,8 +24736,8 @@ import { and as and2, eq as eq3, inArray as inArray2, isNotNull as isNotNull2, i
 function isGlobalGovernedCandidateScope(candidate2) {
   return candidate2.orgId === null && candidate2.supplierQuoteId === null && candidate2.sourceLadderRung !== "supplier_quote" && (candidate2.productId === null || candidate2.joinedProductId === candidate2.productId && candidate2.productOrgId === null);
 }
-async function listApprovedPaintCoverageProfiles(input) {
-  const db = await getDb();
+async function listApprovedPaintCoverageProfiles(input, database4) {
+  const db = database4 ?? await getDb();
   if (!db) throw new Error("DB not available");
   const productIds = Array.from(new Set(input.productIds));
   if (productIds.length === 0) return [];
@@ -24768,8 +24786,8 @@ async function listApprovedPaintCoverageProfiles(input) {
     packSizesLitres: Array.isArray(row.packSizesLitres) ? row.packSizesLitres.map(String) : []
   }));
 }
-async function listMaterialResolutionIdentitiesWithScope(input) {
-  const db = await getDb();
+async function listMaterialResolutionIdentitiesWithScope(input, database4) {
+  const db = database4 ?? await getDb();
   if (!db) throw new Error("DB not available");
   const rows = [];
   const libraryIds = Array.from(new Set(input.materialLibraryIds ?? []));
@@ -24900,8 +24918,8 @@ async function listLegacyCompatibilityPriceRows(materialLibraryIds) {
   }
   return Array.from(unique.values());
 }
-async function listMaterialResolutionSpecifications(input) {
-  const db = await getDb();
+async function listMaterialResolutionSpecifications(input, database4) {
+  const db = database4 ?? await getDb();
   if (!db) throw new Error("DB not available");
   if (input.categories.length === 0 || input.finishLevels.length === 0 || input.unitBases.length === 0 || input.geographies.length === 0) {
     return [];
@@ -24921,8 +24939,8 @@ async function listMaterialResolutionSpecifications(input) {
     )
   );
 }
-async function listGovernedValueCandidatesForSpecificationsWithScope(input) {
-  const db = await getDb();
+async function listGovernedValueCandidatesForSpecificationsWithScope(input, database4) {
+  const db = database4 ?? await getDb();
   if (!db) throw new Error("DB not available");
   const specIds = Array.from(new Set(input.specIds));
   if (specIds.length === 0) return [];
@@ -25181,6 +25199,7 @@ function resolveGovernedMaterialValueFromCandidates(input, candidates) {
 }
 
 // server/engines/material-pricing/rollout-comparison.ts
+init_database_safety();
 import { createHash as createHash3 } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
@@ -25812,7 +25831,10 @@ function resolveMaterialPriceSnapshotsFromRows(input) {
 async function resolveGovernedMaterialPriceSnapshots(input, options = { globalOnly: false }) {
   const materialLibraryIds = input.references.filter((reference2) => reference2.source === "material_library").map((reference2) => reference2.legacyId);
   const materialCatalogIds = input.references.filter((reference2) => reference2.source === "materials_catalog").map((reference2) => reference2.legacyId);
-  const identities = await (options.globalOnly ? listGlobalMaterialResolutionIdentities({
+  const identities = await (options.evidenceDataSource ? options.evidenceDataSource.listIdentities({
+    materialLibraryIds,
+    materialCatalogIds
+  }) : options.globalOnly ? listGlobalMaterialResolutionIdentities({
     materialLibraryIds,
     materialCatalogIds
   }) : listMaterialResolutionIdentities({
@@ -25823,7 +25845,7 @@ async function resolveGovernedMaterialPriceSnapshots(input, options = { globalOn
   const geographies = Array.from(
     /* @__PURE__ */ new Set([input.requestedGeography, "uae"])
   );
-  const specifications2 = await listMaterialResolutionSpecifications({
+  const specificationInput = {
     categories: Array.from(new Set(mapped.map((row) => row.canonicalCategory))),
     finishLevels: Array.from(
       new Set(
@@ -25836,8 +25858,11 @@ async function resolveGovernedMaterialPriceSnapshots(input, options = { globalOn
       )
     ),
     geographies
-  });
-  const candidates = await (options.globalOnly ? listGlobalGovernedValueCandidatesForSpecifications({
+  };
+  const specifications2 = await (options.evidenceDataSource ? options.evidenceDataSource.listSpecifications(specificationInput) : listMaterialResolutionSpecifications(specificationInput));
+  const candidates = await (options.evidenceDataSource ? options.evidenceDataSource.listCandidates({
+    specIds: specifications2.map((specification) => specification.id)
+  }) : options.globalOnly ? listGlobalGovernedValueCandidatesForSpecifications({
     specIds: specifications2.map((specification) => specification.id)
   }) : listGovernedValueCandidatesForSpecifications({
     specIds: specifications2.map((specification) => specification.id),
@@ -25853,12 +25878,13 @@ async function resolveGovernedMaterialPriceSnapshots(input, options = { globalOn
   const litreSnapshots = snapshots.filter(
     (snapshot) => snapshot.state === "resolved" && snapshot.unitBasis === "per_litre"
   );
-  const coverageProfiles = await listApprovedPaintCoverageProfiles({
+  const coverageInput = {
     productIds: litreSnapshots.map(
       (snapshot) => snapshot.state === "resolved" ? snapshot.productId : void 0
     ).filter((productId) => productId !== void 0),
     asOf: input.asOf
-  });
+  };
+  const coverageProfiles = await (options.evidenceDataSource ? options.evidenceDataSource.listCoverageProfiles(coverageInput) : listApprovedPaintCoverageProfiles(coverageInput));
   return attachPaintCoverageProfiles(snapshots, coverageProfiles);
 }
 function legacyCompatibilitySnapshots(input) {
