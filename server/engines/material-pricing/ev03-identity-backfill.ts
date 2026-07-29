@@ -1148,19 +1148,166 @@ export async function lockEv03IdentityBackfillDependencies(
   }
 }
 
-async function loadOneRow(
+async function loadRowsByIds(
   connection: QueryConnection,
   table: IdentityTable,
-  id: number
-): Promise<Ev03SourceRow> {
+  ids: readonly number[]
+): Promise<Map<number, Ev03SourceRow>> {
+  const uniqueIds = Array.from(new Set(ids)).sort((a, b) => a - b);
+  if (uniqueIds.length === 0) return new Map();
   const [rows] = await connection.query<RowDataPacket[]>({
-    sql: `select * from \`${table}\` where id=?`,
-    values: [id],
+    sql: `select * from \`${table}\`
+      where id in (${uniqueIds.map(() => "?").join(",")})
+      order by id`,
+    values: uniqueIds,
     timeout: EV03_QUERY_TIMEOUT_MS,
   });
-  if (rows.length !== 1)
-    throw new Error(`EV-03 source row missing: ${table} ${id}`);
-  return { ...rows[0], id: Number(rows[0].id) };
+  if (
+    rows.length !== uniqueIds.length ||
+    rows.some((row, index) => Number(row.id) !== uniqueIds[index])
+  ) {
+    throw new Error(`EV-03 source rows missing from ${table}`);
+  }
+  return new Map(
+    rows.map(row => [Number(row.id), { ...row, id: Number(row.id) }])
+  );
+}
+
+function assertUniqueIdentityActions(
+  actions: readonly Ev03IdentityAction[]
+): void {
+  const identities = new Set<string>();
+  for (const action of actions) {
+    const identity = `${action.table}:${action.id}`;
+    if (identities.has(identity)) {
+      throw new Error(`Duplicate EV-03 identity action: ${identity}`);
+    }
+    identities.add(identity);
+  }
+}
+
+async function applyIdentityActionBatch(
+  connection: QueryConnection,
+  table: IdentityTable,
+  actions: readonly Ev03IdentityAction[]
+): Promise<void> {
+  if (actions.length === 0) return;
+  const columns = tableContract(table);
+  const preserveLegacyUpdatedAt =
+    table === "material_allocations" ? ", `updatedAt`=`updatedAt`" : "";
+  const caseExpression = (
+    field: "productId" | "specId" | "stateAfter"
+  ): { sql: string; values: unknown[] } => ({
+    sql: actions.map(() => "when ? then ?").join(" "),
+    values: actions.flatMap(action => [action.id, action[field]]),
+  });
+  const product = caseExpression("productId");
+  const spec = caseExpression("specId");
+  const state = caseExpression("stateAfter");
+  const ids = actions.map(action => action.id);
+  const [result] = await connection.query({
+    sql: `update \`${table}\`
+      set \`${columns.product}\`=case id ${product.sql} else \`${columns.product}\` end,
+        \`${columns.spec}\`=case id ${spec.sql} else \`${columns.spec}\` end,
+        \`${columns.state}\`=case id ${state.sql} else \`${columns.state}\` end${preserveLegacyUpdatedAt}
+      where id in (${ids.map(() => "?").join(",")})
+        and \`${columns.product}\` is null
+        and \`${columns.spec}\` is null
+        and \`${columns.state}\`='legacy_unverified'`,
+    values: [...product.values, ...spec.values, ...state.values, ...ids],
+    timeout: EV03_QUERY_TIMEOUT_MS,
+  });
+  if (
+    Number((result as { affectedRows: number }).affectedRows) !== actions.length
+  ) {
+    throw new Error(`Concurrent EV-03 identity write detected in ${table}`);
+  }
+}
+
+async function assertExactDependenciesBatch(
+  connection: QueryConnection,
+  actions: readonly Ev03IdentityAction[]
+): Promise<void> {
+  for (const sourceTable of [
+    "material_library",
+    "materials_catalog",
+  ] as const) {
+    const sourceActions = actions
+      .filter(action => action.sourceTable === sourceTable)
+      .sort((left, right) => left.id - right.id);
+    if (sourceActions.length === 0) continue;
+    const sourceProduct = sourceProductColumn(sourceTable);
+    const requestedRows = sourceActions
+      .map(
+        (_, index) =>
+          `${index === 0 ? "select" : "union all select"} ? as actionId, ? as specId, ? as sourceId, ? as productId`
+      )
+      .join(" ");
+    const [rows] = await connection.query<RowDataPacket[]>({
+      sql: `select requested.actionId
+        from (${requestedRows}) requested
+        join product p on p.id=requested.productId
+        join specification s
+          on s.id=requested.specId and s.policyVersion=?
+        join \`${sourceTable}\` source
+          on source.id=requested.sourceId
+          and source.\`${sourceProduct}\`=requested.productId
+        order by requested.actionId`,
+      values: [
+        ...sourceActions.flatMap(action => [
+          action.id,
+          action.specId,
+          action.sourceId,
+          action.productId,
+        ]),
+        EV02_SPEC_POLICY_VERSION,
+      ],
+      timeout: EV03_QUERY_TIMEOUT_MS,
+    });
+    if (
+      rows.length !== sourceActions.length ||
+      rows.some(
+        (row, index) => Number(row.actionId) !== sourceActions[index].id
+      )
+    ) {
+      throw new Error(`EV-03 rollback dependency diverged in ${sourceTable}`);
+    }
+  }
+}
+
+async function rollbackIdentityActionBatch(
+  connection: QueryConnection,
+  table: IdentityTable,
+  actions: readonly Ev03AppliedAction[]
+): Promise<void> {
+  if (actions.length === 0) return;
+  const columns = tableContract(table);
+  const preserveLegacyUpdatedAt =
+    table === "material_allocations" ? ", `updatedAt`=`updatedAt`" : "";
+  const predicates = actions
+    .map(
+      () =>
+        `(id=? and \`${columns.product}\`=? and \`${columns.spec}\`=? and \`${columns.state}\`=?)`
+    )
+    .join(" or ");
+  const [result] = await connection.query({
+    sql: `update \`${table}\`
+      set \`${columns.product}\`=null, \`${columns.spec}\`=null,
+        \`${columns.state}\`='legacy_unverified'${preserveLegacyUpdatedAt}
+      where ${predicates}`,
+    values: actions.flatMap(action => [
+      action.id,
+      action.productId,
+      action.specId,
+      action.stateAfter,
+    ]),
+    timeout: EV03_QUERY_TIMEOUT_MS,
+  });
+  if (
+    Number((result as { affectedRows: number }).affectedRows) !== actions.length
+  ) {
+    throw new Error(`EV-03 rollback failed in ${table}`);
+  }
 }
 
 function recoveryFingerprint(
@@ -1253,6 +1400,7 @@ export async function applyEv03IdentityBackfill(
   input: { databaseTarget: string; migrationFingerprint: string; now: Date }
 ): Promise<Ev03IdentityBackfillManifest> {
   const dryRunActions = assertEv03DryRunManifestIntegrity(dryRunManifest);
+  assertUniqueIdentityActions(dryRunActions);
   if (
     dryRunManifest.databaseTarget !== input.databaseTarget ||
     dryRunManifest.migrationFingerprint !== input.migrationFingerprint
@@ -1270,59 +1418,47 @@ export async function applyEv03IdentityBackfill(
     );
   }
 
-  const appliedActions: Ev03AppliedAction[] = [];
-  for (const action of dryRunManifest.actions) {
-    const columns = tableContract(action.table);
-    // material_allocations has a legacy ON UPDATE timestamp. Identity-only
-    // maintenance must not masquerade as a user/calculation edit.
-    const preserveLegacyUpdatedAt =
-      action.table === "material_allocations"
-        ? ", `updatedAt`=`updatedAt`"
-        : "";
-    const sourceProduct = sourceProductColumn(action.sourceTable);
-    const [result] = await connection.query({
-      sql: `update \`${action.table}\`
-        set \`${columns.product}\`=?, \`${columns.spec}\`=?, \`${columns.state}\`=?${preserveLegacyUpdatedAt}
-        where id=? and \`${columns.product}\` is null
-          and \`${columns.spec}\` is null
-          and \`${columns.state}\`='legacy_unverified'
-          and \`${action.sourceReferenceColumn}\`=?
-          and exists (
-            select 1 from \`${action.sourceTable}\` source
-            where source.id=? and source.\`${sourceProduct}\`=?
-          )
-          and exists (
-            select 1 from product p where p.id=?
-          )
-          and exists (
-            select 1 from specification s
-            where s.id=? and s.policyVersion=?
-          )`,
-      values: [
-        action.productId,
-        action.specId,
-        action.stateAfter,
-        action.id,
-        action.sourceId,
-        action.sourceId,
-        action.productId,
-        action.productId,
-        action.specId,
-        EV02_SPEC_POLICY_VERSION,
-      ],
-      timeout: EV03_QUERY_TIMEOUT_MS,
-    });
-    if (Number((result as { affectedRows: number }).affectedRows) !== 1) {
-      throw new Error(
-        `Concurrent EV-03 identity write detected: ${action.table} ${action.id}`
-      );
-    }
-    const after = await loadOneRow(connection, action.table, action.id);
-    appliedActions.push({
-      ...action,
-      afterRowFingerprint: fingerprintEv03Value(after),
-    });
+  const identityTables: readonly IdentityTable[] = [
+    "finish_schedule_items",
+    "material_allocations",
+    "materials_to_boards",
+  ];
+  // The canonical dependency locks plus the exact in-transaction re-plan above
+  // make these set-based CAS writes equivalent to the former per-row EXISTS
+  // checks while keeping the provider transaction below its duration limit.
+  for (const table of identityTables) {
+    await applyIdentityActionBatch(
+      connection,
+      table,
+      dryRunManifest.actions.filter(action => action.table === table)
+    );
   }
+  const afterRows = new Map<string, Ev03SourceRow>();
+  for (const table of identityTables) {
+    const actions = dryRunManifest.actions.filter(
+      action => action.table === table
+    );
+    const rows = await loadRowsByIds(
+      connection,
+      table,
+      actions.map(action => action.id)
+    );
+    rows.forEach((row, id) => afterRows.set(`${table}:${id}`, row));
+  }
+  const appliedActions: Ev03AppliedAction[] = dryRunManifest.actions.map(
+    action => {
+      const after = afterRows.get(`${action.table}:${action.id}`);
+      if (!after) {
+        throw new Error(
+          `EV-03 applied row missing: ${action.table} ${action.id}`
+        );
+      }
+      return {
+        ...action,
+        afterRowFingerprint: fingerprintEv03Value(after),
+      };
+    }
+  );
   const {
     recoveryFingerprint: _discardedRecoveryFingerprint,
     ...dryRunUnsigned
@@ -1338,33 +1474,6 @@ export async function applyEv03IdentityBackfill(
   };
   assertEv03ManifestSafety(appliedManifest);
   return appliedManifest;
-}
-
-async function assertExactDependency(
-  connection: QueryConnection,
-  action: Ev03AppliedAction
-): Promise<void> {
-  const sourceProduct = sourceProductColumn(action.sourceTable);
-  const [rows] = await connection.query<RowDataPacket[]>({
-    sql: `select p.id as productId, s.id as specId
-      from product p
-      join specification s on s.id=?
-      join \`${action.sourceTable}\` source
-        on source.id=? and source.\`${sourceProduct}\`=p.id
-      where p.id=? and s.policyVersion=?`,
-    values: [
-      action.specId,
-      action.sourceId,
-      action.productId,
-      EV02_SPEC_POLICY_VERSION,
-    ],
-    timeout: EV03_QUERY_TIMEOUT_MS,
-  });
-  if (rows.length !== 1) {
-    throw new Error(
-      `EV-03 rollback dependency diverged: ${action.table} ${action.id}`
-    );
-  }
 }
 
 async function assertNoEv03RecoveryConflict(
@@ -1454,39 +1563,44 @@ export async function rollbackEv03IdentityBackfill(
   databaseTarget: string
 ): Promise<void> {
   assertEv03ManifestIntegrity(manifest);
+  assertUniqueIdentityActions(manifest.actions);
   if (manifest.databaseTarget !== databaseTarget) {
     throw new Error("EV-03 rollback target does not match manifest");
   }
   await assertEv03RollbackCompatibility(connection, manifest.actions);
   await lockEv03IdentityBackfillDependencies(connection, manifest.actions);
 
-  for (const action of manifest.actions) {
-    const current = await loadOneRow(connection, action.table, action.id);
-    if (fingerprintEv03Value(current) !== action.afterRowFingerprint) {
-      throw new Error(
-        `EV-03 rollback refused after a later write: ${action.table} ${action.id}`
-      );
+  const identityTables: readonly IdentityTable[] = [
+    "finish_schedule_items",
+    "material_allocations",
+    "materials_to_boards",
+  ];
+  for (const table of identityTables) {
+    const actions = manifest.actions.filter(action => action.table === table);
+    const currentRows = await loadRowsByIds(
+      connection,
+      table,
+      actions.map(action => action.id)
+    );
+    for (const action of actions) {
+      const current = currentRows.get(action.id);
+      if (
+        !current ||
+        fingerprintEv03Value(current) !== action.afterRowFingerprint
+      ) {
+        throw new Error(
+          `EV-03 rollback refused after a later write: ${action.table} ${action.id}`
+        );
+      }
     }
-    await assertExactDependency(connection, action);
   }
+  await assertExactDependenciesBatch(connection, manifest.actions);
 
-  for (const action of [...manifest.actions].reverse()) {
-    const columns = tableContract(action.table);
-    const preserveLegacyUpdatedAt =
-      action.table === "material_allocations"
-        ? ", `updatedAt`=`updatedAt`"
-        : "";
-    const [result] = await connection.query({
-      sql: `update \`${action.table}\`
-        set \`${columns.product}\`=null, \`${columns.spec}\`=null,
-          \`${columns.state}\`='legacy_unverified'${preserveLegacyUpdatedAt}
-        where id=? and \`${columns.product}\`=?
-          and \`${columns.spec}\`=? and \`${columns.state}\`=?`,
-      values: [action.id, action.productId, action.specId, action.stateAfter],
-      timeout: EV03_QUERY_TIMEOUT_MS,
-    });
-    if (Number((result as { affectedRows: number }).affectedRows) !== 1) {
-      throw new Error(`EV-03 rollback failed: ${action.table} ${action.id}`);
-    }
+  for (const table of [...identityTables].reverse()) {
+    await rollbackIdentityActionBatch(
+      connection,
+      table,
+      manifest.actions.filter(action => action.table === table)
+    );
   }
 }
