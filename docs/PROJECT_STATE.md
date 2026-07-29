@@ -4,14 +4,14 @@ This is the canonical location for current observed repository facts. It is not 
 
 ## Observation Metadata
 
-- Observed: 2026-07-21; production source commit re-observed 2026-07-23 after the EV-01b release; EV-02 implementation, migration, and production backfill re-observed 2026-07-28; local EV-03 implementation and release preflight re-observed 2026-07-29. See the dated release sections below for prior deployments.
-- Production source lineage includes canonical `main` `83cae786`, which merged the EV-02 production record after migration 0061 and its governed backfill completed. See the dated EV-01b and EV-02 release sections for immutable deployment and data evidence.
-- Branch identity: canonical `origin/main` is `83cae7864204787b183e046cdfb7dfe8c2254c6a`; EV-03 is isolated on `codex/ev03-material-consolidation` from that exact base.
+- Observed: 2026-07-29 after the EV-03 governed production cutover. See the dated release sections below for prior deployments.
+- Production source lineage includes canonical `main` `7621f28bcd9687e571c69bff6df1c6db7d67e048`, the independently reviewed EV-03 comparison-safety merge.
+- Branch identity: canonical `origin/main` is `7621f28bcd9687e571c69bff6df1c6db7d67e048`; the EV-03 closure record is isolated on `codex/ev03-close`.
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
-- Production: Vercel target `dpl_BTcfrGZ6px4iHvJfiETrK8zP8s5F` is `READY` for exact source commit `b68c341`; BR-04 is compiled into the production workspace and narrowly enabled for organization 1 and consumer `project_workspace`. Root/login, three health observations, unauthenticated brief rejection, and concealed-share privacy headers pass.
+- Production: digest-bound EV-03 governed deployment `dpl_Dz49pMxpGZGGHmqVNK1PYBcnk3tY` is `READY` from exact canonical source `7621f28b`; root/login and authenticated material-cost/browser-console smoke pass.
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Roadmap state: `EV-02` is closed with production migration/backfill `PASS`; `EV-03` is `ACTIVE` and remains the single next executable step. The owner authorized the exact shared migration/backfill, comparison, digest-bound governed cutover, Git publication, merge, and deployment on 2026-07-29; ambiguous mappings remain unapproved. Release-runner remediation is locally green and awaits final exact-tree review before publication. `BR-05` is closed, while `BR-06`, EV-00's residual cost-policy decisions, and EV-01b's per-source terms decisions remain `NEEDS_HUMAN`. `BR-04B`–`BR-04E` remain dependency-gated successors. `DI-01` remains merged and closed through canonical commit `ce5e44a`; its shared migration and production release remain separately gated. `SC-05` and UX-01's independent authenticated-production recheck remain `NEEDS_HUMAN`; `KF-018` remains a separate pre-existing legacy-report compatibility defect.
+- Roadmap state: `EV-02` and `EV-03` are closed with production migration/backfill and governed cutover `PASS`; `EV-04` is the single next executable step. The 43 unresolved EV-02 rows and all ambiguous mappings remain unapproved and ineligible. `BR-05` is closed, while `BR-06`, EV-00's residual cost-policy decisions, and EV-01b's per-source terms decisions remain `NEEDS_HUMAN`. `BR-04B`–`BR-04E` remain dependency-gated successors. `DI-01` remains merged and closed through canonical commit `ce5e44a`; its shared migration and production release remain separately gated. `SC-05` and UX-01's independent authenticated-production recheck remain `NEEDS_HUMAN`; `KF-018` remains a separate pre-existing legacy-report compatibility defect.
 
 ## EV-03 Local Implementation Observation
 
@@ -54,9 +54,24 @@ This is the canonical location for current observed repository facts. It is not 
 - Authenticated project-form inspection was unavailable because this isolated
   run intentionally had no application database or session key. Project
   geography persistence, invalidation, and tenant boundaries passed against
-  disposable MySQL. The release actions are authorized but none has occurred;
-  the immutable candidate and hosted checks remain prerequisites to the first
-  shared write.
+  disposable MySQL. This describes the earlier isolated implementation gate;
+  the completed shared release is recorded below.
+
+## EV-03 Production Release Observation
+
+- Backup `aswg05nrzrpf` preceded additive migration 0062 deploy requests
+  #16-#21. The exact identity backfill applied 51 actions, retained 19
+  ineligible decisions, and then produced a zero-action dry run.
+- PR #57 passed hosted lint/test, disposable-MySQL authorization, Vercel
+  preview, and Vercel Agent Review before merging as canonical `7621f28b`.
+  Canonical-main CI also passed.
+- The single reader-only comparison produced 242 eligible, 242 equal, zero
+  different, and zero insufficient. Owner-only evidence digest:
+  `de7cbc67ce14f7973d371e70598b709db8eb4bcd148edbc7996bc4f29e00b29e`.
+- Compare deployment `dpl_BAwXv3ZfWq2fTdhg2utZTekRxF27` and digest-bound
+  governed deployment `dpl_Dz49pMxpGZGGHmqVNK1PYBcnk3tY` reached `READY`.
+  Public root/login and authenticated material-cost/browser-console smoke
+  passed. No project data was created or changed during browser verification.
 
 ## EV-02 Implementation and Production Release Observation
 

@@ -3,7 +3,7 @@
 - ID: EV-03
 - Roadmap step: `EV-03`
 - Title: Consolidate material identity and calculation inputs
-- Status: ACTIVE
+- Status: PASS
 - Owner: Codex
 - Started: 2026-07-29
 - Base: canonical `origin/main` at `3dcf0dc558186cf0ad1adc09b6fced35863d1714`
@@ -52,7 +52,7 @@ MQI, schedules, boards, scoring, RFQs, reports, PDF, and DOCX output.
       deterministic identity-only backfill pass dry-run, idempotency,
       two-connection concurrency, restore, and dependency checks on disposable
       MySQL.
-- [ ] Targeted tests, safe full suite, TypeScript, authorization/database audits,
+- [x] Targeted tests, safe full suite, TypeScript, authorization/database audits,
       build, workflow certification, rendered report inspection, authenticated
       browser checks, complete diff review, and fresh independent Sol and Claude
       reviews pass.
@@ -139,19 +139,16 @@ MQI, schedules, boards, scoring, RFQs, reports, PDF, and DOCX output.
   authority, bundle budgets, and `git diff --check` pass.
 - The exact remediation diff received `APPROVED / NO OBJECTION` from the
   independent MIYAR Sol reviewer and `APPROVED_NO_OBJECTION` from Claude Opus.
-  Hosted checks and the single production comparison remain pending.
+  Hosted checks passed, and the single production comparison produced exact
+  242/242 equality before the compare and governed deployments completed.
 
 ## Next Authorized Action
 
-The owner explicitly reset the comparison-safety retry budget on 2026-07-29 for
-one bounded remediation and one independently reviewed production comparison
-attempt. Preserve final-use validation while normalizing the PlanetScale
-`mysql2://` loopback URL at the final-use boundary; add hostile
-environment-drift and no-output-on-failure coverage; pass local, hosted, MIYAR
-Sol, and Claude review gates; then run exactly one production comparison.
-Production remains on `legacy` until valid 242/242 equality evidence exists.
+EV-03 is complete. Start EV-04 in a fresh worktree using the roadmap-execution
+runbook and plan-orchestrator gate. The 43 unresolved EV-02 rows and any new
+ambiguous material mapping remain ineligible until separately approved.
 
-## Production Release Evidence and Blocker
+## Production Release Evidence
 
 - PR #54 merged the EV-03 application as `6df6f791`; PR #55 merged the
   comparison-reader safety hotfix as `b8302884`. Hosted lint/test,
@@ -164,14 +161,21 @@ Production remains on `legacy` until valid 242/242 equality evidence exists.
   `/Users/amrosaleh/.miyar/recovery`.
 - Vercel production deployment `dpl_GVhZd9DmLSqVaQXKDumNpmvRQjS5` is `READY`
   for exact merge SHA `b8302884b137a059c6440ae2914f95d26e2c7999`.
-- The final production comparison exited nonzero and created no evidence file.
-  Static postmortem confirmed that initial inspection normalizes PlanetScale's
-  `mysql2://` tunnel URL, but `assertDatabaseAccess("migrate")` re-reads the raw
-  scheme at final use; `inspectDatabaseTarget` accepts only `mysql://`, so the
-  guard fails before connection or query.
-- Production remains safely on `legacy`: the provider connection was
-  reader-only, the wrapper accepts no evidence after a nonzero exit, and no
-  compare/governed environment mutation occurred.
+- PR #57 merged the independently reviewed comparison-safety remediation as
+  canonical `main` `7621f28bcd9687e571c69bff6df1c6db7d67e048`. PR and
+  canonical-main lint/test, disposable-MySQL authorization, Vercel preview, and
+  Vercel Agent Review passed.
+- The single owner-authorized reader-only production comparison passed:
+  242 eligible, 242 equal, zero different, zero insufficient. Owner-only
+  evidence digest:
+  `de7cbc67ce14f7973d371e70598b709db8eb4bcd148edbc7996bc4f29e00b29e`.
+- Compare deployment `dpl_BAwXv3ZfWq2fTdhg2utZTekRxF27` reached `READY`.
+  Authenticated MQI/material-cost navigation and console inspection passed
+  without mutating project data.
+- Digest-bound governed deployment `dpl_Dz49pMxpGZGGHmqVNK1PYBcnk3tY`
+  reached `READY` and is aliased to `www.miyar.dev`. Root/login return 200; the
+  authenticated material-cost view reloads under governed mode with no browser
+  warnings or errors.
 
 ## Approved Decisions
 
@@ -219,15 +223,10 @@ Production remains on `legacy` until valid 242/242 equality evidence exists.
 
 ## Release Preflight
 
-- PlanetScale OAuth is authenticated to `amr-saleh-hotmail`; the stale
-  machine-local service-token file is not used.
-- Canonical `origin/main` remains exact base `83cae786`.
-- No production or remote mutation occurred during preflight.
-- Release-runner data-minimization, attestation binding, strict-global
-  comparison, rollback compatibility, and artifact verification gaps are
-  remediated and locally re-certified. Fresh exact-tree Sol and Claude reviews
-  pass. Freeze and publish the immutable candidate for hosted checks before the
-  first shared write.
+- Completed. PlanetScale OAuth authenticated to `amr-saleh-hotmail`; the
+  machine-local service-token file was not used. Canonical `origin/main` is
+  `7621f28bcd9687e571c69bff6df1c6db7d67e048`, and the exact reviewed source
+  produced both the compare observation and governed production deployment.
 
 ## Baseline
 
