@@ -1,4 +1,15 @@
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import {
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 
 import { describe, expect, it } from "vitest";
@@ -13,6 +24,7 @@ import {
 } from "./ev03-identity-backfill";
 import {
   EV03_MAX_ROLLOUT_EVIDENCE_DECOMPRESSED_BYTES,
+  assertEv03ComparisonConnectionTargetStable,
   assertMaterialPricingCompletionSummaryBindsEvidence,
   assertMaterialPricingEvidenceMatchesLiveEligibleSet,
   assertGovernedSnapshotsMatchApprovedEvidence,
@@ -116,6 +128,126 @@ describe("EV-03 legacy → compare → governed evidence", () => {
     expect(inner).toContain(
       "assertMaterialPricingComparisonEvidence(evidence)"
     );
+    const normalizedEnvironmentIndex = inner.indexOf(
+      "process.env.DATABASE_URL = inspectionDatabaseUrl"
+    );
+    const safetyInitializationIndex = inner.indexOf(
+      'initializeDatabaseSafety("migrate"'
+    );
+    expect(normalizedEnvironmentIndex).toBeGreaterThanOrEqual(0);
+    expect(safetyInitializationIndex).toBeGreaterThanOrEqual(0);
+    expect(normalizedEnvironmentIndex).toBeLessThan(safetyInitializationIndex);
+    expect(inner).toContain("bindCurrentComparisonDatabaseTarget()");
+    expect(inner).toContain('assertDatabaseAccess("migrate")');
+    expect(inner).toContain("uri: databaseUrl!");
+    expect(
+      inner.indexOf("assertMaterialPricingComparisonEvidence(evidence)")
+    ).toBeLessThan(inner.indexOf("writeFileSync(outputPath"));
+    expect(wrapper).toContain("linkSync(stagingPath, outputPath)");
+    expect(wrapper).toContain("unlinkSync(stagingPath)");
+  });
+
+  it("normalizes only the provider scheme and rejects exact tunnel drift", () => {
+    const initial = "mysql2://runner:secret@127.0.0.1:3317/miyar-v2?ssl=false";
+    expect(
+      assertEv03ComparisonConnectionTargetStable({
+        initialDatabaseUrl: initial,
+        currentDatabaseUrl:
+          "mysql://runner:secret@127.0.0.1:3317/miyar-v2?ssl=false",
+      })
+    ).toBe("mysql://runner:secret@127.0.0.1:3317/miyar-v2?ssl=false");
+
+    for (const currentDatabaseUrl of [
+      "mysql://runner:secret@127.0.0.1:3318/miyar-v2?ssl=false",
+      "mysql://runner:secret@127.0.0.2:3317/miyar-v2?ssl=false",
+      "mysql://other:secret@127.0.0.1:3317/miyar-v2?ssl=false",
+      "mysql://runner:changed@127.0.0.1:3317/miyar-v2?ssl=false",
+      "mysql://runner:secret@127.0.0.1:3317/other_database?ssl=false",
+      "mysql://runner:secret@127.0.0.1:3317/miyar-v2?ssl=true",
+      "mysql://runner:secret@127.0.0.1:3317/miyar-v2",
+      "mysql://runner:secret@127.0.0.1:3317/miyar-v2?ssl=false&mode=reader",
+      "mysql://runner:secret@127.0.0.1:3317/miyar-v2?mode=reader&ssl=false",
+      undefined,
+    ]) {
+      expect(() =>
+        assertEv03ComparisonConnectionTargetStable({
+          initialDatabaseUrl: initial,
+          currentDatabaseUrl,
+        })
+      ).toThrow("target changed after bootstrap");
+    }
+  });
+
+  it("removes staged evidence when the provider child exits unsuccessfully", () => {
+    const root = mkdtempSync(join(tmpdir(), "miyar-ev03-wrapper-failure-"));
+    const bin = join(root, "bin");
+    const outputDirectory = join(root, "evidence");
+    const outputPath = join(outputDirectory, "comparison.json");
+    try {
+      const mkdir = spawnSync("mkdir", ["-m", "700", bin, outputDirectory]);
+      expect(mkdir.status).toBe(0);
+      const pscale = join(bin, "pscale");
+      writeFileSync(
+        pscale,
+        `#!/usr/bin/env node
+const { writeFileSync } = require("node:fs");
+const args = process.argv.slice(2);
+if (args[0] === "auth") {
+  process.stdout.write(JSON.stringify({ authenticated: true, organization: "amr-saleh-hotmail" }));
+  process.exit(0);
+}
+if (args[0] === "deploy-request") {
+  process.stdout.write(JSON.stringify({
+    into_branch: "main",
+    deployment_state: "complete",
+    notes: "${EV03_MIGRATION_SHA256}"
+  }));
+  process.exit(0);
+}
+if (args[0] === "connect") {
+  const command = args[args.indexOf("--execute") + 1] ?? "";
+  const match = command.match(/--output ([^ ]+)/);
+  if (match) writeFileSync(match[1], "{}", { mode: 0o600 });
+  process.exit(9);
+}
+process.exit(2);
+`,
+        { mode: 0o700 }
+      );
+      chmodSync(pscale, 0o700);
+
+      const result = spawnSync(
+        process.execPath,
+        [
+          "--import",
+          "tsx",
+          "scripts/ev03-planetscale-rollout-comparison.ts",
+          "--deploy-requests",
+          "16",
+          "--output",
+          outputPath,
+        ],
+        {
+          cwd: process.cwd(),
+          encoding: "utf8",
+          timeout: 30_000,
+          env: {
+            PATH: `${bin}:${process.env.PATH ?? ""}`,
+            HOME: process.env.HOME,
+            MIYAR_DATABASE_APPROVAL: `migrate@${EV03_PRODUCTION_DATABASE_TARGET}`,
+          },
+        }
+      );
+
+      expect(result.status).not.toBe(0);
+      expect(`${result.stdout}${result.stderr}`).not.toContain(
+        "[ev03-rollout-comparison] PASS"
+      );
+      expect(existsSync(outputPath)).toBe(false);
+      expect(readdirSync(outputDirectory)).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("requires the exact provider-owned comparison tunnel", () => {

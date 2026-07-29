@@ -3,12 +3,12 @@
 - ID: EV-03
 - Roadmap step: `EV-03`
 - Title: Consolidate material identity and calculation inputs
-- Status: BLOCKED
+- Status: ACTIVE
 - Owner: Codex
 - Started: 2026-07-29
-- Base: canonical `origin/main` at `83cae7864204787b183e046cdfb7dfe8c2254c6a`
-- Worktree: `/Users/amrosaleh/Maiyar/miyar-v2-ev03-comparison-blocker`
-- Branch: `codex/ev03-comparison-blocker`
+- Base: canonical `origin/main` at `3dcf0dc558186cf0ad1adc09b6fced35863d1714`
+- Worktree: `/Users/amrosaleh/Maiyar/miyar-v2-ev03-comparison-remediation`
+- Branch: `codex/ev03-comparison-remediation`
 - Classification: Critical — schema/data/engine/report/scoring cutover
 - Dependencies: `EV-02` (`CLOSED`, production migration/backfill `PASS`)
 
@@ -122,17 +122,34 @@ MQI, schedules, boards, scoring, RFQs, reports, PDF, and DOCX output.
   certification. The final exact-tree MIYAR reviewer returned
   `APPROVED / NO OBJECTION`, and Claude Opus returned
   `APPROVED_NO_OBJECTION`.
+- The owner-authorized comparison-safety remediation now captures the raw
+  provider URL only for the `mysql2` connection, exposes its scheme-normalized
+  form to database-safety inspection, and rejects any later change to the full
+  normalized target. Host, port, credentials, database, query value, query
+  insertion/removal, query ordering, and missing-environment drift are covered.
+- The provider wrapper writes only to a random owner-only staging path. It
+  promotes evidence to the requested final path only after the child succeeds
+  and the PASS summary, file ownership/mode, JSON, and evidence digest all bind.
+  An executable fake-provider failure test proves a nonzero child leaves neither
+  final nor staged evidence.
+- Final remediation gates: focused comparison/database-safety tests 85/85;
+  disposable MySQL 65/65; database-free suite 1,791 passed with 22 skipped;
+  authorization inventory 390/0; database-safety audit 141/2/0; all 98 pinned
+  MySQL evidence files current; TypeScript, production build, material-price
+  authority, bundle budgets, and `git diff --check` pass.
+- The exact remediation diff received `APPROVED / NO OBJECTION` from the
+  independent MIYAR Sol reviewer and `APPROVED_NO_OBJECTION` from Claude Opus.
+  Hosted checks and the single production comparison remain pending.
 
 ## Next Authorized Action
 
-`BLOCKED`: do not rerun the production comparison or change the rollout mode.
-The comparison-safety failure class exhausted its three-attempt budget. A new
-bounded remediation must preserve final-use validation while normalizing the
-PlanetScale `mysql2://` loopback URL at the final-use boundary, add hostile
-environment-drift and no-output-on-failure coverage, pass independent review,
-and receive an explicit retry-budget reset before another production attempt.
-The existing release authorization remains recorded, but it does not override
-the retry stop.
+The owner explicitly reset the comparison-safety retry budget on 2026-07-29 for
+one bounded remediation and one independently reviewed production comparison
+attempt. Preserve final-use validation while normalizing the PlanetScale
+`mysql2://` loopback URL at the final-use boundary; add hostile
+environment-drift and no-output-on-failure coverage; pass local, hosted, MIYAR
+Sol, and Claude review gates; then run exactly one production comparison.
+Production remains on `legacy` until valid 242/242 equality evidence exists.
 
 ## Production Release Evidence and Blocker
 
@@ -177,7 +194,8 @@ the retry stop.
 
 ## Execution and Recovery
 
-- Retry budget: three evidence-based attempts per unchanged failure class.
+- Retry budget: one owner-authorized remediation cycle and one production
+  comparison attempt for `KF-020`; no automatic retry.
 - Every long-running command requires an explicit timeout or tool bound.
 - Sequence: freeze/publish candidate and pass review gates -> backup -> additive
   schema -> production identity-only dry-run and inspect -> fingerprint-bound

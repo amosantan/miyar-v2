@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Active/next executable step: `EV-03` is `BLOCKED` after the production comparison-safety failure class exhausted its three-attempt budget. Migration 0062, the identity backfill, and the explicit legacy deployment are complete, but compare/governed cutover did not occur. The next bounded action is a separately reviewed final-use URL-normalization remediation and an explicit retry-budget reset; until then production remains on `legacy`. `EV-02` is `CLOSED`. In parallel and still `NEEDS_HUMAN`: EV-00's residual cost-consultant tier-mapping sign-off, EV-01b's per-source BR-06 terms decisions, and `BR-06` professional pack approvals.
+- Active/next executable step: `EV-03` is `ACTIVE`. On 2026-07-29 the owner reset the comparison-safety retry budget for one bounded final-use URL-normalization remediation and one independently reviewed production comparison attempt. Migration 0062, the identity backfill, and the explicit legacy deployment are complete; production remains on `legacy` until valid 242/242 equality evidence exists. `EV-02` is `CLOSED`. In parallel and still `NEEDS_HUMAN`: EV-00's residual cost-consultant tier-mapping sign-off, EV-01b's per-source BR-06 terms decisions, and `BR-06` professional pack approvals.
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -746,7 +746,7 @@ Rules:
 
 ### EV-03 — Consolidate material identity and calculation inputs
 
-- Status: `BLOCKED`
+- Status: `ACTIVE`
 - Class / priority: Data/engine / P1
 - Dependencies: `EV-02`
 - Human gate: Mapping approval for ambiguous legacy categories/units.
@@ -810,11 +810,13 @@ Rules:
   comparison failed before connection/query. The provider role was reader,
   the wrapper accepted no evidence, no rollout environment changed, and
   production remains on `legacy`.
-- Next executable action: after explicit retry-budget reset, implement the
-  smallest reviewed remediation that normalizes the final-use URL without
-  weakening target-drift validation; add negative scheme/environment/output
-  tests and independently review the exact patch before one new production
-  comparison attempt. Do not advance EV-04 while EV-03 is blocked.
+- Retry reset: approved by Amro Saleh on 2026-07-29 for one bounded remediation
+  and one independently reviewed production comparison attempt.
+- Next executable action: implement the smallest remediation that normalizes
+  the final-use URL without weakening target-drift validation; add negative
+  scheme/environment/output tests; pass local, hosted, MIYAR Sol, and Claude
+  gates; then run the single authorized production comparison. Do not advance
+  EV-04 until EV-03 reaches a terminal state.
 
 ### EV-04 — Source coverage, freshness, and insufficiency SLA
 

@@ -1,6 +1,12 @@
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, lstatSync, readFileSync } from "node:fs";
+import {
+  existsSync,
+  linkSync,
+  lstatSync,
+  readFileSync,
+  unlinkSync,
+} from "node:fs";
 import { dirname, isAbsolute } from "node:path";
 import process from "node:process";
 
@@ -153,13 +159,15 @@ for (const request of deployRequests) {
 }
 
 const nonce = randomBytes(32).toString("hex");
+const stagingPath = `${outputPath}.ev03-${nonce}.partial`;
+assertSecureEvidencePath(stagingPath);
 const innerArgs = [
   process.execPath,
   "--import",
   "tsx",
   "scripts/ev03-rollout-comparison.ts",
   "--output",
-  outputPath,
+  stagingPath,
   "--production-target",
   EV03_PRODUCTION_TARGET,
   "--expected-migration-sha256",
@@ -168,103 +176,120 @@ const innerArgs = [
   nonce,
 ];
 const command = innerArgs.map(safeArg).join(" ");
-const child = spawn(
-  "pscale",
-  [
-    "connect",
-    DATABASE,
-    BRANCH,
-    "--org",
-    ORGANIZATION,
-    "--role",
-    "reader",
-    "--execute",
-    command,
-  ],
-  {
-    detached: true,
-    stdio: ["ignore", "pipe", "pipe"],
-    env: providerEnvironment({
-      EV03_PLANETSCALE_WRAPPER_ATTESTATION: nonce,
-      MIYAR_DATABASE_APPROVAL: databaseApproval,
-    }),
-  }
-);
-
-let capturedOutput = "";
-let capturedBytes = 0;
-for (const stream of [child.stdout, child.stderr]) {
-  stream?.on("data", (chunk: Buffer) => {
-    if (capturedBytes >= MAX_CAPTURE_BYTES) return;
-    capturedBytes += chunk.length;
-    capturedOutput += chunk
-      .subarray(
-        0,
-        Math.max(0, MAX_CAPTURE_BYTES - capturedBytes + chunk.length)
-      )
-      .toString("utf8");
-  });
-}
-let timedOut = false;
-function killChildGroup(signal: NodeJS.Signals): void {
-  if (!child.pid) return;
-  try {
-    process.kill(-child.pid, signal);
-  } catch {
-    child.kill(signal);
-  }
-}
-const timeout = setTimeout(() => {
-  timedOut = true;
-  killChildGroup("SIGTERM");
-  setTimeout(() => killChildGroup("SIGKILL"), 5_000).unref();
-}, OPERATION_TIMEOUT_MS);
-const exitCode = await new Promise<number | null>((resolveExit, reject) => {
-  child.once("error", reject);
-  child.once("exit", resolveExit);
-});
-clearTimeout(timeout);
-if (timedOut || exitCode !== 0) {
-  throw new Error(
-    "EV-03 PlanetScale rollout comparison failed or timed out; no evidence was accepted."
-  );
-}
-const safeResult = capturedOutput.match(
-  /\[ev03-rollout-comparison\] PASS target=([^\s]+) eligible=(\d+) equal=(\d+) different=(\d+) insufficient=(\d+) digest=([a-f0-9]{64})/
-);
-if (!safeResult) {
-  throw new Error(
-    "EV-03 inner comparison did not emit a valid completion record"
-  );
-}
-const evidence = lstatSync(outputPath);
-if (
-  !evidence.isFile() ||
-  evidence.isSymbolicLink() ||
-  evidence.uid !== process.getuid?.call(process) ||
-  (evidence.mode & 0o777) !== 0o600
-) {
-  throw new Error(
-    "EV-03 production evidence is not an exclusive owner-only file"
-  );
-}
-let producedEvidence: MaterialPricingComparisonEvidence;
 try {
-  producedEvidence = JSON.parse(
-    readFileSync(outputPath, "utf8")
-  ) as MaterialPricingComparisonEvidence;
-} catch {
-  throw new Error("EV-03 produced comparison evidence is not valid JSON");
+  const child = spawn(
+    "pscale",
+    [
+      "connect",
+      DATABASE,
+      BRANCH,
+      "--org",
+      ORGANIZATION,
+      "--role",
+      "reader",
+      "--execute",
+      command,
+    ],
+    {
+      detached: true,
+      stdio: ["ignore", "pipe", "pipe"],
+      env: providerEnvironment({
+        EV03_PLANETSCALE_WRAPPER_ATTESTATION: nonce,
+        MIYAR_DATABASE_APPROVAL: databaseApproval,
+      }),
+    }
+  );
+
+  let capturedOutput = "";
+  let capturedBytes = 0;
+  for (const stream of [child.stdout, child.stderr]) {
+    stream?.on("data", (chunk: Buffer) => {
+      if (capturedBytes >= MAX_CAPTURE_BYTES) return;
+      capturedBytes += chunk.length;
+      capturedOutput += chunk
+        .subarray(
+          0,
+          Math.max(0, MAX_CAPTURE_BYTES - capturedBytes + chunk.length)
+        )
+        .toString("utf8");
+    });
+  }
+  let timedOut = false;
+  function killChildGroup(signal: NodeJS.Signals): void {
+    if (!child.pid) return;
+    try {
+      process.kill(-child.pid, signal);
+    } catch {
+      child.kill(signal);
+    }
+  }
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    killChildGroup("SIGTERM");
+    setTimeout(() => killChildGroup("SIGKILL"), 5_000).unref();
+  }, OPERATION_TIMEOUT_MS);
+  const exitCode = await new Promise<number | null>((resolveExit, reject) => {
+    child.once("error", reject);
+    child.once("exit", resolveExit);
+  });
+  clearTimeout(timeout);
+  if (timedOut || exitCode !== 0) {
+    throw new Error(
+      "EV-03 PlanetScale rollout comparison failed or timed out; no evidence was accepted."
+    );
+  }
+  const safeResult = capturedOutput.match(
+    /\[ev03-rollout-comparison\] PASS target=([^\s]+) eligible=(\d+) equal=(\d+) different=(\d+) insufficient=(\d+) digest=([a-f0-9]{64})/
+  );
+  if (!safeResult) {
+    throw new Error(
+      "EV-03 inner comparison did not emit a valid completion record"
+    );
+  }
+  const evidence = lstatSync(stagingPath);
+  if (
+    !evidence.isFile() ||
+    evidence.isSymbolicLink() ||
+    evidence.uid !== process.getuid?.call(process) ||
+    (evidence.mode & 0o777) !== 0o600
+  ) {
+    throw new Error(
+      "EV-03 production evidence is not an exclusive owner-only file"
+    );
+  }
+  let producedEvidence: MaterialPricingComparisonEvidence;
+  try {
+    producedEvidence = JSON.parse(
+      readFileSync(stagingPath, "utf8")
+    ) as MaterialPricingComparisonEvidence;
+  } catch {
+    throw new Error("EV-03 produced comparison evidence is not valid JSON");
+  }
+  assertMaterialPricingCompletionSummaryBindsEvidence(
+    {
+      target: safeResult[1],
+      eligibleRowCount: Number(safeResult[2]),
+      equalRowCount: Number(safeResult[3]),
+      differentRowCount: Number(safeResult[4]),
+      insufficientRowCount: Number(safeResult[5]),
+      evidenceDigest: safeResult[6],
+    },
+    producedEvidence
+  );
+  linkSync(stagingPath, outputPath);
+  try {
+    unlinkSync(stagingPath);
+  } catch {
+    try {
+      unlinkSync(outputPath);
+    } catch {
+      // The final error remains fail-closed; the parent directory is owner-only.
+    }
+    throw new Error("EV-03 evidence promotion failed");
+  }
+  console.log(safeResult[0]);
+} finally {
+  if (existsSync(stagingPath)) {
+    unlinkSync(stagingPath);
+  }
 }
-assertMaterialPricingCompletionSummaryBindsEvidence(
-  {
-    target: safeResult[1],
-    eligibleRowCount: Number(safeResult[2]),
-    equalRowCount: Number(safeResult[3]),
-    differentRowCount: Number(safeResult[4]),
-    insufficientRowCount: Number(safeResult[5]),
-    evidenceDigest: safeResult[6],
-  },
-  producedEvidence
-);
-console.log(safeResult[0]);
