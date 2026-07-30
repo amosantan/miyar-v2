@@ -1,128 +1,146 @@
 # Current Task
 
-- ID: EV-02R
-- Roadmap step: `EV-02R`
-- Title: Evidence and approval remediation for 43 unresolved material rows
+- ID: EV-04
+- Roadmap step: `EV-04`
+- Title: Source coverage, freshness, and insufficiency SLA
 - Status: PASS
 - Owner: Codex
 - Started: 2026-07-30
-- Base: canonical `origin/main` at `52d02b649795a3862cc4b4da505a2aced7742f8e`
-- Worktree: `/Users/amrosaleh/Maiyar/miyar-v2-ev02-unresolved-remediation`
-- Branch: `codex/ev02-unresolved-remediation`
-- Classification: Critical — production evidence, governed pricing, and data backfill
-- Dependencies: `EV-02` and `EV-03` (`CLOSED`)
+- Base: canonical `origin/main` at `f0405344a218529a28f15a8198ac4aac244ee99c`
+- Worktree: `/Users/amrosaleh/Maiyar/miyar-v2-ev04-plan`
+- Branch: `codex/ev04-plan`
+- Classification: Critical — tenant-scoped evidence, deterministic claim
+  authority, additive schema, stored reports, future issued consumers, and
+  public shares
+- Dependencies: `EV-02`, `EV-03`, and `EV-02R` (`CLOSED`)
 
 ## Goal
 
-Produce an evidence-backed decision package for the exact 43 EV-02 unresolved
-`material_library` rows, obtain explicit row-level approval or rejection, and
-backfill only approved governed facts without changing legacy prices or treating
-missing information as zero.
+Create one versioned, deterministic, tenant-safe contract that decides whether
+MIYAR may describe evidence as current, qualified, stale, incident-affected, or
+insufficient. Coverage, freshness, operational cadence, quality, confidence,
+authority, and incidents remain separate facts. Issued artifacts retain a
+frozen safe snapshot rather than recomputing mutable health.
 
 ## Acceptance Criteria
 
-- [x] A reader-only production inventory reproduces exactly 43 rows: 37
-      `unknown_unit_basis` and six `incomplete_price_range`, bound to the
-      original EV-02 manifest and a deterministic source-row fingerprint.
-- [x] Every packet row includes the complete legacy source row, current
-      product link, reason, usage/financial impact, and either a proposed
-      canonical product/specification/scope/geography/effective date or an
-      explicit reason that no material mapping applies, plus evidence
-      references/digests, required approver, and decision state.
-- [x] Unit basis is accepted only from authoritative supplier, manufacturer,
-      or official-statistics evidence. Product names, categories, typical
-      units, neighboring rows, and AI output are never sufficient proof; no
-      unresolved unit was promoted.
-- [x] An incomplete legacy range is never repaired by copying the present bound
-      or inventing a spread. It requires a new complete governed benchmark or
-      quote with independent provenance; all six remain `needs_evidence`.
-- [x] The recorded human decision is bound to the exact inventory digest,
-      applies only the 24 approved rejections, leaves the other 19
-      `needs_evidence`, and carries zero governed writes.
-- [x] No backfill is executable because the approved governed-write set is
-      empty. The decision recorder fails closed on packet drift and emits an
-      owner-only, digest-bound decision artifact.
-- [x] No governed write occurred. The original legacy material rows remain
-      unchanged; rejection preserves the source row while making it ineligible.
-- [x] Rejected and unproven rows remain explicit insufficiencies; no missing
-      value becomes AED 0 and no ambiguous mapping enters scoring, RFQ, report,
-      or issued totals.
-- [x] Targeted tests, TypeScript, authorization/database-safety audits, full
-      DB-free suite, build, comparison/reconciliation coverage, complete diff
-      review, and independent MIYAR Sol review pass. Production-shape
-      apply/recovery is not applicable to an empty write set. Three bounded
-      Claude attempts returned no verdict; the owner explicitly approved
-      closure with that limitation recorded.
-- [x] Production backfill and application deployment are not applicable because
-      this disposition creates no governed facts and changes no runtime
-      application behavior. Git publication/merge is separately authorized.
+- [x] Amro Saleh approves a versioned source strategy and SLA defining finite
+      coverage denominators, eligible authority classes, source-run cadence,
+      observation-age and quote-validity rules, permitted fallbacks, incident
+      behavior, retention, and public/report projections.
+- [x] A pure deterministic TypeScript engine with an injected clock and policy
+      version returns orthogonal dimensional-match, authority, freshness,
+      cadence, quality, confidence, and incident states plus a fail-closed
+      customer claim state.
+- [x] Empty or unknown required sets, unauthorized corpora, pending/rejected
+      source terms, inactive or unwhitelisted sources, raw/unapproved evidence,
+      invalid dates, foreign-organization evidence, confidential public data,
+      and consumer-ineligible fallback/synthetic evidence cannot produce a
+      `current` claim.
+- [x] Organization evaluation uses only same-organization evidence plus
+      governed `platform_public` evidence. Operational source names, raw
+      connector errors, run identifiers, confidential quote metadata, and
+      unsafe URLs remain admin-only and are absent from public/report DTOs.
+- [x] Additive policy, health-snapshot, source-incident, and incident-event
+      persistence has explicit versioning, input/content digests, append-only
+      history, actor/reason evidence, idempotency, concurrency protection,
+      retention, audit behavior, and a verified recovery path.
+- [x] Existing benchmark freshness weights, proposal numerics, resolver
+      ranking, governed prices, scoring, and ingestion scheduler triggers do
+      not change under EV-04.
+- [x] Customer and admin APIs replace divergent health calculations without
+      treating failed/partial attempts as successful fetches or all-empty data
+      as healthy.
+- [x] Dashboard, brief, investor, data-health, report, PDF/DOCX, stored-report,
+      and public-share surfaces agree for the same inputs and clock, expose
+      explicit insufficiency/fallback states, and never make an unapproved
+      `current`, `live`, or completeness claim.
+- [x] In-scope stored project reports transactionally bind the policy version,
+      required-cell schema version, evaluation clock, safe results/provenance,
+      and canonical content digest without gaining issue/approval authority.
+      Legacy artifacts remain readable and show health as unavailable/legacy
+      rather than recomputing it.
+- [x] Focused deterministic, authorization, redaction, incident, report, and
+      compatibility tests pass; disposable-MySQL forward/recovery and
+      concurrency tests pass; TypeScript, DB-free suite, guarded MySQL,
+      authorization/database-safety audits, build/bundle, relevant workflow
+      certification, browser/artifact QA, diff review, and independent Sol
+      review pass.
 
 ## Non-Goals
 
-- Do not change pricing policy, scoring weights, benchmark thresholds, or the
-  EV-03 resolver ranking.
-- Do not infer evidence from the old seed file or from generic market norms.
-- Do not mutate or delete legacy material rows.
-- Do not approve a row merely because another style/tier row looks similar.
-- Do not block EV-04 permanently; this owner-directed remediation temporarily
-  precedes it.
+- Do not change scoring, governed price values, price weights, benchmark
+  proposal formulas, resolver ranking, or material-cost rollout behavior.
+- Do not change current stale-source scheduler triggers without a separately
+  approved operational-policy decision and regression comparison.
+- Do not promote a benchmark, approve source terms, enable an ingestion source,
+  or infer missing evidence.
+- Do not implement EV-05 DLD comparable methodology or EV-06 RFQ workflows.
+- Do not apply a shared/production migration, write production data, deploy,
+  publish, merge, or send external communication without its separate gate.
 
 ## Human Gates
 
-- Row-level decision: Amro Saleh accepted the Data owner and
-  Decision-model/Product roles and approved the 24 recommended rejections on
-  2026-07-30. The remaining 19 explicitly stay `needs_evidence`; no governed
-  mapping or value is approved.
-- Shared/production backfill: authorized in principle by the 2026-07-30
-  instruction, but executable only for rows whose exact packet entries receive
-  explicit approval and after recovery evidence passes.
-- Git publication, merge, and deployment remain governed by the repository
-  release gate and the exact reviewed diff.
+1. **Source strategy and SLA:** approve
+   `docs/artifacts/EV-04_SOURCE_COVERAGE_FRESHNESS_SLA.md` and proposed
+   `ADR-0013` before policy-dependent implementation. **Approved with
+   technical defaults by Amro Saleh on 2026-07-30.**
+2. **Numerical/operational policy:** any change to benchmark weights, proposal
+   logic, resolver ranking, or scheduler triggers is excluded and requires a
+   separate owner decision.
+3. **Shared data and release:** migration application, production writes,
+   deployment, smoke, Git publication, PR, and merge remain separately gated.
 
 ## Execution Controls
 
 - Retry budget: three evidence-based attempts per failure class.
-- Provider, research, test, build, migration, and backfill operations require
-  explicit timeouts.
-- Production discovery is reader-only and writes only owner-mode local
-  artifacts outside the repository.
-- Stop immediately for source ambiguity, tenant leakage, credential exposure,
-  target drift, changed row fingerprints, or a production result outside the
-  approved packet.
+- Tests, providers, migrations, builds, browser workflows, and review commands
+  require explicit bounded timeouts.
+- Use an injected clock for every policy result and test fixture.
+- Stop immediately for tenant leakage, confidential-source exposure, invented
+  thresholds, numerical drift, migration/recovery ambiguity, or a mutable
+  health result entering a bound stored or issued artifact.
+
+## Current Evidence
+
+- Canonical manifest digest:
+  `sha256:6da6e3982c97b8ce645945fc3af3cdc2b22d02ccf4ae6140fc0eaac63adb1c9b`.
+- Database-free suite: 1,945 passed and 22 skipped.
+- Guarded disposable MySQL: 84/84 across 12 files; all 112 pinned evidence
+  files are current. Forward migration, canonical seed, drift rejection,
+  recovery refusal/reapply, report snapshots, and public shares pass.
+- TypeScript, production build, bundle budgets, material-price authority,
+  authorization inventory 395/0, database safety 144/2/0, report
+  certification 23/23, TR-13 workflow/browser certification, and diff hygiene
+  pass.
+- Definitive independent MIYAR review and Claude Opus delta review both return
+  `PASS` with no blocker.
+- No shared/production migration, database write, deployment, Git publication,
+  pull request, merge, or external communication was performed.
 
 ## Next Action
 
-EV-02R is closed. Start EV-04 in a fresh worktree. The 19 residual rows remain
-insufficient and may be reconsidered only through a future evidence-backed
-packet: six exact supplier quotes or approved non-retail benchmarks, the raw
-official-statistics source with digest for nine rows, and a separately approved
-unit-contract decision for four per-m³/per-tonne rows.
+Begin `EV-05` in a fresh worktree as the single next executable roadmap step.
+Before any EV-04 release, separately authorize an exact PlanetScale branch
+apply, the `seed` database operation, migration/deployment, Git publication,
+and production smoke. Incident-event retention remains a separate SC-06/PDPL
+gate, and production incident-history writes remain fail-closed.
 
-## Handover evidence
+## Handover Evidence
 
-- Reader-only production inventory passed once for the exact governed target:
-  43 rows, 37 unknown-unit and six incomplete-range, packet SHA-256
-  `6c2e244d3fb5f6d8d53e253c3b7a767ed9f8d0cc1a18d4db22c79240a50271ce`.
-- The row-level packet recommends 24 non-material rejections, six
-  quote-required tile decisions, nine unit-proven but source-digest-gated
-  mappings, and four unsupported-unit decisions. No row is approved.
-- Amro Saleh accepted the Data and Decision-model/Product owner roles and
-  approved the 24 rejection decisions. The resulting owner-only decision
-  packet contains 24 rejected, 19 `needs_evidence`, zero approved, and SHA-256
-  `662c3933f10d651e77ac9b233bf8c021311feee25d49b560bd258c80c9f84160`.
-- Focused tests pass 28/28; DB-free suite passes 1,819 with 22 skipped;
-  TypeScript, strict script compilation, material-price authority 16 paths,
-  authorization 390/0, database safety 142/2/0, production build and bundle
-  budgets, and diff hygiene pass.
-- Independent MIYAR review of the final decision-recording diff returned
-  `APPROVED / NO OBJECTION` after its stale observation-metadata finding was
-  corrected. Claude was invoked three bounded times during packet preparation
-  but returned no usable verdict (one provider 529 and two tool-schema 400
-  responses).
-- Owner approval on 2026-07-30 closes EV-02R with 24 rejected, 19 residual
-  `needs_evidence`, zero approved mappings, and zero production writes.
-- PR #59 merged as canonical `09cc94452b25e8404fe485ad7eb9ce13c24563f5`.
-  PR and canonical-main CI, guarded MySQL authorization, Vercel preview, and
-  automated review passed. Automatic production deployment `5673588845`
-  succeeded and root/login returned 200. No material-price runtime or database
-  state changed.
+- The manifest owns the closed catalogue, total projection, source and quote
+  eligibility, incident catalogue/composition/transitions, authority identity,
+  artifact binding, and retention rules. Runtime behavior derives from it.
+- Report persistence locks and revalidates the complete allocation set,
+  proposal approval/supersession, quote supersession, source governance, and
+  incident revisions before storing one immutable snapshot.
+- Migration 0063 is additive and trigger-free. Canonical policy seeding is a
+  separate idempotent `seed` operation with exact byte/digest verification.
+- Stored reports distrust embedded health content. Public report shares store
+  only token hashes, are admin-managed, expiring, revocable, read-only,
+  privacy-header protected, and expose only frozen safe projections.
+- Legacy reports remain readable and render explicit unavailable/legacy
+  health. DLD indexed cells remain fail-closed pending EV-05 methodology.
+- Incident-event retention remains separately gated by SC-06/PDPL; the runtime
+  permits incident-history persistence only on named disposable localhost test
+  targets.

@@ -2,7 +2,7 @@ import type { RequestHandler } from "express";
 
 export const PUBLIC_SHARE_HEADERS = {
   "Cache-Control": "private, no-store",
-  "Pragma": "no-cache",
+  Pragma: "no-cache",
   "X-Robots-Tag": "noindex, nofollow, noarchive",
 } as const;
 
@@ -19,7 +19,11 @@ export function isPublicShareTrpcRequest(path: string): boolean {
     // Preserve the raw suffix so malformed paths still receive deterministic handling.
   }
   const procedures = decodedSuffix.split(",");
-  return procedures.includes("design.resolveShareLink");
+  return procedures.some(
+    procedure =>
+      procedure === "design.resolveShareLink" ||
+      procedure === "reportShare.resolve"
+  );
 }
 
 export const publicShareHeaders: RequestHandler = (req, res, next) => {

@@ -6,9 +6,16 @@
  * - Evidence Trace & Watermarking
  * - Three report types: Executive Decision Pack, Design Brief + RFQ, Full Report
  */
-import type { ScoreResult, ProjectInputs, SensitivityEntry, ROIResult, ReportType } from "../../shared/miyar-types";
+import type {
+  ScoreResult,
+  ProjectInputs,
+  SensitivityEntry,
+  ROIResult,
+  ReportType,
+} from "../../shared/miyar-types";
 import { randomUUID } from "node:crypto";
 import type { ReportLocale } from "../../shared/report-locale";
+import type { ClaimHealthSafeProjection } from "../../shared/claim-health";
 import type { BoardAnnexBoard, BoardAnnexData } from "./board-annex";
 import type { WorkflowSpaceMqiReconciliation } from "./report-reconciliation";
 import {
@@ -67,7 +74,12 @@ function dynamicText(value: unknown): string {
 
 // ─── HTML Template Helpers ──────────────────────────────────────────────────
 
-function htmlHeader(title: string, subtitle: string, projectName: string, context: ReportRenderContext): string {
+function htmlHeader(
+  title: string,
+  subtitle: string,
+  projectName: string,
+  context: ReportRenderContext
+): string {
   const metadata = reportDocumentMetadata(context.locale);
   return `
 <!DOCTYPE html>
@@ -168,25 +180,45 @@ export interface ReportEvidenceReference {
   confidencePolicyVersion?: string;
 }
 
-function renderEvidenceReferences(refs: ReportEvidenceReference[] | undefined, locale: ReportLocale): string {
+function renderEvidenceReferences(
+  refs: ReportEvidenceReference[] | undefined,
+  locale: ReportLocale
+): string {
   if (!refs || refs.length === 0) return "";
-  const rows = refs.map((r, i) => {
-    const gradeColor = r.reliabilityGrade === 'A' ? '#2e7d32' : r.reliabilityGrade === 'B' ? '#f57c00' : '#c62828';
-    const sourceUrl = escapeReportEvidenceUrl(r.sourceUrl);
-    return `<tr>
+  const rows = refs
+    .map((r, i) => {
+      const gradeColor =
+        r.reliabilityGrade === "A"
+          ? "#2e7d32"
+          : r.reliabilityGrade === "B"
+            ? "#f57c00"
+            : "#c62828";
+      const sourceUrl = escapeReportEvidenceUrl(r.sourceUrl);
+      return `<tr>
     <td><span class="citation-ref">[${i + 1}]</span></td>
     <td>${dynamicText(r.title)}</td>
     <td>${r.category ? dynamicText(r.category) : "\u2014"}</td>
     <td style="color:${gradeColor}; font-weight:600;">${r.reliabilityGrade ? dynamicText(r.reliabilityGrade) : "\u2014"}</td>
     <td>${r.captureDate ? formatReportDate(r.captureDate, locale) : "\u2014"}</td>
-    <td>${!r.confidenceStatus || r.confidenceStatus === "legacy_unknown"
-      ? reportCopy(locale, "legacyCalculationProvenanceUnavailable")
-      : r.confidenceStatus === "asserted"
-        ? reportCopy(locale, "operatorAssertedConfidence").replace("{policy}", dynamicText(r.confidencePolicyVersion || "manual-asserted-confidence-v1"))
-        : reportCopy(locale, "computedConfidence").replace("{policy}", dynamicText(r.confidencePolicyVersion || "policy unavailable"))}</td>
+    <td>${
+      !r.confidenceStatus || r.confidenceStatus === "legacy_unknown"
+        ? reportCopy(locale, "legacyCalculationProvenanceUnavailable")
+        : r.confidenceStatus === "asserted"
+          ? reportCopy(locale, "operatorAssertedConfidence").replace(
+              "{policy}",
+              dynamicText(
+                r.confidencePolicyVersion || "manual-asserted-confidence-v1"
+              )
+            )
+          : reportCopy(locale, "computedConfidence").replace(
+              "{policy}",
+              dynamicText(r.confidencePolicyVersion || "policy unavailable")
+            )
+    }</td>
     <td>${sourceUrl ? `<a href="${sourceUrl}" rel="noopener noreferrer" style="color:#0f3460;">${reportCopy(locale, "evidenceLink")}</a>` : "\u2014"}</td>
   </tr>`;
-  }).join("");
+    })
+    .join("");
   return `
 <div class="section">
   <h2>${reportCopy(locale, "evidenceReferences")}</h2>
@@ -196,6 +228,78 @@ function renderEvidenceReferences(refs: ReportEvidenceReference[] | undefined, l
     ${rows}
   </table>
   <p style="font-size:8px; color:#999; margin-top:4px;">${reportCopy(locale, "evidenceGradeLegend")}</p>
+</div>
+`;
+}
+
+const CLAIM_HEALTH_STATE_LABELS: Record<
+  ReportLocale,
+  Record<ClaimHealthSafeProjection["claimState"], string>
+> = {
+  en: {
+    current: "Current",
+    current_with_fallback: "Current with approved fallback",
+    qualified: "Qualified",
+    aging: "Aging",
+    stale: "Stale",
+    incident: "Incident affected",
+    insufficient: "Insufficient",
+    unknown: "Unknown",
+    legacy: "Legacy — health snapshot unavailable",
+  },
+  ar: {
+    current: "حالي",
+    current_with_fallback: "حالي مع بديل معتمد",
+    qualified: "مقيّد",
+    aging: "يقترب من التقادم",
+    stale: "قديم",
+    incident: "متأثر بحادثة",
+    insufficient: "غير كافٍ",
+    unknown: "غير معروف",
+    legacy: "قديم — لقطة صحة الأدلة غير متاحة",
+  },
+};
+
+function renderClaimHealth(
+  health: ClaimHealthSafeProjection | undefined,
+  locale: ReportLocale
+): string {
+  if (!health) {
+    return `
+<div class="section" id="sec-claim-health">
+  <h2>${locale === "ar" ? "صحة الأدلة" : "Evidence Health"}</h2>
+  <div class="evidence-trace">
+    <strong>${locale === "ar" ? "الحالة" : "Claim state"}:</strong> ${escapeReportText(CLAIM_HEALTH_STATE_LABELS[locale].legacy)}
+  </div>
+  <p style="font-size:9px; color:#666; margin-top:8px;">${
+    locale === "ar"
+      ? "لا توجد لقطة صحة أدلة مجمّدة ومدعومة مرتبطة بهذا التقرير. حالة الأدلة غير متاحة ولم تتم إعادة تقييمها."
+      : "No supported frozen evidence-health snapshot is bound to this report. Evidence health is unavailable and was not recomputed."
+  }</p>
+</div>
+`;
+  }
+  const label = CLAIM_HEALTH_STATE_LABELS[locale][health.claimState];
+  const coverage = `${health.counts.eligible}/${health.counts.required}`;
+  return `
+<div class="section" id="sec-claim-health">
+  <h2>${locale === "ar" ? "صحة الأدلة" : "Evidence Health"}</h2>
+  <div class="evidence-trace">
+    <strong>${locale === "ar" ? "الحالة" : "Claim state"}:</strong> ${escapeReportText(label)}<br>
+    <strong>${locale === "ar" ? "التغطية المؤهلة" : "Eligible coverage"}:</strong> ${escapeReportText(coverage)}<br>
+    <strong>${locale === "ar" ? "الخلايا المطلوبة" : "Required cells"}:</strong> ${health.counts.required}<br>
+    <strong>${locale === "ar" ? "المطابقات الدقيقة" : "Exact matches"}:</strong> ${health.counts.exact}<br>
+    <strong>${locale === "ar" ? "البدائل المعتمدة" : "Approved fallbacks"}:</strong> ${health.counts.fallback}<br>
+    <strong>${locale === "ar" ? "وقت التقييم" : "Evaluated at"}:</strong> ${escapeReportText(health.evaluatedAt ? formatReportDate(health.evaluatedAt, locale) : locale === "ar" ? "غير متاح" : "Unavailable")}<br>
+    <strong>${locale === "ar" ? "إصدار السياسة" : "Policy version"}:</strong> ${escapeReportText(health.policyVersion)}<br>
+    <strong>${locale === "ar" ? "بصمة بيان السياسة" : "Policy manifest digest"}:</strong> ${escapeReportText(health.policyManifestDigest ?? (locale === "ar" ? "غير متاح" : "Unavailable"))}<br>
+    <strong>${locale === "ar" ? "إصدار مخطط الخلايا" : "Required-cell schema"}:</strong> ${escapeReportText(health.requiredCellSchemaVersion)}
+  </div>
+  <p style="font-size:9px; color:#666; margin-top:8px;">${
+    locale === "ar"
+      ? "هذه الحالة لقطة ثابتة مرتبطة بهذا التقرير وليست إعادة تقييم مباشرة."
+      : "This is the frozen evidence-health snapshot bound to this report, not a live recomputation."
+  }</p>
 </div>
 `;
 }
@@ -260,18 +364,20 @@ function renderExecutiveSummary(scoreResult: ScoreResult): string {
 
 function renderDimensionTable(scoreResult: ScoreResult): string {
   const dims = ["sa", "ff", "mp", "ds", "er"] as const;
-  const rows = dims.map((d) => {
-    const score = scoreResult.dimensions[d];
-    const weight = scoreResult.dimensionWeights[d];
-    const weighted = score * weight;
-    return `<tr>
+  const rows = dims
+    .map(d => {
+      const score = scoreResult.dimensions[d];
+      const weight = scoreResult.dimensionWeights[d];
+      const weighted = score * weight;
+      return `<tr>
       <td>${DIMENSION_LABELS[d]}</td>
       <td style="text-align:center; font-weight:700;">${score.toFixed(1)}</td>
       <td style="text-align:center;">${(weight * 100).toFixed(0)}%</td>
       <td style="text-align:center;">${weighted.toFixed(1)}</td>
       <td style="text-align:center;">${scoreGrade(score)}</td>
     </tr>`;
-  }).join("");
+    })
+    .join("");
 
   return `
 <div class="section">
@@ -294,13 +400,16 @@ function renderDimensionTable(scoreResult: ScoreResult): string {
 // ─── Risk Assessment ────────────────────────────────────────────────────────
 
 function renderRiskAssessment(scoreResult: ScoreResult): string {
-  const penalties = scoreResult.penalties.map((p) =>
-    `<div class="penalty-item"><strong>${dynamicText(p.id)}:</strong> ${dynamicText(p.description)} (Effect: ${p.effect > 0 ? "+" : ""}${p.effect.toFixed(1)})</div>`
-  ).join("");
+  const penalties = scoreResult.penalties
+    .map(
+      p =>
+        `<div class="penalty-item"><strong>${dynamicText(p.id)}:</strong> ${dynamicText(p.description)} (Effect: ${p.effect > 0 ? "+" : ""}${p.effect.toFixed(1)})</div>`
+    )
+    .join("");
 
-  const flags = scoreResult.riskFlags.map((f) =>
-    `<div class="risk-flag">${dynamicText(f)}</div>`
-  ).join("");
+  const flags = scoreResult.riskFlags
+    .map(f => `<div class="risk-flag">${dynamicText(f)}</div>`)
+    .join("");
 
   return `
 <div class="section">
@@ -323,17 +432,22 @@ function renderRiskAssessment(scoreResult: ScoreResult): string {
 
 // ─── Sensitivity Analysis ───────────────────────────────────────────────────
 
-function renderSensitivity(sensitivity: SensitivityEntry[], locale: ReportLocale): string {
+function renderSensitivity(
+  sensitivity: SensitivityEntry[],
+  locale: ReportLocale
+): string {
   const top = sensitivity.slice(0, 8);
-  const rows = top.map((s) => {
-    return `<tr>
+  const rows = top
+    .map(s => {
+      return `<tr>
       <td>${dynamicText(s.variable)}</td>
       <td style="text-align:center;">${Math.abs(s.sensitivity).toFixed(2)}</td>
       <td style="text-align:center;">${s.scoreUp.toFixed(1)}</td>
       <td style="text-align:center;">${s.scoreDown.toFixed(1)}</td>
       <td style="text-align:center;">${(s.scoreUp - s.scoreDown).toFixed(1)}</td>
     </tr>`;
-  }).join("");
+    })
+    .join("");
 
   return `
 <div class="section">
@@ -349,18 +463,24 @@ function renderSensitivity(sensitivity: SensitivityEntry[], locale: ReportLocale
 
 // ─── Conditional Actions ────────────────────────────────────────────────────
 
-function renderConditionalActions(scoreResult: ScoreResult, locale: ReportLocale): string {
+function renderConditionalActions(
+  scoreResult: ScoreResult,
+  locale: ReportLocale
+): string {
   if (scoreResult.conditionalActions.length === 0) {
     return `<div class="section"><h2>${reportCopy(locale, "recommendedActions")}</h2><p>${reportCopy(locale, "noConditionalActions")}</p></div>`;
   }
 
-  const actions = scoreResult.conditionalActions.map((a) =>
-    `<div class="action-item">
+  const actions = scoreResult.conditionalActions
+    .map(
+      a =>
+        `<div class="action-item">
       <strong>${reportCopy(locale, "actionTrigger")}</strong> ${dynamicText(a.trigger)}<br>
       <strong>${reportCopy(locale, "actionRecommendation")}</strong> ${dynamicText(a.recommendation)}<br>
       <strong>${reportCopy(locale, "actionVariables")}</strong> ${dynamicText(a.variables.join(", "))}
     </div>`
-  ).join("");
+    )
+    .join("");
 
   return `
 <div class="section">
@@ -380,10 +500,23 @@ function renderInputSummary(inputs: ProjectInputs): string {
       items: [
         ["Typology", inputs.ctx01Typology],
         ["Scale", inputs.ctx02Scale],
-        ["Gross Floor Area (sqm)", inputs.ctx03Gfa ? inputs.ctx03Gfa.toLocaleString() : "N/A"],
-        ["Interior Fit-out Area (sqm)", inputs.totalFitoutArea ? inputs.totalFitoutArea.toLocaleString() : "N/A"],
+        [
+          "Gross Floor Area (sqm)",
+          inputs.ctx03Gfa ? inputs.ctx03Gfa.toLocaleString() : "N/A",
+        ],
+        [
+          "Interior Fit-out Area (sqm)",
+          inputs.totalFitoutArea
+            ? inputs.totalFitoutArea.toLocaleString()
+            : "N/A",
+        ],
         ...(inputs.ctx03Gfa && inputs.totalFitoutArea
-          ? [["Fitout Efficiency Ratio", `${Math.round((inputs.totalFitoutArea / inputs.ctx03Gfa) * 100)}%`] as [string, string]]
+          ? [
+              [
+                "Fitout Efficiency Ratio",
+                `${Math.round((inputs.totalFitoutArea / inputs.ctx03Gfa) * 100)}%`,
+              ] as [string, string],
+            ]
           : []),
         ["Location", inputs.ctx04Location],
         ["Delivery Horizon", inputs.ctx05Horizon],
@@ -409,7 +542,12 @@ function renderInputSummary(inputs: ProjectInputs): string {
     {
       title: "Financial",
       items: [
-        ["Budget Cap (AED/sqm)", inputs.fin01BudgetCap ? inputs.fin01BudgetCap.toLocaleString() : "N/A"],
+        [
+          "Budget Cap (AED/sqm)",
+          inputs.fin01BudgetCap
+            ? inputs.fin01BudgetCap.toLocaleString()
+            : "N/A",
+        ],
         ["Flexibility", `${inputs.fin02Flexibility}/5`],
         ["Shock Tolerance", `${inputs.fin03ShockTolerance}/5`],
         ["Sales Premium", `${inputs.fin04SalesPremium}/5`],
@@ -436,26 +574,42 @@ function renderInputSummary(inputs: ProjectInputs): string {
     },
   ];
 
-  const tables = groups.map((g) => {
-    const rows = g.items.map(([k, v]) => `<tr><td style="width:50%;">${escapeReportText(k)}</td><td>${dynamicText(v)}</td></tr>`).join("");
-    return `<div class="keep-together"><h3>${escapeReportText(g.title)}</h3><table><tr><th>Parameter</th><th>Value</th></tr>${rows}</table></div>`;
-  }).join("");
+  const tables = groups
+    .map(g => {
+      const rows = g.items
+        .map(
+          ([k, v]) =>
+            `<tr><td style="width:50%;">${escapeReportText(k)}</td><td>${dynamicText(v)}</td></tr>`
+        )
+        .join("");
+      return `<div class="keep-together"><h3>${escapeReportText(g.title)}</h3><table><tr><th>Parameter</th><th>Value</th></tr>${rows}</table></div>`;
+    })
+    .join("");
 
   return `<div class="section"><h2>Project Input Summary</h2>${tables}</div>`;
 }
 
 // ─── Variable Contributions ─────────────────────────────────────────────────
 
-function renderVariableContributions(contributions: Record<string, Record<string, number>>): string {
+function renderVariableContributions(
+  contributions: Record<string, Record<string, number>>
+): string {
   const dims = Object.keys(contributions);
-  const sections = dims.map((dim) => {
-    const vars = contributions[dim];
-    const sorted = Object.entries(vars).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
-    const rows = sorted.map(([v, c]) =>
-      `<tr><td>${dynamicText(v)}</td><td style="text-align:center; color: ${c >= 0 ? "#4ecdc4" : "#e07a5f"}; font-weight:600;">${c >= 0 ? "+" : ""}${c.toFixed(2)}</td></tr>`
-    ).join("");
-    return `<h3>${DIMENSION_LABELS[dim] || dim}</h3><table><tr><th>Variable</th><th>Contribution</th></tr>${rows}</table>`;
-  }).join("");
+  const sections = dims
+    .map(dim => {
+      const vars = contributions[dim];
+      const sorted = Object.entries(vars).sort(
+        (a, b) => Math.abs(b[1]) - Math.abs(a[1])
+      );
+      const rows = sorted
+        .map(
+          ([v, c]) =>
+            `<tr><td>${dynamicText(v)}</td><td style="text-align:center; color: ${c >= 0 ? "#4ecdc4" : "#e07a5f"}; font-weight:600;">${c >= 0 ? "+" : ""}${c.toFixed(2)}</td></tr>`
+        )
+        .join("");
+      return `<h3>${DIMENSION_LABELS[dim] || dim}</h3><table><tr><th>Variable</th><th>Contribution</th></tr>${rows}</table>`;
+    })
+    .join("");
 
   return `<div class="section"><h2>Variable Contribution Analysis</h2><p>How each input variable contributes to each dimension score:</p>${sections}</div>`;
 }
@@ -465,17 +619,36 @@ function renderVariableContributions(contributions: Record<string, Record<string
 function renderROINarrative(roi: any, locale: ReportLocale): string {
   if (!roi) return "";
 
-  const totalValue = roi.totalCostAvoided?.mid || roi.totalCostAvoided?.base || roi.totalValue || roi.totalValueCreated || 0;
+  const totalValue =
+    roi.totalCostAvoided?.mid ||
+    roi.totalCostAvoided?.base ||
+    roi.totalValue ||
+    roi.totalValueCreated ||
+    0;
   // Calculate a mock ROI multiple just for presentation, assuming a generic project cost of 1M if budgetCap is missing
   // or based on total saved. If there is no real roiMultiple provided by the engine.
-  const roiMultiple = roi.roiMultiple || (totalValue > 0 ? (totalValue / 150000) : 0);
+  const roiMultiple =
+    roi.roiMultiple || (totalValue > 0 ? totalValue / 150000 : 0);
 
-  const drivers = roi.drivers || roi.components || Object.entries(roi).filter(([k, v]) => typeof v === 'number' && k !== 'totalValue' && k !== 'roiMultiple' && k !== 'fee' && k !== 'netROI').map(([name, value]) => ({ name, value })) || [];
+  const drivers =
+    roi.drivers ||
+    roi.components ||
+    Object.entries(roi)
+      .filter(
+        ([k, v]) =>
+          typeof v === "number" &&
+          k !== "totalValue" &&
+          k !== "roiMultiple" &&
+          k !== "fee" &&
+          k !== "netROI"
+      )
+      .map(([name, value]) => ({ name, value })) ||
+    [];
 
   return `
 <div class="section">
   <h2>ROI & Economic Impact Analysis</h2>
-  
+
   <div class="roi-highlight">
     <div class="roi-label">Total Value Created</div>
     <div class="roi-value">AED ${Number(totalValue).toLocaleString()}</div>
@@ -486,37 +659,53 @@ function renderROINarrative(roi: any, locale: ReportLocale): string {
   <h3>Value Breakdown</h3>
   <table>
     <tr><th>Value Component</th><th>Conservative</th><th>Base</th><th>Aggressive</th></tr>
-    ${drivers.length > 0 ? drivers.map((c: any) => `
+    ${
+      drivers.length > 0
+        ? drivers
+            .map(
+              (c: any) => `
     <tr>
       <td><strong>${dynamicText(c.name)}</strong><br><span style="font-size:9px; color:#666;">${dynamicText(c.description || c.narrative || "")}</span></td>
       <td style="text-align:right;">AED ${Number(c.costAvoided?.conservative || c.conservative || (c.value ? c.value * 0.8 : 0)).toLocaleString()}</td>
       <td style="text-align:right; font-weight:600;">AED ${Number(c.costAvoided?.mid || c.base || c.value || 0).toLocaleString()}</td>
       <td style="text-align:right;">AED ${Number(c.costAvoided?.aggressive || c.aggressive || (c.value ? c.value * 1.2 : 0)).toLocaleString()}</td>
-    </tr>`).join("") : `
+    </tr>`
+            )
+            .join("")
+        : `
     <tr><td>Rework Avoided</td><td style="text-align:right;" colspan="3">AED ${Number(roi.reworkAvoided || 0).toLocaleString()}</td></tr>
     <tr><td>Procurement Savings</td><td style="text-align:right;" colspan="3">AED ${Number(roi.procurementSavings || 0).toLocaleString()}</td></tr>
     <tr><td>Time-Value Gain</td><td style="text-align:right;" colspan="3">AED ${Number(roi.timeValueGain || 0).toLocaleString()}</td></tr>
     <tr><td>Spec Efficiency</td><td style="text-align:right;" colspan="3">AED ${Number(roi.specEfficiency || 0).toLocaleString()}</td></tr>
     <tr><td>Positioning Premium</td><td style="text-align:right;" colspan="3">AED ${Number(roi.positioningPremium || 0).toLocaleString()}</td></tr>
-    `}
+    `
+    }
   </table>
 
-  ${roi.narrative ? `
+  ${
+    roi.narrative
+      ? `
   <h3>Executive Narrative</h3>
   <p style="font-size:10px; line-height:1.6;">${dynamicText(roi.narrative)}</p>
-  ` : ""}
+  `
+      : ""
+  }
 
-  ${roi.assumptions ? `
+  ${
+    roi.assumptions
+      ? `
   <h3>Key Assumptions</h3>
   <ul style="font-size:9px; color:#666; padding-left:16px;">
     ${roi.assumptions.map((a: string) => `<li>${dynamicText(a)}</li>`).join("")}
   </ul>
-  ` : `
+  `
+      : `
   <p style="margin-top:12px; font-size:10px; color:#666;">
-    <em>Assumptions: Rework avoidance based on industry benchmarks (15-25% of construction cost for misaligned projects). 
+    <em>Assumptions: Rework avoidance based on industry benchmarks (15-25% of construction cost for misaligned projects).
     Procurement savings estimated at 3-8% through validated specifications. Time-value calculated using standard cost-of-capital models.</em>
   </p>
-  `}
+  `
+  }
 </div>
 `;
 }
@@ -534,28 +723,50 @@ function renderFiveLens(fiveLens: any): string {
     "Differentiation Lens": "🎯",
   };
 
-  const lensCards = (fiveLens.lenses || []).map((lens: any) => {
-    const color = lens.score >= 70 ? "#4ecdc4" : lens.score >= 50 ? "#f0c674" : "#e07a5f";
-    const icon = LENS_ICONS[lens.lensName] || "🔍";
-    return `
+  const lensCards = (fiveLens.lenses || [])
+    .map((lens: any) => {
+      const color =
+        lens.score >= 70 ? "#4ecdc4" : lens.score >= 50 ? "#f0c674" : "#e07a5f";
+      const icon = LENS_ICONS[lens.lensName] || "🔍";
+      return `
     <div class="lens-card">
       <div class="lens-header">
         <div class="lens-title">${escapeReportText(icon)} ${dynamicText(lens.lensName)}</div>
         <div class="lens-score" style="color:${color};">${(lens.score || 0).toFixed(0)}/100</div>
       </div>
       <p style="font-size:10px; margin-bottom:6px;">${dynamicText(lens.rationale || "")}</p>
-      ${lens.evidence && lens.evidence.length > 0 ? `
+      ${
+        lens.evidence && lens.evidence.length > 0
+          ? `
       <div class="lens-evidence">
-        <strong>Evidence:</strong> ${dynamicText(lens.evidence.slice(0, 3).map((e: any) => typeof e === 'string' ? e : (e.label && e.value ? `${e.label}: ${e.value}` : JSON.stringify(e))).join(" • "))}
+        <strong>Evidence:</strong> ${dynamicText(
+          lens.evidence
+            .slice(0, 3)
+            .map((e: any) =>
+              typeof e === "string"
+                ? e
+                : e.label && e.value
+                  ? `${e.label}: ${e.value}`
+                  : JSON.stringify(e)
+            )
+            .join(" • ")
+        )}
       </div>
-      ` : ""}
-      ${lens.gaps && lens.gaps.length > 0 ? `
+      `
+          : ""
+      }
+      ${
+        lens.gaps && lens.gaps.length > 0
+          ? `
       <div style="font-size:9px; color:#e07a5f; margin-top:4px;">
         <strong>Gaps:</strong> ${dynamicText(lens.gaps.slice(0, 2).join(" • "))}
       </div>
-      ` : ""}
+      `
+          : ""
+      }
     </div>`;
-  }).join("");
+    })
+    .join("");
 
   return `
 <div class="section">
@@ -581,7 +792,10 @@ function renderFiveLens(fiveLens: any): string {
 
 // ─── V2: Evidence Trace ─────────────────────────────────────────────────────
 
-function renderEvidenceTrace(projectId: number, context: ReportRenderContext): string {
+function renderEvidenceTrace(
+  projectId: number,
+  context: ReportRenderContext
+): string {
   return `
 <div class="section">
   <h2>${reportCopy(context.locale, "evidenceTrace")}</h2>
@@ -634,39 +848,65 @@ function escapeHtml(value: string): string {
   return escapeReportText(value);
 }
 
-function renderBoardResolutionMessage(board: BoardAnnexBoard, locale: ReportLocale): string {
-  const copy = (key: "boardEmptyResolution" | "boardUnresolvableResolution" | "boardPartialResolution" | "boardCompleteSingleResolution" | "boardCompleteMultipleResolution") => reportCopy(locale, key);
+function renderBoardResolutionMessage(
+  board: BoardAnnexBoard,
+  locale: ReportLocale
+): string {
+  const copy = (
+    key:
+      | "boardEmptyResolution"
+      | "boardUnresolvableResolution"
+      | "boardPartialResolution"
+      | "boardCompleteSingleResolution"
+      | "boardCompleteMultipleResolution"
+  ) => reportCopy(locale, key);
   if (board.state === "empty") {
     return copy("boardEmptyResolution");
   }
   if (board.state === "unresolvable") {
-    return copy("boardUnresolvableResolution").replace("{linked}", String(board.linkedItemCount));
+    return copy("boardUnresolvableResolution").replace(
+      "{linked}",
+      String(board.linkedItemCount)
+    );
   }
   if (board.state === "partial") {
     return copy("boardPartialResolution")
       .replace("{resolved}", String(board.resolvedItemCount))
       .replace("{linked}", String(board.linkedItemCount))
       .replace("{unresolved}", String(board.unresolvedItemCount))
-      .replace("{itemStatus}", reportCopy(locale, board.unresolvedItemCount === 1 ? "boardItemIs" : "boardItemsAre"));
+      .replace(
+        "{itemStatus}",
+        reportCopy(
+          locale,
+          board.unresolvedItemCount === 1 ? "boardItemIs" : "boardItemsAre"
+        )
+      );
   }
   return board.linkedItemCount === 1
     ? copy("boardCompleteSingleResolution")
-    : copy("boardCompleteMultipleResolution").replace("{linked}", String(board.linkedItemCount));
+    : copy("boardCompleteMultipleResolution").replace(
+        "{linked}",
+        String(board.linkedItemCount)
+      );
 }
 
 function renderBoardCard(board: BoardAnnexBoard, locale: ReportLocale): string {
-  const stateColor = board.state === "complete"
-    ? "#166534"
-    : board.state === "partial"
-      ? "#92400e"
-      : "#991b1b";
+  const stateColor =
+    board.state === "complete"
+      ? "#166534"
+      : board.state === "partial"
+        ? "#92400e"
+        : "#991b1b";
   const summary = "summary" in board ? board.summary : undefined;
 
   const summaryHtml = summary
     ? (() => {
-        const tierRows = Object.entries(summary.tierDistribution).map(([tier, count]) =>
-          `<span style="display:inline-block; margin-right:8px; font-size:9px;"><strong>${dynamicText(tier.replaceAll("_", " "))}:</strong> ${count}</span>`
-        ).join("");
+        const tierRows = Object.entries(summary.tierDistribution)
+          .map(
+            ([tier, count]) =>
+              `<span style="display:inline-block; margin-right:8px; font-size:9px;"><strong>${dynamicText(tier.replaceAll("_", " "))}:</strong> ${count}</span>`
+          )
+          .join("");
         const criticalItems = summary.criticalPathItems;
 
         return `
@@ -705,7 +945,10 @@ function renderBoardCard(board: BoardAnnexBoard, locale: ReportLocale): string {
     </div>`;
 }
 
-function renderBoardAnnex(boardAnnex: BoardAnnexData, locale: ReportLocale): string {
+function renderBoardAnnex(
+  boardAnnex: BoardAnnexData,
+  locale: ReportLocale
+): string {
   if (boardAnnex.state === "no_boards") {
     return `
 <div class="section">
@@ -715,7 +958,9 @@ function renderBoardAnnex(boardAnnex: BoardAnnexData, locale: ReportLocale): str
 `;
   }
 
-  const boardCards = boardAnnex.boards.map(board => renderBoardCard(board, locale)).join("");
+  const boardCards = boardAnnex.boards
+    .map(board => renderBoardCard(board, locale))
+    .join("");
 
   return `
 <div class="section">
@@ -828,7 +1073,9 @@ function renderWorkflowReconciliation(
       maximumFractionDigits: 2,
     });
   const money = (value: number | null) =>
-    value === null ? copy.unavailable : `${reconciliation.materialCosts.currency} ${number(value)}`;
+    value === null
+      ? copy.unavailable
+      : `${reconciliation.materialCosts.currency} ${number(value)}`;
   const areaStatus =
     reconciliation.spaceProgram.reconciles === null
       ? copy.unavailable
@@ -921,10 +1168,13 @@ export interface PDFReportInput {
   evidenceRefs?: ReportEvidenceReference[];
   boardAnnex?: BoardAnnexData;
   workflowReconciliation?: WorkflowSpaceMqiReconciliation;
+  claimHealth?: ClaimHealthSafeProjection;
   autonomousContent?: string;
 }
 
-export type IssuedPDFReportInput = PDFReportInput & { boardAnnex: BoardAnnexData };
+export type IssuedPDFReportInput = PDFReportInput & {
+  boardAnnex: BoardAnnexData;
+};
 
 export interface ReportRenderContextOverrides {
   documentId?: string;
@@ -949,11 +1199,15 @@ function scoreFingerprint(score: ScoreResult, includeContributions: boolean) {
     penalties: score.penalties,
     riskFlags: score.riskFlags,
     conditionalActions: score.conditionalActions,
-    ...(includeContributions ? { variableContributions: score.variableContributions } : {}),
+    ...(includeContributions
+      ? { variableContributions: score.variableContributions }
+      : {}),
   };
 }
 
-function renderedEvidenceReferences(refs: ReportEvidenceReference[] | undefined) {
+function renderedEvidenceReferences(
+  refs: ReportEvidenceReference[] | undefined
+) {
   return refs?.map(ref => ({
     title: ref.title,
     sourceUrl: ref.sourceUrl,
@@ -967,7 +1221,7 @@ function renderedEvidenceReferences(refs: ReportEvidenceReference[] | undefined)
 
 function pdfFingerprintRenderedValues(
   reportType: string,
-  data: PDFReportInput | ScenarioComparisonPDFInput | PortfolioPDFInput,
+  data: PDFReportInput | ScenarioComparisonPDFInput | PortfolioPDFInput
 ) {
   if (reportType === "scenario_comparison") {
     const scenario = data as ScenarioComparisonPDFInput;
@@ -1003,10 +1257,21 @@ function pdfFingerprintRenderedValues(
     project: { id: report.projectId, name: report.projectName },
   };
   if (reportType === "autonomous_design_brief") {
-    return { ...common, autonomousContent: report.autonomousContent, evidenceReferences: renderedEvidenceReferences(report.evidenceRefs) };
+    return {
+      ...common,
+      autonomousContent: report.autonomousContent,
+      claimHealth: report.claimHealth,
+      evidenceReferences: renderedEvidenceReferences(report.evidenceRefs),
+    };
   }
   if (reportType === "design_brief") {
-    return { ...common, designBrief: report.designBrief, boardAnnex: report.boardAnnex, evidenceReferences: renderedEvidenceReferences(report.evidenceRefs) };
+    return {
+      ...common,
+      designBrief: report.designBrief,
+      boardAnnex: report.boardAnnex,
+      claimHealth: report.claimHealth,
+      evidenceReferences: renderedEvidenceReferences(report.evidenceRefs),
+    };
   }
   if (reportType === "full_report") {
     return {
@@ -1019,6 +1284,7 @@ function pdfFingerprintRenderedValues(
       roi: report.roiNarrative ? undefined : report.roi,
       boardAnnex: report.boardAnnex,
       workflowReconciliation: report.workflowReconciliation,
+      claimHealth: report.claimHealth,
       evidenceReferences: renderedEvidenceReferences(report.evidenceRefs),
     };
   }
@@ -1028,6 +1294,7 @@ function pdfFingerprintRenderedValues(
     score: scoreFingerprint(report.scoreResult, false),
     sensitivity: report.sensitivity,
     fiveLens: report.fiveLens,
+    claimHealth: report.claimHealth,
     evidenceReferences: renderedEvidenceReferences(report.evidenceRefs),
   };
 }
@@ -1036,71 +1303,103 @@ function pdfFingerprintRenderedValues(
 export function createPdfReportRenderContext(
   reportType: string,
   data: PDFReportInput | ScenarioComparisonPDFInput | PortfolioPDFInput,
-  overrides: ReportRenderContextOverrides = {},
+  overrides: ReportRenderContextOverrides = {}
 ): ReportRenderContext {
   const locale = overrides.locale ?? data.locale ?? "en";
   const labels = {
     artifactVersion: overrides.artifactVersion ?? REPORT_ARTIFACT_VERSION,
     rendererVersion: overrides.rendererVersion ?? REPORT_RENDERER_VERSION,
     modelVersion: overrides.modelVersion ?? data.modelVersion ?? null,
-    benchmarkVersion: overrides.benchmarkVersion ?? data.benchmarkVersion ?? null,
+    benchmarkVersion:
+      overrides.benchmarkVersion ?? data.benchmarkVersion ?? null,
     logicVersion: overrides.logicVersion ?? data.logicVersion ?? null,
   };
-  const prefix = reportType === "scenario_comparison" ? "SCE"
-    : reportType === "portfolio" ? "PFL"
-      : reportType.toUpperCase().slice(0, 3);
+  const prefix =
+    reportType === "scenario_comparison"
+      ? "SCE"
+      : reportType === "portfolio"
+        ? "PFL"
+        : reportType.toUpperCase().slice(0, 3);
   const subjectId = "projectId" in data ? data.projectId : data.portfolioId;
   return createReportRenderContext({
-    documentId: overrides.documentId ?? `MYR-${prefix}-${subjectId}-${randomUUID()}`,
+    documentId:
+      overrides.documentId ?? `MYR-${prefix}-${subjectId}-${randomUUID()}`,
     generatedAt: overrides.generatedAt,
     locale,
     ...labels,
-    fingerprintInput: createRenderFingerprintPayload(reportType, locale, labels, pdfFingerprintRenderedValues(reportType, data)),
+    fingerprintInput: createRenderFingerprintPayload(
+      reportType,
+      locale,
+      labels,
+      pdfFingerprintRenderedValues(reportType, data)
+    ),
   });
 }
 
 function resolveReportContext(
   reportType: string,
-  data: PDFReportInput | ScenarioComparisonPDFInput | PortfolioPDFInput,
+  data: PDFReportInput | ScenarioComparisonPDFInput | PortfolioPDFInput
 ): ReportRenderContext {
   if (data.renderContext) return data.renderContext;
   return createPdfReportRenderContext(reportType, data);
 }
 
-function finalizeReportHtml(html: string, context: ReportRenderContext): string {
+function finalizeReportHtml(
+  html: string,
+  context: ReportRenderContext
+): string {
   return localizeGovernedReportCopy(html, context.locale);
 }
 
 export function generateAutonomousBriefHTML(data: PDFReportInput): string {
   const context = resolveReportContext("autonomous_design_brief", data);
   const contentHtml = `<div class="section markdown-body">${renderReportMarkdown(data.autonomousContent || reportCopy(context.locale, "noContentGenerated"))}</div>`;
-  return finalizeReportHtml([
-    htmlHeader("Autonomous Design Brief", "AI-Generated Concept & Technical Specification", data.projectName, context),
-    contentHtml,
-    renderEvidenceTrace(data.projectId, context),
-    htmlFooter(context),
-  ].join(""), context);
+  return finalizeReportHtml(
+    [
+      htmlHeader(
+        "Autonomous Design Brief",
+        "AI-Generated Concept & Technical Specification",
+        data.projectName,
+        context
+      ),
+      contentHtml,
+      renderClaimHealth(data.claimHealth, context.locale),
+      renderEvidenceTrace(data.projectId, context),
+      htmlFooter(context),
+    ].join(""),
+    context
+  );
 }
 
 export function generateValidationSummaryHTML(data: PDFReportInput): string {
   const context = resolveReportContext("validation_summary", data);
-  return finalizeReportHtml([
-    htmlHeader("Executive Decision Pack", "Interior Design Direction Assessment", data.projectName, context),
-    renderExecutiveSummary(data.scoreResult),
-    renderDimensionTable(data.scoreResult),
-    renderRiskAssessment(data.scoreResult),
-    renderSensitivity(data.sensitivity, context.locale),
-    renderConditionalActions(data.scoreResult, context.locale),
-    data.fiveLens ? renderFiveLens(data.fiveLens) : "",
-    renderEvidenceReferences(data.evidenceRefs, context.locale),
-    renderEvidenceTrace(data.projectId, context),
-    renderInputSummary(data.inputs),
-    htmlFooter(context),
-  ].join("\n"), context);
+  return finalizeReportHtml(
+    [
+      htmlHeader(
+        "Executive Decision Pack",
+        "Interior Design Direction Assessment",
+        data.projectName,
+        context
+      ),
+      renderExecutiveSummary(data.scoreResult),
+      renderDimensionTable(data.scoreResult),
+      renderRiskAssessment(data.scoreResult),
+      renderSensitivity(data.sensitivity, context.locale),
+      renderConditionalActions(data.scoreResult, context.locale),
+      data.fiveLens ? renderFiveLens(data.fiveLens) : "",
+      renderClaimHealth(data.claimHealth, context.locale),
+      renderEvidenceReferences(data.evidenceRefs, context.locale),
+      renderEvidenceTrace(data.projectId, context),
+      renderInputSummary(data.inputs),
+      htmlFooter(context),
+    ].join("\n"),
+    context
+  );
 }
 
 function renderDesignBrief(brief: any): string {
-  if (!brief) return "<div class='section'><p>No Design Brief data available.</p></div>";
+  if (!brief)
+    return "<div class='section'><p>No Design Brief data available.</p></div>";
 
   const narrative = brief.designNarrative || {};
   const materials = brief.materialSpecifications || {};
@@ -1109,15 +1408,18 @@ function renderDesignBrief(brief: any): string {
   const instructions = brief.designerInstructions || { phasedDeliverables: {} };
 
   // Color palette chips
-  const colorChips = (narrative.colorPalette || []).map((c: string) =>
-    `<span class="color-chip">${dynamicText(c)}</span>`
-  ).join("");
+  const colorChips = (narrative.colorPalette || [])
+    .map((c: string) => `<span class="color-chip">${dynamicText(c)}</span>`)
+    .join("");
 
   // BOQ rows with visual percentage bars
-  const boqRows = (boq.coreAllocations || []).map((b: any) => {
-    const rawPct = Number(b.percentage);
-    const pct = Number.isFinite(rawPct) ? Math.max(0, Math.min(100, rawPct)) : 0;
-    return `
+  const boqRows = (boq.coreAllocations || [])
+    .map((b: any) => {
+      const rawPct = Number(b.percentage);
+      const pct = Number.isFinite(rawPct)
+        ? Math.max(0, Math.min(100, rawPct))
+        : 0;
+      return `
     <tr>
       <td>${dynamicText(b.category || "—")}</td>
       <td>
@@ -1130,7 +1432,8 @@ function renderDesignBrief(brief: any): string {
       <td><span style="font-size: 10px; color: #666;">${dynamicText(b.notes || "—")}</span></td>
     </tr>
   `;
-  }).join("");
+    })
+    .join("");
 
   // Table of Contents
   const toc = `
@@ -1168,13 +1471,13 @@ ${toc}
     <tr><td style="font-weight:bold;">Quality Benchmark</td><td>${dynamicText(materials.qualityBenchmark || "—")}</td></tr>
     <tr><td style="font-weight:bold;">Sustainability</td><td>${dynamicText(materials.sustainabilityMandate || "—")}</td></tr>
   </table>
-  
+
   <h3>Approved Materials (Primary)</h3>
   <ul class="brief-list">${(materials.approvedMaterials || []).map((m: string) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
-  
+
   <h3>Approved Finishes &amp; Textures</h3>
   <ul class="brief-list">${(materials.finishesAndTextures || []).map((m: string) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
-  
+
   <h3 style="color: #c62828;">Prohibited Materials (Value Engineering Flags)</h3>
   <ul class="brief-list">${(materials.prohibitedMaterials || []).map((m: string) => `<li><span style="color: #c62828;">${dynamicText(m)}</span></li>`).join("")}</ul>
 </div>
@@ -1203,7 +1506,7 @@ ${toc}
     <tr><td style="font-weight:bold;">Contingency</td><td>${dynamicText(budget.contingencyRecommendation || "—")}</td></tr>
     <tr><td style="font-weight:bold;">Flexibility Level</td><td>${dynamicText(budget.flexibilityLevel || "—")}</td></tr>
   </table>
-  
+
   <h3>Value Engineering Directives</h3>
   <ul class="brief-list">${(budget.valueEngineeringMandates || []).map((m: string) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
 </div>
@@ -1211,13 +1514,13 @@ ${toc}
 <div class="section">
   <h2 id="sec-workflow">Workflow &amp; Execution Instructions</h2>
   <p><strong>Lead Time Window:</strong> ${dynamicText((instructions.procurementAndLogistics || {}).leadTimeWindow || "—")}</p>
-  
+
   <h3>Critical Path Procurement Items</h3>
   <ul class="brief-list">${((instructions.procurementAndLogistics || {}).criticalPathItems || []).map((m: string) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
-  
+
   <h3>Local Authority Approvals (Dubai)</h3>
   <ul class="brief-list">${(instructions.authorityApprovals || []).map((m: string) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
-  
+
   <h3>Contractor Coordination Requirements</h3>
   <ul class="brief-list">${(instructions.coordinationRequirements || []).map((m: string) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
 </div>
@@ -1238,22 +1541,36 @@ ${toc}
 
 export function generateDesignBriefHTML(data: IssuedPDFReportInput): string {
   const context = resolveReportContext("design_brief", data);
-  return finalizeReportHtml([
-    htmlHeader("Interior Design Instruction Brief", "Technical Specification & Execution Workflows", data.projectName, context),
-    `<div class="content-wrapper">`,
-    renderDesignBrief(data.designBrief),
-    renderBoardAnnex(data.boardAnnex, context.locale),
-    renderEvidenceReferences(data.evidenceRefs, context.locale),
-    renderEvidenceTrace(data.projectId, context),
-    `</div>`,
-    htmlFooter(context),
-  ].join(""), context);
+  return finalizeReportHtml(
+    [
+      htmlHeader(
+        "Interior Design Instruction Brief",
+        "Technical Specification & Execution Workflows",
+        data.projectName,
+        context
+      ),
+      `<div class="content-wrapper">`,
+      renderDesignBrief(data.designBrief),
+      renderBoardAnnex(data.boardAnnex, context.locale),
+      renderClaimHealth(data.claimHealth, context.locale),
+      renderEvidenceReferences(data.evidenceRefs, context.locale),
+      renderEvidenceTrace(data.projectId, context),
+      `</div>`,
+      htmlFooter(context),
+    ].join(""),
+    context
+  );
 }
 
 export function generateFullReportHTML(data: IssuedPDFReportInput): string {
   const context = resolveReportContext("full_report", data);
   const sections = [
-    htmlHeader("Full Evaluation Report", "Comprehensive Decision Intelligence Analysis", data.projectName, context),
+    htmlHeader(
+      "Full Evaluation Report",
+      "Comprehensive Decision Intelligence Analysis",
+      data.projectName,
+      context
+    ),
     renderExecutiveSummary(data.scoreResult),
     renderDimensionTable(data.scoreResult),
     renderVariableContributions(data.scoreResult.variableContributions),
@@ -1275,8 +1592,12 @@ export function generateFullReportHTML(data: IssuedPDFReportInput): string {
   }
 
   if (data.workflowReconciliation) {
-    sections.push(renderWorkflowReconciliation(data.workflowReconciliation, context.locale));
+    sections.push(
+      renderWorkflowReconciliation(data.workflowReconciliation, context.locale)
+    );
   }
+
+  sections.push(renderClaimHealth(data.claimHealth, context.locale));
 
   // V4: Board Annex
   sections.push(renderBoardAnnex(data.boardAnnex, context.locale));
@@ -1298,7 +1619,12 @@ export function generateFullReportHTML(data: IssuedPDFReportInput): string {
 export interface ScenarioComparisonPDFInput {
   projectName: string;
   projectId: number;
-  baselineScenario: { id: number; name: string; scores: Record<string, number> | null; roi: Record<string, number> | null };
+  baselineScenario: {
+    id: number;
+    name: string;
+    scores: Record<string, number> | null;
+    roi: Record<string, number> | null;
+  };
   comparedScenarios: Array<{
     id: number;
     name: string;
@@ -1314,42 +1640,54 @@ export interface ScenarioComparisonPDFInput {
   renderContext?: ReportRenderContext;
 }
 
-function renderScenarioComparisonTable(data: ScenarioComparisonPDFInput): string {
+function renderScenarioComparisonTable(
+  data: ScenarioComparisonPDFInput
+): string {
   const dims = ["sa", "ff", "mp", "ds", "er"] as const;
-  const baseScores = (data.baselineScenario.scores ?? {}) as Record<string, number>;
+  const baseScores = (data.baselineScenario.scores ?? {}) as Record<
+    string,
+    number
+  >;
 
   // Header row: Dimension | Baseline | Scenario A | Scenario B | ...
   const headerCols = [
     `<th>Dimension</th>`,
     `<th style="text-align:center;">Baseline<br><span style="font-size:8px;font-weight:400;">${dynamicText(data.baselineScenario.name)}</span></th>`,
-    ...data.comparedScenarios.map((s, i) =>
-      `<th style="text-align:center;">Scenario ${String.fromCharCode(65 + i)}<br><span style="font-size:8px;font-weight:400;">${dynamicText(s.name)}</span></th>`
+    ...data.comparedScenarios.map(
+      (s, i) =>
+        `<th style="text-align:center;">Scenario ${String.fromCharCode(65 + i)}<br><span style="font-size:8px;font-weight:400;">${dynamicText(s.name)}</span></th>`
     ),
   ].join("");
 
-  const rows = dims.map((d) => {
-    const baseVal = baseScores[`${d}Score`] ?? baseScores[d] ?? 0;
-    const cells = data.comparedScenarios.map((s) => {
-      const sScores = (s.scores ?? {}) as Record<string, number>;
-      const val = sScores[`${d}Score`] ?? sScores[d] ?? 0;
-      const delta = val - baseVal;
-      const color = delta > 0 ? "#2e7d32" : delta < 0 ? "#c62828" : "#666";
-      const arrow = delta > 0 ? "\u25B2" : delta < 0 ? "\u25BC" : "\u2014";
-      return `<td style="text-align:center;">${val.toFixed(1)} <span style="color:${color};font-size:9px;">${arrow} ${delta !== 0 ? Math.abs(delta).toFixed(1) : ""}</span></td>`;
-    }).join("");
-    return `<tr><td>${DIMENSION_LABELS[d]}</td><td style="text-align:center;font-weight:700;">${baseVal.toFixed(1)}</td>${cells}</tr>`;
-  }).join("");
+  const rows = dims
+    .map(d => {
+      const baseVal = baseScores[`${d}Score`] ?? baseScores[d] ?? 0;
+      const cells = data.comparedScenarios
+        .map(s => {
+          const sScores = (s.scores ?? {}) as Record<string, number>;
+          const val = sScores[`${d}Score`] ?? sScores[d] ?? 0;
+          const delta = val - baseVal;
+          const color = delta > 0 ? "#2e7d32" : delta < 0 ? "#c62828" : "#666";
+          const arrow = delta > 0 ? "\u25B2" : delta < 0 ? "\u25BC" : "\u2014";
+          return `<td style="text-align:center;">${val.toFixed(1)} <span style="color:${color};font-size:9px;">${arrow} ${delta !== 0 ? Math.abs(delta).toFixed(1) : ""}</span></td>`;
+        })
+        .join("");
+      return `<tr><td>${DIMENSION_LABELS[d]}</td><td style="text-align:center;font-weight:700;">${baseVal.toFixed(1)}</td>${cells}</tr>`;
+    })
+    .join("");
 
   // Composite row
   const baseComposite = baseScores.compositeScore ?? baseScores.composite ?? 0;
-  const compositeCells = data.comparedScenarios.map((s) => {
-    const sScores = (s.scores ?? {}) as Record<string, number>;
-    const val = sScores.compositeScore ?? sScores.composite ?? 0;
-    const delta = val - baseComposite;
-    const color = delta > 0 ? "#2e7d32" : delta < 0 ? "#c62828" : "#666";
-    const arrow = delta > 0 ? "\u25B2" : delta < 0 ? "\u25BC" : "\u2014";
-    return `<td style="text-align:center;font-weight:700;">${val.toFixed(1)} <span style="color:${color};font-size:9px;">${arrow} ${delta !== 0 ? Math.abs(delta).toFixed(1) : ""}</span></td>`;
-  }).join("");
+  const compositeCells = data.comparedScenarios
+    .map(s => {
+      const sScores = (s.scores ?? {}) as Record<string, number>;
+      const val = sScores.compositeScore ?? sScores.composite ?? 0;
+      const delta = val - baseComposite;
+      const color = delta > 0 ? "#2e7d32" : delta < 0 ? "#c62828" : "#666";
+      const arrow = delta > 0 ? "\u25B2" : delta < 0 ? "\u25BC" : "\u2014";
+      return `<td style="text-align:center;font-weight:700;">${val.toFixed(1)} <span style="color:${color};font-size:9px;">${arrow} ${delta !== 0 ? Math.abs(delta).toFixed(1) : ""}</span></td>`;
+    })
+    .join("");
 
   return `
 <div class="section">
@@ -1369,9 +1707,15 @@ function renderScenarioComparisonTable(data: ScenarioComparisonPDFInput): string
 
 function renderROIComparison(data: ScenarioComparisonPDFInput): string {
   const baseRoi = (data.baselineScenario.roi ?? {}) as Record<string, number>;
-  if (!baseRoi.totalValue && data.comparedScenarios.every(s => !s.roi)) return "";
+  if (!baseRoi.totalValue && data.comparedScenarios.every(s => !s.roi))
+    return "";
 
-  const metrics = ["totalValue", "reworkAvoided", "procurementSavings", "timeValueGain"];
+  const metrics = [
+    "totalValue",
+    "reworkAvoided",
+    "procurementSavings",
+    "timeValueGain",
+  ];
   const metricLabels: Record<string, string> = {
     totalValue: "Total Value Created",
     reworkAvoided: "Rework Avoided",
@@ -1382,20 +1726,25 @@ function renderROIComparison(data: ScenarioComparisonPDFInput): string {
   const headerCols = [
     `<th>ROI Metric</th>`,
     `<th style="text-align:right;">Baseline</th>`,
-    ...data.comparedScenarios.map((s, i) =>
-      `<th style="text-align:right;">Scenario ${String.fromCharCode(65 + i)}</th>`
+    ...data.comparedScenarios.map(
+      (s, i) =>
+        `<th style="text-align:right;">Scenario ${String.fromCharCode(65 + i)}</th>`
     ),
   ].join("");
 
-  const rows = metrics.map((m) => {
-    const baseVal = baseRoi[m] ?? 0;
-    const cells = data.comparedScenarios.map((s) => {
-      const sRoi = (s.roi ?? {}) as Record<string, number>;
-      const val = sRoi[m] ?? 0;
-      return `<td style="text-align:right;">AED ${val.toLocaleString()}</td>`;
-    }).join("");
-    return `<tr><td>${metricLabels[m] ?? m}</td><td style="text-align:right;">AED ${baseVal.toLocaleString()}</td>${cells}</tr>`;
-  }).join("");
+  const rows = metrics
+    .map(m => {
+      const baseVal = baseRoi[m] ?? 0;
+      const cells = data.comparedScenarios
+        .map(s => {
+          const sRoi = (s.roi ?? {}) as Record<string, number>;
+          const val = sRoi[m] ?? 0;
+          return `<td style="text-align:right;">AED ${val.toLocaleString()}</td>`;
+        })
+        .join("");
+      return `<tr><td>${metricLabels[m] ?? m}</td><td style="text-align:right;">AED ${baseVal.toLocaleString()}</td>${cells}</tr>`;
+    })
+    .join("");
 
   return `
 <div class="section">
@@ -1408,25 +1757,42 @@ function renderROIComparison(data: ScenarioComparisonPDFInput): string {
 `;
 }
 
-function renderTradeoffAnalysis(data: ScenarioComparisonPDFInput, locale: ReportLocale): string {
-  const analyses = data.comparedScenarios.map((s, i) => {
-    const deltas = (s.deltas ?? {}) as Record<string, number>;
-    const positives = Object.entries(deltas).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
-    const negatives = Object.entries(deltas).filter(([, v]) => v < 0).sort((a, b) => a[1] - b[1]);
+function renderTradeoffAnalysis(
+  data: ScenarioComparisonPDFInput,
+  locale: ReportLocale
+): string {
+  const analyses = data.comparedScenarios
+    .map((s, i) => {
+      const deltas = (s.deltas ?? {}) as Record<string, number>;
+      const positives = Object.entries(deltas)
+        .filter(([, v]) => v > 0)
+        .sort((a, b) => b[1] - a[1]);
+      const negatives = Object.entries(deltas)
+        .filter(([, v]) => v < 0)
+        .sort((a, b) => a[1] - b[1]);
 
-    const posItems = positives.slice(0, 3).map(([k, v]) =>
-      `<div class="action-item">${DIMENSION_LABELS[k.replace("Score", "")] ?? k}: +${v.toFixed(1)} ${reportCopy(locale, "scenarioPoints")}</div>`
-    ).join("");
-    const negItems = negatives.slice(0, 3).map(([k, v]) =>
-      `<div class="penalty-item">${DIMENSION_LABELS[k.replace("Score", "")] ?? k}: ${v.toFixed(1)} ${reportCopy(locale, "scenarioPoints")}</div>`
-    ).join("");
+      const posItems = positives
+        .slice(0, 3)
+        .map(
+          ([k, v]) =>
+            `<div class="action-item">${DIMENSION_LABELS[k.replace("Score", "")] ?? k}: +${v.toFixed(1)} ${reportCopy(locale, "scenarioPoints")}</div>`
+        )
+        .join("");
+      const negItems = negatives
+        .slice(0, 3)
+        .map(
+          ([k, v]) =>
+            `<div class="penalty-item">${DIMENSION_LABELS[k.replace("Score", "")] ?? k}: ${v.toFixed(1)} ${reportCopy(locale, "scenarioPoints")}</div>`
+        )
+        .join("");
 
-    return `
+      return `
     <h3>Scenario ${String.fromCharCode(65 + i)}: ${dynamicText(s.name)}</h3>
     ${positives.length > 0 ? `<p><strong>Improvements vs Baseline:</strong></p>${posItems}` : "<p>No improvements over baseline.</p>"}
     ${negatives.length > 0 ? `<p><strong>Trade-offs vs Baseline:</strong></p>${negItems}` : "<p>No trade-offs identified.</p>"}
     `;
-  }).join("");
+    })
+    .join("");
 
   return `
 <div class="section">
@@ -1437,26 +1803,41 @@ function renderTradeoffAnalysis(data: ScenarioComparisonPDFInput, locale: Report
 `;
 }
 
-export function generateScenarioComparisonHTML(data: ScenarioComparisonPDFInput): string {
+export function generateScenarioComparisonHTML(
+  data: ScenarioComparisonPDFInput
+): string {
   const context = resolveReportContext("scenario_comparison", data);
-  return finalizeReportHtml([
-    htmlHeader("Scenario Comparison Pack", "Decision Tradeoff Analysis", data.projectName, context),
-    renderScenarioComparisonTable(data),
-    renderROIComparison(data),
-    renderTradeoffAnalysis(data, context.locale),
-    renderEvidenceTrace(data.projectId, context),
-    htmlFooter(context),
-  ].join("\n"), context);
+  return finalizeReportHtml(
+    [
+      htmlHeader(
+        "Scenario Comparison Pack",
+        "Decision Tradeoff Analysis",
+        data.projectName,
+        context
+      ),
+      renderScenarioComparisonTable(data),
+      renderROIComparison(data),
+      renderTradeoffAnalysis(data, context.locale),
+      renderEvidenceTrace(data.projectId, context),
+      htmlFooter(context),
+    ].join("\n"),
+    context
+  );
 }
 
 function requireBoardAnnex(data: PDFReportInput): IssuedPDFReportInput {
   if (!data.boardAnnex) {
-    throw new Error("Material Board Annex data is required for this issued report");
+    throw new Error(
+      "Material Board Annex data is required for this issued report"
+    );
   }
   return data as IssuedPDFReportInput;
 }
 
-export function generateReportHTML(reportType: ReportType, data: PDFReportInput): string {
+export function generateReportHTML(
+  reportType: ReportType,
+  data: PDFReportInput
+): string {
   switch (reportType) {
     case "validation_summary":
       return generateValidationSummaryHTML(data);
@@ -1598,11 +1979,17 @@ export function generatePortfolioReportHTML(data: PortfolioPDFInput): string {
 `;
 
   // ─── Project Comparison Table ──────────────────────────────────────────
-  const projectRows = data.projects.map((p) => {
-    const statusClass = p.decisionStatus === "GO" ? "status-go"
-      : p.decisionStatus === "CONDITIONAL_GO" ? "status-conditional"
-        : p.decisionStatus === "NO_GO" ? "status-nogo" : "";
-    return `<tr>
+  const projectRows = data.projects
+    .map(p => {
+      const statusClass =
+        p.decisionStatus === "GO"
+          ? "status-go"
+          : p.decisionStatus === "CONDITIONAL_GO"
+            ? "status-conditional"
+            : p.decisionStatus === "NO_GO"
+              ? "status-nogo"
+              : "";
+      return `<tr>
       <td>${dynamicText(p.name)}</td>
       <td>${p.tier ? dynamicText(p.tier) : "—"}</td>
       <td>${p.style ? dynamicText(p.style) : "—"}</td>
@@ -1610,7 +1997,8 @@ export function generatePortfolioReportHTML(data: PortfolioPDFInput): string {
       <td style="text-align:center;">${p.riskScore ?? "N/A"}</td>
       <td style="text-align:center;" class="${statusClass}">${p.decisionStatus?.toLowerCase() === "conditional" ? reportCopy(context.locale, "portfolioConditional") : dynamicText((p.decisionStatus || "—").replace(/_/g, " "))}</td>
     </tr>`;
-  }).join("");
+    })
+    .join("");
 
   const projectTable = `
 <div class="section">
@@ -1625,32 +2013,47 @@ export function generatePortfolioReportHTML(data: PortfolioPDFInput): string {
   // ─── Score Distributions ───────────────────────────────────────────────
   let distSection = "";
   if (data.distributions.length > 0) {
-    const distTables = data.distributions.map((dist) => {
-      const rows = dist.buckets
-        .filter((b) => b.count > 0)
-        .map((b) => `<tr><td>${dynamicText(b.label)}</td><td style="text-align:center;">${b.count}</td><td style="text-align:center; font-weight:700;">${b.avgScore}</td></tr>`)
-        .join("");
-      return `<h3>${dynamicText(dist.dimension)}</h3><table><tr><th>Group</th><th>Count</th><th>Avg Score</th></tr>${rows}</table>`;
-    }).join("");
+    const distTables = data.distributions
+      .map(dist => {
+        const rows = dist.buckets
+          .filter(b => b.count > 0)
+          .map(
+            b =>
+              `<tr><td>${dynamicText(b.label)}</td><td style="text-align:center;">${b.count}</td><td style="text-align:center; font-weight:700;">${b.avgScore}</td></tr>`
+          )
+          .join("");
+        return `<h3>${dynamicText(dist.dimension)}</h3><table><tr><th>Group</th><th>Count</th><th>Avg Score</th></tr>${rows}</table>`;
+      })
+      .join("");
     distSection = `<div class="section"><h2>Score Distributions by Dimension</h2>${distTables}</div>`;
   }
 
   // ─── Failure Patterns ──────────────────────────────────────────────────
   let fpSection = "";
   if (data.failurePatterns.length > 0) {
-    const fpItems = data.failurePatterns.map((fp) => {
-      const css = fp.severity === "high" ? "penalty-item" : fp.severity === "medium" ? "risk-flag" : "action-item";
-      return `<div class="${css}"><strong>${dynamicText(fp.pattern)}</strong> (${dynamicText(fp.severity)}, ${fp.frequency} project(s))<br>${dynamicText(fp.description)}</div>`;
-    }).join("");
+    const fpItems = data.failurePatterns
+      .map(fp => {
+        const css =
+          fp.severity === "high"
+            ? "penalty-item"
+            : fp.severity === "medium"
+              ? "risk-flag"
+              : "action-item";
+        return `<div class="${css}"><strong>${dynamicText(fp.pattern)}</strong> (${dynamicText(fp.severity)}, ${fp.frequency} project(s))<br>${dynamicText(fp.description)}</div>`;
+      })
+      .join("");
     fpSection = `<div class="section"><h2>Failure Patterns</h2>${fpItems}</div>`;
   }
 
   // ─── Improvement Levers ────────────────────────────────────────────────
   let leverSection = "";
   if (data.improvementLevers.length > 0) {
-    const leverRows = data.improvementLevers.map((l) =>
-      `<tr><td style="text-align:center; font-weight:700;">${l.rank}</td><td>${dynamicText(l.lever)}</td><td>${dynamicText(l.description)}</td><td style="text-align:center; color: ${l.estimatedImpact === "High" ? "#4ecdc4" : l.estimatedImpact === "Medium" ? "#f0c674" : "#666"}; font-weight:700;">${dynamicText(l.estimatedImpact)}</td></tr>`
-    ).join("");
+    const leverRows = data.improvementLevers
+      .map(
+        l =>
+          `<tr><td style="text-align:center; font-weight:700;">${l.rank}</td><td>${dynamicText(l.lever)}</td><td>${dynamicText(l.description)}</td><td style="text-align:center; color: ${l.estimatedImpact === "High" ? "#4ecdc4" : l.estimatedImpact === "Medium" ? "#f0c674" : "#666"}; font-weight:700;">${dynamicText(l.estimatedImpact)}</td></tr>`
+      )
+      .join("");
     leverSection = `<div class="section"><h2>Improvement Levers</h2><table><tr><th>#</th><th>Lever</th><th>Description</th><th>Impact</th></tr>${leverRows}</table></div>`;
   }
 
@@ -1658,18 +2061,41 @@ export function generatePortfolioReportHTML(data: PortfolioPDFInput): string {
   let heatmapSection = "";
   if (data.complianceHeatmap.length > 0) {
     const dims = ["sa", "ff", "mp", "ds", "er"];
-    const dimLabels: Record<string, string> = { sa: "SA", ff: "FF", mp: "MP", ds: "DS", er: "ER" };
-    const headerCols = dims.map((d) => `<th style="text-align:center;">${dimLabels[d] || d}</th>`).join("");
-    const heatRows = data.complianceHeatmap.map((row) => {
-      const cells = dims.map((d) => {
-        const cell = row.dimensions[d];
-        if (!cell || cell.count === 0) return `<td style="text-align:center; color:#999;">—</td>`;
-        const color = cell.avg >= 75 ? "#e8f5e9" : cell.avg >= 55 ? "#fff8e1" : "#fce4ec";
-        const textColor = cell.avg >= 75 ? "#2e7d32" : cell.avg >= 55 ? "#f57f17" : "#c62828";
-        return `<td style="text-align:center; background:${color}; color:${textColor}; font-weight:700;">${cell.avg} <span style="font-size:8px; font-weight:400;">(${cell.count})</span></td>`;
-      }).join("");
-      return `<tr><td style="font-weight:700;">${dynamicText(row.tier)}</td>${cells}</tr>`;
-    }).join("");
+    const dimLabels: Record<string, string> = {
+      sa: "SA",
+      ff: "FF",
+      mp: "MP",
+      ds: "DS",
+      er: "ER",
+    };
+    const headerCols = dims
+      .map(d => `<th style="text-align:center;">${dimLabels[d] || d}</th>`)
+      .join("");
+    const heatRows = data.complianceHeatmap
+      .map(row => {
+        const cells = dims
+          .map(d => {
+            const cell = row.dimensions[d];
+            if (!cell || cell.count === 0)
+              return `<td style="text-align:center; color:#999;">—</td>`;
+            const color =
+              cell.avg >= 75
+                ? "#e8f5e9"
+                : cell.avg >= 55
+                  ? "#fff8e1"
+                  : "#fce4ec";
+            const textColor =
+              cell.avg >= 75
+                ? "#2e7d32"
+                : cell.avg >= 55
+                  ? "#f57f17"
+                  : "#c62828";
+            return `<td style="text-align:center; background:${color}; color:${textColor}; font-weight:700;">${cell.avg} <span style="font-size:8px; font-weight:400;">(${cell.count})</span></td>`;
+          })
+          .join("");
+        return `<tr><td style="font-weight:700;">${dynamicText(row.tier)}</td>${cells}</tr>`;
+      })
+      .join("");
     heatmapSection = `<div class="section"><h2>Compliance Heatmap (Tier × Dimension)</h2><table><tr><th>Tier</th>${headerCols}</tr>${heatRows}</table></div>`;
   }
 
@@ -1684,15 +2110,18 @@ export function generatePortfolioReportHTML(data: PortfolioPDFInput): string {
 </html>
 `;
 
-  return finalizeReportHtml([
-    cover,
-    summary,
-    projectTable,
-    distSection,
-    heatmapSection,
-    fpSection,
-    leverSection,
-    renderDisclaimer(context.locale),
-    footer,
-  ].join("\n"), context);
+  return finalizeReportHtml(
+    [
+      cover,
+      summary,
+      projectTable,
+      distSection,
+      heatmapSection,
+      fpSection,
+      leverSection,
+      renderDisclaimer(context.locale),
+      footer,
+    ].join("\n"),
+    context
+  );
 }

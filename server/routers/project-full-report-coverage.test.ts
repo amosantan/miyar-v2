@@ -253,9 +253,10 @@ describe("issued full-report material coverage gate", () => {
       new URL("./project.ts", import.meta.url),
       "utf8"
     );
-    expect(source.match(/const reportMaterialAsOf = new Date\(\)/g)).toHaveLength(
-      1
-    );
+    expect(
+      source.match(/const reportMaterialAsOf = new Date\(/g)
+    ).toHaveLength(1);
+    expect(source).toContain("Math.trunc(Date.now() / 1_000) * 1_000");
     expect(source.match(/asOf: reportMaterialAsOf/g)).toHaveLength(2);
     expect(source).not.toContain("rfqResolverAsOf");
     expect(source).toContain(

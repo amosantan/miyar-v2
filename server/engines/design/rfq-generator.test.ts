@@ -119,12 +119,12 @@ describe("EV-03 governed RFQ generation", () => {
       briefRouter.indexOf("generateRfqFromBrief:"),
       briefRouter.indexOf("exportBriefDocx:")
     );
+    const reportClock = projectRouter.indexOf(
+      "const reportMaterialAsOf = new Date("
+    );
     const reportBlock = projectRouter.slice(
-      projectRouter.indexOf("const reportMaterialAsOf = new Date();"),
-      projectRouter.indexOf(
-        "designArtifacts = {",
-        projectRouter.indexOf("const reportMaterialAsOf = new Date();")
-      )
+      reportClock,
+      projectRouter.indexOf("designArtifacts = {", reportClock)
     );
 
     for (const block of [briefBlock, reportBlock]) {

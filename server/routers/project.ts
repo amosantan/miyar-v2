@@ -34,6 +34,16 @@ import {
   resolveMaterialPriceSnapshots,
   resolveProjectMaterialPriceGeography,
 } from "../engines/material-pricing/material-resolution";
+import { loadProjectClaimHealth } from "../engines/ingestion/project-claim-health-loader";
+import {
+  createClaimHealthDigests,
+  evaluateClaimHealth,
+} from "../engines/ingestion/claim-health";
+import {
+  CLAIM_HEALTH_POLICY_VERSION,
+  CLAIM_HEALTH_REQUIRED_CELL_SCHEMA_VERSION,
+} from "../../shared/claim-health";
+import { getVerifiedReportClaimHealthProjection } from "../db/claim-health";
 import { generateDesignBrief as generateNewDesignBrief } from "../engines/design-brief";
 import { storageGet, storagePut } from "../storage";
 import { nanoid } from "nanoid";
@@ -79,9 +89,7 @@ export function isIssuedFullReportMaterialCoverageComplete(
   const { coverage } = materialCosts;
   const actualGroups = new Set(
     allocations.groups
-      .filter(group =>
-        ["floor", "walls", "ceiling"].includes(group.element)
-      )
+      .filter(group => ["floor", "walls", "ceiling"].includes(group.element))
       .map(group => `${group.roomId}\u0000${group.element}`)
   );
   const requiredGroups =
@@ -1568,7 +1576,13 @@ export const projectRouter = router({
           : undefined;
 
       let reportData;
-      const reportMaterialAsOf = new Date();
+      // Claim-health snapshots are persisted in second-precision MySQL
+      // timestamps. Evaluate at the last closed second so a concurrently
+      // approved fact receives a later clock; use this one clock for
+      // resolution, evaluation, digests, report content, and persistence.
+      const reportMaterialAsOf = new Date(
+        Math.trunc(Date.now() / 1_000) * 1_000 - 1_000
+      );
       let reportStoredRooms:
         | Awaited<ReturnType<typeof db.getSpaceProgramRooms>>
         | undefined;
@@ -1873,6 +1887,18 @@ export const projectRouter = router({
         }
       }
 
+      const reportClaimHealth = await loadProjectClaimHealth({
+        projectId: input.projectId,
+        organizationId: ctx.orgId,
+        userId: ctx.user.id,
+        requestedGeography: resolveProjectMaterialPriceGeography(
+          project.materialPriceGeography
+        ),
+        evaluatedAt: reportMaterialAsOf,
+        consumer: "stored_project_report",
+        allocations: reportStoredAllocations,
+      });
+
       const pdfInput: PDFReportInput = {
         projectName: project.name,
         projectId: project.id,
@@ -1889,6 +1915,7 @@ export const projectRouter = router({
         evidenceRefs,
         boardAnnex,
         workflowReconciliation,
+        claimHealth: reportClaimHealth.evaluation.safeProjection,
         autonomousContent:
           input.reportType === "autonomous_design_brief"
             ? (reportData as any).content
@@ -1924,10 +1951,7 @@ export const projectRouter = router({
         persistence = await db.createReportArtifactsForOrg({
           projectId: input.projectId,
           orgId: ctx.orgId,
-          expectedMaterialPricingRevision:
-            designArtifacts === undefined
-              ? undefined
-              : project.materialPricingRevision,
+          expectedMaterialPricingRevision: project.materialPricingRevision,
           report: {
             projectId: input.projectId,
             scoreMatrixId: latest.id,
@@ -1937,13 +1961,34 @@ export const projectRouter = router({
             fileUrl: storageKey ? null : fileUrl,
             storageKey,
             content: storageKey
-              ? { ...reportData, locale: input.locale }
-              : { ...reportData, locale: input.locale, html },
+              ? {
+                  ...reportData,
+                  locale: input.locale,
+                  claimHealth: reportClaimHealth.evaluation.safeProjection,
+                }
+              : {
+                  ...reportData,
+                  locale: input.locale,
+                  claimHealth: reportClaimHealth.evaluation.safeProjection,
+                  html,
+                },
             generatedBy: ctx.user.id,
             benchmarkVersionId: activeBV?.id ?? null,
             modelVersionId: modelVersion.id,
           },
           designArtifacts,
+          claimHealthSnapshot: {
+            evaluationClock: reportMaterialAsOf,
+            evaluationInput: reportClaimHealth.evaluationInput,
+            evaluation: reportClaimHealth.evaluation,
+            authorityBinding: reportClaimHealth.authorityBinding,
+            digests: createClaimHealthDigests(
+              reportClaimHealth.evaluationInput,
+              reportClaimHealth.evaluation
+            ),
+            actorUserId: ctx.user.id,
+            actorSessionIdentity: "project.generateReport",
+          },
         });
       } catch (error) {
         if (storageKey) {
@@ -1999,16 +2044,40 @@ export const projectRouter = router({
       return Promise.all(
         reports.map(async report => {
           const { storageKey, ...publicReport } = report;
-          if (!storageKey) return publicReport;
+          const content =
+            publicReport.content &&
+            typeof publicReport.content === "object" &&
+            !Array.isArray(publicReport.content)
+              ? (publicReport.content as Record<string, unknown>)
+              : {};
+          const claimHealth =
+            (await getVerifiedReportClaimHealthProjection({
+              reportInstanceId: report.id,
+              organizationId: ctx.orgId,
+            })) ??
+            evaluateClaimHealth({
+              policyVersion: CLAIM_HEALTH_POLICY_VERSION,
+              requiredCellSchemaVersion:
+                CLAIM_HEALTH_REQUIRED_CELL_SCHEMA_VERSION,
+              evaluatedAt: report.generatedAt,
+              artifactSnapshot: "missing",
+              cells: [],
+            }).safeProjection;
+          const reportWithHealth = {
+            ...publicReport,
+            canManagePublicShare: ctx.orgRole === "admin",
+            content: { ...content, claimHealth },
+          };
+          if (!storageKey) return reportWithHealth;
           try {
             const signed = await storageGet(storageKey);
-            return { ...publicReport, fileUrl: signed.url };
+            return { ...reportWithHealth, fileUrl: signed.url };
           } catch (error) {
             console.warn("[Report] Failed to refresh stored report URL", {
               reportId: report.id,
               error: error instanceof Error ? error.message : String(error),
             });
-            return publicReport;
+            return reportWithHealth;
           }
         })
       );

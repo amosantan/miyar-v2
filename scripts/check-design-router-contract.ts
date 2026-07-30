@@ -35,6 +35,10 @@ const APPROVED_ADDITIVE_CONTRACTS = new Map([
     "design.finalizeGeometrySourceUpload",
     { operation: "mutation", accessPrimitive: "designOrgMutationProcedure" },
   ],
+  [
+    "design.getProjectDataFreshness",
+    { operation: "query", accessPrimitive: "orgProcedure" },
+  ],
 ] as const);
 const APPROVED_INITIALIZER_CHANGES = new Set([
   // DI-01 release-N compatibility guard; operation and middleware are frozen.
@@ -66,6 +70,9 @@ const APPROVED_INITIALIZER_CHANGES = new Set([
   // EV-03: catalog recommendations expose browse-only nullable estimates and
   // canonical identities; project authorization and query shape remain frozen.
   "design.recommendMaterials",
+  // EV-04: source-wide 7/30-day telemetry is replaced by the approved
+  // fixed DLD claim-health projection; middleware and operation stay frozen.
+  "design.getDataFreshness",
 ]);
 const ACCESS_PRIMITIVES = [
   "designOrgMutationProcedure",

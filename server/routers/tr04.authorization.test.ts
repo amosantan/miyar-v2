@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   storagePut: vi.fn(),
   storageGet: vi.fn(),
   getReportsByProject: vi.fn(),
+  getVerifiedReportClaimHealthProjection: vi.fn(),
 }));
 
 vi.mock("../db", async importOriginal => {
@@ -28,6 +29,15 @@ vi.mock("../storage", () => ({
   storageGet: mocks.storageGet,
   storageDelete: vi.fn(),
 }));
+
+vi.mock("../db/claim-health", async importOriginal => {
+  const actual = await importOriginal<typeof import("../db/claim-health")>();
+  return {
+    ...actual,
+    getVerifiedReportClaimHealthProjection:
+      mocks.getVerifiedReportClaimHealthProjection,
+  };
+});
 
 import { projectRouter } from "./project";
 import { scenarioRouter } from "./scenario";
@@ -84,6 +94,7 @@ describe("TR-04 project and scenario authorization contracts", () => {
     mocks.deleteProjectForOrg.mockResolvedValue(true);
     mocks.deleteScenarioForOrg.mockResolvedValue(true);
     mocks.getReportsByProject.mockResolvedValue([]);
+    mocks.getVerifiedReportClaimHealthProjection.mockResolvedValue(null);
     mocks.storageGet.mockResolvedValue({ key: "reports/11/report.html", url: "https://signed.example/report" });
   });
 
@@ -228,6 +239,54 @@ describe("TR-04 project and scenario authorization contracts", () => {
       .rejects.toMatchObject({ code: "NOT_FOUND" });
     expect(mocks.getReportsByProject).toHaveBeenCalledTimes(1);
     expect(mocks.storageGet).toHaveBeenCalledTimes(1);
+  });
+
+  it("never trusts stored report content as claim-health authority", async () => {
+    mocks.getOrganizationMemberships.mockResolvedValue([
+      membership(101, "member"),
+    ]);
+    mocks.getReportsByProject.mockResolvedValue([
+      {
+        id: 503,
+        projectId: 11,
+        scoreMatrixId: 91,
+        reportType: "full_report",
+        fileUrl: null,
+        storageKey: null,
+        bundleUrl: null,
+        content: {
+          claimHealth: {
+            claimState: "current",
+            policyVersion: "attacker-controlled",
+            operationalSource: "private-source",
+          },
+        },
+        benchmarkVersionId: 2,
+        modelVersionId: 3,
+        generatedAt: new Date("2026-07-30T10:00:00.000Z"),
+        generatedBy: 7,
+      },
+    ]);
+    mocks.getVerifiedReportClaimHealthProjection.mockResolvedValue(null);
+
+    const [report] = await projectRouter
+      .createCaller(context(101, "member"))
+      .listReports({ projectId: 11 });
+
+    expect(mocks.getVerifiedReportClaimHealthProjection).toHaveBeenCalledWith({
+      reportInstanceId: 503,
+      organizationId: 101,
+    });
+    expect(report.content).toMatchObject({
+      claimHealth: {
+        claimState: "legacy",
+        reasonCodes: expect.arrayContaining([
+          "legacy_artifact_without_snapshot",
+        ]),
+      },
+    });
+    expect(JSON.stringify(report)).not.toContain("attacker-controlled");
+    expect(JSON.stringify(report)).not.toContain("private-source");
   });
 
   it("rejects viewers before tenant portfolio-alert calculation or persistence", async () => {

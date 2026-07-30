@@ -29,6 +29,7 @@ import { spaceProgramRouter } from "./routers/spaceProgram";
 import { briefRouter } from "./routers/brief";
 import { typologyPackRouter } from "./routers/typology-packs";
 import { regulatorySourceRouter } from "./routers/regulatory-sources";
+import { reportShareRouter } from "./routers/report-share";
 
 export const appRouter = router({
   system: systemRouter,
@@ -59,6 +60,7 @@ export const appRouter = router({
   brief: briefRouter,
   typologyPack: typologyPackRouter,
   regulatorySources: regulatorySourceRouter,
+  reportShare: reportShareRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -67,6 +67,7 @@ const EXPECTED_DESIGN_PROCEDURES = {
   getDldDataStats: "query",
   getProjectDldBenchmark: "query",
   getDataFreshness: "query",
+  getProjectDataFreshness: "query",
   getEvidenceChain: "query",
   getCompetitorContext: "query",
   exportInvestorPdf: "mutation",
@@ -134,7 +135,7 @@ describe("design router contract", () => {
       { cwd: process.cwd(), encoding: "utf8" }
     );
     expect(`${result.stdout}\n${result.stderr}`).toContain(
-      "SC-01 design contract PASS: 63 baseline procedures and 2 approved additive procedures"
+      "SC-01 design contract PASS: 63 baseline procedures and 3 approved additive procedures"
     );
     expect(result.status).toBe(0);
   });

@@ -9,6 +9,7 @@ import type { TrpcContext } from "../../server/_core/context";
 import { initializeDatabaseSafety } from "../../server/_core/database-safety";
 import { PUBLIC_SHARE_HEADERS } from "../../server/_core/public-share-headers";
 import { resetPublicRateLimitForTests } from "../../server/_core/rate-limit";
+import { cleanupEv04ClaimHealthForDisposableTest } from "../../server/db/claim-health";
 import {
   tr13GovernedPricingEnvironment,
   tr13GovernedSnapshotFromLiveRow,
@@ -264,6 +265,10 @@ function reportSnapshot(html: string) {
 
 async function clearOwnedFixture(): Promise<void> {
   await pool.query("delete from audit_logs where entityId = ?", [ID.project]);
+  await cleanupEv04ClaimHealthForDisposableTest({
+    organizationId: ID.org,
+    projectId: ID.project,
+  });
   await pool.query("delete from report_instances where projectId = ?", [
     ID.project,
   ]);
@@ -710,6 +715,10 @@ async function seedBaseFixture(): Promise<void> {
 
 async function resetProfileState(): Promise<void> {
   await pool.query("delete from audit_logs where entityId = ?", [ID.project]);
+  await cleanupEv04ClaimHealthForDisposableTest({
+    organizationId: ID.org,
+    projectId: ID.project,
+  });
   await pool.query("delete from report_instances where projectId = ?", [
     ID.project,
   ]);
@@ -879,6 +888,11 @@ beforeAll(async () => {
   mkdirSync(path.join(process.cwd(), "tmp", "tr13-workflow-certification"), {
     recursive: true,
   });
+  // Both runtime profiles must receive the same injected report evaluation
+  // clock. Production continues to derive this clock at request time.
+  vi.spyOn(Date, "now").mockReturnValue(
+    new Date("2026-07-30T12:00:00.000Z").getTime()
+  );
   // Initialize the real appRouter under the deployed (non-development) error
   // contract so concealment compares the actual public wire shape, then restore
   // NODE_ENV=test before loading the Node entry point (which suppresses its
@@ -898,6 +912,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await Promise.all(servers.splice(0).map(closeRuntime));
+  vi.restoreAllMocks();
   await pool.end();
 });
 

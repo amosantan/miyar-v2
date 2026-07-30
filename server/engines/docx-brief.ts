@@ -21,6 +21,7 @@ import {
   NumberFormat,
 } from "docx";
 import type { ReportLocale } from "../../shared/report-locale";
+import type { ClaimHealthSafeProjection } from "../../shared/claim-health";
 import { formatReportDate, reportCopy } from "./report-catalog";
 import {
   createRenderFingerprintPayload,
@@ -63,6 +64,11 @@ export interface DesignBriefData {
   benchmarkVersion?: string;
   logicVersion?: string;
   renderContext?: ReportRenderContext;
+  /**
+   * Frozen safe projection only. The legacy brief export route does not bind
+   * one until BR-07 owns canonical brief issuance.
+   */
+  claimHealth?: ClaimHealthSafeProjection;
 }
 
 export interface DesignBriefRenderContextOverrides {
@@ -107,6 +113,29 @@ const DOCX_AR_COPY: Record<string, string> = {
   "Local Authority Approvals (Dubai):": "اعتمادات الجهات المحلية (دبي):", "Contractor Coordination Requirements:": "متطلبات التنسيق مع المقاول:",
   "Phase 1 — Concept & Schematic": "المرحلة 1 — المفهوم والتصميم التخطيطي", "Phase 2 — Detailed Design": "المرحلة 2 — التصميم التفصيلي",
   "Phase 3 — IFC & Tender": "المرحلة 3 — مخططات التنفيذ والمناقصة",
+  "Evidence Health": "صحة الأدلة",
+  "Claim state": "الحالة",
+  "Eligible coverage": "التغطية المؤهلة",
+  "Required cells": "الخلايا المطلوبة",
+  "Exact matches": "المطابقات الدقيقة",
+  "Approved fallbacks": "البدائل المعتمدة",
+  "Evaluated at": "وقت التقييم",
+  "Policy version": "إصدار السياسة",
+  "Policy manifest digest": "بصمة بيان السياسة",
+  "Required-cell schema": "إصدار مخطط الخلايا",
+  "Current": "حالي",
+  "Current with approved fallback": "حالي مع بديل معتمد",
+  "Qualified": "مقيّد",
+  "Aging": "يقترب من التقادم",
+  "Stale": "قديم",
+  "Incident affected": "متأثر بحادثة",
+  "Insufficient": "غير كافٍ",
+  "Unknown": "غير معروف",
+  "Legacy — health snapshot unavailable": "قديم — لقطة صحة الأدلة غير متاحة",
+  "No supported frozen evidence-health snapshot is bound to this brief. Evidence health is unavailable and was not recomputed.":
+    "لا توجد لقطة صحة أدلة مجمّدة ومدعومة مرتبطة بهذا الموجز. حالة الأدلة غير متاحة ولم تتم إعادة تقييمها.",
+  "This is the frozen evidence-health snapshot bound to this brief, not a live recomputation.":
+    "هذه لقطة صحة الأدلة المجمّدة المرتبطة بهذا الموجز وليست إعادة تقييم مباشرة.",
 };
 
 function docxFixed(text: string, rtl: boolean): string {
@@ -150,6 +179,71 @@ function labelValue(label: string, value: string, rtl = false): Paragraph {
 
 function spacer(rtl = false): Paragraph {
   return new Paragraph({ bidirectional: rtl, spacing: { after: 200 }, children: [] });
+}
+
+const DOCX_CLAIM_HEALTH_STATE_LABELS: Record<
+  ClaimHealthSafeProjection["claimState"],
+  string
+> = {
+  current: "Current",
+  current_with_fallback: "Current with approved fallback",
+  qualified: "Qualified",
+  aging: "Aging",
+  stale: "Stale",
+  incident: "Incident affected",
+  insufficient: "Insufficient",
+  unknown: "Unknown",
+  legacy: "Legacy — health snapshot unavailable",
+};
+
+function renderDocxClaimHealth(
+  health: ClaimHealthSafeProjection | undefined,
+  locale: ReportLocale,
+  rtl: boolean
+): (Paragraph | Table)[] {
+  const rows: [string, string][] = health
+    ? [
+        [
+          "Claim state",
+          docxFixed(DOCX_CLAIM_HEALTH_STATE_LABELS[health.claimState], rtl),
+        ],
+        [
+          "Eligible coverage",
+          `${health.counts.eligible}/${health.counts.required}`,
+        ],
+        ["Required cells", String(health.counts.required)],
+        ["Exact matches", String(health.counts.exact)],
+        ["Approved fallbacks", String(health.counts.fallback)],
+        [
+          "Evaluated at",
+          health.evaluatedAt
+            ? formatReportDate(health.evaluatedAt, locale)
+            : reportCopy(locale, "notAvailable"),
+        ],
+        ["Policy version", health.policyVersion],
+        [
+          "Policy manifest digest",
+          health.policyManifestDigest ?? reportCopy(locale, "notAvailable"),
+        ],
+        ["Required-cell schema", health.requiredCellSchemaVersion],
+      ]
+    : [
+        [
+          "Claim state",
+          docxFixed(DOCX_CLAIM_HEALTH_STATE_LABELS.legacy, rtl),
+        ],
+      ];
+  return [
+    spacer(rtl),
+    heading("Evidence Health", HeadingLevel.HEADING_1, rtl),
+    twoColumnTable(rows, rtl),
+    bodyText(
+      health
+        ? "This is the frozen evidence-health snapshot bound to this brief, not a live recomputation."
+        : "No supported frozen evidence-health snapshot is bound to this brief. Evidence health is unavailable and was not recomputed.",
+      rtl
+    ),
+  ];
 }
 
 function twoColumnTable(rows: [string, string][], rtl = false): Table {
@@ -295,6 +389,23 @@ export function createDesignBriefDocxRenderContext(
         rooms: data.spaceAllocation.rooms,
         recommendations: data.spaceAllocation.recommendations,
       } : null,
+      claimHealth: data.claimHealth
+        ? {
+            claimState: data.claimHealth.claimState,
+            evaluatedAt: data.claimHealth.evaluatedAt,
+            policyVersion: data.claimHealth.policyVersion,
+            policyManifestDigest: data.claimHealth.policyManifestDigest,
+            requiredCellSchemaVersion:
+              data.claimHealth.requiredCellSchemaVersion,
+            counts: {
+              required: data.claimHealth.counts.required,
+              eligible: data.claimHealth.counts.eligible,
+              exact: data.claimHealth.counts.exact,
+              fallback: data.claimHealth.counts.fallback,
+              optional: data.claimHealth.counts.optional,
+            },
+          }
+        : { claimState: "legacy", snapshot: "unavailable" },
     }),
   });
 }
@@ -554,6 +665,8 @@ export async function generateDesignBriefDocx(data: DesignBriefData): Promise<Bu
       }
     }
   }
+
+  sections.push(...renderDocxClaimHealth(data.claimHealth, locale, rtl));
 
   // ─── Disclaimer ─────────────────────────────────────────────────────────
   sections.push(spacer(rtl));

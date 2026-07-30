@@ -13,11 +13,35 @@ const testRouter = router({
       .input(z.object({ token: z.string().min(8) }))
       .query(({ input }) => {
         if (input.token === "expired-token") {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Share unavailable" });
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Share unavailable",
+          });
         }
         return { token: input.token };
       }),
     listAssets: publicProcedure.query(() => []),
+  }),
+  reportShare: router({
+    resolve: publicProcedure
+      .input(z.object({ token: z.string() }))
+      .query(({ input }) => {
+        if (input.token === "expired-token") {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Share unavailable",
+          });
+        }
+        return {
+          report: {
+            reportType: "full_report",
+            locale: "en",
+            generatedAt: new Date("2026-07-30T10:00:00.000Z"),
+          },
+          expiresAt: new Date("2026-08-06T10:00:00.000Z"),
+          claimHealth: { claimState: "legacy" },
+        };
+      }),
   }),
 });
 
@@ -28,21 +52,27 @@ async function startApplication(kind: "node" | "serverless") {
     trpcRouter: testRouter,
     contextFactory: () => ({ user: null, req: {} as any, res: {} as any }),
   };
-  const created = kind === "node"
-    ? createNodeApplication(options)
-    : { app: createServerlessApplication(options), server: undefined };
+  const created =
+    kind === "node"
+      ? createNodeApplication(options)
+      : { app: createServerlessApplication(options), server: undefined };
   const server = created.server ?? createServer(created.app);
   servers.push(server);
   await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
-  if (!address || typeof address === "string") throw new Error("Missing test address");
+  if (!address || typeof address === "string")
+    throw new Error("Missing test address");
   return `http://127.0.0.1:${address.port}`;
 }
 
 afterEach(async () => {
-  await Promise.all(servers.splice(0).map(server =>
-    new Promise<void>(resolve => server.close(() => resolve()))
-  ));
+  await Promise.all(
+    servers
+      .splice(0)
+      .map(
+        server => new Promise<void>(resolve => server.close(() => resolve()))
+      )
+  );
 });
 
 function expectPrivacyHeaders(response: Response) {
@@ -51,34 +81,53 @@ function expectPrivacyHeaders(response: Response) {
   }
 }
 
-describe.each(["node", "serverless"] as const)("%s Express public-share responses", kind => {
-  it.each([
-    [
-      "successful",
-      "/api/trpc/design.resolveShareLink?input=%7B%22json%22%3A%7B%22token%22%3A%22active-token%22%7D%7D",
-    ],
-    [
-      "expired",
-      "/api/trpc/design.resolveShareLink?input=%7B%22json%22%3A%7B%22token%22%3A%22expired-token%22%7D%7D",
-    ],
-    ["malformed", "/api/trpc/design.resolveShareLink?input=not-json"],
-    [
-      "comma-batched",
-      "/api/trpc/design.listAssets,design.resolveShareLink?batch=1&input=%7B%220%22%3A%7B%22json%22%3Anull%7D%2C%221%22%3A%7B%22json%22%3A%7B%22token%22%3A%22active-token%22%7D%7D%7D",
-    ],
-    [
-      "encoded-comma-batched",
-      "/api/trpc/design.listAssets%2Cdesign.resolveShareLink?batch=1&input=%7B%220%22%3A%7B%22json%22%3Anull%7D%2C%221%22%3A%7B%22json%22%3A%7B%22token%22%3A%22active-token%22%7D%7D%7D",
-    ],
-  ])("sets privacy controls on %s responses", async (_label, path) => {
-    const baseUrl = await startApplication(kind);
-    const response = await fetch(`${baseUrl}${path}`);
-    expectPrivacyHeaders(response);
-  });
+describe.each(["node", "serverless"] as const)(
+  "%s Express public-share responses",
+  kind => {
+    it.each([
+      [
+        "successful",
+        "/api/trpc/design.resolveShareLink?input=%7B%22json%22%3A%7B%22token%22%3A%22active-token%22%7D%7D",
+      ],
+      [
+        "expired",
+        "/api/trpc/design.resolveShareLink?input=%7B%22json%22%3A%7B%22token%22%3A%22expired-token%22%7D%7D",
+      ],
+      ["malformed", "/api/trpc/design.resolveShareLink?input=not-json"],
+      [
+        "comma-batched",
+        "/api/trpc/design.listAssets,design.resolveShareLink?batch=1&input=%7B%220%22%3A%7B%22json%22%3Anull%7D%2C%221%22%3A%7B%22json%22%3A%7B%22token%22%3A%22active-token%22%7D%7D%7D",
+      ],
+      [
+        "encoded-comma-batched",
+        "/api/trpc/design.listAssets%2Cdesign.resolveShareLink?batch=1&input=%7B%220%22%3A%7B%22json%22%3Anull%7D%2C%221%22%3A%7B%22json%22%3A%7B%22token%22%3A%22active-token%22%7D%7D%7D",
+      ],
+      [
+        "report-share successful",
+        "/api/trpc/reportShare.resolve?input=%7B%22json%22%3A%7B%22token%22%3A%22active-token%22%7D%7D",
+      ],
+      [
+        "report-share expired",
+        "/api/trpc/reportShare.resolve?input=%7B%22json%22%3A%7B%22token%22%3A%22expired-token%22%7D%7D",
+      ],
+      [
+        "report-share malformed",
+        "/api/trpc/reportShare.resolve?input=not-json",
+      ],
+      [
+        "report-share comma-batched",
+        "/api/trpc/design.listAssets,reportShare.resolve?batch=1&input=%7B%220%22%3A%7B%22json%22%3Anull%7D%2C%221%22%3A%7B%22json%22%3A%7B%22token%22%3A%22active-token%22%7D%7D%7D",
+      ],
+    ])("sets privacy controls on %s responses", async (_label, path) => {
+      const baseUrl = await startApplication(kind);
+      const response = await fetch(`${baseUrl}${path}`);
+      expectPrivacyHeaders(response);
+    });
 
-  it("does not apply share controls to unrelated tRPC responses", async () => {
-    const baseUrl = await startApplication(kind);
-    const response = await fetch(`${baseUrl}/api/trpc/design.listAssets`);
-    expect(response.headers.get("x-robots-tag")).toBeNull();
-  });
-});
+    it("does not apply share controls to unrelated tRPC responses", async () => {
+      const baseUrl = await startApplication(kind);
+      const response = await fetch(`${baseUrl}/api/trpc/design.listAssets`);
+      expect(response.headers.get("x-robots-tag")).toBeNull();
+    });
+  }
+);

@@ -773,3 +773,62 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Reuse rule: An unknown unit is not automatically a unit-mapping problem.
   Establish that the row belongs to the domain before researching or
   normalizing its unit, and never convert a business KPI into a material price.
+
+### LES-064 — A policy digest must bind executable semantics, not labels
+
+- Date / step: 2026-07-30 / EV-04
+- Symptom: The first claim-health digest covered catalogue and projection
+  labels while incident composition and eligibility behavior remained in
+  separate constants.
+- Cause: Policy identity was treated as document identity rather than the
+  complete executable authority contract.
+- Fix: Put every authority-affecting rule in one canonical machine manifest
+  and derive runtime decisions from it.
+- Proof: Semantic mutation tests change the digest; the idempotent database
+  seed byte-matches the canonical manifest and its SHA-256.
+- Reuse rule: A versioned policy is complete only when changing any behavior
+  that can alter authority changes the policy identity.
+
+### LES-065 — Revalidate authority at the final persistence boundary
+
+- Date / step: 2026-07-30 / EV-04
+- Symptom: A deterministic evaluation could become stale between evidence load
+  and report storage.
+- Cause: Recomputing caller-prepared inputs did not prove that allocations,
+  proposals, quotes, source governance, or incidents were unchanged.
+- Fix: Bind the full authority set, lock and compare it inside the report
+  transaction, and reject any mutation or addition before snapshot creation.
+- Proof: Real MySQL tests reject allocation, proposal, supersession, quote,
+  source-governance, and incident drift while the unchanged TR-13 report path
+  succeeds.
+- Reuse rule: Deterministic computation does not remove TOCTOU; authoritative
+  facts must be reloaded, locked, or revision-bound at the write boundary.
+
+### LES-066 — Provider compatibility must shape database enforcement
+
+- Date / step: 2026-07-30 / EV-04
+- Symptom: Initial tenant and immutability enforcement relied on triggers that
+  the production provider does not support.
+- Cause: Local MySQL capability was mistaken for deployable platform
+  capability.
+- Fix: Use provider-safe checks and composite foreign keys for structural
+  invariants, normalize duplicated scope, close application writers, and keep
+  an exact provider branch-apply gate before release.
+- Proof: Migration 0063 contains no triggers/routines and passes fresh MySQL,
+  provider static contracts, recovery, authorization, and database audits.
+- Reuse rule: An invariant enforced by undeployable DDL is not enforced; prove
+  the exact target provider path before relying on it.
+
+### LES-067 — Database operation approvals are capability-specific
+
+- Date / step: 2026-07-30 / EV-04
+- Symptom: A canonical data seed initially declared itself as a migration,
+  allowing schema approval to authorize a distinct data write.
+- Cause: Adjacent release steps were grouped under one broad database
+  capability.
+- Fix: Run schema changes under `migrate`, policy data under `seed`, and require
+  exact operation-target approval for each or an explicitly combined token.
+- Proof: A no-connect remote-shaped contract rejects migration-only approval
+  for the seed and accepts only seed-specific or canonical combined approval.
+- Reuse rule: Migration, seed, reset, ingest, and serve are separate
+  capabilities even when one release procedure invokes them consecutively.

@@ -71,7 +71,20 @@ try {
         "drizzle.mysql-test.config.ts",
       ],
     ],
-    ["pnpm", ["exec", "vitest", "run", "--config", "vitest.mysql.config.ts", "--reporter=default", "--reporter=json", `--outputFile=${resultFile}`]],
+    ["pnpm", ["exec", "tsx", "scripts/seed-ev04-claim-health-policy.ts"]],
+    [
+      "pnpm",
+      [
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        "vitest.mysql.config.ts",
+        "--reporter=default",
+        "--reporter=json",
+        `--outputFile=${resultFile}`,
+      ],
+    ],
   ] as const) {
     const result = spawnSync(command, args, {
       cwd: process.cwd(),
@@ -89,8 +102,13 @@ try {
       break;
     }
     if (args[1] === "vitest") {
-      const report = JSON.parse(readFileSync(resultFile, "utf8")) as { numTotalTests?: unknown };
-      if (!Number.isInteger(report.numTotalTests) || (report.numTotalTests as number) < 1) {
+      const report = JSON.parse(readFileSync(resultFile, "utf8")) as {
+        numTotalTests?: unknown;
+      };
+      if (
+        !Number.isInteger(report.numTotalTests) ||
+        (report.numTotalTests as number) < 1
+      ) {
         fail("Vitest JSON report did not contain a valid total test count");
       }
       testCount = report.numTotalTests as number;
@@ -121,6 +139,8 @@ if (exitCode === 0) {
         command: "pnpm test:authorization:mysql",
         migrationMode:
           "checked-in migration chain on a freshly created database",
+        postSchemaSeed:
+          "pnpm exec tsx scripts/seed-ev04-claim-health-policy.ts",
         testFile: MYSQL_INTEGRATION_TEST,
         testFiles: MYSQL_INTEGRATION_TESTS,
         testCount,

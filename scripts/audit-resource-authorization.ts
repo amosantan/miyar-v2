@@ -790,6 +790,20 @@ function ownershipPath(
       "input.token -> ai_design_briefs.shareToken -> ai_design_briefs.projectId -> projects.id",
     ];
   }
+  if (procedure.key === "report-share.resolve") {
+    return [
+      "input.token -> SHA-256 token hash -> report_public_share.snapshotId/reportInstanceId/organizationId -> exact frozen claim-health snapshot and report identity",
+    ];
+  }
+  if (
+    procedure.key === "report-share.list" ||
+    procedure.key === "report-share.create" ||
+    procedure.key === "report-share.revoke"
+  ) {
+    return [
+      "authenticated organization administrator -> report_public_share.organizationId -> exact tenant report/snapshot or share",
+    ];
+  }
   if (procedure.key === "market-intelligence.competitors.getProject") {
     return [
       "input.id -> competitor_projects.id -> governed global competitor record",
@@ -927,7 +941,9 @@ function defaultAnnotation(
     /\b(orgId|organizationId)\s*:\s*ctx\.(orgId|user\.orgId)\b/.test(text);
   const hasBriefWorkflowGuard =
     procedure.router === "brief" &&
-    /\b(?:command|createBriefStream|getBriefSummary|getBriefVersion|getBriefSection|listBriefAssignments|listBriefDependencies|listBriefEvents|listBriefFindings|listBriefIssues|listBriefStreams|getBriefReadinessFacts)\s*\(/.test(text);
+    /\b(?:command|createBriefStream|getBriefSummary|getBriefVersion|getBriefSection|listBriefAssignments|listBriefDependencies|listBriefEvents|listBriefFindings|listBriefIssues|listBriefStreams|getBriefReadinessFacts)\s*\(/.test(
+      text
+    );
 
   const globalGovernedKeys = new Set([
     "admin.portfolio.overview",
@@ -981,7 +997,10 @@ function defaultAnnotation(
     classification = "global_governed";
   } else if (globalGovernedKeys.has(procedure.key)) {
     classification = "global_governed";
-  } else if (procedure.router === "regulatory-source" && procedure.accessPrimitive === "adminProcedure") {
+  } else if (
+    procedure.router === "regulatory-source" &&
+    procedure.accessPrimitive === "adminProcedure"
+  ) {
     classification = "admin_governed";
   } else if (procedure.accessPrimitive === "adminProcedure") {
     classification = relevant ? "unsafe" : "admin_governed";
@@ -994,7 +1013,10 @@ function defaultAnnotation(
     )
       ? "public_token_guarded"
       : "not_project_scoped";
-  } else if (procedure.router === "typology-pack" && ORG_ACCESS_PRIMITIVES.has(procedure.accessPrimitive)) {
+  } else if (
+    procedure.router === "typology-pack" &&
+    ORG_ACCESS_PRIMITIVES.has(procedure.accessPrimitive)
+  ) {
     classification = "org_guarded";
   } else if (hasLegacyFallback || (hasLegacyUserGuard && relevant)) {
     classification = "legacy_user_guard";
@@ -1056,8 +1078,15 @@ function defaultAnnotation(
     severity =
       procedure.key === "analytics.runTrendDetection" ? "critical" : "high";
   }
-  if (procedure.key === "design.resolveShareLink") {
-    if (!/\brequireActivePublicShare\s*\(/.test(text)) {
+  if (
+    procedure.key === "design.resolveShareLink" ||
+    procedure.key === "report-share.resolve"
+  ) {
+    const hasReviewedResolver =
+      procedure.key === "design.resolveShareLink"
+        ? /\brequireActivePublicShare\s*\(/.test(text)
+        : /\bresolveReportPublicShare\s*\(/.test(text);
+    if (!hasReviewedResolver) {
       targetStep = "TR-03";
       severity = "high";
     } else {
@@ -1092,7 +1121,9 @@ function defaultAnnotation(
         : classification === "public_token_guarded"
           ? procedure.key === "design.resolveShareLink"
             ? "Uses requireActivePublicShare to require matching non-null organization ownership and a finite future expiry before any query-only public data reads."
-            : "Public token path detected; token scope, expiry, and query-only behavior require explicit review."
+            : procedure.key === "report-share.resolve"
+              ? "Uses resolveReportPublicShare to hash the token and require an exact non-revoked, unexpired report/snapshot binding before returning a read-only minimal safe projection."
+              : "Public token path detected; token scope, expiry, and query-only behavior require explicit review."
           : classification === "admin_governed"
             ? "Requires the global admin role; resource scope remains part of the admin-governance review."
             : classification === "global_governed"
@@ -1121,15 +1152,17 @@ function defaultAnnotation(
     notes:
       procedure.key === "design.resolveShareLink"
         ? "Token authorization is isolated from authenticated organization access; missing, invalid, expired, null-expiry, orphaned, and ownership-mismatched shares fail closed."
-        : procedure.key === "design.attachVisualToPack"
-          ? "Fails closed with PRECONDITION_FAILED and performs no data access until a typed visual-attachment model is approved."
-          : procedure.key === "design.listAssets"
-            ? "Requires the canonical design project guard before listing project assets."
-            : hasCrossOrgLearningEffect
-              ? "Target-project access and cross-organization learning-data isolation are separate concerns; this path reads global evidence, scores, or project comparables."
-              : procedure.key === "organization.acceptInvite"
-                ? "Invite-token authorization is distinct from session organization context; the token selects one organization and expiry is checked before membership mutation."
-                : "",
+        : procedure.key === "report-share.resolve"
+          ? "The plaintext token is accepted only at this rate-limited query boundary; persistence stores and compares only its SHA-256 hash, enforces revocation and expiry, and returns minimal report identity plus the frozen safe projection."
+          : procedure.key === "design.attachVisualToPack"
+            ? "Fails closed with PRECONDITION_FAILED and performs no data access until a typed visual-attachment model is approved."
+            : procedure.key === "design.listAssets"
+              ? "Requires the canonical design project guard before listing project assets."
+              : hasCrossOrgLearningEffect
+                ? "Target-project access and cross-organization learning-data isolation are separate concerns; this path reads global evidence, scores, or project comparables."
+                : procedure.key === "organization.acceptInvite"
+                  ? "Invite-token authorization is distinct from session organization context; the token selects one organization and expiry is checked before membership mutation."
+                  : "",
   };
 }
 

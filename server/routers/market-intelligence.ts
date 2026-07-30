@@ -14,9 +14,18 @@ import {
 } from "../_core/trpc";
 import * as db from "../db";
 import { nanoid } from "nanoid";
-import { DynamicConnector, createSourceConnector } from "../engines/ingestion/connectors/dynamic";
-import { runSingleConnector, testScrape } from "../engines/ingestion/orchestrator";
-import { generateCsvTemplate, processCsvUpload } from "../engines/ingestion/csv-pipeline";
+import {
+  DynamicConnector,
+  createSourceConnector,
+} from "../engines/ingestion/connectors/dynamic";
+import {
+  runSingleConnector,
+  testScrape,
+} from "../engines/ingestion/orchestrator";
+import {
+  generateCsvTemplate,
+  processCsvUpload,
+} from "../engines/ingestion/csv-pipeline";
 import { seedUAESources } from "../engines/ingestion/seeds/uae-sources";
 import { requireProjectForOrg } from "../_core/project-access";
 import { classifyPublicationDate } from "../engines/ingestion/confidence-policy";
@@ -26,6 +35,8 @@ import {
   requireMarketTagTargetForOrg,
   requireTaggedEntitiesForOrg,
 } from "../_core/market-resource-access";
+import { evaluateClaimHealth } from "../engines/ingestion/claim-health";
+import { buildRequiredSourceOperationsClaimHealthEvaluationInput } from "../engines/ingestion/market-claim-health";
 
 // ─── Shared Schemas ─────────────────────────────────────────────────────────
 
@@ -33,8 +44,16 @@ const evidenceRecordSchema = z.object({
   projectId: z.number().optional(),
   sourceRegistryId: z.number().optional(),
   category: z.enum([
-    "floors", "walls", "ceilings", "joinery", "lighting",
-    "sanitary", "kitchen", "hardware", "ffe", "other",
+    "floors",
+    "walls",
+    "ceilings",
+    "joinery",
+    "lighting",
+    "sanitary",
+    "kitchen",
+    "hardware",
+    "ffe",
+    "other",
   ]),
   itemName: z.string().min(1),
   specClass: z.string().optional(),
@@ -55,23 +74,49 @@ const evidenceRecordSchema = z.object({
   notes: z.string().optional(),
   // V2.2 metadata fields
   title: z.string().optional(),
-  evidencePhase: z.enum(["concept", "schematic", "detailed_design", "tender", "procurement", "construction", "handover"]).optional(),
+  evidencePhase: z
+    .enum([
+      "concept",
+      "schematic",
+      "detailed_design",
+      "tender",
+      "procurement",
+      "construction",
+      "handover",
+    ])
+    .optional(),
   author: z.string().optional(),
-  confidentiality: z.enum(["public", "internal", "confidential", "restricted"]).default("internal"),
+  confidentiality: z
+    .enum(["public", "internal", "confidential", "restricted"])
+    .default("internal"),
   tags: z.array(z.string()).optional(),
   fileUrl: z.string().optional(),
   fileKey: z.string().optional(),
   fileMimeType: z.string().optional(),
 
   // Source-type Intelligence fields
-  finishLevel: z.enum(["basic", "standard", "premium", "luxury", "ultra_luxury"]).nullable().optional(),
+  finishLevel: z
+    .enum(["basic", "standard", "premium", "luxury", "ultra_luxury"])
+    .nullable()
+    .optional(),
   designStyle: z.string().nullable().optional(),
   brandsMentioned: z.array(z.string()).nullable().optional(),
   materialSpec: z.string().nullable().optional(),
-  intelligenceType: z.enum(["material_price", "finish_specification", "design_trend", "market_statistic", "competitor_positioning", "regulation"]).nullable().optional(),
+  intelligenceType: z
+    .enum([
+      "material_price",
+      "finish_specification",
+      "design_trend",
+      "market_statistic",
+      "competitor_positioning",
+      "regulation",
+    ])
+    .nullable()
+    .optional(),
 });
 
-const MANUAL_ASSERTED_CONFIDENCE_POLICY = "manual-asserted-confidence-v1" as const;
+const MANUAL_ASSERTED_CONFIDENCE_POLICY =
+  "manual-asserted-confidence-v1" as const;
 
 async function assertedConfidenceAssessment(
   origin: "manual_entry" | "bulk_entry",
@@ -82,11 +127,15 @@ async function assertedConfidenceAssessment(
   runId: string,
   actorId: number
 ) {
-  const publication = classifyPublicationDate(rawPublicationText, evaluationClock);
+  const publication = classifyPublicationDate(
+    rawPublicationText,
+    evaluationClock
+  );
   if (publication.status !== "valid" || !publication.parsedAt) {
-    const rejectionCode = publication.status === "future"
-      ? "future_publication_date"
-      : "invalid_publication_date";
+    const rejectionCode =
+      publication.status === "future"
+        ? "future_publication_date"
+        : "invalid_publication_date";
     await db.recordRejectedConfidenceAssessment({
       runId,
       sourceId: null,
@@ -96,9 +145,12 @@ async function assertedConfidenceAssessment(
       outcome: "rejected",
       evaluationClock,
       rawPublicationText: publication.raw,
-      datePrecision: publication.status === "missing"
-        ? "missing"
-        : publication.precision === "datetime" ? "timestamp" : publication.precision,
+      datePrecision:
+        publication.status === "missing"
+          ? "missing"
+          : publication.precision === "datetime"
+            ? "timestamp"
+            : publication.precision,
       parsingStatus: publication.status,
       parsedPublicationDate: publication.parsedAt,
       confidencePolicyId: MANUAL_ASSERTED_CONFIDENCE_POLICY,
@@ -109,9 +161,10 @@ async function assertedConfidenceAssessment(
     });
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: publication.status === "future"
-        ? "Publication date cannot be in the future"
-        : "Publication date is invalid",
+      message:
+        publication.status === "future"
+          ? "Publication date cannot be in the future"
+          : "Publication date is invalid",
     });
   }
   return {
@@ -123,7 +176,10 @@ async function assertedConfidenceAssessment(
     outcome: "accepted" as const,
     evaluationClock,
     rawPublicationText: publication.raw,
-    datePrecision: publication.precision === "datetime" ? "timestamp" as const : publication.precision,
+    datePrecision:
+      publication.precision === "datetime"
+        ? ("timestamp" as const)
+        : publication.precision,
     parsingStatus: publication.status,
     parsedPublicationDate: publication.parsedAt,
     confidencePolicyId: MANUAL_ASSERTED_CONFIDENCE_POLICY,
@@ -138,9 +194,16 @@ const sourceRegistrySchema = z.object({
   name: z.string().min(1),
   url: z.string().url(),
   sourceType: z.enum([
-    "supplier_catalog", "manufacturer_catalog", "developer_brochure",
-    "industry_report", "government_tender", "procurement_portal",
-    "trade_publication", "retailer_listing", "aggregator", "other",
+    "supplier_catalog",
+    "manufacturer_catalog",
+    "developer_brochure",
+    "industry_report",
+    "government_tender",
+    "procurement_portal",
+    "trade_publication",
+    "retailer_listing",
+    "aggregator",
+    "other",
   ]),
   reliabilityDefault: z.enum(["A", "B", "C"]).default("B"),
   isWhitelisted: z.boolean().default(true),
@@ -149,12 +212,23 @@ const sourceRegistrySchema = z.object({
   // DFE Fields
   scrapeConfig: z.any().optional(),
   scrapeSchedule: z.string().optional(),
-  scrapeMethod: z.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).default("html_llm"),
+  scrapeMethod: z
+    .enum([
+      "html_llm",
+      "html_rules",
+      "json_api",
+      "rss_feed",
+      "csv_upload",
+      "email_forward",
+    ])
+    .default("html_llm"),
   scrapeHeaders: z.any().optional(),
   extractionHints: z.string().optional(),
   priceFieldMapping: z.any().optional(),
   lastScrapedAt: z.string().optional(),
-  lastScrapedStatus: z.enum(["success", "partial", "failed", "never"]).default("never"),
+  lastScrapedStatus: z
+    .enum(["success", "partial", "failed", "never"])
+    .default("never"),
   lastRecordCount: z.number().default(0),
   consecutiveFailures: z.number().default(0),
   requestDelayMs: z.number().default(2000),
@@ -176,7 +250,6 @@ function generateRunId(prefix: string): string {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export const marketIntelligenceRouter = router({
-
   // ─── Source Registry ────────────────────────────────────────────────────────
 
   sources: router({
@@ -197,7 +270,7 @@ export const marketIntelligenceRouter = router({
         const result = await db.createSourceRegistryEntry({
           ...rest,
           lastScrapedAt: lastScrapedAt ? new Date(lastScrapedAt) : undefined,
-          addedBy: ctx.user.id
+          addedBy: ctx.user.id,
         });
         await db.createAuditLog({
           userId: ctx.user.id,
@@ -209,45 +282,70 @@ export const marketIntelligenceRouter = router({
       }),
 
     update: adminProcedure
-      .input(z.object({
-        id: z.number(),
-        name: z.string().optional(),
-        url: z.string().url().optional(),
-        sourceType: z.enum([
-          "supplier_catalog", "manufacturer_catalog", "developer_brochure",
-          "industry_report", "government_tender", "procurement_portal",
-          "trade_publication", "retailer_listing", "aggregator", "other",
-        ]).optional(),
-        reliabilityDefault: z.enum(["A", "B", "C"]).optional(),
-        isWhitelisted: z.boolean().optional(),
-        region: z.string().optional(),
-        notes: z.string().optional(),
-        isActive: z.boolean().optional(),
-        // DFE Fields
-        scrapeConfig: z.any().optional(),
-        scrapeSchedule: z.string().optional(),
-        scrapeMethod: z.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).optional(),
-        scrapeHeaders: z.any().optional(),
-        extractionHints: z.string().optional(),
-        priceFieldMapping: z.any().optional(),
-        lastScrapedAt: z.string().optional(),
-        lastScrapedStatus: z.enum(["success", "partial", "failed", "never"]).optional(),
-        lastRecordCount: z.number().optional(),
-        consecutiveFailures: z.number().optional(),
-        requestDelayMs: z.number().optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().optional(),
+          url: z.string().url().optional(),
+          sourceType: z
+            .enum([
+              "supplier_catalog",
+              "manufacturer_catalog",
+              "developer_brochure",
+              "industry_report",
+              "government_tender",
+              "procurement_portal",
+              "trade_publication",
+              "retailer_listing",
+              "aggregator",
+              "other",
+            ])
+            .optional(),
+          reliabilityDefault: z.enum(["A", "B", "C"]).optional(),
+          isWhitelisted: z.boolean().optional(),
+          region: z.string().optional(),
+          notes: z.string().optional(),
+          isActive: z.boolean().optional(),
+          // DFE Fields
+          scrapeConfig: z.any().optional(),
+          scrapeSchedule: z.string().optional(),
+          scrapeMethod: z
+            .enum([
+              "html_llm",
+              "html_rules",
+              "json_api",
+              "rss_feed",
+              "csv_upload",
+              "email_forward",
+            ])
+            .optional(),
+          scrapeHeaders: z.any().optional(),
+          extractionHints: z.string().optional(),
+          priceFieldMapping: z.any().optional(),
+          lastScrapedAt: z.string().optional(),
+          lastScrapedStatus: z
+            .enum(["success", "partial", "failed", "never"])
+            .optional(),
+          lastRecordCount: z.number().optional(),
+          consecutiveFailures: z.number().optional(),
+          requestDelayMs: z.number().optional(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         const { id, lastScrapedAt, ...data } = input;
         await db.updateSourceRegistryEntry(id, {
           ...data,
-          lastScrapedAt: lastScrapedAt ? new Date(lastScrapedAt) : undefined
+          lastScrapedAt: lastScrapedAt ? new Date(lastScrapedAt) : undefined,
         });
         await db.createAuditLog({
           userId: ctx.user.id,
           action: "source_registry.update",
           entityType: "source_registry",
           entityId: id,
-          details: data.isActive !== undefined ? { isActive: data.isActive } : undefined,
+          details:
+            data.isActive !== undefined
+              ? { isActive: data.isActive }
+              : undefined,
         });
         return { success: true };
       }),
@@ -255,10 +353,14 @@ export const marketIntelligenceRouter = router({
     toggleActive: adminProcedure
       .input(z.object({ id: z.number(), isActive: z.boolean() }))
       .mutation(async ({ input, ctx }) => {
-        await db.updateSourceRegistryEntry(input.id, { isActive: input.isActive });
+        await db.updateSourceRegistryEntry(input.id, {
+          isActive: input.isActive,
+        });
         await db.createAuditLog({
           userId: ctx.user.id,
-          action: input.isActive ? "source_registry.enable" : "source_registry.disable",
+          action: input.isActive
+            ? "source_registry.enable"
+            : "source_registry.disable",
           entityType: "source_registry",
           entityId: input.id,
         });
@@ -305,10 +407,16 @@ export const marketIntelligenceRouter = router({
         if (!source) throw new Error("Source not found");
 
         // Reset failures on manual run intent
-        await db.updateSourceRegistryEntry(source.id, { consecutiveFailures: 0 });
+        await db.updateSourceRegistryEntry(source.id, {
+          consecutiveFailures: 0,
+        });
 
         const connector = createSourceConnector(source);
-        const report = await runSingleConnector(connector, "manual", ctx.user.id);
+        const report = await runSingleConnector(
+          connector,
+          "manual",
+          ctx.user.id
+        );
 
         // Update registry with latest results
         const isSuccess = report.sourcesSucceeded > 0;
@@ -316,7 +424,9 @@ export const marketIntelligenceRouter = router({
           lastScrapedAt: new Date(),
           lastScrapedStatus: isSuccess ? "success" : "failed",
           lastRecordCount: report.evidenceCreated,
-          consecutiveFailures: isSuccess ? 0 : (source.consecutiveFailures || 0) + 1,
+          consecutiveFailures: isSuccess
+            ? 0
+            : (source.consecutiveFailures || 0) + 1,
         });
 
         return report;
@@ -328,13 +438,19 @@ export const marketIntelligenceRouter = router({
     }),
 
     uploadCsv: adminProcedure
-      .input(z.object({
-        sourceId: z.number(),
-        base64File: z.string()
-      }))
+      .input(
+        z.object({
+          sourceId: z.number(),
+          base64File: z.string(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         const buffer = Buffer.from(input.base64File, "base64");
-        const report = await processCsvUpload(buffer, input.sourceId, ctx.user.id);
+        const report = await processCsvUpload(
+          buffer,
+          input.sourceId,
+          ctx.user.id
+        );
 
         // Update registry metrics for the upload
         const isSuccess = report.successCount > 0;
@@ -342,7 +458,7 @@ export const marketIntelligenceRouter = router({
           lastScrapedAt: new Date(),
           lastScrapedStatus: isSuccess ? "success" : "failed",
           lastRecordCount: report.successCount,
-          consecutiveFailures: isSuccess ? 0 : 1
+          consecutiveFailures: isSuccess ? 0 : 1,
         });
 
         return report;
@@ -353,14 +469,18 @@ export const marketIntelligenceRouter = router({
 
   evidence: router({
     list: orgProcedure
-      .input(z.object({
-        projectId: z.number().optional(),
-        category: z.string().optional(),
-        reliabilityGrade: z.string().optional(),
-        evidencePhase: z.string().optional(),
-        confidentiality: z.string().optional(),
-        limit: z.number().default(100),
-      }).optional())
+      .input(
+        z
+          .object({
+            projectId: z.number().optional(),
+            category: z.string().optional(),
+            reliabilityGrade: z.string().optional(),
+            evidencePhase: z.string().optional(),
+            confidentiality: z.string().optional(),
+            limit: z.number().default(100),
+          })
+          .optional()
+      )
       .query(async ({ ctx, input }) => {
         if (!input?.projectId) {
           return db.listPublicCorpusEvidence({
@@ -384,12 +504,20 @@ export const marketIntelligenceRouter = router({
     get: orgProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ ctx, input }) => {
-        const authorized = await requireEvidenceRecordForOrg(input.id, ctx.orgId);
+        const authorized = await requireEvidenceRecordForOrg(
+          input.id,
+          ctx.orgId
+        );
         return authorized.evidence;
       }),
 
     confidenceHistory: orgProcedure
-      .input(z.object({ id: z.number(), limit: z.number().min(1).max(100).default(50) }))
+      .input(
+        z.object({
+          id: z.number(),
+          limit: z.number().min(1).max(100).default(50),
+        })
+      )
       .query(async ({ ctx, input }) => {
         await requireEvidenceRecordForOrg(input.id, ctx.orgId);
         return db.listConfidenceAssessmentHistory(input.id, input.limit);
@@ -401,7 +529,8 @@ export const marketIntelligenceRouter = router({
         if (input.projectId !== undefined) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Project-linked evidence must be created within an organization workflow",
+            message:
+              "Project-linked evidence must be created within an organization workflow",
           });
         }
         const receiptClock = new Date();
@@ -416,22 +545,29 @@ export const marketIntelligenceRouter = router({
           ctx.user.id
         );
         const recordId = generateRecordId();
-        const result = await db.createEvidenceRecordWithConfidenceAssessment({
-          ...input,
-          projectId: null,
-          orgId: null,
-          corpusScope: "platform_public",
-          corpusPolicyVersion: "public-v1",
-          recordId,
-          priceMin: input.priceMin ? String(input.priceMin) as any : null,
-          priceTypical: input.priceTypical ? String(input.priceTypical) as any : null,
-          priceMax: input.priceMax ? String(input.priceMax) as any : null,
-          currencyAed: input.currencyAed ? String(input.currencyAed) as any : null,
-          fxRate: input.fxRate ? String(input.fxRate) as any : null,
-          captureDate: assessment.parsedPublicationDate,
-          runId,
-          createdBy: ctx.user.id,
-        }, assessment);
+        const result = await db.createEvidenceRecordWithConfidenceAssessment(
+          {
+            ...input,
+            projectId: null,
+            orgId: null,
+            corpusScope: "platform_public",
+            corpusPolicyVersion: "public-v1",
+            recordId,
+            priceMin: input.priceMin ? (String(input.priceMin) as any) : null,
+            priceTypical: input.priceTypical
+              ? (String(input.priceTypical) as any)
+              : null,
+            priceMax: input.priceMax ? (String(input.priceMax) as any) : null,
+            currencyAed: input.currencyAed
+              ? (String(input.currencyAed) as any)
+              : null,
+            fxRate: input.fxRate ? (String(input.fxRate) as any) : null,
+            captureDate: assessment.parsedPublicationDate,
+            runId,
+            createdBy: ctx.user.id,
+          },
+          assessment
+        );
 
         // Log to intelligence audit
         await db.createIntelligenceAuditEntry({
@@ -451,14 +587,17 @@ export const marketIntelligenceRouter = router({
       }),
 
     bulkImport: adminProcedure
-      .input(z.object({
-        records: z.array(evidenceRecordSchema),
-      }))
+      .input(
+        z.object({
+          records: z.array(evidenceRecordSchema),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         if (input.records.some(record => record.projectId !== undefined)) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Project-linked evidence must be created within an organization workflow",
+            message:
+              "Project-linked evidence must be created within an organization workflow",
           });
         }
         const runId = generateRunId("BULK");
@@ -480,22 +619,29 @@ export const marketIntelligenceRouter = router({
               ctx.user.id
             );
             const recordId = generateRecordId();
-            await db.createEvidenceRecordWithConfidenceAssessment({
-              ...rec,
-              projectId: null,
-              orgId: null,
-              corpusScope: "platform_public",
-              corpusPolicyVersion: "public-v1",
-              recordId,
-              priceMin: rec.priceMin ? String(rec.priceMin) as any : null,
-              priceTypical: rec.priceTypical ? String(rec.priceTypical) as any : null,
-              priceMax: rec.priceMax ? String(rec.priceMax) as any : null,
-              currencyAed: rec.currencyAed ? String(rec.currencyAed) as any : null,
-              fxRate: rec.fxRate ? String(rec.fxRate) as any : null,
-              captureDate: assessment.parsedPublicationDate,
-              runId,
-              createdBy: ctx.user.id,
-            }, assessment);
+            await db.createEvidenceRecordWithConfidenceAssessment(
+              {
+                ...rec,
+                projectId: null,
+                orgId: null,
+                corpusScope: "platform_public",
+                corpusPolicyVersion: "public-v1",
+                recordId,
+                priceMin: rec.priceMin ? (String(rec.priceMin) as any) : null,
+                priceTypical: rec.priceTypical
+                  ? (String(rec.priceTypical) as any)
+                  : null,
+                priceMax: rec.priceMax ? (String(rec.priceMax) as any) : null,
+                currencyAed: rec.currencyAed
+                  ? (String(rec.currencyAed) as any)
+                  : null,
+                fxRate: rec.fxRate ? (String(rec.fxRate) as any) : null,
+                captureDate: assessment.parsedPublicationDate,
+                runId,
+                createdBy: ctx.user.id,
+              },
+              assessment
+            );
             imported++;
           } catch (e: any) {
             errors.push({ index: i, error: e.message });
@@ -523,7 +669,10 @@ export const marketIntelligenceRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
         if (!(await db.deleteGlobalEvidenceRecord(input.id))) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Resource not found",
+          });
         }
         await db.createAuditLog({
           userId: ctx.user.id,
@@ -540,16 +689,20 @@ export const marketIntelligenceRouter = router({
 
     // V2.2 — Evidence References
     listReferences: orgProcedure
-      .input(z.object({
-        evidenceRecordId: z.number().optional(),
-        targetType: z.string().optional(),
-        targetId: z.number().optional(),
-      }).refine(
-        value =>
-          value.evidenceRecordId !== undefined ||
-          (value.targetType !== undefined && value.targetId !== undefined),
-        "Evidence record or complete target is required"
-      ))
+      .input(
+        z
+          .object({
+            evidenceRecordId: z.number().optional(),
+            targetType: z.string().optional(),
+            targetId: z.number().optional(),
+          })
+          .refine(
+            value =>
+              value.evidenceRecordId !== undefined ||
+              (value.targetType !== undefined && value.targetId !== undefined),
+            "Evidence record or complete target is required"
+          )
+      )
       .query(async ({ ctx, input }) => {
         if (input.evidenceRecordId !== undefined) {
           await requireEvidenceRecordForOrg(input.evidenceRecordId, ctx.orgId);
@@ -565,16 +718,23 @@ export const marketIntelligenceRouter = router({
       }),
 
     addReference: orgMutationProcedure
-      .input(z.object({
-        evidenceRecordId: z.number(),
-        targetType: z.enum([
-          "scenario", "decision_note", "explainability_driver",
-          "design_brief", "report", "material_board", "pack_section",
-        ]),
-        targetId: z.number(),
-        sectionLabel: z.string().optional(),
-        citationText: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          evidenceRecordId: z.number(),
+          targetType: z.enum([
+            "scenario",
+            "decision_note",
+            "explainability_driver",
+            "design_brief",
+            "report",
+            "material_board",
+            "pack_section",
+          ]),
+          targetId: z.number(),
+          sectionLabel: z.string().optional(),
+          citationText: z.string().optional(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         await requireEvidenceRecordForOrg(input.evidenceRecordId, ctx.orgId);
         await requireEvidenceReferenceTargetForOrg(
@@ -582,7 +742,10 @@ export const marketIntelligenceRouter = router({
           input.targetId,
           ctx.orgId
         );
-        const result = await db.createEvidenceReference({ ...input, addedBy: ctx.user.id });
+        const result = await db.createEvidenceReference({
+          ...input,
+          addedBy: ctx.user.id,
+        });
         await db.createAuditLog({
           userId: ctx.user.id,
           action: "evidence_reference.create",
@@ -597,16 +760,25 @@ export const marketIntelligenceRouter = router({
       .mutation(async ({ input, ctx }) => {
         const reference = await db.getEvidenceReferenceById(input.id);
         if (!reference) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Resource not found",
+          });
         }
-        await requireEvidenceRecordForOrg(reference.evidenceRecordId, ctx.orgId);
+        await requireEvidenceRecordForOrg(
+          reference.evidenceRecordId,
+          ctx.orgId
+        );
         await requireEvidenceReferenceTargetForOrg(
           reference.targetType,
           reference.targetId,
           ctx.orgId
         );
         if (!(await db.deleteEvidenceReferenceIfMatches(input.id, reference))) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Resource not found",
+          });
         }
         await db.createAuditLog({
           userId: ctx.user.id,
@@ -619,10 +791,12 @@ export const marketIntelligenceRouter = router({
 
     // Get evidence records linked to a specific target (e.g., scenario, design_brief)
     getForTarget: orgProcedure
-      .input(z.object({
-        targetType: z.string(),
-        targetId: z.number(),
-      }))
+      .input(
+        z.object({
+          targetType: z.string(),
+          targetId: z.number(),
+        })
+      )
       .query(async ({ ctx, input }) => {
         await requireEvidenceReferenceTargetForOrg(
           input.targetType,
@@ -637,9 +811,13 @@ export const marketIntelligenceRouter = router({
 
   proposals: router({
     list: adminProcedure
-      .input(z.object({
-        status: z.enum(["pending", "approved", "rejected"]).optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            status: z.enum(["pending", "approved", "rejected"]).optional(),
+          })
+          .optional()
+      )
       .query(async ({ input }) => {
         return db.listBenchmarkProposals(input?.status);
       }),
@@ -651,10 +829,12 @@ export const marketIntelligenceRouter = router({
       }),
 
     generate: adminProcedure
-      .input(z.object({
-        category: z.string().optional(),
-        minEvidenceCount: z.number().default(3),
-      }))
+      .input(
+        z.object({
+          category: z.string().optional(),
+          minEvidenceCount: z.number().default(3),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         const runId = generateRunId("PROP");
         const startedAt = new Date();
@@ -666,7 +846,10 @@ export const marketIntelligenceRouter = router({
         });
 
         if (evidence.length === 0) {
-          return { proposals: [], message: "No evidence records found to generate proposals from." };
+          return {
+            proposals: [],
+            message: "No evidence records found to generate proposals from.",
+          };
         }
 
         // Group evidence by category + unit (benchmark key)
@@ -678,7 +861,11 @@ export const marketIntelligenceRouter = router({
           groups.set(key, existing);
         }
 
-        const proposals: { id: number; benchmarkKey: string; recommendation: string }[] = [];
+        const proposals: {
+          id: number;
+          benchmarkKey: string;
+          recommendation: string;
+        }[] = [];
         let proposalsCreated = 0;
 
         for (const [benchmarkKey, records] of Array.from(groups.entries())) {
@@ -694,7 +881,9 @@ export const marketIntelligenceRouter = router({
 
           const p25 = prices[Math.floor(prices.length * 0.25)] ?? prices[0];
           const p50 = prices[Math.floor(prices.length * 0.5)] ?? prices[0];
-          const p75 = prices[Math.floor(prices.length * 0.75)] ?? prices[prices.length - 1];
+          const p75 =
+            prices[Math.floor(prices.length * 0.75)] ??
+            prices[prices.length - 1];
 
           // Weighted mean: A-grade records get 3x weight, B=2x, C=1x
           const weightMap: Record<string, number> = { A: 3, B: 2, C: 1 };
@@ -707,7 +896,8 @@ export const marketIntelligenceRouter = router({
             weightedSum += price * w;
             totalWeight += w;
           }
-          const weightedMean = totalWeight > 0 ? weightedSum / totalWeight : p50;
+          const weightedMean =
+            totalWeight > 0 ? weightedSum / totalWeight : p50;
 
           // Reliability distribution
           const reliabilityDist = { A: 0, B: 0, C: 0 };
@@ -727,7 +917,9 @@ export const marketIntelligenceRouter = router({
           }
 
           // Source diversity
-          const uniqueSources = new Set(records.map((r: any) => r.sourceRegistryId ?? r.sourceUrl));
+          const uniqueSources = new Set(
+            records.map((r: any) => r.sourceRegistryId ?? r.sourceUrl)
+          );
           const sourceDiversity = uniqueSources.size;
 
           // Confidence score
@@ -781,7 +973,11 @@ export const marketIntelligenceRouter = router({
           runType: "benchmark_proposal",
           runId,
           actor: ctx.user.id,
-          inputSummary: { category: input.category, minEvidenceCount: input.minEvidenceCount, totalEvidence: evidence.length },
+          inputSummary: {
+            category: input.category,
+            minEvidenceCount: input.minEvidenceCount,
+            totalEvidence: evidence.length,
+          },
           outputSummary: { proposalsCreated, groups: groups.size },
           sourcesProcessed: evidence.length,
           recordsExtracted: proposalsCreated,
@@ -794,11 +990,13 @@ export const marketIntelligenceRouter = router({
       }),
 
     review: adminProcedure
-      .input(z.object({
-        id: z.number(),
-        status: z.enum(["approved", "rejected"]),
-        reviewerNotes: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          status: z.enum(["approved", "rejected"]),
+          reviewerNotes: z.string().optional(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         const reviewed = await db.reviewBenchmarkProposal(input.id, {
           status: input.status,
@@ -873,7 +1071,9 @@ export const marketIntelligenceRouter = router({
         const result = await db.createBenchmarkSnapshot({
           benchmarkVersionId: activeBV?.id,
           snapshotJson: currentBenchmarks,
-          description: input.description ?? `Manual snapshot at ${new Date().toISOString()}`,
+          description:
+            input.description ??
+            `Manual snapshot at ${new Date().toISOString()}`,
           createdBy: ctx.user.id,
         });
         return result;
@@ -895,16 +1095,30 @@ export const marketIntelligenceRouter = router({
       }),
 
     createEntity: adminProcedure
-      .input(z.object({
-        name: z.string().min(1),
-        headquarters: z.string().optional(),
-        segmentFocus: z.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury", "mixed"]).default("mixed"),
-        website: z.string().optional(),
-        logoUrl: z.string().optional(),
-        notes: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          name: z.string().min(1),
+          headquarters: z.string().optional(),
+          segmentFocus: z
+            .enum([
+              "affordable",
+              "mid",
+              "premium",
+              "luxury",
+              "ultra_luxury",
+              "mixed",
+            ])
+            .default("mixed"),
+          website: z.string().optional(),
+          logoUrl: z.string().optional(),
+          notes: z.string().optional(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
-        const result = await db.createCompetitorEntity({ ...input, createdBy: ctx.user.id });
+        const result = await db.createCompetitorEntity({
+          ...input,
+          createdBy: ctx.user.id,
+        });
         await db.createAuditLog({
           userId: ctx.user.id,
           action: "competitor_entity.create",
@@ -915,15 +1129,26 @@ export const marketIntelligenceRouter = router({
       }),
 
     updateEntity: adminProcedure
-      .input(z.object({
-        id: z.number(),
-        name: z.string().optional(),
-        headquarters: z.string().optional(),
-        segmentFocus: z.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury", "mixed"]).optional(),
-        website: z.string().optional(),
-        logoUrl: z.string().optional(),
-        notes: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().optional(),
+          headquarters: z.string().optional(),
+          segmentFocus: z
+            .enum([
+              "affordable",
+              "mid",
+              "premium",
+              "luxury",
+              "ultra_luxury",
+              "mixed",
+            ])
+            .optional(),
+          website: z.string().optional(),
+          logoUrl: z.string().optional(),
+          notes: z.string().optional(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         const { id, ...data } = input;
         await db.updateCompetitorEntity(id, data);
@@ -951,10 +1176,14 @@ export const marketIntelligenceRouter = router({
 
     // ─── Projects ─────────────────────────────────────────────────────────
     listProjects: protectedProcedure
-      .input(z.object({
-        competitorId: z.number().optional(),
-        segment: z.string().optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            competitorId: z.number().optional(),
+            segment: z.string().optional(),
+          })
+          .optional()
+      )
       .query(async ({ input }) => {
         return db.listCompetitorProjects(input?.competitorId, input?.segment);
       }),
@@ -966,34 +1195,44 @@ export const marketIntelligenceRouter = router({
       }),
 
     createProject: adminProcedure
-      .input(z.object({
-        competitorId: z.number(),
-        projectName: z.string().min(1),
-        location: z.string().optional(),
-        segment: z.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
-        assetType: z.enum(["residential", "commercial", "hospitality", "mixed_use"]).default("residential"),
-        positioningKeywords: z.array(z.string()).optional(),
-        interiorStyleSignals: z.array(z.string()).optional(),
-        materialCues: z.array(z.string()).optional(),
-        amenityList: z.array(z.string()).optional(),
-        unitMix: z.string().optional(),
-        priceIndicators: z.any().optional(),
-        salesMessaging: z.array(z.string()).optional(),
-        differentiationClaims: z.array(z.string()).optional(),
-        completionStatus: z.enum(["announced", "under_construction", "completed", "sold_out"]).optional(),
-        launchDate: z.string().optional(),
-        totalUnits: z.number().optional(),
-        architect: z.string().optional(),
-        interiorDesigner: z.string().optional(),
-        sourceUrl: z.string().optional(),
-        captureDate: z.string().optional(),
-        evidenceCitations: z.any().optional(),
-        completenessScore: z.number().optional(),
-      }))
+      .input(
+        z.object({
+          competitorId: z.number(),
+          projectName: z.string().min(1),
+          location: z.string().optional(),
+          segment: z
+            .enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"])
+            .optional(),
+          assetType: z
+            .enum(["residential", "commercial", "hospitality", "mixed_use"])
+            .default("residential"),
+          positioningKeywords: z.array(z.string()).optional(),
+          interiorStyleSignals: z.array(z.string()).optional(),
+          materialCues: z.array(z.string()).optional(),
+          amenityList: z.array(z.string()).optional(),
+          unitMix: z.string().optional(),
+          priceIndicators: z.any().optional(),
+          salesMessaging: z.array(z.string()).optional(),
+          differentiationClaims: z.array(z.string()).optional(),
+          completionStatus: z
+            .enum(["announced", "under_construction", "completed", "sold_out"])
+            .optional(),
+          launchDate: z.string().optional(),
+          totalUnits: z.number().optional(),
+          architect: z.string().optional(),
+          interiorDesigner: z.string().optional(),
+          sourceUrl: z.string().optional(),
+          captureDate: z.string().optional(),
+          evidenceCitations: z.any().optional(),
+          completenessScore: z.number().optional(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         const result = await db.createCompetitorProject({
           ...input,
-          captureDate: input.captureDate ? new Date(input.captureDate) : undefined,
+          captureDate: input.captureDate
+            ? new Date(input.captureDate)
+            : undefined,
           createdBy: ctx.user.id,
         });
         await db.createAuditLog({
@@ -1006,26 +1245,32 @@ export const marketIntelligenceRouter = router({
       }),
 
     updateProject: adminProcedure
-      .input(z.object({
-        id: z.number(),
-        projectName: z.string().optional(),
-        location: z.string().optional(),
-        segment: z.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
-        positioningKeywords: z.array(z.string()).optional(),
-        interiorStyleSignals: z.array(z.string()).optional(),
-        materialCues: z.array(z.string()).optional(),
-        amenityList: z.array(z.string()).optional(),
-        priceIndicators: z.any().optional(),
-        salesMessaging: z.array(z.string()).optional(),
-        differentiationClaims: z.array(z.string()).optional(),
-        completionStatus: z.enum(["announced", "under_construction", "completed", "sold_out"]).optional(),
-        totalUnits: z.number().optional(),
-        architect: z.string().optional(),
-        interiorDesigner: z.string().optional(),
-        sourceUrl: z.string().optional(),
-        evidenceCitations: z.any().optional(),
-        completenessScore: z.number().optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          projectName: z.string().optional(),
+          location: z.string().optional(),
+          segment: z
+            .enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"])
+            .optional(),
+          positioningKeywords: z.array(z.string()).optional(),
+          interiorStyleSignals: z.array(z.string()).optional(),
+          materialCues: z.array(z.string()).optional(),
+          amenityList: z.array(z.string()).optional(),
+          priceIndicators: z.any().optional(),
+          salesMessaging: z.array(z.string()).optional(),
+          differentiationClaims: z.array(z.string()).optional(),
+          completionStatus: z
+            .enum(["announced", "under_construction", "completed", "sold_out"])
+            .optional(),
+          totalUnits: z.number().optional(),
+          architect: z.string().optional(),
+          interiorDesigner: z.string().optional(),
+          sourceUrl: z.string().optional(),
+          evidenceCitations: z.any().optional(),
+          completenessScore: z.number().optional(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         const { id, ...data } = input;
         await db.updateCompetitorProject(id, data);
@@ -1055,19 +1300,29 @@ export const marketIntelligenceRouter = router({
     compare: protectedProcedure
       .input(z.object({ projectIds: z.array(z.number()).min(2).max(6) }))
       .query(async ({ input }) => {
-        const projects: Awaited<ReturnType<typeof db.getCompetitorProjectById>>[] = [];
+        const projects: Awaited<
+          ReturnType<typeof db.getCompetitorProjectById>
+        >[] = [];
         for (const id of input.projectIds) {
           const p = await db.getCompetitorProjectById(id);
           if (p) projects.push(p);
         }
         // Build comparison matrix
         const dimensions = [
-          "segment", "assetType", "completionStatus", "totalUnits",
-          "positioningKeywords", "interiorStyleSignals", "materialCues",
-          "amenityList", "differentiationClaims",
+          "segment",
+          "assetType",
+          "completionStatus",
+          "totalUnits",
+          "positioningKeywords",
+          "interiorStyleSignals",
+          "materialCues",
+          "amenityList",
+          "differentiationClaims",
         ] as const;
 
-        const validProjects = projects.filter((p): p is NonNullable<typeof p> => p != null);
+        const validProjects = projects.filter(
+          (p): p is NonNullable<typeof p> => p != null
+        );
         const matrix = dimensions.map(dim => ({
           dimension: dim,
           values: validProjects.map(p => ({
@@ -1081,22 +1336,36 @@ export const marketIntelligenceRouter = router({
       }),
 
     bulkImport: adminProcedure
-      .input(z.object({
-        competitorId: z.number(),
-        projects: z.array(z.object({
-          projectName: z.string(),
-          location: z.string().optional(),
-          segment: z.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
-          assetType: z.enum(["residential", "commercial", "hospitality", "mixed_use"]).default("residential"),
-          positioningKeywords: z.array(z.string()).optional(),
-          interiorStyleSignals: z.array(z.string()).optional(),
-          materialCues: z.array(z.string()).optional(),
-          amenityList: z.array(z.string()).optional(),
-          sourceUrl: z.string().optional(),
-          evidenceCitations: z.any().optional(),
-          completenessScore: z.number().optional(),
-        })),
-      }))
+      .input(
+        z.object({
+          competitorId: z.number(),
+          projects: z.array(
+            z.object({
+              projectName: z.string(),
+              location: z.string().optional(),
+              segment: z
+                .enum([
+                  "affordable",
+                  "mid",
+                  "premium",
+                  "luxury",
+                  "ultra_luxury",
+                ])
+                .optional(),
+              assetType: z
+                .enum(["residential", "commercial", "hospitality", "mixed_use"])
+                .default("residential"),
+              positioningKeywords: z.array(z.string()).optional(),
+              interiorStyleSignals: z.array(z.string()).optional(),
+              materialCues: z.array(z.string()).optional(),
+              amenityList: z.array(z.string()).optional(),
+              sourceUrl: z.string().optional(),
+              evidenceCitations: z.any().optional(),
+              completenessScore: z.number().optional(),
+            })
+          ),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         const runId = generateRunId("COMP");
         const startedAt = new Date();
@@ -1116,7 +1385,10 @@ export const marketIntelligenceRouter = router({
           runType: "competitor_extraction",
           runId,
           actor: ctx.user.id,
-          inputSummary: { competitorId: input.competitorId, projectCount: input.projects.length },
+          inputSummary: {
+            competitorId: input.competitorId,
+            projectCount: input.projects.length,
+          },
           outputSummary: { imported },
           sourcesProcessed: input.projects.length,
           recordsExtracted: imported,
@@ -1139,16 +1411,27 @@ export const marketIntelligenceRouter = router({
       }),
 
     create: adminProcedure
-      .input(z.object({
-        name: z.string().min(1),
-        category: z.enum([
-          "material_trend", "design_trend", "market_trend",
-          "buyer_preference", "sustainability", "technology", "pricing", "other",
-        ]),
-        description: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          name: z.string().min(1),
+          category: z.enum([
+            "material_trend",
+            "design_trend",
+            "market_trend",
+            "buyer_preference",
+            "sustainability",
+            "technology",
+            "pricing",
+            "other",
+          ]),
+          description: z.string().optional(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
-        const result = await db.createTrendTag({ ...input, createdBy: ctx.user.id });
+        const result = await db.createTrendTag({
+          ...input,
+          createdBy: ctx.user.id,
+        });
         return result;
       }),
 
@@ -1161,18 +1444,28 @@ export const marketIntelligenceRouter = router({
 
     // ─── Entity Tagging ───────────────────────────────────────────────────
     attach: orgMutationProcedure
-      .input(z.object({
-        tagId: z.number(),
-        entityType: z.enum(["competitor_project", "scenario", "evidence_record", "project"]),
-        entityId: z.number(),
-      }))
+      .input(
+        z.object({
+          tagId: z.number(),
+          entityType: z.enum([
+            "competitor_project",
+            "scenario",
+            "evidence_record",
+            "project",
+          ]),
+          entityId: z.number(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         await requireMarketTagTargetForOrg(
           input.entityType,
           input.entityId,
           ctx.orgId
         );
-        const result = await db.createEntityTag({ ...input, addedBy: ctx.user.id });
+        const result = await db.createEntityTag({
+          ...input,
+          addedBy: ctx.user.id,
+        });
         return result;
       }),
 
@@ -1181,7 +1474,10 @@ export const marketIntelligenceRouter = router({
       .mutation(async ({ input, ctx }) => {
         const entityTag = await db.getEntityTagById(input.id);
         if (!entityTag) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Resource not found",
+          });
         }
         await requireMarketTagTargetForOrg(
           entityTag.entityType,
@@ -1189,16 +1485,26 @@ export const marketIntelligenceRouter = router({
           ctx.orgId
         );
         if (!(await db.deleteEntityTagIfMatches(input.id, entityTag))) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Resource not found" });
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Resource not found",
+          });
         }
         return { success: true };
       }),
 
     getEntityTags: orgProcedure
-      .input(z.object({
-        entityType: z.enum(["competitor_project", "scenario", "evidence_record", "project"]),
-        entityId: z.number(),
-      }))
+      .input(
+        z.object({
+          entityType: z.enum([
+            "competitor_project",
+            "scenario",
+            "evidence_record",
+            "project",
+          ]),
+          entityId: z.number(),
+        })
+      )
       .query(async ({ ctx, input }) => {
         await requireMarketTagTargetForOrg(
           input.entityType,
@@ -1219,10 +1525,14 @@ export const marketIntelligenceRouter = router({
 
   auditLog: router({
     list: adminProcedure
-      .input(z.object({
-        runType: z.string().optional(),
-        limit: z.number().default(50),
-      }).optional())
+      .input(
+        z
+          .object({
+            runType: z.string().optional(),
+            limit: z.number().default(50),
+          })
+          .optional()
+      )
       .query(async ({ input }) => {
         return db.listIntelligenceAuditLog(input?.runType, input?.limit ?? 50);
       }),
@@ -1234,8 +1544,13 @@ export const marketIntelligenceRouter = router({
       }),
   }),
 
-  dataHealth: protectedProcedure.query(async () => {
-    return await db.getDataHealthStats();
+  dataHealth: orgProcedure.query(() => {
+    // EV-04 v1 deliberately starts with no approved required-source list.
+    // Empty coverage is insufficient, never healthy by vacuous truth. Detailed
+    // connector telemetry stays behind the separate admin audit endpoints.
+    return evaluateClaimHealth(
+      buildRequiredSourceOperationsClaimHealthEvaluationInput(new Date())
+    ).safeProjection;
   }),
 });
 
@@ -1250,7 +1565,8 @@ function getDefaultSources() {
       reliabilityDefault: "A" as const,
       isWhitelisted: true,
       region: "UAE",
-      notes: "Major UAE ceramic tile manufacturer — product catalogs with pricing",
+      notes:
+        "Major UAE ceramic tile manufacturer — product catalogs with pricing",
     },
     {
       name: "DERA Interiors",
@@ -1313,7 +1629,8 @@ function getDefaultSources() {
       reliabilityDefault: "A" as const,
       isWhitelisted: true,
       region: "UAE",
-      notes: "Royal Institution of Chartered Surveyors — construction cost data",
+      notes:
+        "Royal Institution of Chartered Surveyors — construction cost data",
     },
     {
       name: "JLL MENA Research",

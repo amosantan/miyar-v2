@@ -8,7 +8,14 @@ import { requireDesignProject } from "../_core/design-resource-access";
 import { orgProcedure, router } from "../_core/trpc";
 import * as db from "../db";
 import { benchmarkSpaceRatios } from "../engines/design/space-benchmarking";
-import { deriveOverallFreshnessHealth } from "../engines/ingestion/freshness-health";
+import { evaluateClaimHealth } from "../engines/ingestion/claim-health";
+import {
+  buildDldMarketClaimHealthEvaluationInput,
+  DLD_INDEXED_SOURCE_IDENTITIES,
+} from "../engines/ingestion/market-claim-health";
+import { loadProjectClaimHealth } from "../engines/ingestion/project-claim-health-loader";
+import { resolveProjectMaterialPriceGeography } from "../engines/material-pricing/material-resolution";
+import { getEffectiveClaimIncidentStates } from "../db/claim-health";
 
 export const designMarketContextRouter = router({
   getDesignTrends: orgProcedure
@@ -158,95 +165,76 @@ export const designMarketContextRouter = router({
         : null;
     }),
 
-  getDataFreshness: orgProcedure.query(async () => {
-    const [sources, healthRecords, runs] = await Promise.all([
-      db.getActiveSourceRegistry(50),
-      db.getConnectorHealthSummary(),
-      db.getIngestionRunHistory(5),
-    ]);
-
-    // Latest ingestion run
-    const latestRun = runs.length > 0 ? runs[0] : null;
-
-    // Build per-source freshness from source_registry.lastSuccessfulFetch
-    const sourceFreshness = (sources ?? []).map((s: any) => {
-      // Find most recent health record for this source
-      const healthRec = (healthRecords ?? []).find(
-        (h: any) =>
-          String(h.sourceId) === String(s.id) || h.sourceName === s.name
-      );
-
-      const lastFetch = s.lastSuccessfulFetch ?? healthRec?.createdAt ?? null;
-      const daysSince = lastFetch
-        ? Math.floor(
-            (Date.now() - new Date(lastFetch).getTime()) / (1000 * 60 * 60 * 24)
-          )
-        : null;
-
-      return {
-        id: s.id,
-        name: s.name,
-        sourceType: s.sourceType,
-        reliabilityGrade: s.reliabilityDefault,
-        lastFetch,
-        daysSince,
-        freshness:
-          daysSince === null
-            ? "unknown"
-            : daysSince <= 7
-              ? "fresh"
-              : daysSince <= 30
-                ? "aging"
-                : "stale",
-        latestStatus: healthRec?.status ?? null,
-        recordsExtracted: healthRec?.recordsExtracted ?? 0,
-      };
-    });
-
-    // Aggregate stats
-    const freshCount = sourceFreshness.filter(
-      (s: any) => s.freshness === "fresh"
-    ).length;
-    const agingCount = sourceFreshness.filter(
-      (s: any) => s.freshness === "aging"
-    ).length;
-    const staleCount = sourceFreshness.filter(
-      (s: any) => s.freshness === "stale"
-    ).length;
-    const unknownCount = sourceFreshness.filter(
-      (s: any) => s.freshness === "unknown"
-    ).length;
-    const totalSources = sourceFreshness.length;
-
-    // Overall health status
-    const overallHealth = deriveOverallFreshnessHealth({
-      totalSources,
-      agingCount,
-      staleCount,
-      unknownCount,
-    });
-
-    return {
-      overallHealth,
-      totalSources,
-      freshCount,
-      agingCount,
-      staleCount,
-      unknownCount,
-      latestRun: latestRun
-        ? {
-            runId: latestRun.runId,
-            status: latestRun.status,
-            startedAt: latestRun.startedAt,
-            totalSources: latestRun.totalSources,
-            sourcesSucceeded: latestRun.sourcesSucceeded,
-            sourcesFailed: latestRun.sourcesFailed,
-            recordsExtracted: latestRun.recordsExtracted,
+  getDataFreshness: orgProcedure.query(async ({ ctx }) => {
+      const evaluatedAt = new Date();
+      const [counts, incidents] = await Promise.all([
+        db.getPublicMarketEvidenceCounts(),
+        getEffectiveClaimIncidentStates(
+          {
+            evaluationClock: evaluatedAt,
+            organizationId: ctx.orgId,
+            sourceIdentities: Object.values(DLD_INDEXED_SOURCE_IDENTITIES),
+          },
+          {
+            kind: "organization_member",
+            organizationId: ctx.orgId,
+            userId: ctx.user.id,
+            sessionIdentity: "design.getDataFreshness",
           }
-        : null,
-      sources: sourceFreshness,
-    };
-  }),
+        ),
+      ]);
+      const incidentByIdentity = new Map(
+        incidents.map(row => [row.sourceIdentity, row.aggregate])
+      );
+      const governedDldInput = (
+        dataset: keyof typeof DLD_INDEXED_SOURCE_IDENTITIES
+      ) => ({
+        // EV-05 owns approval of the exact DLD dataset/source governance.
+        // Until then the indexed subset remains fail-closed.
+        sourceEligibility: "ineligible" as const,
+        incident:
+          incidentByIdentity.get(DLD_INDEXED_SOURCE_IDENTITIES[dataset]) ??
+          ("none" as const),
+      });
+      return evaluateClaimHealth(
+        buildDldMarketClaimHealthEvaluationInput({
+          evaluatedAt,
+          transactions: {
+            count: Number(counts?.transactionCount ?? 0),
+            observedThrough: counts?.transactionObservedThrough ?? null,
+            ...governedDldInput("transactions"),
+          },
+          rents: {
+            count: Number(counts?.rentContractCount ?? 0),
+            observedThrough: counts?.rentObservedThrough ?? null,
+            ...governedDldInput("rents"),
+          },
+          projects: {
+            count: Number(counts?.projectCount ?? 0),
+            observedThrough: null,
+            ...governedDldInput("projects"),
+          },
+        })
+      ).safeProjection;
+    }),
+
+  getProjectDataFreshness: orgProcedure
+    .input(z.object({ projectId: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      const evaluatedAt = new Date();
+      const project = await requireDesignProject(input.projectId, ctx.orgId);
+      const result = await loadProjectClaimHealth({
+        projectId: input.projectId,
+        organizationId: ctx.orgId,
+        userId: ctx.user.id,
+        requestedGeography: resolveProjectMaterialPriceGeography(
+          project.materialPriceGeography
+        ),
+        evaluatedAt,
+        consumer: "project_workspace",
+      });
+      return result.evaluation.safeProjection;
+    }),
 
   getEvidenceChain: orgProcedure
     .input(

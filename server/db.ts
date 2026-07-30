@@ -113,6 +113,22 @@ import {
   DatabaseSafetyError,
 } from "./_core/database-safety";
 import {
+  assertProjectClaimHealthAuthorityBindingInTransaction,
+  claimHealthDigest,
+  createClaimHealthSnapshotInTransaction,
+  resolveApprovedClaimHealthPolicyInTransaction,
+} from "./db/claim-health";
+import type {
+  ClaimHealthDigests,
+  ClaimHealthEvaluation,
+  ClaimHealthEvaluationInput,
+} from "../shared/claim-health";
+import type { ProjectClaimHealthAuthorityBinding } from "./engines/ingestion/project-claim-health-loader";
+import {
+  createClaimHealthDigests,
+  evaluateClaimHealth,
+} from "./engines/ingestion/claim-health";
+import {
   ROOM_FLOOR_POLYGON_AREA,
   type CanonicalGeometryResult,
 } from "../shared/geometry";
@@ -1418,6 +1434,15 @@ export async function createReportArtifactsForOrg(input: {
   expectedMaterialPricingRevision?: number;
   report: typeof reportInstances.$inferInsert;
   designArtifacts?: ReportDesignArtifacts;
+  claimHealthSnapshot?: {
+    evaluationClock: Date;
+    evaluationInput: ClaimHealthEvaluationInput;
+    evaluation: ClaimHealthEvaluation;
+    digests: ClaimHealthDigests;
+    authorityBinding: ProjectClaimHealthAuthorityBinding;
+    actorUserId: number;
+    actorSessionIdentity: string;
+  };
 }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
@@ -1451,7 +1476,7 @@ export async function createReportArtifactsForOrg(input: {
 
     let briefId: number | null = null;
     const artifacts = input.designArtifacts;
-    if (artifacts) {
+    if (artifacts || input.claimHealthSnapshot) {
       if (
         !Number.isInteger(input.expectedMaterialPricingRevision) ||
         owned[0].materialPricingRevision !==
@@ -1459,6 +1484,20 @@ export async function createReportArtifactsForOrg(input: {
       ) {
         return null;
       }
+    }
+    if (input.claimHealthSnapshot) {
+      const binding = input.claimHealthSnapshot.authorityBinding;
+      if (
+        binding.organizationId !== input.orgId ||
+        binding.projectId !== input.projectId ||
+        new Date(binding.evaluationClock).getTime() !==
+          input.claimHealthSnapshot.evaluationClock.getTime()
+      ) {
+        return null;
+      }
+      await assertProjectClaimHealthAuthorityBindingInTransaction(tx, binding);
+    }
+    if (artifacts) {
       const rowsMatch =
         artifacts.finishSchedule.every(
           row =>
@@ -1498,10 +1537,81 @@ export async function createReportArtifactsForOrg(input: {
       }
     }
 
+    const health = input.claimHealthSnapshot;
+    let verifiedHealth:
+      | {
+          evaluation: ClaimHealthEvaluation;
+          digests: ClaimHealthDigests;
+        }
+      | undefined;
+    if (health) {
+      const recomputedEvaluation = evaluateClaimHealth(health.evaluationInput);
+      const recomputedDigests = createClaimHealthDigests(
+        health.evaluationInput,
+        recomputedEvaluation
+      );
+      const content =
+        input.report.content &&
+        typeof input.report.content === "object" &&
+        !Array.isArray(input.report.content)
+          ? (input.report.content as Record<string, unknown>)
+          : null;
+      if (
+        input.report.generatedBy !== health.actorUserId ||
+        !content ||
+        claimHealthDigest(content.claimHealth) !==
+          claimHealthDigest(recomputedEvaluation.safeProjection) ||
+        claimHealthDigest(health.evaluation) !==
+          claimHealthDigest(recomputedEvaluation) ||
+        health.digests.algorithm !== recomputedDigests.algorithm ||
+        health.digests.inputDigest !== recomputedDigests.inputDigest ||
+        health.digests.contentDigest !== recomputedDigests.contentDigest
+      ) {
+        return null;
+      }
+      verifiedHealth = {
+        evaluation: recomputedEvaluation,
+        digests: recomputedDigests,
+      };
+    }
+
     const reportResult = await tx.insert(reportInstances).values(input.report);
+    const reportId = Number(reportResult[0].insertId);
+    let claimHealthSnapshotId: number | null = null;
+    if (health) {
+      const policy = await resolveApprovedClaimHealthPolicyInTransaction(tx, {
+        version: health.evaluationInput.policyVersion,
+        requiredCellSchemaVersion:
+          health.evaluationInput.requiredCellSchemaVersion,
+        asOf: health.evaluationClock,
+      });
+      const snapshot = await createClaimHealthSnapshotInTransaction(
+        tx,
+        {
+          scope: "project",
+          organizationId: input.orgId,
+          projectId: input.projectId,
+          consumer: "stored_project_report",
+          evaluationClock: health.evaluationClock,
+          policyVersionId: policy.id,
+          evaluationInput: health.evaluationInput,
+          evaluation: verifiedHealth!.evaluation,
+          digests: verifiedHealth!.digests,
+          reportInstanceId: reportId,
+        },
+        {
+          kind: "organization_member",
+          organizationId: input.orgId,
+          userId: health.actorUserId,
+          sessionIdentity: health.actorSessionIdentity,
+        }
+      );
+      claimHealthSnapshotId = snapshot.id;
+    }
     return {
-      reportId: Number(reportResult[0].insertId),
+      reportId,
       briefId,
+      claimHealthSnapshotId,
     };
   });
 }
@@ -2945,15 +3055,13 @@ export async function setLogicWeights(
     .delete(logicWeights)
     .where(eq(logicWeights.logicVersionId, logicVersionId));
   if (weights.length > 0) {
-    await db
-      .insert(logicWeights)
-      .values(
-        weights.map(w => ({
-          logicVersionId,
-          dimension: w.dimension,
-          weight: w.weight,
-        }))
-      );
+    await db.insert(logicWeights).values(
+      weights.map(w => ({
+        logicVersionId,
+        dimension: w.dimension,
+        weight: w.weight,
+      }))
+    );
   }
 }
 
@@ -6336,8 +6444,7 @@ export async function createExplicitMaterialAllocationForOrg(
   data: typeof materialAllocations.$inferInsert,
   expected: {
     materialPricingRevision: number;
-    materialPriceGeography:
-      (typeof projects.$inferSelect)["materialPriceGeography"];
+    materialPriceGeography: (typeof projects.$inferSelect)["materialPriceGeography"];
   }
 ) {
   const db = await getDb();
@@ -6364,8 +6471,7 @@ export async function createExplicitMaterialAllocationForOrg(
       .for("update");
     if (
       project.length !== 1 ||
-      project[0].materialPricingRevision !==
-        expected.materialPricingRevision ||
+      project[0].materialPricingRevision !== expected.materialPricingRevision ||
       project[0].materialPriceGeography !== expected.materialPriceGeography
     ) {
       return null;
@@ -6447,8 +6553,7 @@ export async function replaceMaterialAllocationsForOrg(
   data: (typeof materialAllocations.$inferInsert)[],
   expected: {
     materialPricingRevision: number;
-    materialPriceGeography:
-      (typeof projects.$inferSelect)["materialPriceGeography"];
+    materialPriceGeography: (typeof projects.$inferSelect)["materialPriceGeography"];
   }
 ) {
   const db = await getDb();
@@ -6468,8 +6573,7 @@ export async function replaceMaterialAllocationsForOrg(
       .for("update");
     if (
       project.length !== 1 ||
-      project[0].materialPricingRevision !==
-        expected.materialPricingRevision ||
+      project[0].materialPricingRevision !== expected.materialPricingRevision ||
       project[0].materialPriceGeography !== expected.materialPriceGeography
     ) {
       return false;
