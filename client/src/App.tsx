@@ -83,6 +83,7 @@ const CustomerSuccess = lazy(() => import("./pages/CustomerSuccess"));
 const Sustainability = lazy(() => import("./pages/Sustainability"));
 const InvestorSummary = lazy(() => import("./pages/InvestorSummary"));
 const ShareView = lazy(() => import("./pages/ShareView"));
+const ReportShareView = lazy(() => import("./pages/ReportShareView"));
 const BriefEditor = lazy(() => import("./pages/BriefEditor"));
 const Methodology = lazy(() => import("./pages/Methodology"));
 const AreaVerification = lazy(() => import("./pages/AreaVerification"));
@@ -316,6 +317,7 @@ function Router() {
       </Route>
 
       {/* Fallback */}
+      <Route path="/report-share/:token" component={ReportShareView} />
       <Route path="/share/:token" component={ShareView} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />

@@ -887,7 +887,7 @@ function InvestorSummaryContent() {
                             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5">
                                 <Globe className="h-3.5 w-3.5" /> E · Market Intelligence
                             </h2>
-                            <DataFreshnessBanner expanded className="mb-3" />
+                            <DataFreshnessBanner projectId={projectId} expanded className="mb-3" />
                             <div className="grid md:grid-cols-2 gap-3">
                                 {/* Design Trends */}
                                 {designTrends && designTrends.length > 0 && (

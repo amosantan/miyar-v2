@@ -4,6 +4,18 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { generateDesignBriefDocx } from "./docx-brief";
+import type { ClaimHealthSafeProjection } from "../../shared/claim-health";
+
+const fallbackHealth = {
+  claimState: "current_with_fallback",
+  evaluatedAt: "2026-07-30T12:00:00.000Z",
+  policyVersion: "ev04-claim-health-v1",
+  policyManifestDigest: "sha256:ev04-policy-manifest",
+  requiredCellSchemaVersion: "ev04-required-cell-v1",
+  counts: { required: 2, eligible: 2, exact: 1, fallback: 1, optional: 0 },
+  reasonCodes: ["approved_fallback"],
+  cells: [],
+} satisfies ClaimHealthSafeProjection;
 
 describe("TR-10 design-brief DOCX integrity", () => {
   it("embeds one Arabic RTL identity and keeps hostile/formula-like text inert", async () => {
@@ -65,6 +77,11 @@ describe("TR-10 design-brief DOCX integrity", () => {
       expect(documentXml).toContain("% من الإجمالي");
       expect(documentXml).toContain("الدرجة");
       expect(documentXml).toContain("إرشادات النسب من MIYAR:");
+      expect(documentXml).toContain("صحة الأدلة");
+      expect(documentXml).toContain("قديم — لقطة صحة الأدلة غير متاحة");
+      expect(documentXml).toContain(
+        "حالة الأدلة غير متاحة ولم تتم إعادة تقييمها."
+      );
       expect(footerXml).toContain("الصفحة");
       expect(documentXml).toContain("w:bidi");
       expect(documentXml).toContain("w:rtl");
@@ -83,9 +100,92 @@ describe("TR-10 design-brief DOCX integrity", () => {
         "Area (sqft)",
         "% of Total",
         "MIYAR Ratio Guidance:",
+        "Legacy — health snapshot unavailable",
       ]) {
         expect(documentXml).not.toContain(untranslated);
       }
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("renders safe English fallback and Arabic current claim-health sections", async () => {
+    const base = {
+      projectName: "Claim health brief",
+      projectIdentity: { projectName: "Claim health brief" },
+      designNarrative: {},
+      materialSpecifications: {},
+      boqFramework: { totalEstimatedSqm: null, coreAllocations: [] },
+      detailedBudget: {},
+      designerInstructions: {
+        phasedDeliverables: {},
+        authorityApprovals: [],
+        coordinationRequirements: [],
+        procurementAndLogistics: {},
+      },
+      version: 1,
+    };
+    const healthWithUnsafeExtras = {
+      ...fallbackHealth,
+      runId: "PRIVATE-RUN-ID",
+      rawError: "PRIVATE-RAW-ERROR",
+    } as ClaimHealthSafeProjection;
+    const english = await generateDesignBriefDocx({
+      ...base,
+      locale: "en",
+      claimHealth: healthWithUnsafeExtras,
+    });
+    const arabic = await generateDesignBriefDocx({
+      ...base,
+      locale: "ar",
+      claimHealth: {
+        ...fallbackHealth,
+        claimState: "current",
+        counts: { ...fallbackHealth.counts, exact: 2, fallback: 0 },
+        reasonCodes: [],
+      },
+    });
+
+    const tempDir = await mkdtemp(path.join(tmpdir(), "miyar-ev04-docx-"));
+    try {
+      const englishPath = path.join(tempDir, "english.docx");
+      const arabicPath = path.join(tempDir, "arabic.docx");
+      await writeFile(englishPath, english);
+      await writeFile(arabicPath, arabic);
+      const englishXml = execFileSync(
+        "unzip",
+        ["-p", englishPath, "word/document.xml"],
+        { encoding: "utf8" }
+      );
+      const arabicXml = execFileSync(
+        "unzip",
+        ["-p", arabicPath, "word/document.xml"],
+        { encoding: "utf8" }
+      );
+
+      expect(englishXml).toContain("Evidence Health");
+      expect(englishXml).toContain("Current with approved fallback");
+      expect(englishXml).toContain("2/2");
+      expect(englishXml).toContain("ev04-claim-health-v1");
+      expect(englishXml).toContain("not a live recomputation");
+      expect(englishXml).not.toContain("PRIVATE-RUN-ID");
+      expect(englishXml).not.toContain("PRIVATE-RAW-ERROR");
+
+      for (const arabicCopy of [
+        "صحة الأدلة",
+        "الحالة",
+        "حالي",
+        "التغطية المؤهلة",
+        "الخلايا المطلوبة",
+        "المطابقات الدقيقة",
+        "البدائل المعتمدة",
+        "إصدار السياسة",
+        "إصدار مخطط الخلايا",
+        "ليست إعادة تقييم مباشرة",
+      ]) {
+        expect(arabicXml).toContain(arabicCopy);
+      }
+      expect(arabicXml).not.toContain("Current with approved fallback");
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }

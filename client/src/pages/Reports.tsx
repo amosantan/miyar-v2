@@ -24,6 +24,9 @@ import {
   ChevronDown,
   ChevronUp,
   Printer,
+  Share2,
+  Unlink,
+  Copy,
 } from "lucide-react";
 import { lazy, Suspense, useState, useMemo, useRef, useCallback } from "react";
 import { toast } from "sonner";
@@ -68,6 +71,163 @@ const REPORT_TYPES = [
 ] as const;
 
 type GenerateReportType = (typeof REPORT_TYPES)[number]["value"];
+
+function ReportShareControls({
+  reportInstanceId,
+  locale,
+}: {
+  reportInstanceId: number;
+  locale: "en" | "ar";
+}) {
+  const shares = trpc.reportShare.list.useQuery(
+    { reportInstanceId },
+    { refetchOnWindowFocus: false }
+  );
+  const createShare = trpc.reportShare.create.useMutation();
+  const revokeShare = trpc.reportShare.revoke.useMutation();
+  const utils = trpc.useUtils();
+  const [oneTimeShare, setOneTimeShare] = useState<{
+    shareId: number;
+    shareUrl: string;
+  } | null>(null);
+
+  async function copyOneTimeUrl() {
+    if (!oneTimeShare) return;
+    const absoluteUrl = new URL(
+      oneTimeShare.shareUrl,
+      window.location.origin
+    ).href;
+    try {
+      await navigator.clipboard.writeText(absoluteUrl);
+      toast.success(locale === "ar" ? "تم نسخ الرابط." : "Link copied.");
+    } catch {
+      toast.error(
+        locale === "ar"
+          ? "تعذر النسخ. افتح الرابط وانسخه من المتصفح."
+          : "Copy failed. Open the link and copy it from the browser."
+      );
+    }
+  }
+
+  async function handleCreate() {
+    try {
+      const created = await createShare.mutateAsync({
+        reportInstanceId,
+        expiryDays: 7,
+      });
+      setOneTimeShare({
+        shareId: created.shareId,
+        shareUrl: created.shareUrl,
+      });
+      await utils.reportShare.list.invalidate({ reportInstanceId });
+      toast.success(
+        locale === "ar"
+          ? "تم إنشاء الرابط. انسخه الآن؛ لن يظهر عنوانه مرة أخرى بعد مغادرة الصفحة."
+          : "Link created. Copy it now—the URL will not be shown again after you leave this page."
+      );
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : locale === "ar"
+            ? "تعذر إنشاء رابط التقرير"
+            : "Unable to create report link"
+      );
+    }
+  }
+
+  async function handleRevoke(shareId: number) {
+    try {
+      await revokeShare.mutateAsync({ shareId });
+      if (oneTimeShare?.shareId === shareId) setOneTimeShare(null);
+      await utils.reportShare.list.invalidate({ reportInstanceId });
+      toast.success(
+        locale === "ar" ? "تم إلغاء الرابط." : "Report link revoked."
+      );
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : locale === "ar"
+            ? "تعذر إلغاء رابط التقرير"
+            : "Unable to revoke report link"
+      );
+    }
+  }
+
+  if (shares.isLoading) {
+    return (
+      <Loader2
+        className="h-3.5 w-3.5 animate-spin text-muted-foreground"
+        aria-label={locale === "ar" ? "تحميل روابط المشاركة" : "Loading shares"}
+      />
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-1">
+      {oneTimeShare && (
+        <>
+          <span className="max-w-44 text-[10px] text-amber-600 dark:text-amber-400">
+            {locale === "ar"
+              ? "يظهر عنوان الرابط مرة واحدة فقط"
+              : "URL shown once only"}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-xs"
+            onClick={copyOneTimeUrl}
+          >
+            <Copy className="h-3.5 w-3.5" />
+            {locale === "ar" ? "نسخ الآن" : "Copy now"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-xs"
+            onClick={() =>
+              window.open(
+                oneTimeShare.shareUrl,
+                "_blank",
+                "noopener,noreferrer"
+              )
+            }
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            {locale === "ar" ? "فتح" : "Open"}
+          </Button>
+        </>
+      )}
+      {(shares.data ?? []).map(share => (
+        <Button
+          key={share.shareId}
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 text-xs"
+          disabled={revokeShare.isPending}
+          title={`${locale === "ar" ? "صالح حتى" : "Valid until"} ${new Date(
+            share.expiresAt
+          ).toLocaleString(locale === "ar" ? "ar-AE" : "en-AE")}`}
+          onClick={() => handleRevoke(share.shareId)}
+        >
+          <Unlink className="h-3.5 w-3.5" />
+          {locale === "ar" ? "إلغاء رابط نشط" : "Revoke active link"}
+        </Button>
+      ))}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="gap-1.5 text-xs"
+        disabled={createShare.isPending}
+        onClick={handleCreate}
+      >
+        <Share2 className="h-3.5 w-3.5" />
+        {locale === "ar" ? "رابط جديد" : "New secure link"}
+      </Button>
+    </div>
+  );
+}
 
 function ReportsContent() {
   const { locale: appLocale } = useTranslation();
@@ -354,6 +514,12 @@ function ReportsContent() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
+                            {r.canManagePublicShare && (
+                              <ReportShareControls
+                                reportInstanceId={r.id}
+                                locale={appLocale}
+                              />
+                            )}
                             {fileUrl && (
                               <>
                                 <Button

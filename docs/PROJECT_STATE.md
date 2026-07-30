@@ -4,7 +4,10 @@ This is the canonical location for current observed repository facts. It is not 
 
 ## Observation Metadata
 
-- Observed: 2026-07-30 after EV-02R merge, canonical-main CI, and automatic production deployment. See the dated release sections below for prior deployments.
+- Observed: 2026-07-30 after verified local EV-04 implementation from
+  canonical base `f0405344a218529a28f15a8198ac4aac244ee99c`. No EV-04
+  shared/production action or Git publication was performed. See the dated
+  release sections below for prior deployments.
 - Production source lineage includes application authority `7621f28bcd9687e571c69bff6df1c6db7d67e048`, the independently reviewed EV-03 comparison-safety merge, plus EV-02R tooling/state merge `09cc94452b25e8404fe485ad7eb9ce13c24563f5`.
 - Branch identity: canonical main contains EV-02R tooling merge
   `09cc94452b25e8404fe485ad7eb9ce13c24563f5` and its state-only release record
@@ -15,7 +18,45 @@ This is the canonical location for current observed repository facts. It is not 
 - Package manager declared by repository: `pnpm`
 - Production: digest-bound EV-03 governed deployment `dpl_Dz49pMxpGZGGHmqVNK1PYBcnk3tY` is `READY` from exact canonical source `7621f28b`; root/login and authenticated material-cost/browser-console smoke pass.
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Roadmap state: `EV-02`, `EV-03`, and `EV-02R` are closed; `EV-04` is the single next executable step. EV-02R closed with 24 authorized non-material rejections and 19 residual `needs_evidence` rows; zero governed mappings, values, or production writes were approved or applied. `BR-05` is closed, while `BR-06`, EV-00's residual cost-policy decisions, and EV-01b's per-source terms decisions remain `NEEDS_HUMAN`. `BR-04B`–`BR-04E` remain dependency-gated successors. `DI-01` remains merged and closed through canonical commit `ce5e44a`; its shared migration and production release remain separately gated. `SC-05` and UX-01's independent authenticated-production recheck remain `NEEDS_HUMAN`; `KF-018` remains a separate pre-existing legacy-report compatibility defect.
+- Roadmap state: `EV-02`, `EV-03`, `EV-02R`, and `EV-04` are closed; `EV-05`
+  is the single next dependency-valid step and is `READY`. EV-04's shared
+  migration, exact PlanetScale branch apply, canonical seed, release, and
+  incident-retention decision remain separately gated. EV-02R closed with
+  24 authorized non-material rejections and 19 residual `needs_evidence` rows;
+  zero governed mappings, values, or production writes were approved or
+  applied. `BR-05` is closed, while `BR-06`, EV-00's residual cost-policy
+  decisions, and EV-01b's per-source terms decisions remain `NEEDS_HUMAN`.
+  `BR-04B`–`BR-04E` remain dependency-gated successors. `DI-01` remains merged
+  and closed through canonical commit `ce5e44a`; its shared migration and
+  production release remain separately gated. `SC-05` and UX-01's independent
+  authenticated-production recheck remain `NEEDS_HUMAN`; `KF-018` remains a
+  separate pre-existing legacy-report compatibility defect.
+
+## EV-04 Local Implementation Observation
+
+- Fresh worktree `/Users/amrosaleh/Maiyar/miyar-v2-ev04-plan` on
+  `codex/ev04-plan` implemented the owner-approved source coverage, freshness,
+  incident, insufficiency, stored-report, and report-share SLA from exact
+  canonical base `f0405344a`.
+- The deterministic manifest digest is
+  `sha256:6da6e3982c97b8ce645945fc3af3cdc2b22d02ccf4ae6140fc0eaac63adb1c9b`.
+  It binds projection priority, authority and eligibility, the closed
+  catalogue, incidents, artifact behavior, and retention constraints.
+- Additive migration 0063 is trigger-free and provider-safe by construction.
+  Canonical policy data is installed separately and idempotently under the
+  database-safety `seed` operation. Production incident-history persistence
+  remains fail-closed until SC-06/PDPL approval.
+- Stored reports bind one transactionally revalidated frozen snapshot.
+  Report listings and public shares verify the snapshot rather than trusting
+  embedded content. Public report shares are admin-managed, hashed-token,
+  expiring, revocable, minimized, read-only, and privacy-header protected.
+- Verification passes: database-free 1,945/22; guarded MySQL 84/84 with 112
+  current pins; TypeScript; production build and bundle budgets; material
+  authority 16 paths; authorization 395/0; database safety 144/2/0; report
+  certification 23/23; TR-13 workflow/browser certification; diff hygiene;
+  definitive MIYAR review; and Claude Opus delta review.
+- No shared/production migration, database write, policy seed, deployment,
+  Git publication, pull request, merge, or external communication occurred.
 
 ## EV-02R Release Observation
 

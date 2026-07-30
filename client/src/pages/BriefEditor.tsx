@@ -386,7 +386,7 @@ function BriefEditorContent() {
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">
                                     Sustainability Constants
-                                    <DataFreshnessBanner className="mt-3" />
+                                    <DataFreshnessBanner projectId={projectId} className="mt-3" />
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>

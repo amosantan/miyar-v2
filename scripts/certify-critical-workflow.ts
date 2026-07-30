@@ -540,6 +540,13 @@ if (child && provenance) {
       commands
     );
     run(
+      "seed-approved-ev04-claim-health-policy",
+      "pnpm",
+      ["exec", "tsx", "scripts/seed-ev04-claim-health-policy.ts"],
+      child,
+      commands
+    );
+    run(
       "real-mysql-critical-workflow",
       "pnpm",
       [

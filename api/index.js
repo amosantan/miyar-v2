@@ -52,14 +52,14 @@ function inspectDatabaseTarget(databaseUrl) {
     if (!host || isUnspecifiedHost(host)) throw new Error("Host is empty or unspecified");
     const port = parsed.port ? Number(parsed.port) : 3306;
     if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Port is invalid");
-    const database4 = parseDatabaseName(parsed.pathname);
-    if (!database4) throw new Error("Database name is missing or ambiguous");
-    const canonical3 = `${canonicalHost(host)}:${port}/${database4}`;
+    const database5 = parseDatabaseName(parsed.pathname);
+    if (!database5) throw new Error("Database name is missing or ambiguous");
+    const canonical3 = `${canonicalHost(host)}:${port}/${database5}`;
     return {
       class: isLoopbackHost(host) ? "safe-loopback" : "remote-shared",
       host,
       port,
-      database: database4,
+      database: database5,
       canonical: canonical3
     };
   } catch (error) {
@@ -335,6 +335,8 @@ __export(schema_exports, {
   briefStreams: () => briefStreams,
   briefVersionSections: () => briefVersionSections,
   briefVersions: () => briefVersions,
+  claimHealthPolicyVersions: () => claimHealthPolicyVersions,
+  claimHealthSnapshots: () => claimHealthSnapshots,
   comments: () => comments,
   competitorEntities: () => competitorEntities,
   competitorProjects: () => competitorProjects,
@@ -408,6 +410,7 @@ __export(schema_exports, {
   regulatorySourceVersions: () => regulatorySourceVersions,
   regulatorySources: () => regulatorySources,
   reportInstances: () => reportInstances,
+  reportPublicShares: () => reportPublicShares,
   rfqLineItems: () => rfqLineItems,
   riskSurfaceMaps: () => riskSurfaceMaps,
   roiConfigs: () => roiConfigs,
@@ -417,6 +420,8 @@ __export(schema_exports, {
   scenarioStressTests: () => scenarioStressTests,
   scenarios: () => scenarios,
   scoreMatrices: () => scoreMatrices,
+  sourceIncidentEvents: () => sourceIncidentEvents,
+  sourceIncidents: () => sourceIncidents,
   sourceRegistry: () => sourceRegistry,
   spaceIdentities: () => spaceIdentities,
   spaceProgramRooms: () => spaceProgramRooms,
@@ -436,6 +441,7 @@ __export(schema_exports, {
 import {
   int,
   bigint,
+  check,
   mysqlEnum,
   mysqlTable,
   text,
@@ -449,7 +455,8 @@ import {
   uniqueIndex,
   foreignKey
 } from "drizzle-orm/mysql-core";
-var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, products, specifications, paintCoverageProfiles, supplierQuotes, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, evidenceConfidenceAssessments, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, portfolioAlerts, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces, projectGeometryAuthorities, spatialGraphVersions, spaceIdentities, spaceVersions, geometrySources, measurementRecords, measurementInputEdges, geometryReconciliationEvents, legacySpaceLinks, artifactInputSnapshots, typologyPackRevisions, typologyPackEvents, regulatorySources, regulatorySourceVersions, regulatorySourceCaptures, regulatoryClauseCandidates, regulatorySourceRelations, regulatorySourceAssertions, briefSectionValues, briefRoleValues, briefStreams, briefVersions, briefSectionRevisions, briefVersionSections, briefRoleEvents, briefFindings, briefFindingResolutions, briefApplicabilityEvents, briefApprovals, briefDependencies, briefConditionEvents, briefOperations, briefEvents, briefIssues, briefIssueSections, briefIssueApprovals, briefIssueApplicability, briefIssueDependencies, briefLegacyLinks;
+import { sql } from "drizzle-orm";
+var users, organizations, organizationMembers, organizationInvites, modelVersions, benchmarkVersions, benchmarkCategories, projects, directionCandidates, scoreMatrices, scenarios, benchmarkData, projectIntelligence, reportInstances, roiConfigs, webhookConfigs, projectAssets, assetLinks, designBriefs, generatedVisuals, designTrends, materialBoards, products, specifications, paintCoverageProfiles, supplierQuotes, materialsCatalog, materialsToBoards, promptTemplates, comments, auditLogs, overrideRecords, logicVersions, logicWeights, logicThresholds, logicChangeLog, decisionPatterns, projectPatternMatches, scenarioInputs, scenarioOutputs, scenarioComparisons, projectOutcomes, outcomeComparisons, accuracySnapshots, benchmarkSuggestions, sourceRegistry, evidenceRecords, evidenceConfidenceAssessments, benchmarkProposals, benchmarkSnapshots, competitorEntities, competitorProjects, trendTags, entityTags, intelligenceAuditLog, evidenceReferences, ingestionRuns, connectorHealth, trendSnapshots, projectInsights, priceChangeEvents, platformAlerts, nlQueryLog, materialLibrary, finishScheduleItems, projectColorPalettes, rfqLineItems, dmComplianceChecklists, projectRoiModels, scenarioStressTests, riskSurfaceMaps, biasAlerts, biasProfiles, spaceRecommendations, designPackages, aiDesignBriefs, portfolios, portfolioProjects, portfolioAlerts, monteCarloSimulations, customerHealthScores, digitalTwinModels, sustainabilitySnapshots, materialConstants, dldProjects, dldTransactions, dldRents, dldAreaBenchmarks, pdfExtractions, materialAllocations, materialSupplierSources, spaceProgramRooms, amenitySubSpaces, projectGeometryAuthorities, spatialGraphVersions, spaceIdentities, spaceVersions, geometrySources, measurementRecords, measurementInputEdges, geometryReconciliationEvents, legacySpaceLinks, artifactInputSnapshots, typologyPackRevisions, typologyPackEvents, regulatorySources, regulatorySourceVersions, regulatorySourceCaptures, regulatoryClauseCandidates, regulatorySourceRelations, regulatorySourceAssertions, briefSectionValues, briefRoleValues, briefStreams, briefVersions, briefSectionRevisions, briefVersionSections, briefRoleEvents, briefFindings, briefFindingResolutions, briefApplicabilityEvents, briefApprovals, briefDependencies, briefConditionEvents, briefOperations, briefEvents, briefIssues, briefIssueSections, briefIssueApprovals, briefIssueApplicability, briefIssueDependencies, briefLegacyLinks, claimHealthPolicyVersions, claimHealthSnapshots, reportPublicShares, sourceIncidents, sourceIncidentEvents;
 var init_schema = __esm({
   "drizzle/schema.ts"() {
     "use strict";
@@ -568,245 +575,249 @@ var init_schema = __esm({
       updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
       createdBy: int("createdBy")
     });
-    projects = mysqlTable("projects", {
-      id: int("id").autoincrement().primaryKey(),
-      userId: int("userId").notNull(),
-      orgId: int("orgId"),
-      name: varchar("name", { length: 255 }).notNull(),
-      description: text("description"),
-      status: mysqlEnum("status", [
-        "draft",
-        "draft_area_verification",
-        "ready",
-        "processing",
-        "evaluated",
-        "locked"
-      ]).default("draft").notNull(),
-      // Approval gate (V2.8)
-      approvalState: mysqlEnum("approvalState", [
-        "draft",
-        "review",
-        "approved_rfq",
-        "approved_marketing"
-      ]).default("draft"),
-      // Context variables
-      ctx01Typology: mysqlEnum("ctx01Typology", [
-        "Residential",
-        "Mixed-use",
-        "Hospitality",
-        "Office",
-        "Villa",
-        "Gated Community",
-        "Villa Development"
-      ]).default("Residential"),
-      ctx02Scale: mysqlEnum("ctx02Scale", ["Small", "Medium", "Large"]).default(
-        "Medium"
-      ),
-      ctx03Gfa: decimal("ctx03Gfa", { precision: 12, scale: 2 }),
-      // V4 — Fit-out Oracle: area-based pricing
-      totalFitoutArea: decimal("totalFitoutArea", { precision: 12, scale: 2 }),
-      totalNonFinishArea: decimal("totalNonFinishArea", {
-        precision: 12,
-        scale: 2
-      }),
-      fitoutAreaVerified: boolean("fitoutAreaVerified").default(false),
-      projectArchetype: mysqlEnum("projectArchetype", [
-        "residential_multi",
-        "office",
-        "single_villa",
-        "hospitality",
-        "community"
-      ]),
-      officeFitoutCategory: mysqlEnum("officeFitoutCategory", ["catA", "catB"]),
-      officeCustomRatio: decimal("officeCustomRatio", { precision: 5, scale: 2 }),
-      ctx04Location: mysqlEnum("ctx04Location", [
-        "Prime",
-        "Secondary",
-        "Emerging"
-      ]).default("Secondary"),
-      ctx05Horizon: mysqlEnum("ctx05Horizon", [
-        "0-12m",
-        "12-24m",
-        "24-36m",
-        "36m+"
-      ]).default("12-24m"),
-      // DLD Area reference (Phase B.3 — links to DLD open data areas)
-      dldAreaId: int("dld_area_id"),
-      dldAreaName: varchar("dld_area_name", { length: 200 }),
-      // City & Sustainability Certification (Phase D — affects pricing, scoring, compliance)
-      city: mysqlEnum("city", ["Dubai", "Abu Dhabi"]).default("Dubai"),
-      materialPriceGeography: mysqlEnum("materialPriceGeography", [
-        "dubai",
-        "abu_dhabi",
-        "sharjah",
-        "ajman",
-        "umm_al_quwain",
-        "ras_al_khaimah",
-        "fujairah",
-        "uae"
-      ]),
-      materialPricingRevision: int("material_pricing_revision").default(1).notNull(),
-      sustainCertTarget: varchar("sustain_cert_target", { length: 50 }).default(
-        "silver"
-      ),
-      // Project purpose — drives fitout quality and benchmark selection
-      projectPurpose: mysqlEnum("project_purpose", [
-        "sell_offplan",
-        // New off-plan development — showroom-quality finishes, premium specs
-        "sell_ready",
-        // Ready property sale — durable premium finishes, market-competitive
-        "rent",
-        // Rental yield focus — durability over luxury, cost-efficient materials
-        "mixed"
-        // Mixed use — balanced approach
-      ]).default("sell_ready"),
-      // Strategy variables (1-5)
-      str01BrandClarity: int("str01BrandClarity").default(3),
-      str02Differentiation: int("str02Differentiation").default(3),
-      str03BuyerMaturity: int("str03BuyerMaturity").default(3),
-      // Market variables
-      mkt01Tier: mysqlEnum("mkt01Tier", [
-        "Mid",
-        "Upper-mid",
-        "Luxury",
-        "Ultra-luxury"
-      ]).default("Upper-mid"),
-      mkt02Competitor: int("mkt02Competitor").default(3),
-      mkt03Trend: int("mkt03Trend").default(3),
-      // Financial variables
-      fin01BudgetCap: decimal("fin01BudgetCap", { precision: 10, scale: 2 }),
-      fin02Flexibility: int("fin02Flexibility").default(3),
-      fin03ShockTolerance: int("fin03ShockTolerance").default(3),
-      fin04SalesPremium: int("fin04SalesPremium").default(3),
-      // Design variables
-      des01Style: mysqlEnum("des01Style", [
-        "Modern",
-        "Contemporary",
-        "Minimal",
-        "Classic",
-        "Fusion",
-        "Other"
-      ]).default("Modern"),
-      des02MaterialLevel: int("des02MaterialLevel").default(3),
-      des03Complexity: int("des03Complexity").default(3),
-      des04Experience: int("des04Experience").default(3),
-      des05Sustainability: int("des05Sustainability").default(2),
-      // Execution variables
-      exe01SupplyChain: int("exe01SupplyChain").default(3),
-      exe02Contractor: int("exe02Contractor").default(3),
-      exe03Approvals: int("exe03Approvals").default(2),
-      exe04QaMaturity: int("exe04QaMaturity").default(3),
-      // Add-on variables
-      add01SampleKit: boolean("add01SampleKit").default(false),
-      add02PortfolioMode: boolean("add02PortfolioMode").default(false),
-      add03DashboardExport: boolean("add03DashboardExport").default(true),
-      // --- V5: Concrete Analytics Inputs ---
-      developerType: mysqlEnum("developerType", [
-        "Master Developer",
-        "Private/Boutique",
-        "Institutional Investor"
-      ]),
-      targetDemographic: mysqlEnum("targetDemographic", [
-        "HNWI",
-        "Families",
-        "Young Professionals",
-        "Investors"
-      ]),
-      salesStrategy: mysqlEnum("salesStrategy", [
-        "Sell Off-Plan",
-        "Sell on Completion",
-        "Build-to-Rent"
-      ]),
-      competitiveDensity: mysqlEnum("competitiveDensity", [
-        "Low",
-        "Moderate",
-        "Saturated"
-      ]),
-      projectUsp: mysqlEnum("projectUsp", [
-        "Location/Views",
-        "Amenities/Facilities",
-        "Price/Value",
-        "Design/Architecture"
-      ]),
-      targetYield: mysqlEnum("targetYield", ["< 5%", "5-7%", "7-9%", "> 9%"]),
-      procurementStrategy: mysqlEnum("procurementStrategy", [
-        "Turnkey",
-        "Traditional",
-        "Construction Management"
-      ]),
-      amenityFocus: mysqlEnum("amenityFocus", [
-        "Wellness/Spa",
-        "F&B/Social",
-        "Minimal/Essential",
-        "Business/Co-working"
-      ]),
-      techIntegration: mysqlEnum("techIntegration", [
-        "Basic",
-        "Smart Home Ready",
-        "Fully Integrated"
-      ]),
-      materialSourcing: mysqlEnum("materialSourcing", [
-        "Local",
-        "European",
-        "Asian",
-        "Global Mix"
-      ]),
-      handoverCondition: mysqlEnum("handoverCondition", [
-        "Shell & Core",
-        "Category A",
-        "Category B",
-        "Fully Furnished"
-      ]),
-      brandedStatus: mysqlEnum("brandedStatus", [
-        "Unbranded",
-        "Hospitality Branded",
-        "Fashion/Automotive Branded"
-      ]),
-      salesChannel: mysqlEnum("salesChannel", [
-        "Local Brokerage",
-        "International Roadshows",
-        "Direct to VIP"
-      ]),
-      lifecycleFocus: mysqlEnum("lifecycleFocus", [
-        "Short-term Resale",
-        "Medium-term Hold",
-        "Long-term Retention"
-      ]),
-      brandStandardConstraints: mysqlEnum("brandStandardConstraints", [
-        "High Flexibility",
-        "Moderate Guidelines",
-        "Strict Vendor List"
-      ]),
-      timelineFlexibility: mysqlEnum("timelineFlexibility", [
-        "Highly Flexible",
-        "Moderate Contingency",
-        "Fixed / Zero Tolerance"
-      ]),
-      targetValueAdd: mysqlEnum("targetValueAdd", [
-        "Max Capital Appreciation",
-        "Max Rental Yield",
-        "Balanced Return",
-        "Brand Flagship / Trophy"
-      ]),
-      // Expanded Inputs
-      unitMix: json("unitMix"),
-      villaSpaces: json("villaSpaces"),
-      developerGuidelines: json("developerGuidelines"),
-      // Phase 9: Floor Plan Intelligence
-      floorPlanAssetId: int("floorPlanAssetId"),
-      // FK to project_assets
-      floorPlanAnalysis: json("floorPlanAnalysis"),
-      // AI-extracted room breakdown
-      // UX-01: records whether authoritative evaluation inputs were explicitly
-      // supplied, assumed by defaults, suggested by AI, or confirmed by a user.
-      // Null is reserved for legacy projects created before this contract.
-      inputProvenance: json("inputProvenance"),
-      modelVersionId: int("modelVersionId"),
-      benchmarkVersionId: int("benchmarkVersionId"),
-      createdAt: timestamp("createdAt").defaultNow().notNull(),
-      updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-      lockedAt: timestamp("lockedAt")
-    });
+    projects = mysqlTable(
+      "projects",
+      {
+        id: int("id").autoincrement().primaryKey(),
+        userId: int("userId").notNull(),
+        orgId: int("orgId"),
+        name: varchar("name", { length: 255 }).notNull(),
+        description: text("description"),
+        status: mysqlEnum("status", [
+          "draft",
+          "draft_area_verification",
+          "ready",
+          "processing",
+          "evaluated",
+          "locked"
+        ]).default("draft").notNull(),
+        // Approval gate (V2.8)
+        approvalState: mysqlEnum("approvalState", [
+          "draft",
+          "review",
+          "approved_rfq",
+          "approved_marketing"
+        ]).default("draft"),
+        // Context variables
+        ctx01Typology: mysqlEnum("ctx01Typology", [
+          "Residential",
+          "Mixed-use",
+          "Hospitality",
+          "Office",
+          "Villa",
+          "Gated Community",
+          "Villa Development"
+        ]).default("Residential"),
+        ctx02Scale: mysqlEnum("ctx02Scale", ["Small", "Medium", "Large"]).default(
+          "Medium"
+        ),
+        ctx03Gfa: decimal("ctx03Gfa", { precision: 12, scale: 2 }),
+        // V4 — Fit-out Oracle: area-based pricing
+        totalFitoutArea: decimal("totalFitoutArea", { precision: 12, scale: 2 }),
+        totalNonFinishArea: decimal("totalNonFinishArea", {
+          precision: 12,
+          scale: 2
+        }),
+        fitoutAreaVerified: boolean("fitoutAreaVerified").default(false),
+        projectArchetype: mysqlEnum("projectArchetype", [
+          "residential_multi",
+          "office",
+          "single_villa",
+          "hospitality",
+          "community"
+        ]),
+        officeFitoutCategory: mysqlEnum("officeFitoutCategory", ["catA", "catB"]),
+        officeCustomRatio: decimal("officeCustomRatio", { precision: 5, scale: 2 }),
+        ctx04Location: mysqlEnum("ctx04Location", [
+          "Prime",
+          "Secondary",
+          "Emerging"
+        ]).default("Secondary"),
+        ctx05Horizon: mysqlEnum("ctx05Horizon", [
+          "0-12m",
+          "12-24m",
+          "24-36m",
+          "36m+"
+        ]).default("12-24m"),
+        // DLD Area reference (Phase B.3 — links to DLD open data areas)
+        dldAreaId: int("dld_area_id"),
+        dldAreaName: varchar("dld_area_name", { length: 200 }),
+        // City & Sustainability Certification (Phase D — affects pricing, scoring, compliance)
+        city: mysqlEnum("city", ["Dubai", "Abu Dhabi"]).default("Dubai"),
+        materialPriceGeography: mysqlEnum("materialPriceGeography", [
+          "dubai",
+          "abu_dhabi",
+          "sharjah",
+          "ajman",
+          "umm_al_quwain",
+          "ras_al_khaimah",
+          "fujairah",
+          "uae"
+        ]),
+        materialPricingRevision: int("material_pricing_revision").default(1).notNull(),
+        sustainCertTarget: varchar("sustain_cert_target", { length: 50 }).default(
+          "silver"
+        ),
+        // Project purpose — drives fitout quality and benchmark selection
+        projectPurpose: mysqlEnum("project_purpose", [
+          "sell_offplan",
+          // New off-plan development — showroom-quality finishes, premium specs
+          "sell_ready",
+          // Ready property sale — durable premium finishes, market-competitive
+          "rent",
+          // Rental yield focus — durability over luxury, cost-efficient materials
+          "mixed"
+          // Mixed use — balanced approach
+        ]).default("sell_ready"),
+        // Strategy variables (1-5)
+        str01BrandClarity: int("str01BrandClarity").default(3),
+        str02Differentiation: int("str02Differentiation").default(3),
+        str03BuyerMaturity: int("str03BuyerMaturity").default(3),
+        // Market variables
+        mkt01Tier: mysqlEnum("mkt01Tier", [
+          "Mid",
+          "Upper-mid",
+          "Luxury",
+          "Ultra-luxury"
+        ]).default("Upper-mid"),
+        mkt02Competitor: int("mkt02Competitor").default(3),
+        mkt03Trend: int("mkt03Trend").default(3),
+        // Financial variables
+        fin01BudgetCap: decimal("fin01BudgetCap", { precision: 10, scale: 2 }),
+        fin02Flexibility: int("fin02Flexibility").default(3),
+        fin03ShockTolerance: int("fin03ShockTolerance").default(3),
+        fin04SalesPremium: int("fin04SalesPremium").default(3),
+        // Design variables
+        des01Style: mysqlEnum("des01Style", [
+          "Modern",
+          "Contemporary",
+          "Minimal",
+          "Classic",
+          "Fusion",
+          "Other"
+        ]).default("Modern"),
+        des02MaterialLevel: int("des02MaterialLevel").default(3),
+        des03Complexity: int("des03Complexity").default(3),
+        des04Experience: int("des04Experience").default(3),
+        des05Sustainability: int("des05Sustainability").default(2),
+        // Execution variables
+        exe01SupplyChain: int("exe01SupplyChain").default(3),
+        exe02Contractor: int("exe02Contractor").default(3),
+        exe03Approvals: int("exe03Approvals").default(2),
+        exe04QaMaturity: int("exe04QaMaturity").default(3),
+        // Add-on variables
+        add01SampleKit: boolean("add01SampleKit").default(false),
+        add02PortfolioMode: boolean("add02PortfolioMode").default(false),
+        add03DashboardExport: boolean("add03DashboardExport").default(true),
+        // --- V5: Concrete Analytics Inputs ---
+        developerType: mysqlEnum("developerType", [
+          "Master Developer",
+          "Private/Boutique",
+          "Institutional Investor"
+        ]),
+        targetDemographic: mysqlEnum("targetDemographic", [
+          "HNWI",
+          "Families",
+          "Young Professionals",
+          "Investors"
+        ]),
+        salesStrategy: mysqlEnum("salesStrategy", [
+          "Sell Off-Plan",
+          "Sell on Completion",
+          "Build-to-Rent"
+        ]),
+        competitiveDensity: mysqlEnum("competitiveDensity", [
+          "Low",
+          "Moderate",
+          "Saturated"
+        ]),
+        projectUsp: mysqlEnum("projectUsp", [
+          "Location/Views",
+          "Amenities/Facilities",
+          "Price/Value",
+          "Design/Architecture"
+        ]),
+        targetYield: mysqlEnum("targetYield", ["< 5%", "5-7%", "7-9%", "> 9%"]),
+        procurementStrategy: mysqlEnum("procurementStrategy", [
+          "Turnkey",
+          "Traditional",
+          "Construction Management"
+        ]),
+        amenityFocus: mysqlEnum("amenityFocus", [
+          "Wellness/Spa",
+          "F&B/Social",
+          "Minimal/Essential",
+          "Business/Co-working"
+        ]),
+        techIntegration: mysqlEnum("techIntegration", [
+          "Basic",
+          "Smart Home Ready",
+          "Fully Integrated"
+        ]),
+        materialSourcing: mysqlEnum("materialSourcing", [
+          "Local",
+          "European",
+          "Asian",
+          "Global Mix"
+        ]),
+        handoverCondition: mysqlEnum("handoverCondition", [
+          "Shell & Core",
+          "Category A",
+          "Category B",
+          "Fully Furnished"
+        ]),
+        brandedStatus: mysqlEnum("brandedStatus", [
+          "Unbranded",
+          "Hospitality Branded",
+          "Fashion/Automotive Branded"
+        ]),
+        salesChannel: mysqlEnum("salesChannel", [
+          "Local Brokerage",
+          "International Roadshows",
+          "Direct to VIP"
+        ]),
+        lifecycleFocus: mysqlEnum("lifecycleFocus", [
+          "Short-term Resale",
+          "Medium-term Hold",
+          "Long-term Retention"
+        ]),
+        brandStandardConstraints: mysqlEnum("brandStandardConstraints", [
+          "High Flexibility",
+          "Moderate Guidelines",
+          "Strict Vendor List"
+        ]),
+        timelineFlexibility: mysqlEnum("timelineFlexibility", [
+          "Highly Flexible",
+          "Moderate Contingency",
+          "Fixed / Zero Tolerance"
+        ]),
+        targetValueAdd: mysqlEnum("targetValueAdd", [
+          "Max Capital Appreciation",
+          "Max Rental Yield",
+          "Balanced Return",
+          "Brand Flagship / Trophy"
+        ]),
+        // Expanded Inputs
+        unitMix: json("unitMix"),
+        villaSpaces: json("villaSpaces"),
+        developerGuidelines: json("developerGuidelines"),
+        // Phase 9: Floor Plan Intelligence
+        floorPlanAssetId: int("floorPlanAssetId"),
+        // FK to project_assets
+        floorPlanAnalysis: json("floorPlanAnalysis"),
+        // AI-extracted room breakdown
+        // UX-01: records whether authoritative evaluation inputs were explicitly
+        // supplied, assumed by defaults, suggested by AI, or confirmed by a user.
+        // Null is reserved for legacy projects created before this contract.
+        inputProvenance: json("inputProvenance"),
+        modelVersionId: int("modelVersionId"),
+        benchmarkVersionId: int("benchmarkVersionId"),
+        createdAt: timestamp("createdAt").defaultNow().notNull(),
+        updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+        lockedAt: timestamp("lockedAt")
+      },
+      (table) => [uniqueIndex("projects_org_id_unique").on(table.orgId, table.id)]
+    );
     directionCandidates = mysqlTable("direction_candidates", {
       id: int("id").autoincrement().primaryKey(),
       projectId: int("projectId").notNull(),
@@ -942,33 +953,42 @@ var init_schema = __esm({
       scoreSnapshot: json("scoreSnapshot"),
       computedAt: timestamp("computedAt").defaultNow().notNull()
     });
-    reportInstances = mysqlTable("report_instances", {
-      id: int("id").autoincrement().primaryKey(),
-      projectId: int("projectId").notNull(),
-      scoreMatrixId: int("scoreMatrixId").notNull(),
-      reportType: mysqlEnum("reportType", [
-        "executive_pack",
-        "full_technical",
-        "tender_brief",
-        "executive_decision_pack",
-        "design_brief_rfq",
-        "marketing_starter",
-        "validation_summary",
-        "design_brief",
-        "rfq_pack",
-        "full_report",
-        "marketing_prelaunch",
-        "autonomous_design_brief"
-      ]).notNull(),
-      fileUrl: text("fileUrl"),
-      storageKey: text("storageKey"),
-      bundleUrl: text("bundleUrl"),
-      content: json("content"),
-      benchmarkVersionId: int("benchmarkVersionId"),
-      modelVersionId: int("modelVersionId"),
-      generatedAt: timestamp("generatedAt").defaultNow().notNull(),
-      generatedBy: int("generatedBy")
-    });
+    reportInstances = mysqlTable(
+      "report_instances",
+      {
+        id: int("id").autoincrement().primaryKey(),
+        projectId: int("projectId").notNull(),
+        scoreMatrixId: int("scoreMatrixId").notNull(),
+        reportType: mysqlEnum("reportType", [
+          "executive_pack",
+          "full_technical",
+          "tender_brief",
+          "executive_decision_pack",
+          "design_brief_rfq",
+          "marketing_starter",
+          "validation_summary",
+          "design_brief",
+          "rfq_pack",
+          "full_report",
+          "marketing_prelaunch",
+          "autonomous_design_brief"
+        ]).notNull(),
+        fileUrl: text("fileUrl"),
+        storageKey: text("storageKey"),
+        bundleUrl: text("bundleUrl"),
+        content: json("content"),
+        benchmarkVersionId: int("benchmarkVersionId"),
+        modelVersionId: int("modelVersionId"),
+        generatedAt: timestamp("generatedAt").defaultNow().notNull(),
+        generatedBy: int("generatedBy")
+      },
+      (table) => [
+        uniqueIndex("report_instances_project_id_unique").on(
+          table.projectId,
+          table.id
+        )
+      ]
+    );
     roiConfigs = mysqlTable("roi_configs", {
       id: int("id").autoincrement().primaryKey(),
       name: varchar("name", { length: 128 }).notNull(),
@@ -1350,6 +1370,7 @@ var init_schema = __esm({
           table.quoteRef
         ),
         uniqueIndex("supplier_quote_supersedes_unique").on(table.supersedesId),
+        uniqueIndex("supplier_quote_org_id_unique").on(table.orgId, table.id),
         index("supplier_quote_org_validity_idx").on(table.orgId, table.validUntil)
       ]
     );
@@ -5389,6 +5410,437 @@ var init_schema = __esm({
         )
       ]
     );
+    claimHealthPolicyVersions = mysqlTable(
+      "claim_health_policy_version",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        version: varchar("version", { length: 96 }).notNull(),
+        requiredCellSchemaVersion: varchar("requiredCellSchemaVersion", {
+          length: 96
+        }).notNull(),
+        status: mysqlEnum("status", ["draft", "approved", "superseded"]).notNull(),
+        effectiveFrom: timestamp("effectiveFrom"),
+        effectiveTo: timestamp("effectiveTo"),
+        policyDocument: json("policyDocument").notNull(),
+        policyDigest: varchar("policyDigest", { length: 71 }).notNull(),
+        approvedBy: int("approvedBy"),
+        approvedByIdentity: varchar("approvedByIdentity", { length: 160 }),
+        approvedAt: timestamp("approvedAt"),
+        supersedesId: int("supersedesId"),
+        createdBy: int("createdBy"),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("claim_health_policy_version_version_unique").on(t2.version),
+        uniqueIndex("claim_health_policy_version_supersedes_unique").on(
+          t2.supersedesId
+        ),
+        uniqueIndex("claim_health_policy_version_identity_unique").on(
+          t2.id,
+          t2.version,
+          t2.requiredCellSchemaVersion
+        ),
+        index("claim_health_policy_version_effective_idx").on(
+          t2.status,
+          t2.effectiveFrom,
+          t2.effectiveTo
+        ),
+        check(
+          "claim_health_policy_version_approval_check",
+          sql`(
+        (
+          ${t2.status} = 'approved'
+          and ${t2.approvedAt} is not null
+          and (
+            (${t2.approvedBy} is not null and ${t2.approvedByIdentity} is null)
+            or (${t2.approvedBy} is null and ${t2.approvedByIdentity} is not null)
+          )
+        )
+        or (
+          ${t2.status} <> 'approved'
+          and ${t2.approvedBy} is null
+          and ${t2.approvedByIdentity} is null
+          and ${t2.approvedAt} is null
+        )
+      )`
+        ),
+        check(
+          "claim_health_policy_version_interval_check",
+          sql`(${t2.effectiveTo} is null or ${t2.effectiveFrom} is not null) and (${t2.effectiveTo} is null or ${t2.effectiveTo} > ${t2.effectiveFrom})`
+        ),
+        check(
+          "claim_health_policy_version_digest_check",
+          sql`${t2.policyDigest} regexp '^sha256:[0-9a-f]{64}$'`
+        ),
+        check(
+          "claim_health_policy_version_document_identity_check",
+          sql`json_unquote(json_extract(${t2.policyDocument}, '$.policyVersion')) = ${t2.version}
+        and json_unquote(json_extract(${t2.policyDocument}, '$.requiredCellSchemaVersion')) = ${t2.requiredCellSchemaVersion}`
+        )
+      ]
+    );
+    claimHealthSnapshots = mysqlTable(
+      "claim_health_snapshot",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        scope: mysqlEnum("scope", [
+          "platform",
+          "organization",
+          "project",
+          "supplier_quote"
+        ]).notNull(),
+        organizationId: int("organizationId"),
+        projectId: int("projectId"),
+        supplierQuoteId: int("supplierQuoteId"),
+        reportInstanceId: int("reportInstanceId"),
+        consumer: mysqlEnum("consumer", [
+          "project_workspace",
+          "material_cost",
+          "design_brief",
+          "investor_summary",
+          "stored_project_report",
+          "public_share",
+          "market_evidence",
+          "admin_operations"
+        ]).notNull(),
+        evaluationClock: timestamp("evaluationClock").notNull(),
+        policyVersionId: int("policyVersionId").notNull(),
+        policyVersion: varchar("policyVersion", { length: 96 }).notNull(),
+        requiredCellSchemaVersion: varchar("requiredCellSchemaVersion", {
+          length: 96
+        }).notNull(),
+        requiredCellInputs: json("requiredCellInputs").notNull(),
+        evaluatedResults: json("evaluatedResults").notNull(),
+        safeProjection: json("safeProjection").notNull(),
+        inputDigest: varchar("inputDigest", { length: 71 }).notNull(),
+        contentDigest: varchar("contentDigest", { length: 71 }).notNull(),
+        createdByUserId: int("createdByUserId"),
+        createdBySystemIdentity: varchar("createdBySystemIdentity", {
+          length: 128
+        }),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("claim_health_snapshot_report_unique").on(t2.reportInstanceId),
+        uniqueIndex("claim_health_snapshot_scope_id_unique").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.id
+        ),
+        uniqueIndex("claim_health_snapshot_share_binding_unique").on(
+          t2.id,
+          t2.organizationId,
+          t2.reportInstanceId
+        ),
+        index("claim_health_snapshot_scope_clock_idx").on(
+          t2.organizationId,
+          t2.projectId,
+          t2.consumer,
+          t2.evaluationClock
+        ),
+        index("claim_health_snapshot_policy_idx").on(
+          t2.policyVersionId,
+          t2.evaluationClock
+        ),
+        foreignKey({
+          name: "claim_health_snapshot_policy_identity_fk",
+          columns: [
+            t2.policyVersionId,
+            t2.policyVersion,
+            t2.requiredCellSchemaVersion
+          ],
+          foreignColumns: [
+            claimHealthPolicyVersions.id,
+            claimHealthPolicyVersions.version,
+            claimHealthPolicyVersions.requiredCellSchemaVersion
+          ]
+        }),
+        foreignKey({
+          name: "claim_health_snapshot_organization_fk",
+          columns: [t2.organizationId],
+          foreignColumns: [organizations.id]
+        }),
+        foreignKey({
+          name: "claim_health_snapshot_project_org_fk",
+          columns: [t2.organizationId, t2.projectId],
+          foreignColumns: [projects.orgId, projects.id]
+        }),
+        foreignKey({
+          name: "claim_health_snapshot_supplier_quote_org_fk",
+          columns: [t2.organizationId, t2.supplierQuoteId],
+          foreignColumns: [supplierQuotes.orgId, supplierQuotes.id]
+        }),
+        foreignKey({
+          name: "claim_health_snapshot_report_project_fk",
+          columns: [t2.projectId, t2.reportInstanceId],
+          foreignColumns: [reportInstances.projectId, reportInstances.id]
+        }),
+        foreignKey({
+          name: "claim_health_snapshot_member_actor_fk",
+          columns: [t2.organizationId, t2.createdByUserId],
+          foreignColumns: [organizationMembers.orgId, organizationMembers.userId]
+        }),
+        check(
+          "claim_health_snapshot_scope_check",
+          sql`(
+        (${t2.scope} = 'platform' and ${t2.organizationId} is null and ${t2.projectId} is null and ${t2.supplierQuoteId} is null)
+        or (${t2.scope} = 'organization' and ${t2.organizationId} is not null and ${t2.projectId} is null and ${t2.supplierQuoteId} is null)
+        or (${t2.scope} = 'project' and ${t2.organizationId} is not null and ${t2.projectId} is not null and ${t2.supplierQuoteId} is null)
+        or (${t2.scope} = 'supplier_quote' and ${t2.organizationId} is not null and ${t2.projectId} is null and ${t2.supplierQuoteId} is not null)
+      )`
+        ),
+        check(
+          "claim_health_snapshot_report_scope_check",
+          sql`${t2.reportInstanceId} is null or (${t2.scope} = 'project' and ${t2.projectId} is not null)`
+        ),
+        check(
+          "claim_health_snapshot_actor_check",
+          sql`(
+        (${t2.createdByUserId} is not null and ${t2.createdBySystemIdentity} is null)
+        or (${t2.createdByUserId} is null and ${t2.createdBySystemIdentity} is not null)
+      )`
+        ),
+        check(
+          "claim_health_snapshot_digest_check",
+          sql`${t2.inputDigest} regexp '^sha256:[0-9a-f]{64}$' and ${t2.contentDigest} regexp '^sha256:[0-9a-f]{64}$'`
+        )
+      ]
+    );
+    reportPublicShares = mysqlTable(
+      "report_public_share",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        organizationId: int("organizationId").notNull(),
+        reportInstanceId: int("reportInstanceId").notNull(),
+        snapshotId: int("snapshotId").notNull(),
+        tokenHash: varchar("tokenHash", { length: 64 }).notNull(),
+        expiresAt: timestamp("expiresAt").notNull(),
+        revokedAt: timestamp("revokedAt"),
+        revokedByUserId: int("revokedByUserId"),
+        createdByUserId: int("createdByUserId").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("report_public_share_token_hash_unique").on(t2.tokenHash),
+        index("report_public_share_report_idx").on(
+          t2.organizationId,
+          t2.reportInstanceId,
+          t2.createdAt
+        ),
+        foreignKey({
+          name: "report_public_share_organization_fk",
+          columns: [t2.organizationId],
+          foreignColumns: [organizations.id]
+        }),
+        foreignKey({
+          name: "report_public_share_snapshot_binding_fk",
+          columns: [t2.snapshotId, t2.organizationId, t2.reportInstanceId],
+          foreignColumns: [
+            claimHealthSnapshots.id,
+            claimHealthSnapshots.organizationId,
+            claimHealthSnapshots.reportInstanceId
+          ]
+        }),
+        foreignKey({
+          name: "report_public_share_creator_fk",
+          columns: [t2.organizationId, t2.createdByUserId],
+          foreignColumns: [organizationMembers.orgId, organizationMembers.userId]
+        }),
+        foreignKey({
+          name: "report_public_share_revoker_fk",
+          columns: [t2.organizationId, t2.revokedByUserId],
+          foreignColumns: [organizationMembers.orgId, organizationMembers.userId]
+        }),
+        check(
+          "report_public_share_token_hash_check",
+          sql`${t2.tokenHash} regexp '^[0-9a-f]{64}$'`
+        ),
+        check(
+          "report_public_share_expiry_check",
+          sql`${t2.expiresAt} > ${t2.createdAt}`
+        ),
+        check(
+          "report_public_share_revocation_check",
+          sql`(${t2.revokedAt} is null and ${t2.revokedByUserId} is null) or (${t2.revokedAt} is not null and ${t2.revokedByUserId} is not null)`
+        )
+      ]
+    );
+    sourceIncidents = mysqlTable(
+      "source_incident",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        incidentKey: varchar("incidentKey", { length: 128 }).notNull(),
+        scope: mysqlEnum("scope", [
+          "platform",
+          "organization",
+          "project",
+          "supplier_quote"
+        ]).notNull(),
+        organizationId: int("organizationId"),
+        projectId: int("projectId"),
+        supplierQuoteId: int("supplierQuoteId"),
+        sourceRegistryId: int("sourceRegistryId"),
+        sourceIdentity: varchar("sourceIdentity", { length: 255 }).notNull(),
+        incidentType: mysqlEnum("incidentType", [
+          "required_run_missed",
+          "repeated_source_failure",
+          "source_authorization_revoked",
+          "unexpected_zero",
+          "anomalous_extraction",
+          "corrupted_source_content",
+          "provenance_digest_mismatch",
+          "quality_quarantine_backlog",
+          "confidentiality_concern",
+          "tenant_boundary_concern",
+          "stale_mandatory_evidence"
+        ]).notNull(),
+        openedAt: timestamp("openedAt").notNull(),
+        openedUnderPolicyVersionId: int("openedUnderPolicyVersionId").notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("source_incident_key_unique").on(t2.incidentKey),
+        uniqueIndex("source_incident_scope_id_unique").on(
+          t2.id,
+          t2.scope,
+          t2.organizationId,
+          t2.projectId,
+          t2.supplierQuoteId,
+          t2.sourceIdentity
+        ),
+        index("source_incident_scope_source_idx").on(
+          t2.scope,
+          t2.organizationId,
+          t2.projectId,
+          t2.supplierQuoteId,
+          t2.sourceIdentity
+        ),
+        foreignKey({
+          name: "source_incident_organization_fk",
+          columns: [t2.organizationId],
+          foreignColumns: [organizations.id]
+        }),
+        foreignKey({
+          name: "source_incident_project_org_fk",
+          columns: [t2.organizationId, t2.projectId],
+          foreignColumns: [projects.orgId, projects.id]
+        }),
+        foreignKey({
+          name: "source_incident_supplier_quote_org_fk",
+          columns: [t2.organizationId, t2.supplierQuoteId],
+          foreignColumns: [supplierQuotes.orgId, supplierQuotes.id]
+        }),
+        foreignKey({
+          name: "source_incident_source_registry_fk",
+          columns: [t2.sourceRegistryId],
+          foreignColumns: [sourceRegistry.id]
+        }),
+        foreignKey({
+          name: "source_incident_open_policy_fk",
+          columns: [t2.openedUnderPolicyVersionId],
+          foreignColumns: [claimHealthPolicyVersions.id]
+        }),
+        check(
+          "source_incident_scope_check",
+          sql`(
+        (${t2.scope} = 'platform' and ${t2.organizationId} is null and ${t2.projectId} is null and ${t2.supplierQuoteId} is null)
+        or (${t2.scope} = 'organization' and ${t2.organizationId} is not null and ${t2.projectId} is null and ${t2.supplierQuoteId} is null)
+        or (${t2.scope} = 'project' and ${t2.organizationId} is not null and ${t2.projectId} is not null and ${t2.supplierQuoteId} is null)
+        or (${t2.scope} = 'supplier_quote' and ${t2.organizationId} is not null and ${t2.projectId} is null and ${t2.supplierQuoteId} is not null)
+      )`
+        )
+      ]
+    );
+    sourceIncidentEvents = mysqlTable(
+      "source_incident_event",
+      {
+        id: int("id").primaryKey().autoincrement(),
+        incidentId: int("incidentId").notNull(),
+        eventSequence: int("eventSequence").notNull(),
+        eventType: mysqlEnum("eventType", [
+          "opened",
+          "acknowledged",
+          "resolved",
+          "reopened"
+        ]).notNull(),
+        resultingState: mysqlEnum("resultingState", [
+          "open",
+          "acknowledged",
+          "resolved"
+        ]).notNull(),
+        severity: mysqlEnum("severity", ["advisory", "blocking"]).notNull(),
+        blockingEffect: boolean("blockingEffect").notNull(),
+        actorType: mysqlEnum("actorType", [
+          "platform_admin",
+          "organization_admin",
+          "system_detector"
+        ]).notNull(),
+        actorUserId: int("actorUserId"),
+        actorIdentity: varchar("actorIdentity", { length: 160 }).notNull(),
+        actorSessionIdentity: varchar("actorSessionIdentity", { length: 160 }),
+        detectorPolicyVersion: varchar("detectorPolicyVersion", { length: 96 }),
+        reason: text("reason").notNull(),
+        effectiveAt: timestamp("effectiveAt").notNull(),
+        policyVersionId: int("policyVersionId").notNull(),
+        ingestionRunId: varchar("ingestionRunId", { length: 64 }),
+        evidenceRecordId: int("evidenceRecordId"),
+        snapshotId: int("snapshotId"),
+        idempotencyKey: varchar("idempotencyKey", { length: 128 }).notNull(),
+        requestDigest: varchar("requestDigest", { length: 71 }).notNull(),
+        auditIdentity: varchar("auditIdentity", { length: 160 }).notNull(),
+        createdAt: timestamp("createdAt").defaultNow().notNull()
+      },
+      (t2) => [
+        uniqueIndex("source_incident_event_sequence_unique").on(
+          t2.incidentId,
+          t2.eventSequence
+        ),
+        uniqueIndex("source_incident_event_idempotency_unique").on(
+          t2.incidentId,
+          t2.actorIdentity,
+          t2.idempotencyKey
+        ),
+        index("source_incident_event_effective_idx").on(
+          t2.incidentId,
+          t2.effectiveAt,
+          t2.eventSequence
+        ),
+        foreignKey({
+          name: "source_incident_event_incident_fk",
+          columns: [t2.incidentId],
+          foreignColumns: [sourceIncidents.id]
+        }),
+        foreignKey({
+          name: "source_incident_event_policy_fk",
+          columns: [t2.policyVersionId],
+          foreignColumns: [claimHealthPolicyVersions.id]
+        }),
+        foreignKey({
+          name: "source_incident_event_snapshot_fk",
+          columns: [t2.snapshotId],
+          foreignColumns: [claimHealthSnapshots.id]
+        }),
+        check(
+          "source_incident_event_actor_check",
+          sql`(
+        (${t2.actorType} = 'system_detector' and ${t2.actorUserId} is null and ${t2.actorSessionIdentity} is null and ${t2.detectorPolicyVersion} is not null)
+        or (${t2.actorType} in ('platform_admin', 'organization_admin') and ${t2.actorUserId} is not null and ${t2.actorSessionIdentity} is not null and ${t2.detectorPolicyVersion} is null)
+      )`
+        ),
+        check(
+          "source_incident_event_blocking_check",
+          sql`(
+        (${t2.severity} = 'blocking' and ${t2.blockingEffect} = true)
+        or (${t2.severity} = 'advisory' and ${t2.blockingEffect} = false)
+      )`
+        ),
+        check(
+          "source_incident_event_digest_check",
+          sql`${t2.requestDigest} regexp '^sha256:[0-9a-f]{64}$'`
+        ),
+        check("source_incident_event_sequence_check", sql`${t2.eventSequence} > 0`)
+      ]
+    );
   }
 });
 
@@ -5417,6 +5869,4217 @@ var init_env = __esm({
         return process.env.GOOGLE_MAPS_API_KEY ?? "";
       }
     };
+  }
+});
+
+// shared/claim-health.ts
+function deepFreezePolicyValue(value) {
+  if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+    for (const child of Object.values(value)) {
+      deepFreezePolicyValue(child);
+    }
+    Object.freeze(value);
+  }
+  return value;
+}
+var CLAIM_HEALTH_POLICY_VERSION, CLAIM_HEALTH_REQUIRED_CELL_SCHEMA_VERSION, CLAIM_HEALTH_DIGEST_ALGORITHM, SUPPORTED_CLAIM_HEALTH_POLICY_VERSIONS, SUPPORTED_CLAIM_HEALTH_REQUIRED_CELL_SCHEMA_VERSIONS, CLAIM_HEALTH_V1_CATALOGUE, CLAIM_HEALTH_V1_POLICY_MANIFEST;
+var init_claim_health = __esm({
+  "shared/claim-health.ts"() {
+    "use strict";
+    CLAIM_HEALTH_POLICY_VERSION = "ev04-claim-health-v1";
+    CLAIM_HEALTH_REQUIRED_CELL_SCHEMA_VERSION = "ev04-required-cell-v1";
+    CLAIM_HEALTH_DIGEST_ALGORITHM = "sha256";
+    SUPPORTED_CLAIM_HEALTH_POLICY_VERSIONS = Object.freeze([
+      CLAIM_HEALTH_POLICY_VERSION
+    ]);
+    SUPPORTED_CLAIM_HEALTH_REQUIRED_CELL_SCHEMA_VERSIONS = Object.freeze([CLAIM_HEALTH_REQUIRED_CELL_SCHEMA_VERSION]);
+    CLAIM_HEALTH_V1_CATALOGUE = (() => {
+      const entries = [
+        {
+          id: "material-project-v1",
+          consumers: [
+            "project_workspace",
+            "material_cost",
+            "design_brief",
+            "investor_summary"
+          ],
+          domain: "material_price",
+          denominator: "project_required_allocations",
+          fallbackCodes: ["emirate_to_uae"],
+          allowedAuthorities: [
+            "governed_benchmark",
+            "approved_assumption",
+            "official_observation",
+            "current_supplier_quote"
+          ],
+          dimensionRules: {
+            category: "applicable",
+            geography: "applicable",
+            finishTier: "applicable",
+            unitBasis: "applicable",
+            priceScope: "supply_only"
+          },
+          initialSla: "configured"
+        },
+        {
+          id: "project-report-material-v1",
+          consumers: ["stored_project_report"],
+          domain: "material_price",
+          denominator: "bound_project_material_cells",
+          fallbackCodes: ["emirate_to_uae"],
+          allowedAuthorities: [
+            "governed_benchmark",
+            "approved_assumption",
+            "official_observation",
+            "current_supplier_quote"
+          ],
+          dimensionRules: {
+            category: "applicable",
+            geography: "applicable",
+            finishTier: "applicable",
+            unitBasis: "applicable",
+            priceScope: "supply_only"
+          },
+          initialSla: "inherited"
+        },
+        {
+          id: "report-public-share-v1",
+          consumers: ["public_share"],
+          domain: "bound_report_domains",
+          denominator: "bound_report_safe_cells",
+          fallbackCodes: ["emirate_to_uae"],
+          allowedAuthorities: [
+            "governed_benchmark",
+            "approved_assumption",
+            "official_observation",
+            "current_supplier_quote"
+          ],
+          dimensionRules: {
+            category: "inherited",
+            geography: "inherited",
+            finishTier: "inherited",
+            unitBasis: "inherited",
+            priceScope: "inherited"
+          },
+          initialSla: "inherited"
+        },
+        {
+          id: "dld-indexed-transactions-v1",
+          consumers: ["market_evidence"],
+          domain: "market_transaction",
+          denominator: "single_static_cell",
+          fallbackCodes: [],
+          allowedAuthorities: ["official_observation"],
+          dimensionRules: {
+            category: "not_applicable",
+            geography: "dubai",
+            finishTier: "not_applicable",
+            unitBasis: "not_applicable",
+            priceScope: "not_applicable"
+          },
+          initialSla: "unconfigured"
+        },
+        {
+          id: "dld-indexed-rents-v1",
+          consumers: ["market_evidence"],
+          domain: "market_rent",
+          denominator: "single_static_cell",
+          fallbackCodes: [],
+          allowedAuthorities: ["official_observation"],
+          dimensionRules: {
+            category: "not_applicable",
+            geography: "dubai",
+            finishTier: "not_applicable",
+            unitBasis: "not_applicable",
+            priceScope: "not_applicable"
+          },
+          initialSla: "unconfigured"
+        },
+        {
+          id: "dld-indexed-projects-v1",
+          consumers: ["market_evidence"],
+          domain: "project_pipeline",
+          denominator: "single_static_cell",
+          fallbackCodes: [],
+          allowedAuthorities: ["official_observation"],
+          dimensionRules: {
+            category: "not_applicable",
+            geography: "dubai",
+            finishTier: "not_applicable",
+            unitBasis: "not_applicable",
+            priceScope: "not_applicable"
+          },
+          initialSla: "unconfigured"
+        },
+        {
+          id: "required-source-operations-v1",
+          consumers: ["admin_operations"],
+          domain: "source_operations",
+          denominator: "approved_required_sources",
+          fallbackCodes: [],
+          allowedAuthorities: ["official_observation"],
+          dimensionRules: {
+            category: "not_applicable",
+            geography: "not_applicable",
+            finishTier: "not_applicable",
+            unitBasis: "not_applicable",
+            priceScope: "not_applicable"
+          },
+          initialSla: "configured"
+        }
+      ];
+      for (const entry of entries) {
+        Object.freeze(entry.consumers);
+        Object.freeze(entry.fallbackCodes);
+        Object.freeze(entry.allowedAuthorities);
+        Object.freeze(entry.dimensionRules);
+        Object.freeze(entry);
+      }
+      return Object.freeze(entries);
+    })();
+    CLAIM_HEALTH_V1_POLICY_MANIFEST = (() => {
+      const projectionPriority = [
+        {
+          priority: 1,
+          condition: "legacy_or_unsupported_policy",
+          state: "legacy"
+        },
+        { priority: 2, condition: "blocking_incident", state: "incident" },
+        {
+          priority: 3,
+          condition: "insufficient_required_evidence",
+          state: "insufficient"
+        },
+        { priority: 4, condition: "stale_or_breached", state: "stale" },
+        { priority: 5, condition: "aging_or_due", state: "aging" },
+        { priority: 6, condition: "unknown_required_state", state: "unknown" },
+        { priority: 7, condition: "qualified_evidence", state: "qualified" },
+        {
+          priority: 8,
+          condition: "approved_fallback",
+          state: "current_with_fallback"
+        },
+        { priority: 9, condition: "all_exact_current", state: "current" }
+      ];
+      const authorityRules = deepFreezePolicyValue({
+        rawObservationAuthoritative: false,
+        assumptionAlwaysQualified: true,
+        syntheticAlwaysQualified: true,
+        syntheticRequiresExplicitCataloguePermission: true,
+        actualAuthorityMustMatchRequiredClass: true,
+        governedIdentity: Object.freeze({
+          approvedAssumption: Object.freeze({
+            format: "assumption:<provenancePolicyVersion>:<benchmarkVersion>",
+            prefix: "assumption"
+          }),
+          supplierQuote: Object.freeze({
+            format: "supplier_quote:<sameOrganizationQuoteId>",
+            prefix: "supplier_quote"
+          }),
+          registryBackedEvidence: "exact_governed_registry_identity_required",
+          displayLabelIsIdentity: false
+        }),
+        sourceLadderIdentityClass: Object.freeze({
+          assumption: "governed_assumption_identity",
+          supplier_quote: "same_organization_quote_identity",
+          official_statistic: "registry_backed",
+          consultancy_benchmark: "registry_backed",
+          market_observation: "registry_backed",
+          retail_sanity: "ineligible"
+        })
+      });
+      const projectionReasonGroups = Object.freeze({
+        incident: Object.freeze(["blocking_incident"]),
+        insufficient: Object.freeze([
+          "invalid_evaluation_clock",
+          "empty_required_set",
+          "duplicate_cell_id",
+          "catalogue_mismatch",
+          "authority_mismatch",
+          "authority_not_permitted",
+          "fallback_not_permitted",
+          "missing_match",
+          "invalid_match",
+          "ineligible_evidence",
+          "raw_observation",
+          "missing_observation_date",
+          "invalid_observation_date",
+          "future_observation_date",
+          "missing_quote_validity",
+          "invalid_quote_validity",
+          "future_quote_validity",
+          "missing_successful_run",
+          "invalid_successful_run",
+          "future_successful_run",
+          "missing_provenance",
+          "blocking_quality"
+        ]),
+        stale: Object.freeze([
+          "expired_quote",
+          "stale_observation",
+          "breached_cadence"
+        ]),
+        aging: Object.freeze([
+          "aging_observation",
+          "due_cadence"
+        ]),
+        unknown: Object.freeze([
+          "unconfigured_sla",
+          "unknown_freshness",
+          "unknown_cadence",
+          "unknown_quality",
+          "unknown_confidence",
+          "unknown_incident"
+        ]),
+        qualified: Object.freeze([
+          "approved_assumption",
+          "approved_synthetic",
+          "quality_warning",
+          "advisory_incident"
+        ])
+      });
+      const freshness = Object.freeze({
+        marketObservation: Object.freeze({
+          currentThroughDays: 90,
+          agingThroughDays: 365,
+          afterAging: "stale"
+        }),
+        supplierQuote: Object.freeze({
+          currentThroughValidUntilInclusive: true,
+          missingValidity: "insufficient",
+          expiredValidityState: "expired",
+          expiredClaimState: "stale"
+        }),
+        assumption: "not_applicable",
+        officialAndConsultancy: "source_specific_unconfigured"
+      });
+      const cadence = Object.freeze({
+        weeklyRequiredSource: Object.freeze({
+          onTimeThroughDays: 7,
+          dueThroughDays: 8,
+          afterDue: "breached",
+          clock: "last_successful_required_run_only"
+        })
+      });
+      const incidentPolicy = deepFreezePolicyValue({
+        catalogue: [
+          { type: "required_run_missed", alwaysBlocking: false },
+          { type: "repeated_source_failure", alwaysBlocking: false },
+          { type: "source_authorization_revoked", alwaysBlocking: false },
+          { type: "unexpected_zero", alwaysBlocking: false },
+          { type: "anomalous_extraction", alwaysBlocking: false },
+          { type: "corrupted_source_content", alwaysBlocking: true },
+          { type: "provenance_digest_mismatch", alwaysBlocking: true },
+          { type: "quality_quarantine_backlog", alwaysBlocking: false },
+          { type: "confidentiality_concern", alwaysBlocking: true },
+          { type: "tenant_boundary_concern", alwaysBlocking: true },
+          { type: "stale_mandatory_evidence", alwaysBlocking: false }
+        ],
+        severity: {
+          allowed: ["advisory", "blocking"],
+          strongestOrder: ["none", "advisory", "blocking"],
+          onlyExplicitBlockingOrAlwaysBlockingTypeForcesIncident: true
+        },
+        composition: {
+          applicableScopes: [
+            "platform",
+            "organization",
+            "project",
+            "supplier_quote"
+          ],
+          platformAppliesOnlyToNamedPlatformPublicSource: true,
+          tenantScopesRequireExactOrganization: true,
+          projectScopeRequiresExactProject: true,
+          supplierQuoteScopeRequiresExactQuote: true,
+          activeLifecycleStates: ["open", "acknowledged"],
+          resolvedContributes: "none",
+          aggregate: "strongest_applicable_state",
+          missingEffectiveState: "unknown"
+        },
+        lifecycleTransitions: [
+          {
+            prior: "absent",
+            event: "opened",
+            result: "open"
+          },
+          {
+            prior: "open",
+            event: "acknowledged",
+            result: "acknowledged"
+          },
+          { prior: "open", event: "resolved", result: "resolved" },
+          {
+            prior: "acknowledged",
+            event: "resolved",
+            result: "resolved"
+          },
+          { prior: "resolved", event: "reopened", result: "open" }
+        ],
+        actors: {
+          systemDetector: {
+            scopes: ["platform"],
+            events: ["opened", "reopened"],
+            identity: "system:<detectorPolicyVersion>"
+          },
+          platformAdministrator: {
+            scopes: ["platform"],
+            events: ["opened", "acknowledged", "resolved", "reopened"]
+          },
+          organizationAdministrator: {
+            scopes: ["organization", "project", "supplier_quote"],
+            events: ["opened", "acknowledged", "resolved", "reopened"],
+            exactResourceAuthorizationRequired: true
+          }
+        },
+        events: {
+          appendOnly: true,
+          actorBoundIdempotencyPayloadMustMatch: true,
+          effectiveAtOrBeforeEvaluationClock: true
+        }
+      });
+      const eligibilityRules = deepFreezePolicyValue({
+        organizationEvaluationCorpus: [
+          "same_organization",
+          "platform_public"
+        ],
+        forbiddenCorpus: ["foreign_organization", "legacy_unscoped"],
+        registryBackedRequiredBooleanFacts: [
+          "termsApproved",
+          "sourceActive",
+          "sourceWhitelisted",
+          "consumerAuthorized",
+          "confidentialityEligible",
+          "tenantEligible",
+          "sourcePolicyVersionMatches",
+          "governedSourceIdentityKnown"
+        ],
+        registryBackedIdentityMustBeNonEmpty: true,
+        registryBackedBindingRequiresExactRegistryIdSlugAndRevision: true,
+        registryBackedBindingRequiresSourcePolicyVersion: true,
+        registryBackedRevisionFormat: "sha256",
+        missingFactFailsClosed: true,
+        rawObservationAuthoritative: false,
+        governedProposalRequiredFacts: [
+          "proposalIdentityMatches",
+          "specificationIdentityMatches",
+          "humanApprovalComplete",
+          "notSuperseded",
+          "priceScopeMatches",
+          "sourceLadderMatches",
+          "provenancePolicyMatches",
+          "benchmarkVersionMatches",
+          "tenantOrPlatformPublicScopeEligible"
+        ],
+        quote: {
+          requiredFacts: ["organizationScoped", "notSuperseded"],
+          sameOrganizationRequired: true,
+          unsupersededRequired: true,
+          knownUnexpiredValidityRequired: true,
+          exactSpecificationAndPriceScopeRequired: true,
+          consumerConfidentialityRequired: true
+        }
+      });
+      const artifactBinding = deepFreezePolicyValue({
+        storedProjectReport: {
+          bindExactlyOnce: "report_persistence_transaction",
+          evaluationClock: "same_report_operation_clock",
+          denominator: "frozen_project_material_cells",
+          existingStricterCompletenessGatePreserved: true,
+          grantsIssueOrApprovalAuthority: false
+        },
+        reportBackedPublicShare: {
+          inheritsFrozenSafeProjection: true,
+          liveRecomputation: false
+        },
+        legacyArtifactWithoutSnapshot: "legacy",
+        renderInputFingerprintIsIssuanceSnapshot: false,
+        snapshotMutation: "append_only"
+      });
+      const retention = deepFreezePolicyValue({
+        healthSnapshot: {
+          lifecycle: "bound_artifact_lifecycle",
+          deletionRequiresApprovedArtifactRetentionOperation: true
+        },
+        incidentHistory: {
+          decisionStatus: "sc06_pdpl_not_approved",
+          persistenceOutsideDisposableDevelopmentTests: false,
+          disposableDatabaseNamePrefixes: [
+            "miyar_auth_test",
+            "miyar_test_tr13_"
+          ],
+          appendOnlyUntilApprovedRetentionOperation: true,
+          deletionRequiresApprovedSc06PdplRetentionOperation: true
+        }
+      });
+      for (const row of projectionPriority) Object.freeze(row);
+      Object.freeze(projectionPriority);
+      return deepFreezePolicyValue({
+        policyVersion: CLAIM_HEALTH_POLICY_VERSION,
+        requiredCellSchemaVersion: CLAIM_HEALTH_REQUIRED_CELL_SCHEMA_VERSION,
+        emptyRequiredSet: "insufficient",
+        exactRequiredCoveragePercentForCurrent: 100,
+        freshness,
+        cadence,
+        projectionPriority,
+        projectionReasonGroups,
+        authorityRules,
+        eligibilityRules,
+        incidentPolicy,
+        artifactBinding,
+        retention,
+        catalogue: CLAIM_HEALTH_V1_CATALOGUE
+      });
+    })();
+  }
+});
+
+// server/engines/ingestion/claim-health.ts
+import { createHash } from "node:crypto";
+function evaluateGovernedSourceEligibility(facts) {
+  if (!facts) return "ineligible";
+  const required = CLAIM_HEALTH_V1_POLICY_MANIFEST.eligibilityRules.registryBackedRequiredBooleanFacts;
+  if (required.some((key) => facts[key] !== true)) return "ineligible";
+  if (CLAIM_HEALTH_V1_POLICY_MANIFEST.eligibilityRules.registryBackedIdentityMustBeNonEmpty && !facts.governedSourceIdentity?.trim()) {
+    return "ineligible";
+  }
+  if (CLAIM_HEALTH_V1_POLICY_MANIFEST.eligibilityRules.registryBackedBindingRequiresExactRegistryIdSlugAndRevision && (!Number.isInteger(facts.governedSourceRegistryId) || Number(facts.governedSourceRegistryId) <= 0 || !facts.governedSourceSlug?.trim() || !facts.governedSourcePolicyVersion?.trim() || !facts.governedSourceRevision?.trim() || !/^sha256:[0-9a-f]{64}$/.test(facts.governedSourceRevision))) {
+    return "ineligible";
+  }
+  return "eligible";
+}
+function composeClaimHealthIncidentStates(states) {
+  if (states.includes("blocking")) return "blocking";
+  if (states.some((state) => state === void 0) && CLAIM_HEALTH_V1_POLICY_MANIFEST.incidentPolicy.composition.missingEffectiveState === "unknown") {
+    return "unknown";
+  }
+  if (states.includes("advisory")) return "advisory";
+  return "none";
+}
+function isValidCalendarDate(year, month, day) {
+  if (month < 1 || month > 12 || day < 1) return false;
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [
+    31,
+    leapYear ? 29 : 28,
+    31,
+    30,
+    31,
+    30,
+    31,
+    31,
+    30,
+    31,
+    30,
+    31
+  ];
+  return day <= daysInMonth[month - 1];
+}
+function parsePolicyInstant(value) {
+  if (value === null || value === void 0 || value === "") return null;
+  if (value instanceof Date) {
+    return Number.isFinite(value.getTime()) ? new Date(value.getTime()) : null;
+  }
+  const raw = value.trim();
+  const dateOnlyMatch = raw.match(DATE_ONLY_PATTERN);
+  const instantMatch = raw.match(ISO_INSTANT_PATTERN);
+  const match = dateOnlyMatch ?? instantMatch;
+  if (!match || !isValidCalendarDate(Number(match[1]), Number(match[2]), Number(match[3]))) {
+    return null;
+  }
+  if (dateOnlyMatch) {
+    const parsed2 = /* @__PURE__ */ new Date(0);
+    parsed2.setUTCFullYear(
+      Number(dateOnlyMatch[1]),
+      Number(dateOnlyMatch[2]) - 1,
+      Number(dateOnlyMatch[3])
+    );
+    parsed2.setUTCHours(0, 0, 0, 0);
+    return parsed2;
+  }
+  const parsed = new Date(raw);
+  return Number.isFinite(parsed.getTime()) ? parsed : null;
+}
+function classifyDate(value, evaluatedAt) {
+  if (value === null || value === void 0 || value === "") {
+    return { status: "missing", instant: null };
+  }
+  const instant = parsePolicyInstant(value);
+  if (!instant) return { status: "invalid", instant: null };
+  if (instant.getTime() > evaluatedAt.getTime()) {
+    return { status: "future", instant };
+  }
+  return { status: "valid", instant };
+}
+function evaluateMarketObservationFreshness(input) {
+  const clock = parsePolicyInstant(input.evaluatedAt);
+  if (!clock) {
+    return {
+      freshness: "unknown",
+      observationDateStatus: "invalid",
+      observedThrough: null,
+      ageDays: null
+    };
+  }
+  const date2 = classifyDate(input.observedAt, clock);
+  if (date2.status !== "valid" || !date2.instant) {
+    return {
+      freshness: "unknown",
+      observationDateStatus: date2.status,
+      observedThrough: null,
+      ageDays: null
+    };
+  }
+  if (input.slaConfigured === false) {
+    return {
+      freshness: "unknown",
+      observationDateStatus: "valid",
+      observedThrough: date2.instant.toISOString(),
+      ageDays: Math.floor(
+        (clock.getTime() - date2.instant.getTime()) / MILLIS_PER_DAY
+      )
+    };
+  }
+  const ageDays = (clock.getTime() - date2.instant.getTime()) / MILLIS_PER_DAY;
+  const freshness = ageDays <= CLAIM_HEALTH_MARKET_CURRENT_DAYS ? "current" : ageDays <= CLAIM_HEALTH_MARKET_AGING_DAYS ? "aging" : CLAIM_HEALTH_V1_POLICY_MANIFEST.freshness.marketObservation.afterAging;
+  return {
+    freshness,
+    observationDateStatus: "valid",
+    observedThrough: date2.instant.toISOString(),
+    ageDays: Math.floor(ageDays)
+  };
+}
+function evaluateSupplierQuoteValidity(input) {
+  const clock = parsePolicyInstant(input.evaluatedAt);
+  if (!clock) return { quoteValidity: "invalid", validUntil: null };
+  if (input.validUntil === null || input.validUntil === void 0 || input.validUntil === "") {
+    return { quoteValidity: "missing", validUntil: null };
+  }
+  const validUntil = parsePolicyInstant(input.validUntil);
+  if (!validUntil) return { quoteValidity: "invalid", validUntil: null };
+  return {
+    quoteValidity: (CLAIM_HEALTH_V1_POLICY_MANIFEST.freshness.supplierQuote.currentThroughValidUntilInclusive ? clock.getTime() <= validUntil.getTime() : clock.getTime() < validUntil.getTime()) ? "valid" : CLAIM_HEALTH_V1_POLICY_MANIFEST.freshness.supplierQuote.expiredValidityState,
+    validUntil: validUntil.toISOString()
+  };
+}
+function addReason(reasons, condition, reason4) {
+  if (condition) reasons.add(reason4);
+}
+function orderedReasons(reasons) {
+  return REASON_ORDER.filter((reason4) => reasons.has(reason4));
+}
+function catalogueMatches(cell) {
+  const entry = CLAIM_HEALTH_V1_CATALOGUE.find(
+    (candidate2) => candidate2.id === cell.catalogueId
+  );
+  if (!entry || !entry.consumers.includes(cell.key.consumer))
+    return false;
+  if (entry.domain !== "bound_report_domains" && entry.domain !== cell.key.domain) {
+    return false;
+  }
+  const dimensionMatches = (rule, value) => rule === "inherited" || (rule === "applicable" ? value !== "not_applicable" : value === rule);
+  return dimensionMatches(entry.dimensionRules.category, cell.key.category) && dimensionMatches(entry.dimensionRules.geography, cell.key.geography) && dimensionMatches(entry.dimensionRules.finishTier, cell.key.finishTier) && dimensionMatches(entry.dimensionRules.unitBasis, cell.key.unitBasis) && dimensionMatches(entry.dimensionRules.priceScope, cell.key.priceScope);
+}
+function cataloguePermitsFallback(cell) {
+  const entry = CLAIM_HEALTH_V1_CATALOGUE.find(
+    (candidate2) => candidate2.id === cell.catalogueId
+  );
+  return entry?.fallbackCodes?.includes(
+    cell.fallbackCode ?? ""
+  ) ?? false;
+}
+function cataloguePermitsAuthority(cell) {
+  const entry = CLAIM_HEALTH_V1_CATALOGUE.find(
+    (candidate2) => candidate2.id === cell.catalogueId
+  );
+  return entry?.allowedAuthorities?.includes(
+    cell.authority
+  ) ?? false;
+}
+function authorityMatchesRequiredClass(cell) {
+  return !CLAIM_HEALTH_V1_POLICY_MANIFEST.authorityRules.actualAuthorityMustMatchRequiredClass || cell.authority === cell.key.requiredAuthorityClass;
+}
+function deriveCellReasons(cell) {
+  const reasons = /* @__PURE__ */ new Set();
+  const requiresObservationDate = (cell.authority === "governed_benchmark" || cell.authority === "official_observation") && cell.freshness !== "not_applicable";
+  const requiresQuoteValidity = cell.authority === "current_supplier_quote";
+  const requiresSuccessfulRun = cell.cadence !== "not_applicable";
+  addReason(reasons, !catalogueMatches(cell), "catalogue_mismatch");
+  addReason(
+    reasons,
+    !authorityMatchesRequiredClass(cell),
+    "authority_mismatch"
+  );
+  addReason(
+    reasons,
+    !cataloguePermitsAuthority(cell),
+    "authority_not_permitted"
+  );
+  addReason(
+    reasons,
+    cell.match === "approved_fallback" && !cataloguePermitsFallback(cell),
+    "fallback_not_permitted"
+  );
+  addReason(reasons, cell.incident === "blocking", "blocking_incident");
+  addReason(reasons, cell.match === "missing", "missing_match");
+  addReason(
+    reasons,
+    cell.match === "invalid" || cell.match === "approved_fallback" && cell.fallbackCode === null || cell.match === "approved_fallback" && !cataloguePermitsFallback(cell) || cell.match !== "approved_fallback" && cell.fallbackCode !== null,
+    "invalid_match"
+  );
+  addReason(
+    reasons,
+    cell.eligibility === "ineligible" || cell.authority === "ineligible",
+    "ineligible_evidence"
+  );
+  addReason(
+    reasons,
+    cell.authority === "raw_observation" && !CLAIM_HEALTH_V1_POLICY_MANIFEST.authorityRules.rawObservationAuthoritative,
+    "raw_observation"
+  );
+  addReason(
+    reasons,
+    cell.observationDateStatus === "missing" || requiresObservationDate && cell.observationDateStatus === "not_applicable",
+    "missing_observation_date"
+  );
+  addReason(
+    reasons,
+    cell.observationDateStatus === "invalid",
+    "invalid_observation_date"
+  );
+  addReason(
+    reasons,
+    cell.observationDateStatus === "future",
+    "future_observation_date"
+  );
+  addReason(
+    reasons,
+    cell.quoteValidity === "missing" || requiresQuoteValidity && cell.quoteValidity === "not_applicable",
+    "missing_quote_validity"
+  );
+  addReason(
+    reasons,
+    cell.quoteValidity === "invalid",
+    "invalid_quote_validity"
+  );
+  addReason(reasons, cell.quoteValidity === "future", "future_quote_validity");
+  addReason(reasons, cell.quoteValidity === "expired", "expired_quote");
+  addReason(
+    reasons,
+    cell.successfulRun === "missing" || requiresSuccessfulRun && cell.successfulRun === "not_applicable",
+    "missing_successful_run"
+  );
+  addReason(
+    reasons,
+    cell.successfulRun === "invalid",
+    "invalid_successful_run"
+  );
+  addReason(reasons, cell.successfulRun === "future", "future_successful_run");
+  addReason(reasons, !cell.provenanceIdentityKnown, "missing_provenance");
+  addReason(reasons, cell.quality === "blocking", "blocking_quality");
+  addReason(reasons, cell.freshness === "stale", "stale_observation");
+  addReason(reasons, cell.cadence === "breached", "breached_cadence");
+  addReason(reasons, cell.freshness === "aging", "aging_observation");
+  addReason(reasons, cell.cadence === "due", "due_cadence");
+  addReason(reasons, !cell.slaConfigured, "unconfigured_sla");
+  addReason(reasons, cell.freshness === "unknown", "unknown_freshness");
+  addReason(reasons, cell.cadence === "unknown", "unknown_cadence");
+  addReason(reasons, cell.quality === "unknown", "unknown_quality");
+  addReason(reasons, cell.confidence === "unknown", "unknown_confidence");
+  addReason(reasons, cell.incident === "unknown", "unknown_incident");
+  addReason(
+    reasons,
+    cell.authority === "approved_assumption" && CLAIM_HEALTH_V1_POLICY_MANIFEST.authorityRules.assumptionAlwaysQualified,
+    "approved_assumption"
+  );
+  addReason(
+    reasons,
+    cell.authority === "approved_synthetic" && CLAIM_HEALTH_V1_POLICY_MANIFEST.authorityRules.syntheticAlwaysQualified,
+    "approved_synthetic"
+  );
+  addReason(reasons, cell.quality === "warning", "quality_warning");
+  addReason(reasons, cell.incident === "advisory", "advisory_incident");
+  addReason(reasons, cell.match === "approved_fallback", "approved_fallback");
+  return orderedReasons(reasons);
+}
+function hasAny(reasons, candidates) {
+  return reasons.some((reason4) => candidates.has(reason4));
+}
+function deriveClaimState(input) {
+  const matches = (condition) => {
+    switch (condition) {
+      case "legacy_or_unsupported_policy":
+        return input.legacy;
+      case "blocking_incident":
+        return hasAny(input.reasons, INCIDENT_REASONS);
+      case "insufficient_required_evidence":
+        return hasAny(input.reasons, INSUFFICIENT_REASONS);
+      case "stale_or_breached":
+        return hasAny(input.reasons, STALE_REASONS);
+      case "aging_or_due":
+        return hasAny(input.reasons, AGING_REASONS);
+      case "unknown_required_state":
+        return hasAny(input.reasons, UNKNOWN_REASONS);
+      case "qualified_evidence":
+        return hasAny(input.reasons, QUALIFIED_REASONS);
+      case "approved_fallback":
+        return input.hasFallback;
+      case "all_exact_current":
+        return true;
+    }
+  };
+  for (const row of CLAIM_HEALTH_V1_POLICY_MANIFEST.projectionPriority) {
+    if (matches(row.condition)) return row.state;
+  }
+  throw new Error("EV-04 projection manifest is not total");
+}
+function safeObservedThrough(value, evaluatedAt) {
+  if (!evaluatedAt || value === null) return null;
+  const parsed = parsePolicyInstant(value);
+  if (!parsed || parsed.getTime() > evaluatedAt.getTime()) return null;
+  return parsed.toISOString();
+}
+function evaluateClaimHealth(input) {
+  const clock = parsePolicyInstant(input.evaluatedAt);
+  const policySupported = input.policyVersion === CLAIM_HEALTH_POLICY_VERSION;
+  const policyManifestSupported = input.policyManifestDigest === CLAIM_HEALTH_V1_POLICY_MANIFEST_DIGEST;
+  const requiredCellSchemaSupported = input.requiredCellSchemaVersion === CLAIM_HEALTH_REQUIRED_CELL_SCHEMA_VERSION;
+  const globalReasons = /* @__PURE__ */ new Set();
+  addReason(globalReasons, !policySupported, "unsupported_policy_version");
+  addReason(
+    globalReasons,
+    !policyManifestSupported,
+    "unsupported_policy_manifest_digest"
+  );
+  addReason(
+    globalReasons,
+    !requiredCellSchemaSupported,
+    "unsupported_required_cell_schema_version"
+  );
+  addReason(
+    globalReasons,
+    input.artifactSnapshot === "missing",
+    "legacy_artifact_without_snapshot"
+  );
+  addReason(globalReasons, clock === null, "invalid_evaluation_clock");
+  const requiredCells = input.cells.filter(
+    (cell) => cell.requirement === "required"
+  );
+  addReason(globalReasons, requiredCells.length === 0, "empty_required_set");
+  const duplicateIds = /* @__PURE__ */ new Set();
+  const seenIds = /* @__PURE__ */ new Set();
+  for (const cell of input.cells) {
+    if (seenIds.has(cell.cellId)) duplicateIds.add(cell.cellId);
+    seenIds.add(cell.cellId);
+  }
+  addReason(globalReasons, duplicateIds.size > 0, "duplicate_cell_id");
+  const cellResults = [...input.cells].sort((left, right) => left.cellId.localeCompare(right.cellId)).map((cell) => {
+    const reasonCodes = deriveCellReasons(cell);
+    if (cell.requirement === "required") {
+      for (const reason4 of reasonCodes) globalReasons.add(reason4);
+    }
+    return {
+      cellRef: createClaimHealthValueDigest({
+        catalogueId: cell.catalogueId,
+        cellId: cell.cellId
+      }),
+      catalogueId: cell.catalogueId,
+      requirement: cell.requirement,
+      match: cell.match,
+      authority: cell.authority,
+      freshness: cell.freshness,
+      cadence: cell.cadence,
+      quality: cell.quality,
+      confidence: cell.confidence,
+      incident: cell.incident,
+      fallbackCode: cell.fallbackCode,
+      observedThrough: safeObservedThrough(cell.observedThrough, clock),
+      reasonCodes
+    };
+  });
+  const reasons = orderedReasons(globalReasons);
+  const legacy = !policySupported || !policyManifestSupported || !requiredCellSchemaSupported || input.artifactSnapshot === "missing";
+  const hasFallback = requiredCells.some(
+    (cell) => cell.match === "approved_fallback"
+  );
+  const eligibleRequired = requiredCells.filter(
+    (cell) => cell.eligibility === "eligible" && cell.authority !== "ineligible" && cell.authority !== "raw_observation" && authorityMatchesRequiredClass(cell) && cataloguePermitsAuthority(cell) && (cell.match !== "approved_fallback" || cataloguePermitsFallback(cell))
+  );
+  const safeProjection = {
+    claimState: deriveClaimState({ legacy, reasons, hasFallback }),
+    evaluatedAt: clock?.toISOString() ?? null,
+    policyVersion: input.policyVersion,
+    policyManifestDigest: input.policyManifestDigest ?? null,
+    requiredCellSchemaVersion: input.requiredCellSchemaVersion,
+    counts: {
+      required: requiredCells.length,
+      eligible: eligibleRequired.length,
+      exact: eligibleRequired.filter((cell) => cell.match === "exact").length,
+      fallback: eligibleRequired.filter(
+        (cell) => cell.match === "approved_fallback"
+      ).length,
+      optional: input.cells.length - requiredCells.length
+    },
+    reasonCodes: reasons,
+    cells: cellResults
+  };
+  return {
+    policySupported,
+    policyManifestSupported,
+    requiredCellSchemaSupported,
+    safeProjection
+  };
+}
+function normalizeCanonicalValue(value, path) {
+  if (value === null || typeof value === "boolean" || typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new TypeError(`Non-finite number at ${path}`);
+    }
+    return Object.is(value, -0) ? 0 : value;
+  }
+  if (value instanceof Date) {
+    if (!Number.isFinite(value.getTime())) {
+      throw new TypeError(`Invalid Date at ${path}`);
+    }
+    return value.toISOString();
+  }
+  if (Array.isArray(value)) {
+    return value.map(
+      (item, index2) => normalizeCanonicalValue(item, `${path}[${index2}]`)
+    );
+  }
+  if (typeof value === "object") {
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new TypeError(`Unsupported object at ${path}`);
+    }
+    const record = value;
+    const normalized = {};
+    for (const key of Object.keys(record).sort()) {
+      if (record[key] === void 0) {
+        throw new TypeError(`Undefined value at ${path}.${key}`);
+      }
+      normalized[key] = normalizeCanonicalValue(record[key], `${path}.${key}`);
+    }
+    return normalized;
+  }
+  throw new TypeError(`Unsupported canonical value at ${path}`);
+}
+function canonicalizeClaimHealthValue(value) {
+  return JSON.stringify(normalizeCanonicalValue(value, "$"));
+}
+function createClaimHealthValueDigest(value) {
+  return `sha256:${createHash("sha256").update(canonicalizeClaimHealthValue(value), "utf8").digest("hex")}`;
+}
+function createClaimHealthInputDigest(input) {
+  const evaluatedAt = parsePolicyInstant(input.evaluatedAt);
+  return createClaimHealthValueDigest({
+    ...input,
+    evaluatedAt: evaluatedAt?.toISOString() ?? String(input.evaluatedAt),
+    cells: [...input.cells].sort(
+      (left, right) => left.cellId.localeCompare(right.cellId) || canonicalizeClaimHealthValue(left).localeCompare(
+        canonicalizeClaimHealthValue(right)
+      )
+    )
+  });
+}
+function createClaimHealthContentDigest(input, evaluation) {
+  return createClaimHealthValueDigest({
+    inputDigest: createClaimHealthInputDigest(input),
+    evaluation
+  });
+}
+function createClaimHealthDigests(input, evaluation) {
+  return {
+    algorithm: CLAIM_HEALTH_DIGEST_ALGORITHM,
+    inputDigest: createClaimHealthInputDigest(input),
+    contentDigest: createClaimHealthContentDigest(input, evaluation)
+  };
+}
+var MILLIS_PER_DAY, CLAIM_HEALTH_MARKET_CURRENT_DAYS, CLAIM_HEALTH_MARKET_AGING_DAYS, CLAIM_HEALTH_WEEKLY_ON_TIME_DAYS, CLAIM_HEALTH_WEEKLY_BREACH_DAYS, DATE_ONLY_PATTERN, ISO_INSTANT_PATTERN, REASON_ORDER, INCIDENT_REASONS, INSUFFICIENT_REASONS, STALE_REASONS, AGING_REASONS, UNKNOWN_REASONS, QUALIFIED_REASONS, canonicalizeClaimHealth, CLAIM_HEALTH_V1_POLICY_MANIFEST_DIGEST, CLAIM_HEALTH_V1_POLICY_MANIFEST_CANONICAL_JSON;
+var init_claim_health2 = __esm({
+  "server/engines/ingestion/claim-health.ts"() {
+    "use strict";
+    init_claim_health();
+    MILLIS_PER_DAY = 864e5;
+    CLAIM_HEALTH_MARKET_CURRENT_DAYS = CLAIM_HEALTH_V1_POLICY_MANIFEST.freshness.marketObservation.currentThroughDays;
+    CLAIM_HEALTH_MARKET_AGING_DAYS = CLAIM_HEALTH_V1_POLICY_MANIFEST.freshness.marketObservation.agingThroughDays;
+    CLAIM_HEALTH_WEEKLY_ON_TIME_DAYS = CLAIM_HEALTH_V1_POLICY_MANIFEST.cadence.weeklyRequiredSource.onTimeThroughDays;
+    CLAIM_HEALTH_WEEKLY_BREACH_DAYS = CLAIM_HEALTH_V1_POLICY_MANIFEST.cadence.weeklyRequiredSource.dueThroughDays;
+    DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+    ISO_INSTANT_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})$/;
+    REASON_ORDER = [
+      "unsupported_policy_version",
+      "unsupported_policy_manifest_digest",
+      "unsupported_required_cell_schema_version",
+      "legacy_artifact_without_snapshot",
+      "invalid_evaluation_clock",
+      "empty_required_set",
+      "duplicate_cell_id",
+      "catalogue_mismatch",
+      "authority_mismatch",
+      "authority_not_permitted",
+      "fallback_not_permitted",
+      "blocking_incident",
+      "missing_match",
+      "invalid_match",
+      "ineligible_evidence",
+      "raw_observation",
+      "missing_observation_date",
+      "invalid_observation_date",
+      "future_observation_date",
+      "missing_quote_validity",
+      "invalid_quote_validity",
+      "future_quote_validity",
+      "expired_quote",
+      "missing_successful_run",
+      "invalid_successful_run",
+      "future_successful_run",
+      "missing_provenance",
+      "blocking_quality",
+      "stale_observation",
+      "breached_cadence",
+      "aging_observation",
+      "due_cadence",
+      "unconfigured_sla",
+      "unknown_freshness",
+      "unknown_cadence",
+      "unknown_quality",
+      "unknown_confidence",
+      "unknown_incident",
+      "approved_assumption",
+      "approved_synthetic",
+      "quality_warning",
+      "advisory_incident",
+      "approved_fallback"
+    ];
+    INCIDENT_REASONS = new Set(
+      CLAIM_HEALTH_V1_POLICY_MANIFEST.projectionReasonGroups.incident
+    );
+    INSUFFICIENT_REASONS = new Set(
+      CLAIM_HEALTH_V1_POLICY_MANIFEST.projectionReasonGroups.insufficient
+    );
+    STALE_REASONS = new Set(
+      CLAIM_HEALTH_V1_POLICY_MANIFEST.projectionReasonGroups.stale
+    );
+    AGING_REASONS = new Set(
+      CLAIM_HEALTH_V1_POLICY_MANIFEST.projectionReasonGroups.aging
+    );
+    UNKNOWN_REASONS = new Set(
+      CLAIM_HEALTH_V1_POLICY_MANIFEST.projectionReasonGroups.unknown
+    );
+    QUALIFIED_REASONS = new Set(
+      CLAIM_HEALTH_V1_POLICY_MANIFEST.projectionReasonGroups.qualified
+    );
+    canonicalizeClaimHealth = canonicalizeClaimHealthValue;
+    CLAIM_HEALTH_V1_POLICY_MANIFEST_DIGEST = createClaimHealthValueDigest(CLAIM_HEALTH_V1_POLICY_MANIFEST);
+    CLAIM_HEALTH_V1_POLICY_MANIFEST_CANONICAL_JSON = canonicalizeClaimHealthValue(CLAIM_HEALTH_V1_POLICY_MANIFEST);
+  }
+});
+
+// server/db/material-pricing.ts
+import { and, eq, inArray, isNotNull, isNull, lte, ne, or } from "drizzle-orm";
+function isGlobalGovernedCandidateScope(candidate2) {
+  return candidate2.orgId === null && candidate2.supplierQuoteId === null && candidate2.sourceLadderRung !== "supplier_quote" && (candidate2.productId === null || candidate2.joinedProductId === candidate2.productId && candidate2.productOrgId === null);
+}
+async function listApprovedPaintCoverageProfiles(input, database5) {
+  const db = database5 ?? await getDb();
+  if (!db) throw new Error("DB not available");
+  const productIds = Array.from(new Set(input.productIds));
+  if (productIds.length === 0) return [];
+  const rows = await db.select({
+    id: paintCoverageProfiles.id,
+    productId: paintCoverageProfiles.productId,
+    specId: paintCoverageProfiles.specId,
+    coverageM2PerLitrePerCoat: paintCoverageProfiles.coverageM2PerLitrePerCoat,
+    coatCount: paintCoverageProfiles.coatCount,
+    wastePct: paintCoverageProfiles.wastePct,
+    packSizesLitres: paintCoverageProfiles.packSizesLitres,
+    effectiveAt: paintCoverageProfiles.effectiveAt,
+    policyVersion: paintCoverageProfiles.policyVersion,
+    sourceDocumentDigest: paintCoverageProfiles.sourceDocumentDigest,
+    reviewedBy: paintCoverageProfiles.reviewedBy,
+    reviewedAt: paintCoverageProfiles.reviewedAt,
+    supersedesId: paintCoverageProfiles.supersedesId
+  }).from(paintCoverageProfiles).where(
+    and(
+      inArray(paintCoverageProfiles.productId, productIds),
+      eq(paintCoverageProfiles.status, "approved"),
+      lte(paintCoverageProfiles.effectiveAt, input.asOf)
+    )
+  );
+  const rowById = new Map(rows.map((row) => [row.id, row]));
+  const cyclicIds = /* @__PURE__ */ new Set();
+  for (const row of rows) {
+    const seen = /* @__PURE__ */ new Set();
+    let cursor = row;
+    while (cursor?.supersedesId && rowById.has(cursor.supersedesId)) {
+      if (seen.has(cursor.supersedesId)) {
+        for (const id of Array.from(seen)) cyclicIds.add(id);
+        cyclicIds.add(cursor.supersedesId);
+        break;
+      }
+      seen.add(cursor.id);
+      cursor = rowById.get(cursor.supersedesId);
+    }
+  }
+  const supersededIds = new Set(
+    rows.map((row) => row.supersedesId).filter((id) => id !== null)
+  );
+  return rows.filter((row) => cyclicIds.has(row.id) || !supersededIds.has(row.id)).map((row) => ({
+    ...row,
+    lineageValid: !cyclicIds.has(row.id),
+    packSizesLitres: Array.isArray(row.packSizesLitres) ? row.packSizesLitres.map(String) : []
+  }));
+}
+async function listMaterialResolutionIdentitiesWithScope(input, database5) {
+  const db = database5 ?? await getDb();
+  if (!db) throw new Error("DB not available");
+  const rows = [];
+  const libraryIds = Array.from(new Set(input.materialLibraryIds ?? []));
+  if (libraryIds.length > 0) {
+    const libraryRows = await db.select({
+      legacyId: materialLibrary.id,
+      productId: products.id,
+      productOrgId: products.orgId,
+      productCanonicalCategory: products.canonicalCategory,
+      category: materialLibrary.category,
+      tier: materialLibrary.tier,
+      unit: materialLibrary.unitLabel
+    }).from(materialLibrary).leftJoin(
+      products,
+      input.globalOnly ? and(
+        eq(products.id, materialLibrary.productId),
+        isNull(products.orgId)
+      ) : eq(products.id, materialLibrary.productId)
+    ).where(inArray(materialLibrary.id, libraryIds));
+    rows.push(
+      ...libraryRows.map((row) => ({
+        source: "material_library",
+        ...row
+      }))
+    );
+  }
+  const catalogIds = Array.from(new Set(input.materialCatalogIds ?? []));
+  if (catalogIds.length > 0) {
+    const catalogRows = await db.select({
+      legacyId: materialsCatalog.id,
+      productId: products.id,
+      productOrgId: products.orgId,
+      productCanonicalCategory: products.canonicalCategory,
+      category: materialsCatalog.category,
+      tier: materialsCatalog.tier,
+      unit: materialsCatalog.costUnit
+    }).from(materialsCatalog).leftJoin(
+      products,
+      input.globalOnly ? and(
+        eq(products.id, materialsCatalog.productId),
+        isNull(products.orgId)
+      ) : eq(products.id, materialsCatalog.productId)
+    ).where(inArray(materialsCatalog.id, catalogIds));
+    rows.push(
+      ...catalogRows.map((row) => ({
+        source: "materials_catalog",
+        ...row
+      }))
+    );
+  }
+  return rows;
+}
+async function listMaterialResolutionIdentities(input) {
+  return listMaterialResolutionIdentitiesWithScope({
+    ...input,
+    globalOnly: false
+  });
+}
+async function listGlobalMaterialResolutionIdentities(input) {
+  return listMaterialResolutionIdentitiesWithScope({
+    ...input,
+    globalOnly: true
+  });
+}
+async function listLegacyCompatibilityPriceRows(materialLibraryIds) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const ids = materialLibraryIds === void 0 ? void 0 : Array.from(new Set(materialLibraryIds));
+  if (ids?.length === 0) return [];
+  const eligibilityConditions = [
+    isNotNull(materialLibrary.priceAedMin),
+    isNotNull(materialLibrary.priceAedMax),
+    isNotNull(benchmarkProposals.productId),
+    eq(benchmarkProposals.sourceKind, "assumption"),
+    eq(benchmarkProposals.sourceLadderRung, "assumption"),
+    isNull(benchmarkProposals.orgId),
+    isNull(benchmarkProposals.priceScope),
+    eq(benchmarkProposals.keyPolicyVersion, "ev02-backfill-v1"),
+    eq(benchmarkProposals.status, "approved"),
+    eq(benchmarkProposals.recommendation, "publish")
+  ];
+  if (ids !== void 0) {
+    eligibilityConditions.unshift(inArray(materialLibrary.id, ids));
+  }
+  const rows = await db.select({
+    legacyId: materialLibrary.id,
+    productId: benchmarkProposals.productId,
+    specId: benchmarkProposals.specId,
+    benchmarkProposalId: benchmarkProposals.id,
+    benchmarkVersionId: benchmarkProposals.benchmarkVersionId,
+    benchmarkVersionTag: benchmarkVersions.versionTag,
+    provenancePolicyVersion: benchmarkProposals.provenancePolicyVersion,
+    unitBasis: specifications.unitBasis,
+    geography: specifications.geography,
+    priceMin: materialLibrary.priceAedMin,
+    priceMax: materialLibrary.priceAedMax
+  }).from(materialLibrary).innerJoin(
+    benchmarkProposals,
+    and(
+      eq(benchmarkProposals.legacyMaterialLibraryId, materialLibrary.id),
+      eq(benchmarkProposals.productId, materialLibrary.productId)
+    )
+  ).innerJoin(specifications, eq(specifications.id, benchmarkProposals.specId)).leftJoin(
+    benchmarkVersions,
+    eq(benchmarkVersions.id, benchmarkProposals.benchmarkVersionId)
+  ).where(and(...eligibilityConditions));
+  const unique = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    if (row.productId === null || row.specId === null || row.priceMin === null || row.priceMax === null) {
+      continue;
+    }
+    const eligible = {
+      ...row,
+      benchmarkVersion: row.benchmarkVersionTag ?? "legacy-unversioned-benchmark",
+      productId: row.productId,
+      specId: row.specId,
+      priceMin: row.priceMin,
+      priceMax: row.priceMax
+    };
+    delete eligible.benchmarkVersionTag;
+    const existing = unique.get(row.legacyId);
+    if (existing && JSON.stringify(existing) !== JSON.stringify(eligible)) {
+      throw new Error(
+        `Ambiguous EV-02 compatibility link for material_library:${row.legacyId}`
+      );
+    }
+    unique.set(row.legacyId, eligible);
+  }
+  return Array.from(unique.values());
+}
+async function listMaterialResolutionSpecifications(input, database5) {
+  const db = database5 ?? await getDb();
+  if (!db) throw new Error("DB not available");
+  if (input.categories.length === 0 || input.finishLevels.length === 0 || input.unitBases.length === 0 || input.geographies.length === 0) {
+    return [];
+  }
+  return db.select({
+    id: specifications.id,
+    category: specifications.category,
+    finishLevel: specifications.finishLevel,
+    unitBasis: specifications.unitBasis,
+    geography: specifications.geography
+  }).from(specifications).where(
+    and(
+      inArray(specifications.category, input.categories),
+      inArray(specifications.finishLevel, input.finishLevels),
+      inArray(specifications.unitBasis, input.unitBases),
+      inArray(specifications.geography, input.geographies)
+    )
+  );
+}
+async function listGovernedValueCandidatesForSpecificationsWithScope(input, database5) {
+  const db = database5 ?? await getDb();
+  if (!db) throw new Error("DB not available");
+  const specIds = Array.from(new Set(input.specIds));
+  if (specIds.length === 0) return [];
+  const scopeCondition = input.globalOnly || input.organizationId === void 0 ? isNull(benchmarkProposals.orgId) : or(
+    isNull(benchmarkProposals.orgId),
+    eq(benchmarkProposals.orgId, input.organizationId)
+  );
+  const rows = await db.select({
+    id: benchmarkProposals.id,
+    specId: benchmarkProposals.specId,
+    productId: benchmarkProposals.productId,
+    orgId: benchmarkProposals.orgId,
+    priceScope: benchmarkProposals.priceScope,
+    sourceKind: benchmarkProposals.sourceKind,
+    sourceLadderRung: benchmarkProposals.sourceLadderRung,
+    benchmarkVersionId: benchmarkProposals.benchmarkVersionId,
+    benchmarkVersionTag: benchmarkVersions.versionTag,
+    createdAt: benchmarkProposals.createdAt,
+    reviewedAt: benchmarkProposals.reviewedAt,
+    supplierQuoteId: benchmarkProposals.supplierQuoteId,
+    supersedesId: benchmarkProposals.supersedesId,
+    p25: benchmarkProposals.proposedP25,
+    p50: benchmarkProposals.proposedP50,
+    p75: benchmarkProposals.proposedP75,
+    weightedMean: benchmarkProposals.weightedMean,
+    sourceLabel: benchmarkProposals.sourceLabel,
+    provenancePolicyVersion: benchmarkProposals.provenancePolicyVersion,
+    unitBasis: specifications.unitBasis,
+    geography: specifications.geography,
+    quoteValidUntil: supplierQuotes.validUntil,
+    quoteReceivedAt: supplierQuotes.receivedAt,
+    quoteOrgId: supplierQuotes.orgId,
+    joinedProductId: products.id,
+    productOrgId: products.orgId
+  }).from(benchmarkProposals).innerJoin(specifications, eq(specifications.id, benchmarkProposals.specId)).leftJoin(products, eq(products.id, benchmarkProposals.productId)).leftJoin(
+    benchmarkVersions,
+    eq(benchmarkVersions.id, benchmarkProposals.benchmarkVersionId)
+  ).leftJoin(
+    supplierQuotes,
+    eq(supplierQuotes.id, benchmarkProposals.supplierQuoteId)
+  ).where(
+    and(
+      inArray(benchmarkProposals.specId, specIds),
+      eq(benchmarkProposals.status, "approved"),
+      eq(benchmarkProposals.recommendation, "publish"),
+      or(
+        and(
+          isNotNull(benchmarkProposals.reviewedBy),
+          isNotNull(benchmarkProposals.reviewedAt)
+        ),
+        and(
+          eq(benchmarkProposals.sourceKind, "assumption"),
+          eq(benchmarkProposals.sourceLadderRung, "assumption"),
+          isNotNull(benchmarkProposals.legacyMaterialLibraryId),
+          eq(benchmarkProposals.keyPolicyVersion, "ev02-backfill-v1")
+        )
+      ),
+      scopeCondition,
+      ...input.globalOnly ? [
+        isNull(benchmarkProposals.supplierQuoteId),
+        ne(benchmarkProposals.sourceLadderRung, "supplier_quote"),
+        or(
+          isNull(benchmarkProposals.productId),
+          and(isNotNull(products.id), isNull(products.orgId))
+        )
+      ] : []
+    )
+  );
+  const quoteIds = rows.map((row) => row.supplierQuoteId).filter((id) => id !== null);
+  const quoteSupersededAt = /* @__PURE__ */ new Map();
+  const quoteOrganizations = new Map(
+    rows.filter(
+      (row) => row.supplierQuoteId !== null && row.quoteOrgId !== null
+    ).map((row) => [row.supplierQuoteId, row.quoteOrgId])
+  );
+  if (quoteIds.length > 0) {
+    const successors = await db.select({
+      supersedesId: supplierQuotes.supersedesId,
+      orgId: supplierQuotes.orgId,
+      receivedAt: supplierQuotes.receivedAt
+    }).from(supplierQuotes).where(inArray(supplierQuotes.supersedesId, quoteIds));
+    for (const successor of successors) {
+      if (successor.supersedesId !== null && quoteOrganizations.get(successor.supersedesId) === successor.orgId) {
+        quoteSupersededAt.set(successor.supersedesId, successor.receivedAt);
+      }
+    }
+  }
+  return rows.filter((row) => !input.globalOnly || isGlobalGovernedCandidateScope(row)).filter(
+    (row) => row.specId !== null && row.sourceLadderRung !== null
+  ).map((row) => {
+    const {
+      joinedProductId: _joinedProductId,
+      productOrgId: _productOrgId,
+      ...candidate2
+    } = row;
+    return {
+      ...candidate2,
+      benchmarkVersion: row.benchmarkVersionTag ?? "legacy-unversioned-benchmark",
+      benchmarkVersionTag: void 0,
+      effectiveAt: row.reviewedAt ?? row.createdAt,
+      quoteSupersededAt: row.supplierQuoteId === null ? null : quoteSupersededAt.get(row.supplierQuoteId) ?? null
+    };
+  });
+}
+async function listGovernedValueCandidatesForSpecifications(input) {
+  return listGovernedValueCandidatesForSpecificationsWithScope({
+    ...input,
+    globalOnly: false
+  });
+}
+async function listGlobalGovernedValueCandidatesForSpecifications(input) {
+  return listGovernedValueCandidatesForSpecificationsWithScope({
+    ...input,
+    organizationId: void 0,
+    globalOnly: true
+  });
+}
+var init_material_pricing = __esm({
+  "server/db/material-pricing.ts"() {
+    "use strict";
+    init_schema();
+    init_db();
+  }
+});
+
+// shared/material-calculations.ts
+var MATERIAL_RESOLUTION_POLICY_VERSION, PAINT_QUANTITY_POLICY_VERSION;
+var init_material_calculations = __esm({
+  "shared/material-calculations.ts"() {
+    "use strict";
+    MATERIAL_RESOLUTION_POLICY_VERSION = "ev03-material-resolution-v1";
+    PAINT_QUANTITY_POLICY_VERSION = "ev03-paint-quantity-v1";
+  }
+});
+
+// shared/material-pricing.ts
+var UAE_PRICE_GEOGRAPHIES;
+var init_material_pricing2 = __esm({
+  "shared/material-pricing.ts"() {
+    "use strict";
+    UAE_PRICE_GEOGRAPHIES = [
+      "dubai",
+      "abu_dhabi",
+      "sharjah",
+      "ajman",
+      "umm_al_quwain",
+      "ras_al_khaimah",
+      "fujairah",
+      "uae"
+    ];
+  }
+});
+
+// server/engines/material-pricing/policy.ts
+function materialLibraryCategoryToCanonical(category) {
+  return LIBRARY_CATEGORY_MAP[category] ?? "other";
+}
+function materialCatalogCategoryToCanonical(category) {
+  return CATALOG_CATEGORY_MAP[category] ?? "other";
+}
+function materialLibraryTierToFinish(tier) {
+  return LIBRARY_TIER_MAP[tier] ?? null;
+}
+function materialCatalogTierToFinish(tier) {
+  return CATALOG_TIER_MAP[tier] ?? null;
+}
+function normalizeUnitBasis(unit) {
+  const normalized = (unit ?? "").trim().toLowerCase().replace(/\s+/g, "_");
+  if (["sqm", "m\xB2", "m2", "aed/sqm", "per_sqm", "sq_m"].includes(normalized)) {
+    return "per_sqm";
+  }
+  if (["lm", "linear_metre", "linear_meter", "per_lm"].includes(normalized)) {
+    return "per_lm";
+  }
+  if (["l", "litre", "liter", "per_litre"].includes(normalized)) {
+    return "per_litre";
+  }
+  if (["piece", "pc", "unit", "set", "point", "per_piece"].includes(normalized)) {
+    return "per_piece";
+  }
+  if (["pack", "box", "per_pack"].includes(normalized)) {
+    return "per_pack";
+  }
+  return null;
+}
+function sourceLadderPriority(rung) {
+  return LADDER_PRIORITY[rung];
+}
+function toMinorUnits(value) {
+  if (!/^\d+(?:\.\d{1,2})?$/.test(value)) {
+    throw new Error(`Expected a non-negative decimal with at most 2 places: ${value}`);
+  }
+  const [whole, fraction2 = ""] = value.split(".");
+  return BigInt(whole) * BigInt(100) + BigInt(fraction2.padEnd(2, "0"));
+}
+function exactDecimalMidpoint(min, max2) {
+  const a = toMinorUnits(min);
+  const b = toMinorUnits(max2);
+  if (a > b) throw new Error("Minimum price cannot exceed maximum price");
+  const midpoint = (a + b + BigInt(1)) / BigInt(2);
+  const hundred = BigInt(100);
+  return `${midpoint / hundred}.${String(midpoint % hundred).padStart(2, "0")}`;
+}
+var LIBRARY_CATEGORY_MAP, CATALOG_CATEGORY_MAP, LIBRARY_TIER_MAP, CATALOG_TIER_MAP, LADDER_PRIORITY;
+var init_policy = __esm({
+  "server/engines/material-pricing/policy.ts"() {
+    "use strict";
+    LIBRARY_CATEGORY_MAP = {
+      flooring: "floors",
+      wall_paint: "walls",
+      wall_tile: "walls",
+      ceiling: "ceilings",
+      joinery: "joinery",
+      sanitaryware: "sanitary",
+      fittings: "hardware",
+      lighting: "lighting",
+      hardware: "hardware",
+      specialty: "other"
+    };
+    CATALOG_CATEGORY_MAP = {
+      tile: "floors",
+      stone: "floors",
+      wood: "floors",
+      paint: "walls",
+      wallpaper: "walls",
+      lighting: "lighting",
+      furniture: "ffe",
+      fixture: "sanitary",
+      accessory: "hardware",
+      metal: "other",
+      fabric: "ffe",
+      glass: "other",
+      other: "other"
+    };
+    LIBRARY_TIER_MAP = {
+      affordable: "basic",
+      mid: "standard",
+      premium: "premium",
+      ultra: "ultra_luxury"
+    };
+    CATALOG_TIER_MAP = {
+      economy: "basic",
+      mid: "standard",
+      premium: "premium",
+      luxury: "luxury",
+      ultra_luxury: "ultra_luxury"
+    };
+    LADDER_PRIORITY = {
+      supplier_quote: 0,
+      official_statistic: 1,
+      consultancy_benchmark: 2,
+      market_observation: 3,
+      retail_sanity: 4,
+      assumption: 5
+    };
+  }
+});
+
+// server/engines/material-pricing/resolver.ts
+function retailBand(candidates) {
+  const retail = candidates.filter(
+    (candidate2) => candidate2.sourceLadderRung === "retail_sanity"
+  );
+  if (retail.length !== 1) return void 0;
+  return {
+    p25: retail[0].p25,
+    p50: retail[0].p50,
+    p75: retail[0].p75
+  };
+}
+function resolveGovernedMaterialValueFromCandidates(input, candidates) {
+  if (!Number.isFinite(input.asOf.getTime())) {
+    throw new Error("Resolver requires a valid explicit asOf clock");
+  }
+  const availableAtClock = candidates.filter(
+    (candidate2) => candidate2.effectiveAt.getTime() <= input.asOf.getTime()
+  );
+  const supersededIds = new Set(
+    availableAtClock.map((candidate2) => candidate2.supersedesId).filter((id) => id !== null)
+  );
+  const active = availableAtClock.filter(
+    (candidate2) => !supersededIds.has(candidate2.id)
+  );
+  const scoped = active.filter((candidate2) => {
+    if (candidate2.orgId !== null && candidate2.orgId !== input.organizationId) {
+      return false;
+    }
+    if (input.productId === void 0) {
+      if (candidate2.productId !== null) return false;
+    } else if (candidate2.productId !== null && candidate2.productId !== input.productId) {
+      return false;
+    }
+    return true;
+  });
+  const diagnosticBand = retailBand(
+    scoped.filter((candidate2) => candidate2.priceScope === input.priceScope)
+  );
+  const eligible = scoped.filter((candidate2) => {
+    if (candidate2.sourceLadderRung === "retail_sanity") return false;
+    if (candidate2.sourceLadderRung === "supplier_quote") {
+      return input.organizationId !== void 0 && candidate2.orgId === input.organizationId && candidate2.quoteOrgId === input.organizationId && candidate2.supplierQuoteId !== null && candidate2.quoteReceivedAt !== null && candidate2.quoteReceivedAt.getTime() <= input.asOf.getTime() && candidate2.quoteValidUntil !== null && candidate2.quoteValidUntil.getTime() >= input.asOf.getTime() && (candidate2.quoteSupersededAt === null || candidate2.quoteSupersededAt.getTime() > input.asOf.getTime()) && candidate2.priceScope === input.priceScope;
+    }
+    if (candidate2.priceScope === input.priceScope) return true;
+    return candidate2.sourceLadderRung === "assumption" && candidate2.priceScope === null && input.allowLegacyUnknownScope === true;
+  });
+  if (eligible.length === 0) {
+    const hasLegacyUnknown = scoped.some(
+      (candidate2) => candidate2.sourceLadderRung === "assumption" && candidate2.priceScope === null
+    );
+    return {
+      status: "insufficient",
+      reason: diagnosticBand && !hasLegacyUnknown ? "only_retail_sanity" : hasLegacyUnknown ? "legacy_scope_unknown" : "no_governed_value",
+      retailSanityBand: diagnosticBand
+    };
+  }
+  const ranked = eligible.map((candidate2) => ({
+    candidate: candidate2,
+    ladder: sourceLadderPriority(candidate2.sourceLadderRung),
+    productSpecific: input.productId !== void 0 && candidate2.productId === input.productId ? 0 : 1,
+    orgSpecific: input.organizationId !== void 0 && candidate2.orgId === input.organizationId ? 0 : 1,
+    legacyScope: candidate2.priceScope === null ? 1 : 0
+  })).sort(
+    (a, b) => a.ladder - b.ladder || a.productSpecific - b.productSpecific || a.orgSpecific - b.orgSpecific || a.legacyScope - b.legacyScope
+  );
+  const best = ranked[0];
+  const tied = ranked.filter(
+    (row) => row.ladder === best.ladder && row.productSpecific === best.productSpecific && row.orgSpecific === best.orgSpecific && row.legacyScope === best.legacyScope
+  );
+  if (tied.length !== 1) {
+    return {
+      status: "insufficient",
+      reason: "ambiguous_governed_value",
+      retailSanityBand: diagnosticBand
+    };
+  }
+  const selected = best.candidate;
+  if (selected.sourceLadderRung === "retail_sanity") {
+    throw new Error("Retail sanity rows cannot resolve authoritatively");
+  }
+  const p25 = Number(selected.p25);
+  const p50 = Number(selected.p50);
+  const p75 = Number(selected.p75);
+  const weightedMean = Number(selected.weightedMean);
+  if (!Number.isFinite(p25) || !Number.isFinite(p50) || !Number.isFinite(p75) || !Number.isFinite(weightedMean) || p25 <= 0 || p50 <= 0 || p75 <= 0 || weightedMean <= 0 || p25 > p50 || p50 > p75) {
+    return {
+      status: "insufficient",
+      reason: "no_governed_value",
+      retailSanityBand: diagnosticBand
+    };
+  }
+  const value = {
+    benchmarkProposalId: selected.id,
+    benchmarkVersionId: selected.benchmarkVersionId,
+    benchmarkVersion: selected.benchmarkVersion,
+    specificationId: selected.specId,
+    productId: selected.productId,
+    organizationId: selected.orgId,
+    p25: selected.p25,
+    p50: selected.p50,
+    p75: selected.p75,
+    weightedMean: selected.weightedMean,
+    currency: "AED",
+    unitBasis: selected.unitBasis,
+    geography: selected.geography,
+    priceScope: selected.priceScope ?? "legacy_unknown",
+    sourceKind: selected.sourceKind,
+    sourceLadderRung: selected.sourceLadderRung,
+    sourceLabel: selected.sourceLabel,
+    provenancePolicyVersion: selected.provenancePolicyVersion,
+    isLegacyScopeFallback: selected.priceScope === null
+  };
+  return {
+    status: "resolved",
+    value,
+    retailSanityBand: diagnosticBand
+  };
+}
+var init_resolver = __esm({
+  "server/engines/material-pricing/resolver.ts"() {
+    "use strict";
+    init_material_pricing();
+    init_policy();
+  }
+});
+
+// server/engines/material-pricing/ev03-identity-backfill.ts
+var init_ev03_identity_backfill = __esm({
+  "server/engines/material-pricing/ev03-identity-backfill.ts"() {
+    "use strict";
+    init_database_safety();
+    init_policy();
+  }
+});
+
+// server/engines/material-pricing/rollout-comparison.ts
+import { createHash as createHash2 } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
+function canonicalize(value) {
+  if (value === null || typeof value === "string" || typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new Error("Rollout evidence cannot contain non-finite numbers");
+    }
+    return value;
+  }
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).filter(([, item]) => item !== void 0).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonicalize(item)])
+    );
+  }
+  throw new Error(`Unsupported rollout evidence value: ${typeof value}`);
+}
+function sha256(value) {
+  return createHash2("sha256").update(JSON.stringify(canonicalize(value))).digest("hex");
+}
+function referenceKey(reference2) {
+  return `${reference2.source}:${reference2.legacyId}`;
+}
+function governedFingerprint(snapshot) {
+  return {
+    productId: snapshot.productId,
+    specificationId: snapshot.specificationId,
+    benchmarkProposalId: snapshot.benchmarkProposalId,
+    benchmarkVersionId: snapshot.benchmarkVersionId,
+    benchmarkVersion: snapshot.provenance.benchmarkVersion,
+    resolvedPriceScope: snapshot.resolvedPriceScope,
+    unitBasis: snapshot.unitBasis,
+    resolvedGeography: snapshot.resolvedGeography,
+    resolverPolicyVersion: snapshot.policyVersion,
+    provenancePolicyVersion: snapshot.provenance.provenancePolicyVersion,
+    min: snapshot.priceMin,
+    mid: snapshot.priceMid,
+    max: snapshot.priceMax
+  };
+}
+function assertUniqueReferences(label, references) {
+  const seen = /* @__PURE__ */ new Set();
+  for (const reference2 of references) {
+    if (!Number.isInteger(reference2.legacyId) || reference2.legacyId <= 0) {
+      throw new Error(`${label} contains an invalid legacy identity`);
+    }
+    const key = referenceKey(reference2);
+    if (seen.has(key)) throw new Error(`${label} contains duplicate ${key}`);
+    seen.add(key);
+  }
+}
+function compareLegacyAndGovernedMaterialPrices(input) {
+  assertUniqueReferences(
+    "Eligible legacy set",
+    input.legacyRanges.map((range) => range.reference)
+  );
+  assertUniqueReferences(
+    "Governed snapshot set",
+    input.snapshots.map((snapshot) => snapshot.reference)
+  );
+  const eligibleKeys = new Set(
+    input.legacyRanges.map((range) => referenceKey(range.reference))
+  );
+  const unexpectedSnapshot = input.snapshots.find(
+    (snapshot) => !eligibleKeys.has(referenceKey(snapshot.reference))
+  );
+  if (unexpectedSnapshot) {
+    throw new Error(
+      `Governed snapshot set contains ineligible ${referenceKey(unexpectedSnapshot.reference)}`
+    );
+  }
+  const snapshots = new Map(
+    input.snapshots.map((snapshot) => [
+      referenceKey(snapshot.reference),
+      snapshot
+    ])
+  );
+  return input.legacyRanges.map((legacy) => {
+    const expected = {
+      min: legacy.priceMin,
+      mid: exactDecimalMidpoint(legacy.priceMin, legacy.priceMax),
+      max: legacy.priceMax
+    };
+    const snapshot = snapshots.get(referenceKey(legacy.reference));
+    if (!snapshot || snapshot.state === "insufficient") {
+      return {
+        reference: legacy.reference,
+        state: "insufficient",
+        legacy: expected,
+        governed: null,
+        differences: [],
+        insufficiencyReason: snapshot?.state === "insufficient" ? snapshot.reason : "identity_not_found"
+      };
+    }
+    const governed = governedFingerprint(snapshot);
+    const differences = [];
+    if (expected.min !== governed.min) differences.push("min");
+    if (expected.mid !== governed.mid) differences.push("mid");
+    if (expected.max !== governed.max) differences.push("max");
+    return {
+      reference: legacy.reference,
+      state: differences.length === 0 ? "equal" : "different",
+      legacy: expected,
+      governed,
+      differences
+    };
+  });
+}
+function assertNoConfidentialFields(value, path = "evidence") {
+  if (Array.isArray(value)) {
+    value.forEach(
+      (item, index2) => assertNoConfidentialFields(item, `${path}[${index2}]`)
+    );
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  for (const [key, item] of Object.entries(value)) {
+    if (FORBIDDEN_EVIDENCE_KEYS.test(key)) {
+      throw new Error(
+        `Confidential field is forbidden in rollout evidence: ${path}.${key}`
+      );
+    }
+    assertNoConfidentialFields(item, `${path}.${key}`);
+  }
+}
+function assertMaterialPricingComparisonEvidence(evidence) {
+  if (evidence.version !== EV03_ROLLOUT_EVIDENCE_VERSION || evidence.eligibilityQueryVersion !== EV03_ELIGIBILITY_QUERY_VERSION || evidence.digestAlgorithm !== "sha256") {
+    throw new Error("Unsupported EV-03 rollout evidence contract");
+  }
+  if (!Number.isInteger(evidence.eligibleRowCount) || evidence.eligibleRowCount <= 0 || evidence.comparisonRowCount !== evidence.eligibleRowCount || evidence.comparisons.length !== evidence.eligibleRowCount) {
+    throw new Error("Rollout evidence does not cover every eligible EV-02 row");
+  }
+  assertUniqueReferences(
+    "Rollout comparisons",
+    evidence.comparisons.map((row) => row.reference)
+  );
+  assertNoConfidentialFields(evidence);
+  const counts = {
+    equal: evidence.comparisons.filter((row) => row.state === "equal").length,
+    different: evidence.comparisons.filter((row) => row.state === "different").length,
+    insufficient: evidence.comparisons.filter(
+      (row) => row.state === "insufficient"
+    ).length
+  };
+  if (evidence.equalRowCount !== counts.equal || evidence.differentRowCount !== counts.different || evidence.insufficientRowCount !== counts.insufficient || counts.equal + counts.different + counts.insufficient !== evidence.eligibleRowCount) {
+    throw new Error("Rollout evidence summary counts diverge");
+  }
+  const eligibleSet = evidence.comparisons.map((comparison) => ({
+    reference: comparison.reference,
+    priceMin: comparison.legacy.min,
+    priceMax: comparison.legacy.max
+  })).sort(
+    (a, b) => referenceKey(a.reference).localeCompare(referenceKey(b.reference))
+  );
+  const sortedComparisons = [...evidence.comparisons].sort(
+    (a, b) => referenceKey(a.reference).localeCompare(referenceKey(b.reference))
+  );
+  if (!/^[a-f0-9]{64}$/.test(evidence.eligibleSetDigest) || evidence.eligibleSetDigest !== sha256(eligibleSet) || !/^[a-f0-9]{64}$/.test(evidence.comparisonsDigest) || evidence.comparisonsDigest !== sha256(sortedComparisons)) {
+    throw new Error("Rollout evidence content digest mismatch");
+  }
+  const { evidenceDigest, ...unsigned } = evidence;
+  if (!/^[a-f0-9]{64}$/.test(evidenceDigest) || evidenceDigest !== sha256(unsigned)) {
+    throw new Error("Rollout evidence SHA-256 mismatch");
+  }
+}
+function assertMaterialPricingEvidenceMatchesLiveEligibleSet(evidence, liveRanges) {
+  assertMaterialPricingComparisonEvidence(evidence);
+  assertUniqueReferences(
+    "Live eligible legacy set",
+    liveRanges.map((range) => range.reference)
+  );
+  const liveEligibleSet = liveRanges.map((range) => ({
+    reference: range.reference,
+    priceMin: range.priceMin,
+    priceMax: range.priceMax
+  })).sort(
+    (a, b) => referenceKey(a.reference).localeCompare(referenceKey(b.reference))
+  );
+  if (liveEligibleSet.length !== evidence.eligibleRowCount || sha256(liveEligibleSet) !== evidence.eligibleSetDigest) {
+    throw new Error(
+      "EV-03 rollout evidence does not match the complete live eligible set"
+    );
+  }
+}
+function assertGovernedSnapshotsMatchApprovedEvidence(evidence, snapshots) {
+  assertMaterialPricingComparisonEvidence(evidence);
+  assertUniqueReferences(
+    "Live governed snapshot set",
+    snapshots.map((snapshot) => snapshot.reference)
+  );
+  const approved = new Map(
+    evidence.comparisons.map((comparison) => [
+      referenceKey(comparison.reference),
+      comparison.governed
+    ])
+  );
+  for (const snapshot of snapshots) {
+    const expected = approved.get(referenceKey(snapshot.reference));
+    if (expected === void 0) continue;
+    if (snapshot.state === "resolved" && snapshot.requestedPriceScope === "supply_and_install" && snapshot.resolvedPriceScope === "supply_and_install") {
+      continue;
+    }
+    if (expected === null || snapshot.state !== "resolved" || sha256(governedFingerprint(snapshot)) !== sha256(expected)) {
+      throw new Error(
+        `EV-03 governed snapshot drifted from approved evidence for ${referenceKey(snapshot.reference)}`
+      );
+    }
+  }
+}
+function buildMaterialPricingRuntimeComparisonEvidence(input) {
+  assertMaterialPricingComparisonEvidence(input.baselineEvidence);
+  if (!Number.isFinite(input.resolverAsOf.getTime())) {
+    throw new Error("Runtime comparison requires a valid explicit clock");
+  }
+  assertUniqueReferences("Runtime comparison request", input.references);
+  const baselineByReference = new Map(
+    input.baselineEvidence.comparisons.map((comparison) => [
+      referenceKey(comparison.reference),
+      comparison
+    ])
+  );
+  const legacyRanges = input.references.flatMap((reference2) => {
+    const baseline = baselineByReference.get(referenceKey(reference2));
+    return baseline ? [
+      {
+        reference: reference2,
+        priceMin: baseline.legacy.min,
+        priceMax: baseline.legacy.max
+      }
+    ] : [];
+  });
+  const legacyKeys = new Set(
+    legacyRanges.map((range) => referenceKey(range.reference))
+  );
+  const comparisons = compareLegacyAndGovernedMaterialPrices({
+    legacyRanges,
+    snapshots: input.governedSnapshots.filter(
+      (snapshot) => legacyKeys.has(referenceKey(snapshot.reference))
+    )
+  }).map((comparison) => ({
+    reference: comparison.reference,
+    state: comparison.state,
+    differences: comparison.differences,
+    ...comparison.insufficiencyReason === void 0 ? {} : { insufficiencyReason: comparison.insufficiencyReason }
+  }));
+  const unsigned = {
+    version: "ev03-runtime-comparison-v1",
+    digestAlgorithm: "sha256",
+    baselineEvidenceDigest: input.baselineEvidence.evidenceDigest,
+    requestedPriceScope: input.requestedPriceScope,
+    requestedGeography: input.requestedGeography,
+    resolverAsOf: input.resolverAsOf.toISOString(),
+    comparisonRowCount: comparisons.length,
+    equalRowCount: comparisons.filter((row) => row.state === "equal").length,
+    differentRowCount: comparisons.filter((row) => row.state === "different").length,
+    insufficientRowCount: comparisons.filter(
+      (row) => row.state === "insufficient"
+    ).length,
+    comparisons
+  };
+  assertNoConfidentialFields(unsigned);
+  return { ...unsigned, comparisonDigest: sha256(unsigned) };
+}
+function assertGoldenMaterialPriceEquality(comparisons) {
+  const failures = comparisons.filter(
+    (comparison) => comparison.state !== "equal"
+  );
+  if (failures.length > 0) {
+    throw new Error(
+      `Governed material-price equality failed for ${failures.length}/${comparisons.length} eligible rows`
+    );
+  }
+}
+function assertMaterialPricingRolloutGate(gate) {
+  const effective = gate ?? { mode: "legacy" };
+  if (effective.mode === "legacy") return "legacy";
+  assertMaterialPricingComparisonEvidence(effective.evidence);
+  if (effective.mode === "compare") return "compare";
+  assertGoldenMaterialPriceEquality(effective.evidence.comparisons);
+  if (!/^user-approved:\d{4}-\d{2}-\d{2}:ev03-governed-cutover$/.test(
+    effective.cutoverApproval.reference
+  )) {
+    throw new Error(
+      "Governed material pricing requires explicit EV-03 cutover approval"
+    );
+  }
+  if (effective.cutoverApproval.approvedEvidenceDigest !== effective.evidence.evidenceDigest) {
+    throw new Error(
+      "Governed cutover approval does not bind the evidence SHA-256"
+    );
+  }
+  return "governed";
+}
+function loadMaterialPricingRolloutGate(environment = process.env) {
+  const mode = environment.MIYAR_EV03_PRICING_MODE ?? "legacy";
+  if (mode === "legacy") return { mode: "legacy" };
+  if (mode !== "compare" && mode !== "governed") {
+    throw new Error(`Unsupported MIYAR_EV03_PRICING_MODE: ${mode}`);
+  }
+  const inline = environment.MIYAR_EV03_ROLLOUT_EVIDENCE_JSON;
+  const evidencePath = environment.MIYAR_EV03_ROLLOUT_EVIDENCE_PATH;
+  const gzipBase64 = environment.MIYAR_EV03_ROLLOUT_EVIDENCE_GZIP_BASE64;
+  if ((inline ? 1 : 0) + (evidencePath ? 1 : 0) + (gzipBase64 ? 1 : 0) !== 1) {
+    throw new Error(
+      "EV-03 compare/governed mode requires exactly one rollout evidence source"
+    );
+  }
+  let serialized;
+  if (gzipBase64) {
+    const maxEncodedBytes = Math.ceil(EV03_MAX_ROLLOUT_EVIDENCE_COMPRESSED_BYTES / 3) * 4 + 4;
+    if (Buffer.byteLength(gzipBase64, "utf8") > maxEncodedBytes || gzipBase64.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(gzipBase64)) {
+      throw new Error(
+        "EV-03 compressed rollout evidence is not canonical bounded base64"
+      );
+    }
+    const compressed = Buffer.from(gzipBase64, "base64");
+    if (compressed.length === 0 || compressed.length > EV03_MAX_ROLLOUT_EVIDENCE_COMPRESSED_BYTES || compressed.toString("base64") !== gzipBase64) {
+      throw new Error(
+        "EV-03 compressed rollout evidence exceeds the compressed size limit"
+      );
+    }
+    let decompressed;
+    try {
+      decompressed = gunzipSync(compressed, {
+        maxOutputLength: EV03_MAX_ROLLOUT_EVIDENCE_DECOMPRESSED_BYTES
+      });
+    } catch {
+      throw new Error(
+        "EV-03 compressed rollout evidence is invalid or exceeds the decompressed size limit"
+      );
+    }
+    if (decompressed.length === 0 || decompressed.length > EV03_MAX_ROLLOUT_EVIDENCE_DECOMPRESSED_BYTES) {
+      throw new Error(
+        "EV-03 compressed rollout evidence exceeds the decompressed size limit"
+      );
+    }
+    try {
+      serialized = new TextDecoder("utf-8", { fatal: true }).decode(
+        decompressed
+      );
+    } catch {
+      throw new Error("EV-03 compressed rollout evidence is not valid UTF-8");
+    }
+  } else {
+    serialized = inline ?? readFileSync(evidencePath, { encoding: "utf8", flag: "r" });
+  }
+  let evidence;
+  try {
+    evidence = JSON.parse(serialized);
+  } catch {
+    throw new Error("EV-03 rollout evidence is not valid JSON");
+  }
+  assertMaterialPricingComparisonEvidence(evidence);
+  if (mode === "compare") return { mode, evidence };
+  return {
+    mode,
+    evidence,
+    cutoverApproval: {
+      reference: environment.MIYAR_EV03_GOVERNED_CUTOVER_APPROVAL_REF ?? "",
+      approvedEvidenceDigest: environment.MIYAR_EV03_GOVERNED_EVIDENCE_SHA256 ?? ""
+    }
+  };
+}
+var EV03_ROLLOUT_EVIDENCE_VERSION, EV03_ELIGIBILITY_QUERY_VERSION, EV03_MAX_ROLLOUT_EVIDENCE_COMPRESSED_BYTES, EV03_MAX_ROLLOUT_EVIDENCE_DECOMPRESSED_BYTES, FORBIDDEN_EVIDENCE_KEYS;
+var init_rollout_comparison = __esm({
+  "server/engines/material-pricing/rollout-comparison.ts"() {
+    "use strict";
+    init_database_safety();
+    init_ev03_identity_backfill();
+    init_policy();
+    EV03_ROLLOUT_EVIDENCE_VERSION = "ev03-rollout-comparison-v2";
+    EV03_ELIGIBILITY_QUERY_VERSION = "ev02-linked-legacy-assumptions-v1";
+    EV03_MAX_ROLLOUT_EVIDENCE_COMPRESSED_BYTES = 1024 * 1024;
+    EV03_MAX_ROLLOUT_EVIDENCE_DECOMPRESSED_BYTES = 8 * 1024 * 1024;
+    FORBIDDEN_EVIDENCE_KEYS = /^(organizationId|orgId|supplierQuoteId|quoteRef|contactRef|sourceLabel|supplierName|supplierContact|supplierUrl|provenance|presentationProvenance|internalProvenance|description)$/i;
+  }
+});
+
+// server/engines/material-pricing/material-resolution.ts
+function resolveProjectMaterialPriceGeography(value) {
+  return typeof value === "string" && UAE_PRICE_GEOGRAPHIES.includes(value) ? value : "uae";
+}
+function attachPaintCoverageProfiles(snapshots, coverageProfiles) {
+  return snapshots.map((snapshot) => {
+    if (snapshot.state !== "resolved" || snapshot.unitBasis !== "per_litre") {
+      return snapshot;
+    }
+    const matches = coverageProfiles.filter(
+      (profile2) => profile2.productId === snapshot.productId && profile2.specId === snapshot.specificationId
+    );
+    if (matches.length === 0) {
+      return { ...snapshot, paintCoverageState: "fallback" };
+    }
+    if (matches.length > 1) {
+      return { ...snapshot, paintCoverageState: "invalid" };
+    }
+    const profile = matches[0];
+    const coverage = Number(profile.coverageM2PerLitrePerCoat);
+    const wastePct = Number(profile.wastePct);
+    const packSizes = profile.packSizesLitres.map(Number);
+    if (profile.lineageValid === false || profile.reviewedBy === null || profile.reviewedBy <= 0 || !(profile.reviewedAt instanceof Date) || !Number.isFinite(profile.reviewedAt.getTime()) || profile.reviewedAt.getTime() > new Date(snapshot.resolverAsOf).getTime() || !/^sha256:[a-f0-9]{64}$/i.test(profile.sourceDocumentDigest) || !profile.policyVersion.trim() || !Number.isFinite(coverage) || coverage <= 0 || !Number.isInteger(profile.coatCount) || profile.coatCount <= 0 || !Number.isFinite(wastePct) || wastePct < 0 || packSizes.length === 0 || packSizes.some((size) => !Number.isFinite(size) || size <= 0)) {
+      return { ...snapshot, paintCoverageState: "invalid" };
+    }
+    return {
+      ...snapshot,
+      paintCoverageState: "approved",
+      paintCoverageProfile: {
+        profileId: profile.id,
+        policyVersion: profile.policyVersion,
+        coverageM2PerLitrePerCoat: profile.coverageM2PerLitrePerCoat,
+        coatCount: profile.coatCount,
+        wastePct: profile.wastePct,
+        effectiveAt: profile.effectiveAt.toISOString(),
+        sourceDocumentDigest: profile.sourceDocumentDigest,
+        packSizesLitres: profile.packSizesLitres
+      }
+    };
+  });
+}
+function mapIdentity(row) {
+  const isLibrary = row.source === "material_library";
+  return {
+    ...row,
+    reference: { source: row.source, legacyId: row.legacyId },
+    canonicalCategory: isLibrary ? materialLibraryCategoryToCanonical(row.category) : materialCatalogCategoryToCanonical(row.category),
+    finishLevel: isLibrary ? materialLibraryTierToFinish(row.tier) : materialCatalogTierToFinish(row.tier),
+    unitBasis: normalizeUnitBasis(row.unit)
+  };
+}
+function specificationKey(input) {
+  return [
+    input.category,
+    input.finishLevel,
+    input.unitBasis,
+    input.geography
+  ].join("\0");
+}
+function insufficiency(input) {
+  return {
+    state: "insufficient",
+    policyVersion: MATERIAL_RESOLUTION_POLICY_VERSION,
+    reference: input.reference,
+    resolverAsOf: input.asOf.toISOString(),
+    requestedGeography: input.requestedGeography,
+    requestedPriceScope: input.priceScope,
+    reason: input.reason,
+    ...input.productId === void 0 ? {} : { productId: input.productId },
+    ...input.specificationId === void 0 ? {} : { specificationId: input.specificationId }
+  };
+}
+function mapResolverReason(reason4) {
+  return reason4;
+}
+function safeProvenance(input) {
+  return {
+    sourceLadderRung: input.sourceLadderRung,
+    sourceLabel: input.isLegacyScopeFallback ? "Legacy scope-unknown assumption" : SAFE_SOURCE_LABEL[input.sourceLadderRung],
+    provenancePolicyVersion: input.provenancePolicyVersion ?? "legacy_unknown",
+    benchmarkVersion: input.benchmarkVersion,
+    compatibilityFallback: input.isLegacyScopeFallback
+  };
+}
+function resolveMaterialPriceSnapshotsFromRows(input) {
+  if (!Number.isFinite(input.asOf.getTime())) {
+    throw new Error("Material resolution requires a valid explicit asOf clock");
+  }
+  const identityByReference = new Map(
+    input.identities.map((row) => [
+      `${row.source}:${row.legacyId}`,
+      mapIdentity(row)
+    ])
+  );
+  const specificationsByKey = /* @__PURE__ */ new Map();
+  for (const specification of input.specifications) {
+    const key = specificationKey(specification);
+    const rows = specificationsByKey.get(key) ?? [];
+    rows.push(specification);
+    specificationsByKey.set(key, rows);
+  }
+  const candidatesBySpecId = /* @__PURE__ */ new Map();
+  for (const candidate2 of input.candidates) {
+    const rows = candidatesBySpecId.get(candidate2.specId) ?? [];
+    rows.push(candidate2);
+    candidatesBySpecId.set(candidate2.specId, rows);
+  }
+  return input.references.map((reference2) => {
+    const identity = identityByReference.get(
+      `${reference2.source}:${reference2.legacyId}`
+    );
+    if (!identity || identity.productId === null) {
+      return insufficiency({
+        reference: reference2,
+        asOf: input.asOf,
+        requestedGeography: input.requestedGeography,
+        priceScope: input.priceScope,
+        reason: "identity_not_found"
+      });
+    }
+    if (identity.productOrgId !== null && identity.productOrgId !== input.organizationId) {
+      return insufficiency({
+        reference: reference2,
+        asOf: input.asOf,
+        requestedGeography: input.requestedGeography,
+        priceScope: input.priceScope,
+        reason: "identity_not_found"
+      });
+    }
+    if (identity.productCanonicalCategory !== identity.canonicalCategory) {
+      return insufficiency({
+        reference: reference2,
+        asOf: input.asOf,
+        requestedGeography: input.requestedGeography,
+        priceScope: input.priceScope,
+        reason: "identity_not_found"
+      });
+    }
+    if (identity.finishLevel === null) {
+      return insufficiency({
+        reference: reference2,
+        productId: identity.productId,
+        asOf: input.asOf,
+        requestedGeography: input.requestedGeography,
+        priceScope: input.priceScope,
+        reason: "unknown_finish_level"
+      });
+    }
+    if (identity.unitBasis === null) {
+      return insufficiency({
+        reference: reference2,
+        productId: identity.productId,
+        asOf: input.asOf,
+        requestedGeography: input.requestedGeography,
+        priceScope: input.priceScope,
+        reason: "unknown_unit_basis"
+      });
+    }
+    const productId = identity.productId;
+    const geographies = input.requestedGeography === "uae" ? ["uae"] : [input.requestedGeography, "uae"];
+    let lastReason = "specification_not_found";
+    let lastSpecificationId;
+    for (const geography of geographies) {
+      const specifications2 = specificationsByKey.get(
+        specificationKey({
+          category: identity.canonicalCategory,
+          finishLevel: identity.finishLevel,
+          unitBasis: identity.unitBasis,
+          geography
+        })
+      );
+      if (!specifications2 || specifications2.length === 0) continue;
+      lastSpecificationId = specifications2.length === 1 ? specifications2[0].id : void 0;
+      const resolutions = specifications2.map((specification) => ({
+        specification,
+        resolution: resolveGovernedMaterialValueFromCandidates(
+          {
+            specId: specification.id,
+            productId,
+            organizationId: input.organizationId,
+            priceScope: input.priceScope,
+            asOf: input.asOf,
+            allowLegacyUnknownScope: input.allowLegacyUnknownScope
+          },
+          candidatesBySpecId.get(specification.id) ?? []
+        )
+      }));
+      const ambiguous = resolutions.some(
+        (row) => row.resolution.status === "insufficient" && row.resolution.reason === "ambiguous_governed_value"
+      );
+      const resolved2 = resolutions.filter(
+        (row) => row.resolution.status === "resolved"
+      );
+      if (ambiguous || resolved2.length > 1) {
+        lastReason = "ambiguous_governed_value";
+        break;
+      }
+      if (resolved2.length === 1) {
+        const { specification, resolution } = resolved2[0];
+        return {
+          state: "resolved",
+          policyVersion: MATERIAL_RESOLUTION_POLICY_VERSION,
+          reference: reference2,
+          productId,
+          specificationId: specification.id,
+          benchmarkProposalId: resolution.value.benchmarkProposalId,
+          benchmarkVersionId: resolution.value.benchmarkVersionId,
+          resolverAsOf: input.asOf.toISOString(),
+          requestedGeography: input.requestedGeography,
+          resolvedGeography: resolution.value.geography,
+          usedUaeFallback: input.requestedGeography !== "uae" && resolution.value.geography === "uae",
+          requestedPriceScope: input.priceScope,
+          resolvedPriceScope: resolution.value.priceScope,
+          currency: "AED",
+          unitBasis: resolution.value.unitBasis,
+          priceMin: resolution.value.p25,
+          priceMid: resolution.value.p50,
+          priceMax: resolution.value.p75,
+          weightedMean: resolution.value.weightedMean,
+          provenance: safeProvenance(resolution.value)
+        };
+      }
+      const firstInsufficient = resolutions.find(
+        (row) => row.resolution.status === "insufficient"
+      );
+      if (firstInsufficient?.resolution.status === "insufficient") {
+        lastReason = mapResolverReason(firstInsufficient.resolution.reason);
+      }
+    }
+    return insufficiency({
+      reference: reference2,
+      productId,
+      specificationId: lastSpecificationId,
+      asOf: input.asOf,
+      requestedGeography: input.requestedGeography,
+      priceScope: input.priceScope,
+      reason: lastReason
+    });
+  });
+}
+async function resolveGovernedMaterialPriceSnapshots(input, options = { globalOnly: false }) {
+  const materialLibraryIds = input.references.filter((reference2) => reference2.source === "material_library").map((reference2) => reference2.legacyId);
+  const materialCatalogIds = input.references.filter((reference2) => reference2.source === "materials_catalog").map((reference2) => reference2.legacyId);
+  const identities = await (options.evidenceDataSource ? options.evidenceDataSource.listIdentities({
+    materialLibraryIds,
+    materialCatalogIds
+  }) : options.globalOnly ? listGlobalMaterialResolutionIdentities({
+    materialLibraryIds,
+    materialCatalogIds
+  }) : listMaterialResolutionIdentities({
+    materialLibraryIds,
+    materialCatalogIds
+  }));
+  const mapped = identities.map(mapIdentity);
+  const geographies = Array.from(
+    /* @__PURE__ */ new Set([input.requestedGeography, "uae"])
+  );
+  const specificationInput = {
+    categories: Array.from(new Set(mapped.map((row) => row.canonicalCategory))),
+    finishLevels: Array.from(
+      new Set(
+        mapped.map((row) => row.finishLevel).filter((value) => value !== null)
+      )
+    ),
+    unitBases: Array.from(
+      new Set(
+        mapped.map((row) => row.unitBasis).filter((value) => value !== null)
+      )
+    ),
+    geographies
+  };
+  const specifications2 = await (options.evidenceDataSource ? options.evidenceDataSource.listSpecifications(specificationInput) : listMaterialResolutionSpecifications(specificationInput));
+  const candidates = await (options.evidenceDataSource ? options.evidenceDataSource.listCandidates({
+    specIds: specifications2.map((specification) => specification.id)
+  }) : options.globalOnly ? listGlobalGovernedValueCandidatesForSpecifications({
+    specIds: specifications2.map((specification) => specification.id)
+  }) : listGovernedValueCandidatesForSpecifications({
+    specIds: specifications2.map((specification) => specification.id),
+    organizationId: input.organizationId
+  }));
+  const snapshots = resolveMaterialPriceSnapshotsFromRows({
+    ...input,
+    identities,
+    specifications: specifications2,
+    candidates,
+    allowLegacyUnknownScope: input.allowLegacyUnknownScope === true
+  });
+  const litreSnapshots = snapshots.filter(
+    (snapshot) => snapshot.state === "resolved" && snapshot.unitBasis === "per_litre"
+  );
+  const coverageInput = {
+    productIds: litreSnapshots.map(
+      (snapshot) => snapshot.state === "resolved" ? snapshot.productId : void 0
+    ).filter((productId) => productId !== void 0),
+    asOf: input.asOf
+  };
+  const coverageProfiles = await (options.evidenceDataSource ? options.evidenceDataSource.listCoverageProfiles(coverageInput) : listApprovedPaintCoverageProfiles(coverageInput));
+  return attachPaintCoverageProfiles(snapshots, coverageProfiles);
+}
+function legacyCompatibilitySnapshots(input) {
+  const governedByReference = new Map(
+    input.governed.map((snapshot) => [
+      `${snapshot.reference.source}:${snapshot.reference.legacyId}`,
+      snapshot
+    ])
+  );
+  const legacyById = new Map(input.legacyRows.map((row) => [row.legacyId, row]));
+  return input.requested.map((reference2) => {
+    const governed = governedByReference.get(
+      `${reference2.source}:${reference2.legacyId}`
+    );
+    const legacy = reference2.source === "material_library" ? legacyById.get(reference2.legacyId) : void 0;
+    if (governed?.state === "insufficient" && governed.reason === "identity_not_found" && governed.productId === void 0) {
+      return governed;
+    }
+    if (!legacy) {
+      if (governed) return governed;
+      return insufficiency({
+        reference: reference2,
+        asOf: input.asOf,
+        requestedGeography: input.requestedGeography,
+        priceScope: input.priceScope,
+        reason: "no_governed_value"
+      });
+    }
+    const midpoint = exactDecimalMidpoint(legacy.priceMin, legacy.priceMax);
+    return {
+      state: "resolved",
+      policyVersion: MATERIAL_RESOLUTION_POLICY_VERSION,
+      reference: reference2,
+      productId: legacy.productId,
+      specificationId: legacy.specId,
+      benchmarkProposalId: legacy.benchmarkProposalId,
+      benchmarkVersionId: legacy.benchmarkVersionId,
+      resolverAsOf: input.asOf.toISOString(),
+      requestedGeography: input.requestedGeography,
+      resolvedGeography: legacy.geography,
+      usedUaeFallback: input.requestedGeography !== "uae" && legacy.geography === "uae",
+      requestedPriceScope: input.priceScope,
+      resolvedPriceScope: "legacy_unknown",
+      currency: "AED",
+      unitBasis: legacy.unitBasis,
+      priceMin: legacy.priceMin,
+      priceMid: midpoint,
+      priceMax: legacy.priceMax,
+      weightedMean: midpoint,
+      provenance: {
+        sourceLadderRung: "assumption",
+        sourceLabel: "Legacy scope-unknown assumption",
+        provenancePolicyVersion: legacy.provenancePolicyVersion ?? "ev02-backfill-v1",
+        benchmarkVersion: legacy.benchmarkVersion,
+        compatibilityFallback: true
+      },
+      ...governed?.state === "resolved" && governed.unitBasis === "per_litre" ? {
+        paintCoverageState: governed.paintCoverageState,
+        paintCoverageProfile: governed.paintCoverageProfile
+      } : {}
+    };
+  });
+}
+function assertLegacyServingRowsMatchBaseline(input) {
+  const evidenceByReference = new Map(
+    input.gate.evidence.comparisons.map((comparison) => [
+      `${comparison.reference.source}:${comparison.reference.legacyId}`,
+      comparison
+    ])
+  );
+  for (const row of input.legacyRows) {
+    const evidence = evidenceByReference.get(
+      `material_library:${row.legacyId}`
+    );
+    if (!evidence || evidence.legacy.min !== row.priceMin || evidence.legacy.max !== row.priceMax) {
+      throw new Error(
+        `EV-03 legacy baseline is stale for material_library:${row.legacyId}`
+      );
+    }
+  }
+}
+function recordSanitizedRuntimeComparison(evidence) {
+  console.info(`[ev03-material-pricing-compare] ${JSON.stringify(evidence)}`);
+}
+function selectMaterialPricingRolloutSnapshots(input) {
+  if (input.mode === "governed") return [...input.governed];
+  if (input.mode === "compare") {
+    if (input.gate?.mode !== "compare") {
+      throw new Error("EV-03 compare mode requires comparison evidence");
+    }
+    assertLegacyServingRowsMatchBaseline({
+      legacyRows: input.legacyRows,
+      gate: input.gate
+    });
+    const comparison = buildMaterialPricingRuntimeComparisonEvidence({
+      baselineEvidence: input.gate.evidence,
+      references: input.requested,
+      governedSnapshots: input.governed,
+      requestedPriceScope: input.priceScope,
+      requestedGeography: input.requestedGeography,
+      resolverAsOf: input.asOf
+    });
+    (input.recordComparison ?? recordSanitizedRuntimeComparison)(comparison);
+  }
+  return legacyCompatibilitySnapshots(input);
+}
+async function resolveMaterialPriceSnapshots(input) {
+  const effectiveGate = input.rollout ?? loadMaterialPricingRolloutGate();
+  const mode = assertMaterialPricingRolloutGate(effectiveGate);
+  const liveEligibleRows = mode === "legacy" ? void 0 : await listLegacyCompatibilityPriceRows();
+  if (mode !== "legacy") {
+    if (effectiveGate.mode === "legacy") {
+      throw new Error("EV-03 rollout gate mode changed during validation");
+    }
+    assertMaterialPricingEvidenceMatchesLiveEligibleSet(
+      effectiveGate.evidence,
+      liveEligibleRows.map((row) => ({
+        reference: {
+          source: "material_library",
+          legacyId: row.legacyId
+        },
+        priceMin: row.priceMin,
+        priceMax: row.priceMax
+      }))
+    );
+  }
+  const governed = await resolveGovernedMaterialPriceSnapshots(input);
+  if (mode === "governed") {
+    if (effectiveGate.mode !== "governed") {
+      throw new Error("EV-03 governed gate changed during validation");
+    }
+    assertGovernedSnapshotsMatchApprovedEvidence(
+      effectiveGate.evidence,
+      governed
+    );
+    return governed;
+  }
+  const materialLibraryIds = input.references.filter((reference2) => reference2.source === "material_library").map((reference2) => reference2.legacyId);
+  const legacyRows = liveEligibleRows ?? await listLegacyCompatibilityPriceRows(materialLibraryIds);
+  return selectMaterialPricingRolloutSnapshots({
+    mode,
+    gate: effectiveGate,
+    requested: input.references,
+    governed,
+    legacyRows,
+    requestedGeography: input.requestedGeography,
+    priceScope: input.priceScope,
+    asOf: input.asOf,
+    recordComparison: input.recordComparison
+  });
+}
+var SAFE_SOURCE_LABEL;
+var init_material_resolution = __esm({
+  "server/engines/material-pricing/material-resolution.ts"() {
+    "use strict";
+    init_material_pricing();
+    init_material_calculations();
+    init_material_pricing2();
+    init_policy();
+    init_resolver();
+    init_rollout_comparison();
+    SAFE_SOURCE_LABEL = {
+      supplier_quote: "Organization supplier quote",
+      official_statistic: "Official statistic",
+      consultancy_benchmark: "Consultancy-derived benchmark",
+      market_observation: "Governed market-observation benchmark",
+      retail_sanity: "Retail sanity band",
+      assumption: "MIYAR assumption"
+    };
+  }
+});
+
+// server/engines/ingestion/project-claim-health.ts
+function nonEmpty(value) {
+  return value !== null && value.trim().length > 0;
+}
+function sameReference(left, right) {
+  return left.source === right.source && left.legacyId === right.legacyId;
+}
+function authorityFor(sourceClass) {
+  switch (sourceClass) {
+    case "supplier_quote":
+      return "current_supplier_quote";
+    case "official_statistic":
+      return "official_observation";
+    case "consultancy_benchmark":
+    case "market_observation":
+      return "governed_benchmark";
+    case "assumption":
+      return "approved_assumption";
+  }
+}
+function isStructurallyResolved(input, evaluatedAt) {
+  const { allocation, snapshot, evidence } = input;
+  if (snapshot?.state !== "resolved" || evidence === null) return false;
+  const resolverAsOf = new Date(snapshot.resolverAsOf);
+  return nonEmpty(allocation.allocationKey) && Number.isInteger(allocation.reference.legacyId) && allocation.reference.legacyId > 0 && snapshot.policyVersion === MATERIAL_RESOLUTION_POLICY_VERSION && Number.isFinite(evaluatedAt.getTime()) && Number.isFinite(resolverAsOf.getTime()) && resolverAsOf.getTime() <= evaluatedAt.getTime() && Number.isInteger(snapshot.productId) && snapshot.productId > 0 && Number.isInteger(snapshot.specificationId) && snapshot.specificationId > 0 && snapshot.requestedPriceScope === allocation.priceScope && snapshot.requestedGeography === allocation.requestedGeography && snapshot.requestedPriceScope === "supply_only" && snapshot.resolvedPriceScope === "supply_only" && snapshot.unitBasis === allocation.unitBasis && nonEmpty(allocation.category) && nonEmpty(allocation.finishTier) && allocation.unitBasis !== null && allocation.requestedGeography !== null && evidence.resolvedCategory === allocation.category && evidence.resolvedFinishTier === allocation.finishTier && sameReference(snapshot.reference, allocation.reference) && evidence.sourceClass === snapshot.provenance.sourceLadderRung && snapshot.provenance.compatibilityFallback === false;
+}
+function hasKnownProvenance(snapshot, evidence) {
+  return evidence.sourceIdentityKnown && snapshot.provenance.provenancePolicyVersion.trim().length > 0 && snapshot.provenance.provenancePolicyVersion !== "legacy_unknown" && snapshot.provenance.benchmarkVersion.trim().length > 0;
+}
+function invalidCell(input, consumer) {
+  const allocation = input.allocation;
+  return {
+    cellId: allocation.allocationKey,
+    catalogueId: consumer === "stored_project_report" ? "project-report-material-v1" : "material-project-v1",
+    requirement: allocation.requirement,
+    key: {
+      consumer,
+      domain: "material_price",
+      category: nonEmpty(allocation.category) ? allocation.category : "invalid",
+      geography: allocation.requestedGeography ?? "invalid",
+      finishTier: nonEmpty(allocation.finishTier) ? allocation.finishTier : "invalid",
+      unitBasis: allocation.unitBasis ?? "invalid",
+      priceScope: allocation.priceScope ?? "invalid",
+      requiredAuthorityClass: "ineligible"
+    },
+    match: input.snapshot?.state === "insufficient" ? "missing" : "invalid",
+    authority: "ineligible",
+    eligibility: "ineligible",
+    freshness: "not_applicable",
+    cadence: "not_applicable",
+    quality: input.evidence?.quality ?? "unknown",
+    confidence: input.evidence?.confidence ?? "unknown",
+    incident: input.evidence?.incident ?? "unknown",
+    observationDateStatus: "not_applicable",
+    quoteValidity: "not_applicable",
+    successfulRun: "not_applicable",
+    slaConfigured: true,
+    provenanceIdentityKnown: false,
+    fallbackCode: null,
+    observedThrough: null
+  };
+}
+function resolvedCell(input, consumer, evaluatedAt) {
+  const snapshot = input.snapshot;
+  const evidence = input.evidence;
+  const allocation = input.allocation;
+  const authority = authorityFor(evidence.sourceClass);
+  const exactGeography = snapshot.resolvedGeography === allocation.requestedGeography && snapshot.usedUaeFallback === false;
+  const approvedFallback = allocation.requestedGeography !== "uae" && snapshot.resolvedGeography === "uae" && snapshot.usedUaeFallback === true;
+  const match = exactGeography ? "exact" : approvedFallback ? "approved_fallback" : "invalid";
+  let freshness = "not_applicable";
+  let observationDateStatus = "not_applicable";
+  let quoteValidity = "not_applicable";
+  let slaConfigured = true;
+  let observedThrough = null;
+  if (evidence.sourceClass === "market_observation") {
+    const observation = evaluateMarketObservationFreshness({
+      observedAt: evidence.observationAt,
+      evaluatedAt
+    });
+    freshness = observation.freshness;
+    observationDateStatus = observation.observationDateStatus;
+    observedThrough = observation.observedThrough;
+  } else if (evidence.sourceClass === "official_statistic" || evidence.sourceClass === "consultancy_benchmark") {
+    const observation = evaluateMarketObservationFreshness({
+      observedAt: evidence.observationAt,
+      evaluatedAt,
+      slaConfigured: false
+    });
+    freshness = evidence.configuredFreshness ?? "unknown";
+    observationDateStatus = observation.observationDateStatus;
+    observedThrough = observation.observedThrough;
+    slaConfigured = evidence.slaConfigured && evidence.configuredFreshness !== void 0;
+  } else if (evidence.sourceClass === "supplier_quote") {
+    const quote = evaluateSupplierQuoteValidity({
+      validUntil: evidence.quoteValidUntil,
+      evaluatedAt
+    });
+    quoteValidity = quote.quoteValidity;
+  }
+  return {
+    cellId: allocation.allocationKey,
+    catalogueId: consumer === "stored_project_report" ? "project-report-material-v1" : "material-project-v1",
+    requirement: allocation.requirement,
+    key: {
+      consumer,
+      domain: "material_price",
+      category: allocation.category,
+      geography: allocation.requestedGeography,
+      finishTier: allocation.finishTier,
+      unitBasis: allocation.unitBasis,
+      priceScope: allocation.priceScope,
+      requiredAuthorityClass: authority
+    },
+    match,
+    authority,
+    eligibility: evidence.eligibility,
+    freshness,
+    cadence: "not_applicable",
+    quality: evidence.quality,
+    confidence: evidence.confidence,
+    incident: evidence.incident,
+    observationDateStatus,
+    quoteValidity,
+    successfulRun: "not_applicable",
+    slaConfigured,
+    provenanceIdentityKnown: hasKnownProvenance(snapshot, evidence),
+    fallbackCode: approvedFallback ? "emirate_to_uae" : null,
+    observedThrough
+  };
+}
+function buildProjectClaimHealthEvaluationInput(input) {
+  return {
+    policyVersion: CLAIM_HEALTH_POLICY_VERSION,
+    policyManifestDigest: CLAIM_HEALTH_V1_POLICY_MANIFEST_DIGEST,
+    requiredCellSchemaVersion: CLAIM_HEALTH_REQUIRED_CELL_SCHEMA_VERSION,
+    evaluatedAt: input.evaluatedAt,
+    artifactSnapshot: input.artifactSnapshot ?? (input.consumer === "stored_project_report" ? "present" : "not_applicable"),
+    cells: input.materials.map(
+      (material) => isStructurallyResolved(material, input.evaluatedAt) ? resolvedCell(material, input.consumer, input.evaluatedAt) : invalidCell(material, input.consumer)
+    )
+  };
+}
+var init_project_claim_health = __esm({
+  "server/engines/ingestion/project-claim-health.ts"() {
+    "use strict";
+    init_material_calculations();
+    init_claim_health();
+    init_claim_health2();
+  }
+});
+
+// server/engines/ingestion/project-claim-health-loader.ts
+function createClaimHealthGovernedSourceRevision(input) {
+  if (!Number.isInteger(input.sourceRegistryId) || input.sourceRegistryId <= 0) {
+    throw new TypeError("Governed source revision requires a registry ID");
+  }
+  if (!input.sourceSlug.trim() || !input.sourcePolicyVersion.trim()) {
+    throw new TypeError(
+      "Governed source revision requires slug and policy version"
+    );
+  }
+  const updatedAt = input.updatedAt instanceof Date ? input.updatedAt : new Date(input.updatedAt);
+  if (!Number.isFinite(updatedAt.getTime())) {
+    throw new TypeError(
+      "Governed source revision requires a valid update clock"
+    );
+  }
+  return createClaimHealthValueDigest({
+    sourceRegistryId: input.sourceRegistryId,
+    sourceSlug: input.sourceSlug,
+    termsDecision: input.termsDecision,
+    sourceActive: input.sourceActive,
+    sourceWhitelisted: input.sourceWhitelisted,
+    sourcePolicyVersion: input.sourcePolicyVersion,
+    updatedAt: updatedAt.toISOString()
+  });
+}
+function validReference(allocation) {
+  return Number.isInteger(allocation.materialLibraryId) && Number(allocation.materialLibraryId) > 0 ? {
+    source: "material_library",
+    legacyId: Number(allocation.materialLibraryId)
+  } : null;
+}
+function factIsEligible(fact, snapshot, organizationId, sourceEligibility) {
+  if (fact.sourceLadderRung === null) return false;
+  const quoteFacts = {
+    organizationScoped: fact.proposalScope === "organization",
+    notSuperseded: fact.supplierQuote?.supersededByQuoteId === null
+  };
+  const quoteEligible = fact.supplierQuote === null || CLAIM_HEALTH_V1_POLICY_MANIFEST.eligibilityRules.quote.requiredFacts.every(
+    (key) => quoteFacts[key]
+  );
+  const proposalFacts = {
+    proposalIdentityMatches: fact.id === snapshot.benchmarkProposalId,
+    specificationIdentityMatches: fact.specId === snapshot.specificationId,
+    humanApprovalComplete: fact.humanApprovalComplete,
+    notSuperseded: fact.supersededByApprovedProposalId === null,
+    priceScopeMatches: fact.priceScope === snapshot.resolvedPriceScope,
+    sourceLadderMatches: fact.sourceLadderRung === snapshot.provenance.sourceLadderRung,
+    provenancePolicyMatches: fact.provenancePolicyVersion === snapshot.provenance.provenancePolicyVersion,
+    benchmarkVersionMatches: fact.benchmarkVersion === snapshot.provenance.benchmarkVersion,
+    tenantOrPlatformPublicScopeEligible: (fact.proposalScope === "platform_public" || fact.proposalScope === "organization") && organizationId > 0
+  };
+  const baseEligible = CLAIM_HEALTH_V1_POLICY_MANIFEST.eligibilityRules.governedProposalRequiredFacts.every(
+    (key) => proposalFacts[key]
+  ) && quoteEligible;
+  if (!baseEligible) return false;
+  const identityClass = CLAIM_HEALTH_V1_POLICY_MANIFEST.authorityRules.sourceLadderIdentityClass[fact.sourceLadderRung];
+  if (identityClass === "governed_assumption_identity" || identityClass === "same_organization_quote_identity") {
+    return true;
+  }
+  if (identityClass !== "registry_backed") return false;
+  return evaluateGovernedSourceEligibility(sourceEligibility) === "eligible";
+}
+function resolveProjectClaimHealthIncidentSourceIdentity(fact, sourceEligibility) {
+  if (fact.sourceLadderRung === "assumption" && fact.provenancePolicyVersion?.trim() && fact.benchmarkVersion?.trim()) {
+    const prefix = CLAIM_HEALTH_V1_POLICY_MANIFEST.authorityRules.governedIdentity.approvedAssumption.prefix;
+    return `${prefix}:${fact.provenancePolicyVersion}:${fact.benchmarkVersion}`;
+  }
+  if (fact.sourceLadderRung === "supplier_quote" && fact.supplierQuote?.id) {
+    const prefix = CLAIM_HEALTH_V1_POLICY_MANIFEST.authorityRules.governedIdentity.supplierQuote.prefix;
+    return `${prefix}:${fact.supplierQuote.id}`;
+  }
+  return sourceEligibility?.governedSourceIdentity?.trim() || null;
+}
+function buildProjectClaimHealthAuthorityBinding(input) {
+  if (!Number.isFinite(input.evaluationClock.getTime())) {
+    throw new TypeError("Authority binding requires a valid evaluation clock");
+  }
+  const facts = new Map(input.benchmarkFacts.map((fact) => [fact.id, fact]));
+  const entries = [...input.allocations].sort((left, right) => left.id - right.id).map((allocation) => {
+    const snapshot = input.snapshotsByAllocationId.get(allocation.id) ?? null;
+    const resolved2 = snapshot?.state === "resolved" ? snapshot : null;
+    const fact = resolved2 ? facts.get(resolved2.benchmarkProposalId) : void 0;
+    const sourceEligibility = fact ? input.sourceEligibilityByBenchmarkProposalId?.get(fact.id) : void 0;
+    const incidentState = fact ? input.incidentStateByBenchmarkProposalId?.get(fact.id) ?? "unknown" : "unknown";
+    const governedSourceIdentity = fact ? resolveProjectClaimHealthIncidentSourceIdentity(
+      fact,
+      sourceEligibility
+    ) : null;
+    const suppliedIncidentRevision = fact ? input.incidentAuthorityRevisionByBenchmarkProposalId?.get(fact.id) : void 0;
+    const incidentAuthorityRevisionDigest = suppliedIncidentRevision && /^sha256:[0-9a-f]{64}$/.test(suppliedIncidentRevision) ? suppliedIncidentRevision : createClaimHealthValueDigest({
+      evaluationClock: input.evaluationClock,
+      governedSourceIdentity,
+      incidentState
+    });
+    return {
+      allocationId: allocation.id,
+      materialLibraryId: allocation.materialLibraryId === null ? null : Number(allocation.materialLibraryId),
+      resolvedUnitBasis: allocation.resolvedUnitBasis,
+      resolutionState: snapshot === null ? "missing" : snapshot.state,
+      materialResolutionPolicyVersion: snapshot?.policyVersion ?? null,
+      benchmarkProposalId: resolved2?.benchmarkProposalId ?? null,
+      benchmarkVersionId: resolved2?.benchmarkVersionId ?? null,
+      benchmarkVersion: resolved2?.provenance.benchmarkVersion ?? null,
+      specificationId: resolved2?.specificationId ?? null,
+      productId: resolved2?.productId ?? null,
+      supplierQuoteId: fact?.supplierQuote?.id ?? null,
+      provenancePolicyVersion: resolved2?.provenance.provenancePolicyVersion ?? null,
+      sourceLadderRung: resolved2?.provenance.sourceLadderRung ?? null,
+      governedSourceIdentity,
+      sourceRegistryId: sourceEligibility?.governedSourceRegistryId ?? null,
+      sourceSlug: sourceEligibility?.governedSourceSlug ?? null,
+      sourcePolicyVersion: sourceEligibility?.governedSourcePolicyVersion ?? null,
+      sourceRevision: sourceEligibility?.governedSourceRevision ?? null,
+      sourceEligibilityDigest: createClaimHealthValueDigest(
+        sourceEligibility ?? null
+      ),
+      incidentState,
+      incidentAuthorityRevisionDigest
+    };
+  });
+  const unsigned = {
+    version: "ev04-authority-binding-v1",
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    evaluationClock: input.evaluationClock.toISOString(),
+    entries
+  };
+  return {
+    ...unsigned,
+    digest: createClaimHealthValueDigest(unsigned)
+  };
+}
+async function loadEffectiveIncidentStates(input, facts, context3) {
+  if (input.incidentStateByBenchmarkProposalId) {
+    return {
+      states: input.incidentStateByBenchmarkProposalId,
+      revisions: input.incidentAuthorityRevisionByBenchmarkProposalId ?? /* @__PURE__ */ new Map()
+    };
+  }
+  const pairs = await Promise.all(
+    facts.map(async (fact) => {
+      const sourceIdentity = resolveProjectClaimHealthIncidentSourceIdentity(
+        fact,
+        input.sourceEligibilityByBenchmarkProposalId?.get(fact.id)
+      );
+      if (!sourceIdentity) {
+        return {
+          benchmarkProposalId: fact.id,
+          state: "unknown",
+          revision: void 0
+        };
+      }
+      const states = await getEffectiveClaimIncidentStates(
+        {
+          evaluationClock: input.evaluatedAt,
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          supplierQuoteId: fact.sourceLadderRung === "supplier_quote" ? fact.supplierQuote?.id ?? null : null,
+          sourceIdentities: [sourceIdentity]
+        },
+        context3
+      );
+      const row = states[0];
+      const aggregate = row?.aggregate === "none" || row?.aggregate === "advisory" || row?.aggregate === "blocking" ? row.aggregate : "unknown";
+      return {
+        benchmarkProposalId: fact.id,
+        state: aggregate,
+        revision: row?.authorityRevisionDigest
+      };
+    })
+  );
+  return {
+    states: new Map(pairs.map((pair) => [pair.benchmarkProposalId, pair.state])),
+    revisions: new Map(
+      pairs.flatMap(
+        (pair) => pair.revision ? [[pair.benchmarkProposalId, pair.revision]] : []
+      )
+    )
+  };
+}
+function evidenceFact(fact, snapshot, organizationId, sourceEligibility, incident) {
+  if (!fact || snapshot?.state !== "resolved" || !fact.sourceLadderRung || fact.sourceLadderRung === "retail_sanity") {
+    return null;
+  }
+  const specification = fact.specification;
+  if (!specification?.category || !specification.finishLevel || !specification.unitBasis) {
+    return null;
+  }
+  const eligible = factIsEligible(
+    fact,
+    snapshot,
+    organizationId,
+    sourceEligibility
+  );
+  const identityMayUseGovernedProposal = fact.sourceLadderRung === "assumption" || fact.sourceLadderRung === "supplier_quote";
+  return {
+    sourceClass: fact.sourceLadderRung,
+    eligibility: eligible ? "eligible" : "ineligible",
+    sourceIdentityKnown: eligible && Boolean(fact.provenancePolicyVersion?.trim()) && Boolean(fact.benchmarkVersion?.trim()) && (identityMayUseGovernedProposal || sourceEligibility?.governedSourceIdentityKnown === true),
+    observationAt: fact.observationAt,
+    quoteValidUntil: fact.supplierQuote?.validUntil ?? null,
+    slaConfigured: fact.sourceLadderRung !== "official_statistic" && fact.sourceLadderRung !== "consultancy_benchmark",
+    quality: eligible ? "pass" : "blocking",
+    confidence: fact.priceConfidence ? "known" : "unknown",
+    incident: incident ?? "unknown",
+    resolvedCategory: specification.category,
+    resolvedFinishTier: specification.finishLevel
+  };
+}
+function buildProjectMaterialClaimHealthFacts(input) {
+  const benchmarkFacts = new Map(
+    input.benchmarkFacts.map((fact) => [fact.id, fact])
+  );
+  return input.allocations.map((allocation) => {
+    const reference2 = validReference(allocation);
+    const snapshot = input.snapshotsByAllocationId.get(allocation.id) ?? null;
+    const fact = snapshot?.state === "resolved" ? benchmarkFacts.get(snapshot.benchmarkProposalId) : void 0;
+    return {
+      allocation: {
+        allocationKey: `${input.projectId}:${allocation.id}`,
+        requirement: "required",
+        reference: reference2 ?? {
+          source: "material_library",
+          legacyId: 0
+        },
+        category: fact?.specification?.category ?? null,
+        finishTier: fact?.specification?.finishLevel ?? null,
+        unitBasis: allocation.resolvedUnitBasis,
+        priceScope: "supply_only",
+        requestedGeography: input.requestedGeography
+      },
+      snapshot,
+      evidence: evidenceFact(
+        fact,
+        snapshot,
+        input.organizationId,
+        fact ? input.sourceEligibilityByBenchmarkProposalId?.get(fact.id) : void 0,
+        fact ? input.incidentStateByBenchmarkProposalId?.get(fact.id) : void 0
+      )
+    };
+  });
+}
+async function loadProjectClaimHealth(input) {
+  const allocations = input.allocations ? [...input.allocations] : await getMaterialAllocations(input.projectId, input.organizationId);
+  const resolvable = allocations.map((allocation) => ({ allocation, reference: validReference(allocation) })).filter(
+    (row) => row.reference !== null
+  );
+  const uniqueReferences = Array.from(
+    new Map(
+      resolvable.map((row) => [
+        `${row.reference.source}:${row.reference.legacyId}`,
+        row.reference
+      ])
+    ).values()
+  );
+  const snapshots = uniqueReferences.length === 0 ? [] : await resolveMaterialPriceSnapshots({
+    references: uniqueReferences,
+    organizationId: input.organizationId,
+    requestedGeography: input.requestedGeography,
+    priceScope: "supply_only",
+    asOf: input.evaluatedAt,
+    allowLegacyUnknownScope: true
+  });
+  const snapshotsByReference = new Map(
+    uniqueReferences.map((reference2, index2) => [
+      `${reference2.source}:${reference2.legacyId}`,
+      snapshots[index2]
+    ])
+  );
+  const snapshotsByAllocationId = new Map(
+    resolvable.map((row) => [
+      row.allocation.id,
+      snapshotsByReference.get(
+        `${row.reference.source}:${row.reference.legacyId}`
+      )
+    ])
+  );
+  const proposalIds = snapshots.filter(
+    (snapshot) => snapshot.state === "resolved"
+  ).map((snapshot) => snapshot.benchmarkProposalId);
+  const context3 = {
+    kind: "organization_member",
+    organizationId: input.organizationId,
+    userId: input.userId,
+    sessionIdentity: "claim-health-evaluation"
+  };
+  const benchmarkFacts = await listClaimHealthBenchmarkFacts(
+    {
+      projectId: input.projectId,
+      benchmarkProposalIds: proposalIds,
+      evaluationClock: input.evaluatedAt
+    },
+    context3
+  );
+  const incidentAuthority = await loadEffectiveIncidentStates(
+    input,
+    benchmarkFacts,
+    context3
+  );
+  const materials = buildProjectMaterialClaimHealthFacts({
+    projectId: input.projectId,
+    organizationId: input.organizationId,
+    requestedGeography: input.requestedGeography,
+    allocations,
+    snapshotsByAllocationId,
+    benchmarkFacts,
+    sourceEligibilityByBenchmarkProposalId: input.sourceEligibilityByBenchmarkProposalId,
+    incidentStateByBenchmarkProposalId: incidentAuthority.states
+  });
+  const evaluationInput = buildProjectClaimHealthEvaluationInput({
+    consumer: input.consumer,
+    evaluatedAt: input.evaluatedAt,
+    materials
+  });
+  const authorityBinding = buildProjectClaimHealthAuthorityBinding({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    evaluationClock: input.evaluatedAt,
+    allocations,
+    snapshotsByAllocationId,
+    benchmarkFacts,
+    sourceEligibilityByBenchmarkProposalId: input.sourceEligibilityByBenchmarkProposalId,
+    incidentStateByBenchmarkProposalId: incidentAuthority.states,
+    incidentAuthorityRevisionByBenchmarkProposalId: incidentAuthority.revisions
+  });
+  return {
+    evaluationInput,
+    evaluation: evaluateClaimHealth(evaluationInput),
+    authorityBinding
+  };
+}
+var init_project_claim_health_loader = __esm({
+  "server/engines/ingestion/project-claim-health-loader.ts"() {
+    "use strict";
+    init_claim_health();
+    init_db();
+    init_claim_health3();
+    init_material_resolution();
+    init_project_claim_health();
+    init_claim_health2();
+  }
+});
+
+// server/db/claim-health.ts
+import {
+  and as and2,
+  asc,
+  desc,
+  eq as eq2,
+  gt,
+  inArray as inArray2,
+  isNotNull as isNotNull2,
+  isNull as isNull2,
+  lte as lte2,
+  or as or2
+} from "drizzle-orm";
+import { createHash as createHash3, randomBytes } from "node:crypto";
+function normalizedDate(value, label) {
+  const milliseconds = value.getTime();
+  if (!Number.isFinite(milliseconds)) {
+    throw new ClaimHealthStoreError("INVALID", `${label} must be a valid date`);
+  }
+  return new Date(Math.trunc(milliseconds / 1e3) * 1e3);
+}
+function positiveInteger(value, label) {
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new ClaimHealthStoreError(
+      "INVALID",
+      `${label} must be a positive integer`
+    );
+  }
+  return value;
+}
+function boundedText(value, label, maximum) {
+  const normalized = value.trim();
+  if (!normalized || normalized.length > maximum) {
+    throw new ClaimHealthStoreError(
+      "INVALID",
+      `${label} must contain 1-${maximum} characters`
+    );
+  }
+  return normalized;
+}
+async function database() {
+  const db = await getDb();
+  if (!db) {
+    throw new ClaimHealthStoreError("UNAVAILABLE", "Database unavailable");
+  }
+  return db;
+}
+function retryableTransactionError(error) {
+  const value = error;
+  return value?.code === "ER_LOCK_DEADLOCK" || value?.code === "ER_LOCK_WAIT_TIMEOUT" || value?.errno === 1213 || value?.errno === 1205;
+}
+async function withClaimHealthTransaction(db, work) {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await db.transaction(work);
+    } catch (error) {
+      if (!retryableTransactionError(error) || attempt === 3) throw error;
+    }
+  }
+  throw new ClaimHealthStoreError(
+    "UNAVAILABLE",
+    "Claim-health transaction retry budget exhausted"
+  );
+}
+async function assertPlatformAdmin(tx, context3) {
+  positiveInteger(context3.userId, "userId");
+  boundedText(context3.sessionIdentity, "sessionIdentity", 160);
+  const rows = await tx.select({ id: users.id }).from(users).where(and2(eq2(users.id, context3.userId), eq2(users.role, "admin"))).limit(2).for("update");
+  if (rows.length !== 1) {
+    throw new ClaimHealthStoreError(
+      "FORBIDDEN",
+      "Platform administrator required"
+    );
+  }
+}
+async function assertOrganizationMember(tx, context3, requireAdmin) {
+  positiveInteger(context3.organizationId, "organizationId");
+  positiveInteger(context3.userId, "userId");
+  boundedText(context3.sessionIdentity, "sessionIdentity", 160);
+  const rows = await tx.select({ role: organizationMembers.role }).from(organizationMembers).where(
+    and2(
+      eq2(organizationMembers.orgId, context3.organizationId),
+      eq2(organizationMembers.userId, context3.userId)
+    )
+  ).limit(2).for("update");
+  if (rows.length !== 1) {
+    throw new ClaimHealthStoreError(
+      "CONCEALED",
+      "Claim-health resource not found"
+    );
+  }
+  if (requireAdmin && rows[0].role !== "admin") {
+    throw new ClaimHealthStoreError(
+      "FORBIDDEN",
+      "Organization administrator required"
+    );
+  }
+}
+async function assertScopedResources(tx, scope) {
+  if (scope.scope === "platform") return;
+  positiveInteger(scope.organizationId, "organizationId");
+  if (scope.scope === "organization") return;
+  if (scope.scope === "project") {
+    positiveInteger(scope.projectId, "projectId");
+    const rows2 = await tx.select({ id: projects.id }).from(projects).where(
+      and2(
+        eq2(projects.id, scope.projectId),
+        eq2(projects.orgId, scope.organizationId)
+      )
+    ).limit(2).for("update");
+    if (rows2.length !== 1) {
+      throw new ClaimHealthStoreError(
+        "CONCEALED",
+        "Claim-health resource not found"
+      );
+    }
+    return;
+  }
+  positiveInteger(scope.supplierQuoteId, "supplierQuoteId");
+  const rows = await tx.select({ id: supplierQuotes.id }).from(supplierQuotes).where(
+    and2(
+      eq2(supplierQuotes.id, scope.supplierQuoteId),
+      eq2(supplierQuotes.orgId, scope.organizationId)
+    )
+  ).limit(2).for("update");
+  if (rows.length !== 1) {
+    throw new ClaimHealthStoreError(
+      "CONCEALED",
+      "Claim-health resource not found"
+    );
+  }
+}
+function scopeColumns(scope) {
+  return {
+    scope: scope.scope,
+    organizationId: scope.scope === "platform" ? null : scope.organizationId,
+    projectId: scope.scope === "project" ? scope.projectId : null,
+    supplierQuoteId: scope.scope === "supplier_quote" ? scope.supplierQuoteId : null
+  };
+}
+function assertPolicyManifestIntegrity(row) {
+  const document = row.policyDocument && typeof row.policyDocument === "object" && !Array.isArray(row.policyDocument) ? row.policyDocument : null;
+  if (!document || document.policyVersion !== row.version || document.requiredCellSchemaVersion !== row.requiredCellSchemaVersion) {
+    throw new ClaimHealthStoreError(
+      "CONFLICT",
+      "Claim-health policy manifest identity is invalid"
+    );
+  }
+  const recomputed = createClaimHealthValueDigest(row.policyDocument);
+  if (row.policyDigest !== recomputed) {
+    throw new ClaimHealthStoreError(
+      "CONFLICT",
+      "Claim-health policy manifest digest is invalid"
+    );
+  }
+  if (row.version === EV04_POLICY_VERSION && (row.requiredCellSchemaVersion !== EV04_REQUIRED_CELL_SCHEMA_VERSION || row.policyDigest !== CLAIM_HEALTH_V1_POLICY_MANIFEST_DIGEST)) {
+    throw new ClaimHealthStoreError(
+      "CONFLICT",
+      "EV-04 v1 policy does not match the canonical approved manifest"
+    );
+  }
+}
+async function approvedPolicy(tx, policyVersionId, asOf) {
+  positiveInteger(policyVersionId, "policyVersionId");
+  const clock = asOf ? normalizedDate(asOf, "policy asOf") : null;
+  const rows = await tx.select().from(claimHealthPolicyVersions).where(
+    and2(
+      eq2(claimHealthPolicyVersions.id, policyVersionId),
+      eq2(claimHealthPolicyVersions.status, "approved")
+    )
+  ).limit(2).for("update");
+  if (rows.length !== 1) {
+    throw new ClaimHealthStoreError(
+      "CONFLICT",
+      "Approved claim-health policy version required"
+    );
+  }
+  assertPolicyManifestIntegrity(rows[0]);
+  if (clock && (rows[0].effectiveFrom !== null && rows[0].effectiveFrom.getTime() > clock.getTime() || rows[0].effectiveTo !== null && rows[0].effectiveTo.getTime() <= clock.getTime())) {
+    throw new ClaimHealthStoreError(
+      "CONFLICT",
+      "Claim-health policy is not effective at the evaluation clock"
+    );
+  }
+  return rows[0];
+}
+async function resolveApprovedClaimHealthPolicyInTransaction(tx, input) {
+  const version = boundedText(input.version, "version", 96);
+  const requiredCellSchemaVersion = boundedText(
+    input.requiredCellSchemaVersion,
+    "requiredCellSchemaVersion",
+    96
+  );
+  const asOf = normalizedDate(input.asOf, "asOf");
+  const rows = await tx.select().from(claimHealthPolicyVersions).where(
+    and2(
+      eq2(claimHealthPolicyVersions.version, version),
+      eq2(
+        claimHealthPolicyVersions.requiredCellSchemaVersion,
+        requiredCellSchemaVersion
+      ),
+      eq2(claimHealthPolicyVersions.status, "approved"),
+      or2(
+        isNull2(claimHealthPolicyVersions.effectiveFrom),
+        lte2(claimHealthPolicyVersions.effectiveFrom, asOf)
+      ),
+      or2(
+        isNull2(claimHealthPolicyVersions.effectiveTo),
+        gt(claimHealthPolicyVersions.effectiveTo, asOf)
+      )
+    )
+  ).limit(2);
+  if (rows.length !== 1) {
+    throw new ClaimHealthStoreError(
+      "CONFLICT",
+      "Exact effective claim-health policy version not found"
+    );
+  }
+  assertPolicyManifestIntegrity(rows[0]);
+  return rows[0];
+}
+async function createClaimHealthSnapshotInTransaction(tx, input, context3) {
+  await assertScopedResources(tx, input);
+  if (input.scope === "platform") {
+    if (context3.kind === "platform_admin") {
+      await assertPlatformAdmin(tx, context3);
+    } else if (context3.kind !== "system") {
+      throw new ClaimHealthStoreError(
+        "FORBIDDEN",
+        "Platform snapshot authority required"
+      );
+    }
+  } else {
+    if (context3.kind !== "organization_member" || context3.organizationId !== input.organizationId) {
+      throw new ClaimHealthStoreError(
+        "CONCEALED",
+        "Claim-health resource not found"
+      );
+    }
+    await assertOrganizationMember(tx, context3, false);
+  }
+  const evaluationClock = normalizedDate(
+    input.evaluationClock,
+    "evaluationClock"
+  );
+  const policy = await approvedPolicy(
+    tx,
+    input.policyVersionId,
+    evaluationClock
+  );
+  const evaluatedAt = input.evaluationInput.evaluatedAt instanceof Date ? input.evaluationInput.evaluatedAt : new Date(input.evaluationInput.evaluatedAt);
+  if (!Number.isFinite(evaluatedAt.getTime()) || evaluatedAt.getTime() !== evaluationClock.getTime()) {
+    throw new ClaimHealthStoreError(
+      "INVALID",
+      "Evaluation input clock must exactly match the persisted evaluation clock"
+    );
+  }
+  if (input.evaluationInput.policyVersion !== policy.version || input.evaluationInput.policyManifestDigest !== policy.policyDigest || input.evaluationInput.requiredCellSchemaVersion !== policy.requiredCellSchemaVersion) {
+    throw new ClaimHealthStoreError(
+      "CONFLICT",
+      "Evaluation input does not match the exact persisted policy contract"
+    );
+  }
+  if (input.evaluationInput.cells.some(
+    (cell) => cell.key.consumer !== input.consumer
+  )) {
+    throw new ClaimHealthStoreError(
+      "CONFLICT",
+      "Snapshot consumer must match every evaluated claim-health cell"
+    );
+  }
+  const recomputedEvaluation = evaluateClaimHealth(input.evaluationInput);
+  if (canonicalizeClaimHealth(input.evaluation) !== canonicalizeClaimHealth(recomputedEvaluation)) {
+    throw new ClaimHealthStoreError(
+      "CONFLICT",
+      "Supplied claim-health evaluation does not match deterministic recomputation"
+    );
+  }
+  const computedDigests = createClaimHealthDigests(
+    input.evaluationInput,
+    recomputedEvaluation
+  );
+  if (input.digests && (input.digests.algorithm !== computedDigests.algorithm || input.digests.inputDigest !== computedDigests.inputDigest || input.digests.contentDigest !== computedDigests.contentDigest)) {
+    throw new ClaimHealthStoreError(
+      "CONFLICT",
+      "Claim-health digests do not match the deterministic evaluation"
+    );
+  }
+  const reportInstanceId = input.reportInstanceId ? positiveInteger(input.reportInstanceId, "reportInstanceId") : null;
+  if (reportInstanceId && input.scope !== "project") {
+    throw new ClaimHealthStoreError(
+      "INVALID",
+      "Only a project-scoped snapshot may bind a report"
+    );
+  }
+  if (reportInstanceId && input.scope === "project") {
+    const reports = await tx.select({ id: reportInstances.id }).from(reportInstances).where(
+      and2(
+        eq2(reportInstances.id, reportInstanceId),
+        eq2(reportInstances.projectId, input.projectId)
+      )
+    ).limit(2).for("update");
+    if (reports.length !== 1) {
+      throw new ClaimHealthStoreError(
+        "CONCEALED",
+        "Claim-health resource not found"
+      );
+    }
+  }
+  const scope = scopeColumns(input);
+  const creationActor = context3.kind === "system" ? {
+    createdByUserId: null,
+    createdBySystemIdentity: boundedText(
+      context3.systemIdentity,
+      "systemIdentity",
+      128
+    )
+  } : { createdByUserId: context3.userId, createdBySystemIdentity: null };
+  const result = await tx.insert(claimHealthSnapshots).values({
+    ...scope,
+    reportInstanceId,
+    consumer: input.consumer,
+    evaluationClock,
+    policyVersionId: policy.id,
+    policyVersion: policy.version,
+    requiredCellSchemaVersion: policy.requiredCellSchemaVersion,
+    requiredCellInputs: input.evaluationInput,
+    evaluatedResults: recomputedEvaluation,
+    safeProjection: recomputedEvaluation.safeProjection,
+    inputDigest: computedDigests.inputDigest,
+    contentDigest: computedDigests.contentDigest,
+    ...creationActor
+  });
+  const id = Number(result[0].insertId);
+  return (await tx.select().from(claimHealthSnapshots).where(eq2(claimHealthSnapshots.id, id)).limit(1))[0];
+}
+async function assertProjectClaimHealthAuthorityBindingInTransaction(tx, binding) {
+  const unsigned = {
+    version: binding.version,
+    organizationId: binding.organizationId,
+    projectId: binding.projectId,
+    evaluationClock: binding.evaluationClock,
+    entries: binding.entries
+  };
+  const evaluationClock = normalizedDate(
+    new Date(binding.evaluationClock),
+    "authorityBinding.evaluationClock"
+  );
+  if (binding.version !== "ev04-authority-binding-v1" || claimHealthDigest(unsigned) !== binding.digest) {
+    throw new ClaimHealthStoreError(
+      "CONFLICT",
+      "Claim-health authority binding digest is invalid"
+    );
+  }
+  await assertScopedResources(tx, {
+    scope: "project",
+    organizationId: binding.organizationId,
+    projectId: binding.projectId
+  });
+  const allocationIds = binding.entries.map(
+    (entry) => positiveInteger(entry.allocationId, "authorityBinding.allocationId")
+  );
+  const boundAllocationIds = new Set(allocationIds);
+  const allocationRows = await tx.select({
+    id: materialAllocations.id,
+    materialLibraryId: materialAllocations.materialLibraryId,
+    resolvedUnitBasis: materialAllocations.resolvedUnitBasis
+  }).from(materialAllocations).where(
+    and2(
+      eq2(materialAllocations.organizationId, binding.organizationId),
+      eq2(materialAllocations.projectId, binding.projectId)
+    )
+  ).for("update");
+  const allocationById = new Map(
+    allocationRows.map((row) => [row.id, row])
+  );
+  if (boundAllocationIds.size !== binding.entries.length || allocationRows.length !== boundAllocationIds.size || allocationRows.some((row) => !boundAllocationIds.has(row.id))) {
+    throw new ClaimHealthStoreError(
+      "CONFLICT",
+      `Authoritative material evidence changed before report persistence${process.env.NODE_ENV === "test" ? " (allocation_set)" : ""}`
+    );
+  }
+  for (const entry of binding.entries) {
+    const row = allocationById.get(entry.allocationId);
+    const mismatches = !row ? ["missing_allocation"] : [
+      row.materialLibraryId !== entry.materialLibraryId ? "materialLibraryId" : null,
+      row.resolvedUnitBasis !== entry.resolvedUnitBasis ? "resolvedUnitBasis" : null
+    ].filter((value) => value !== null);
+    if (mismatches.length > 0) {
+      throw new ClaimHealthStoreError(
+        "CONFLICT",
+        `Authoritative material evidence changed before report persistence${process.env.NODE_ENV === "test" ? ` (${mismatches.join(",")})` : ""}`
+      );
+    }
+  }
+  const proposalIds = Array.from(
+    new Set(
+      binding.entries.map((entry) => entry.benchmarkProposalId).filter((id) => id !== null)
+    )
+  );
+  const proposalRows = proposalIds.length === 0 ? [] : await tx.select({
+    id: benchmarkProposals.id,
+    orgId: benchmarkProposals.orgId,
+    specId: benchmarkProposals.specId,
+    productId: benchmarkProposals.productId,
+    benchmarkVersionId: benchmarkProposals.benchmarkVersionId,
+    supplierQuoteId: benchmarkProposals.supplierQuoteId,
+    provenancePolicyVersion: benchmarkProposals.provenancePolicyVersion,
+    sourceLadderRung: benchmarkProposals.sourceLadderRung,
+    status: benchmarkProposals.status,
+    recommendation: benchmarkProposals.recommendation,
+    reviewedAt: benchmarkProposals.reviewedAt
+  }).from(benchmarkProposals).where(
+    and2(
+      inArray2(benchmarkProposals.id, proposalIds),
+      or2(
+        isNull2(benchmarkProposals.orgId),
+        eq2(benchmarkProposals.orgId, binding.organizationId)
+      )
+    )
+  ).for("update");
+  const proposalById = new Map(proposalRows.map((row) => [row.id, row]));
+  for (const entry of binding.entries) {
+    if (entry.benchmarkProposalId === null) continue;
+    const row = proposalById.get(entry.benchmarkProposalId);
+    if (!row || row.status !== "approved" || row.recommendation !== "publish" || row.reviewedAt === null || row.reviewedAt.getTime() > evaluationClock.getTime() || row.specId !== entry.specificationId || row.productId !== entry.productId || row.benchmarkVersionId !== entry.benchmarkVersionId || row.supplierQuoteId !== entry.supplierQuoteId || row.provenancePolicyVersion !== entry.provenancePolicyVersion || row.sourceLadderRung !== entry.sourceLadderRung) {
+      throw new ClaimHealthStoreError(
+        "CONFLICT",
+        "Authoritative benchmark evidence changed before report persistence"
+      );
+    }
+  }
+  if (proposalIds.length > 0) {
+    const successors = await tx.select({ id: benchmarkProposals.id }).from(benchmarkProposals).where(
+      and2(
+        inArray2(benchmarkProposals.supersedesId, proposalIds),
+        eq2(benchmarkProposals.status, "approved"),
+        eq2(benchmarkProposals.recommendation, "publish"),
+        isNotNull2(benchmarkProposals.reviewedAt),
+        lte2(benchmarkProposals.reviewedAt, evaluationClock),
+        or2(
+          isNull2(benchmarkProposals.orgId),
+          eq2(benchmarkProposals.orgId, binding.organizationId)
+        )
+      )
+    ).for("update");
+    if (successors.length > 0) {
+      throw new ClaimHealthStoreError(
+        "CONFLICT",
+        "Authoritative benchmark supersession changed before report persistence"
+      );
+    }
+  }
+  const quoteIds = Array.from(
+    new Set(
+      binding.entries.map((entry) => entry.supplierQuoteId).filter((id) => id !== null)
+    )
+  );
+  if (quoteIds.length > 0) {
+    const quoteRows = await tx.select({
+      id: supplierQuotes.id,
+      orgId: supplierQuotes.orgId
+    }).from(supplierQuotes).where(
+      and2(
+        eq2(supplierQuotes.orgId, binding.organizationId),
+        inArray2(supplierQuotes.id, quoteIds)
+      )
+    ).for("update");
+    const quoteSet = new Set(quoteRows.map((row) => row.id));
+    const quoteSuccessors = await tx.select({ id: supplierQuotes.id }).from(supplierQuotes).where(
+      and2(
+        eq2(supplierQuotes.orgId, binding.organizationId),
+        inArray2(supplierQuotes.supersedesId, quoteIds),
+        lte2(supplierQuotes.receivedAt, evaluationClock)
+      )
+    ).for("update");
+    if (quoteSet.size !== quoteIds.length || quoteSuccessors.length > 0) {
+      throw new ClaimHealthStoreError(
+        "CONFLICT",
+        "Authoritative supplier quote changed before report persistence"
+      );
+    }
+  }
+  const sourceEntries = binding.entries.filter(
+    (entry) => entry.sourceRegistryId !== null
+  );
+  if (sourceEntries.length > 0) {
+    const sourceIds = Array.from(
+      new Set(sourceEntries.map((entry) => entry.sourceRegistryId))
+    );
+    const sources = await tx.select({
+      id: sourceRegistry.id,
+      slug: sourceRegistry.slug,
+      termsDecision: sourceRegistry.termsDecision,
+      isActive: sourceRegistry.isActive,
+      isWhitelisted: sourceRegistry.isWhitelisted,
+      updatedAt: sourceRegistry.updatedAt
+    }).from(sourceRegistry).where(inArray2(sourceRegistry.id, sourceIds)).for("update");
+    const sourcesById = new Map(sources.map((row) => [row.id, row]));
+    for (const entry of sourceEntries) {
+      const source = sourcesById.get(entry.sourceRegistryId);
+      if (!source || !source.slug || !entry.sourceSlug || !entry.sourcePolicyVersion || source.slug !== entry.sourceSlug || createClaimHealthGovernedSourceRevision({
+        sourceRegistryId: source.id,
+        sourceSlug: source.slug,
+        termsDecision: source.termsDecision,
+        sourceActive: source.isActive,
+        sourceWhitelisted: source.isWhitelisted,
+        sourcePolicyVersion: entry.sourcePolicyVersion,
+        updatedAt: source.updatedAt
+      }) !== entry.sourceRevision) {
+        throw new ClaimHealthStoreError(
+          "CONFLICT",
+          "Governed source authorization changed before report persistence"
+        );
+      }
+    }
+  }
+  const sourceIdentities = Array.from(
+    new Set(
+      binding.entries.map((entry) => entry.governedSourceIdentity).filter((identity) => identity !== null)
+    )
+  );
+  if (sourceIdentities.length > 0) {
+    const incidents = await tx.select().from(sourceIncidents).where(
+      and2(
+        inArray2(sourceIncidents.sourceIdentity, sourceIdentities),
+        lte2(sourceIncidents.openedAt, evaluationClock),
+        or2(
+          eq2(sourceIncidents.scope, "platform"),
+          and2(
+            eq2(sourceIncidents.scope, "organization"),
+            eq2(sourceIncidents.organizationId, binding.organizationId)
+          ),
+          and2(
+            eq2(sourceIncidents.scope, "project"),
+            eq2(sourceIncidents.organizationId, binding.organizationId),
+            eq2(sourceIncidents.projectId, binding.projectId)
+          ),
+          and2(
+            eq2(sourceIncidents.scope, "supplier_quote"),
+            eq2(sourceIncidents.organizationId, binding.organizationId),
+            inArray2(sourceIncidents.supplierQuoteId, quoteIds)
+          )
+        )
+      )
+    ).orderBy(asc(sourceIncidents.id)).for("update");
+    const events = incidents.length === 0 ? [] : await tx.select({
+      id: sourceIncidentEvents.id,
+      incidentId: sourceIncidentEvents.incidentId,
+      eventSequence: sourceIncidentEvents.eventSequence,
+      resultingState: sourceIncidentEvents.resultingState,
+      severity: sourceIncidentEvents.severity,
+      blockingEffect: sourceIncidentEvents.blockingEffect,
+      effectiveAt: sourceIncidentEvents.effectiveAt,
+      policyVersionId: sourceIncidentEvents.policyVersionId,
+      requestDigest: sourceIncidentEvents.requestDigest
+    }).from(sourceIncidentEvents).where(
+      and2(
+        inArray2(
+          sourceIncidentEvents.incidentId,
+          incidents.map((incident) => incident.id)
+        ),
+        lte2(sourceIncidentEvents.effectiveAt, evaluationClock)
+      )
+    ).orderBy(
+      asc(sourceIncidentEvents.incidentId),
+      asc(sourceIncidentEvents.eventSequence)
+    ).for("update");
+    const latestByIncident = /* @__PURE__ */ new Map();
+    for (const event of events) latestByIncident.set(event.incidentId, event);
+    for (const entry of binding.entries) {
+      if (!entry.governedSourceIdentity) continue;
+      const relevant = incidents.filter(
+        (incident) => incident.sourceIdentity === entry.governedSourceIdentity && (incident.scope !== "supplier_quote" || incident.supplierQuoteId === entry.supplierQuoteId)
+      );
+      const revision = createIncidentAuthorityRevisionDigest(
+        evaluationClock,
+        entry.governedSourceIdentity,
+        relevant,
+        latestByIncident
+      );
+      const effectiveStates = [];
+      for (const incident of relevant) {
+        const event = latestByIncident.get(incident.id);
+        if (!event || event.resultingState === "resolved") continue;
+        effectiveStates.push(event.blockingEffect ? "blocking" : "advisory");
+      }
+      const state = composeClaimHealthIncidentStates(effectiveStates);
+      if (revision !== entry.incidentAuthorityRevisionDigest || state !== entry.incidentState) {
+        throw new ClaimHealthStoreError(
+          "CONFLICT",
+          "Source incident authority changed before report persistence"
+        );
+      }
+    }
+  }
+}
+async function loadVerifiedReportClaimHealthRow(tx, input) {
+  const conditions = [
+    eq2(reportInstances.id, input.reportInstanceId),
+    eq2(projects.orgId, input.organizationId),
+    eq2(claimHealthSnapshots.organizationId, input.organizationId),
+    eq2(claimHealthSnapshots.reportInstanceId, input.reportInstanceId)
+  ];
+  if (input.snapshotId !== void 0) {
+    conditions.push(eq2(claimHealthSnapshots.id, input.snapshotId));
+  }
+  let query = tx.select({
+    reportInstanceId: reportInstances.id,
+    reportType: reportInstances.reportType,
+    reportContent: reportInstances.content,
+    reportGeneratedAt: reportInstances.generatedAt,
+    reportProjectId: reportInstances.projectId,
+    projectOrganizationId: projects.orgId,
+    snapshotId: claimHealthSnapshots.id,
+    snapshotScope: claimHealthSnapshots.scope,
+    snapshotOrganizationId: claimHealthSnapshots.organizationId,
+    snapshotProjectId: claimHealthSnapshots.projectId,
+    snapshotReportInstanceId: claimHealthSnapshots.reportInstanceId,
+    snapshotConsumer: claimHealthSnapshots.consumer,
+    snapshotEvaluationClock: claimHealthSnapshots.evaluationClock,
+    snapshotPolicyVersionId: claimHealthSnapshots.policyVersionId,
+    snapshotPolicyVersion: claimHealthSnapshots.policyVersion,
+    snapshotRequiredCellSchemaVersion: claimHealthSnapshots.requiredCellSchemaVersion,
+    snapshotRequiredCellInputs: claimHealthSnapshots.requiredCellInputs,
+    snapshotEvaluatedResults: claimHealthSnapshots.evaluatedResults,
+    snapshotSafeProjection: claimHealthSnapshots.safeProjection,
+    snapshotInputDigest: claimHealthSnapshots.inputDigest,
+    snapshotContentDigest: claimHealthSnapshots.contentDigest,
+    policyVersion: claimHealthPolicyVersions.version,
+    policyRequiredCellSchemaVersion: claimHealthPolicyVersions.requiredCellSchemaVersion,
+    policyStatus: claimHealthPolicyVersions.status,
+    policyEffectiveFrom: claimHealthPolicyVersions.effectiveFrom,
+    policyEffectiveTo: claimHealthPolicyVersions.effectiveTo,
+    policyDocument: claimHealthPolicyVersions.policyDocument,
+    policyDigest: claimHealthPolicyVersions.policyDigest
+  }).from(reportInstances).innerJoin(projects, eq2(projects.id, reportInstances.projectId)).innerJoin(
+    claimHealthSnapshots,
+    eq2(claimHealthSnapshots.reportInstanceId, reportInstances.id)
+  ).innerJoin(
+    claimHealthPolicyVersions,
+    eq2(claimHealthPolicyVersions.id, claimHealthSnapshots.policyVersionId)
+  ).where(and2(...conditions)).limit(2);
+  if (input.lock) query = query.for("update");
+  const rows = await query;
+  return rows.length === 1 ? rows[0] : null;
+}
+function verifyReportClaimHealthRow(row) {
+  try {
+    if (row.projectOrganizationId === null || row.snapshotScope !== "project" || row.snapshotOrganizationId !== row.projectOrganizationId || row.snapshotProjectId !== row.reportProjectId || row.snapshotReportInstanceId !== row.reportInstanceId || row.snapshotConsumer !== "stored_project_report" || row.snapshotPolicyVersionId <= 0 || row.snapshotPolicyVersion !== EV04_POLICY_VERSION || row.snapshotRequiredCellSchemaVersion !== EV04_REQUIRED_CELL_SCHEMA_VERSION || row.policyVersion !== row.snapshotPolicyVersion || row.policyRequiredCellSchemaVersion !== row.snapshotRequiredCellSchemaVersion || row.policyStatus !== "approved" || row.policyDigest !== CLAIM_HEALTH_V1_POLICY_MANIFEST_DIGEST || row.policyEffectiveFrom !== null && row.policyEffectiveFrom.getTime() > row.snapshotEvaluationClock.getTime() || row.policyEffectiveTo !== null && row.policyEffectiveTo.getTime() <= row.snapshotEvaluationClock.getTime()) {
+      return null;
+    }
+    assertPolicyManifestIntegrity({
+      version: row.policyVersion,
+      requiredCellSchemaVersion: row.policyRequiredCellSchemaVersion,
+      policyDocument: row.policyDocument,
+      policyDigest: row.policyDigest
+    });
+    const evaluationInput = row.snapshotRequiredCellInputs;
+    const suppliedEvaluation = row.snapshotEvaluatedResults;
+    const recomputedEvaluation = evaluateClaimHealth(evaluationInput);
+    const digests = createClaimHealthDigests(
+      evaluationInput,
+      recomputedEvaluation
+    );
+    if (new Date(evaluationInput.evaluatedAt).getTime() !== row.snapshotEvaluationClock.getTime() || evaluationInput.policyVersion !== row.policyVersion || evaluationInput.policyManifestDigest !== row.policyDigest || evaluationInput.requiredCellSchemaVersion !== row.policyRequiredCellSchemaVersion || canonicalizeClaimHealth(suppliedEvaluation) !== canonicalizeClaimHealth(recomputedEvaluation) || canonicalizeClaimHealth(row.snapshotSafeProjection) !== canonicalizeClaimHealth(recomputedEvaluation.safeProjection) || row.snapshotInputDigest !== digests.inputDigest || row.snapshotContentDigest !== digests.contentDigest) {
+      return null;
+    }
+    return recomputedEvaluation.safeProjection;
+  } catch {
+    return null;
+  }
+}
+async function getVerifiedReportClaimHealthProjection(input) {
+  const db = await database();
+  const reportInstanceId = positiveInteger(
+    input.reportInstanceId,
+    "reportInstanceId"
+  );
+  const organizationId = positiveInteger(
+    input.organizationId,
+    "organizationId"
+  );
+  const row = await loadVerifiedReportClaimHealthRow(db, {
+    reportInstanceId,
+    organizationId
+  });
+  return row ? verifyReportClaimHealthRow(row) : null;
+}
+function hashPublicShareToken(token) {
+  return createHash3("sha256").update(token, "utf8").digest("hex");
+}
+async function createReportPublicShare(input, context3) {
+  const db = await database();
+  const organizationId = positiveInteger(
+    input.organizationId,
+    "organizationId"
+  );
+  const reportInstanceId = positiveInteger(
+    input.reportInstanceId,
+    "reportInstanceId"
+  );
+  const expiresAt = normalizedDate(input.expiresAt, "expiresAt");
+  return withClaimHealthTransaction(db, async (tx) => {
+    if (context3.organizationId !== organizationId) {
+      throw new ClaimHealthStoreError(
+        "CONCEALED",
+        "Claim-health resource not found"
+      );
+    }
+    await assertOrganizationMember(tx, context3, true);
+    const row = await loadVerifiedReportClaimHealthRow(tx, {
+      reportInstanceId,
+      organizationId,
+      lock: true
+    });
+    if (!row || !verifyReportClaimHealthRow(row)) {
+      throw new ClaimHealthStoreError(
+        "CONCEALED",
+        "Claim-health resource not found"
+      );
+    }
+    const createdAt = normalizedDate(/* @__PURE__ */ new Date(), "createdAt");
+    if (expiresAt.getTime() <= createdAt.getTime()) {
+      throw new ClaimHealthStoreError(
+        "INVALID",
+        "Public share expiry must be in the future"
+      );
+    }
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const token = randomBytes(32).toString("base64url");
+      const tokenHash = hashPublicShareToken(token);
+      try {
+        const result = await tx.insert(reportPublicShares).values({
+          organizationId,
+          reportInstanceId,
+          snapshotId: row.snapshotId,
+          tokenHash,
+          expiresAt,
+          createdByUserId: context3.userId,
+          createdAt
+        });
+        return {
+          shareId: Number(result[0].insertId),
+          token,
+          expiresAt
+        };
+      } catch (error) {
+        const value = error;
+        const duplicate = value.code === "ER_DUP_ENTRY" || value.errno === 1062 || value.cause?.code === "ER_DUP_ENTRY" || value.cause?.errno === 1062;
+        if (!duplicate || attempt === 3) throw error;
+      }
+    }
+    throw new ClaimHealthStoreError(
+      "UNAVAILABLE",
+      "Public share token retry budget exhausted"
+    );
+  });
+}
+async function revokeReportPublicShare(input, context3) {
+  const db = await database();
+  const organizationId = positiveInteger(
+    input.organizationId,
+    "organizationId"
+  );
+  const shareId = positiveInteger(input.shareId, "shareId");
+  return withClaimHealthTransaction(db, async (tx) => {
+    if (context3.organizationId !== organizationId) {
+      throw new ClaimHealthStoreError(
+        "CONCEALED",
+        "Claim-health resource not found"
+      );
+    }
+    await assertOrganizationMember(tx, context3, true);
+    const rows = await tx.select({
+      id: reportPublicShares.id,
+      revokedAt: reportPublicShares.revokedAt
+    }).from(reportPublicShares).where(
+      and2(
+        eq2(reportPublicShares.id, shareId),
+        eq2(reportPublicShares.organizationId, organizationId)
+      )
+    ).limit(2).for("update");
+    if (rows.length !== 1) return false;
+    if (rows[0].revokedAt !== null) return true;
+    await tx.update(reportPublicShares).set({
+      revokedAt: normalizedDate(/* @__PURE__ */ new Date(), "revokedAt"),
+      revokedByUserId: context3.userId
+    }).where(
+      and2(
+        eq2(reportPublicShares.id, shareId),
+        eq2(reportPublicShares.organizationId, organizationId),
+        isNull2(reportPublicShares.revokedAt)
+      )
+    );
+    return true;
+  });
+}
+async function listActiveReportPublicShares(input, context3) {
+  const db = await database();
+  const organizationId = positiveInteger(
+    input.organizationId,
+    "organizationId"
+  );
+  const reportInstanceId = positiveInteger(
+    input.reportInstanceId,
+    "reportInstanceId"
+  );
+  return withClaimHealthTransaction(db, async (tx) => {
+    if (context3.organizationId !== organizationId) {
+      throw new ClaimHealthStoreError(
+        "CONCEALED",
+        "Claim-health resource not found"
+      );
+    }
+    await assertOrganizationMember(tx, context3, true);
+    const asOf = normalizedDate(/* @__PURE__ */ new Date(), "asOf");
+    const rows = await tx.select({
+      shareId: reportPublicShares.id,
+      createdAt: reportPublicShares.createdAt,
+      expiresAt: reportPublicShares.expiresAt,
+      revokedAt: reportPublicShares.revokedAt
+    }).from(reportPublicShares).innerJoin(
+      reportInstances,
+      and2(
+        eq2(reportInstances.id, reportPublicShares.reportInstanceId),
+        eq2(reportInstances.id, reportInstanceId)
+      )
+    ).innerJoin(
+      projects,
+      and2(
+        eq2(projects.id, reportInstances.projectId),
+        eq2(projects.orgId, organizationId)
+      )
+    ).where(
+      and2(
+        eq2(reportPublicShares.organizationId, organizationId),
+        eq2(reportPublicShares.reportInstanceId, reportInstanceId),
+        isNull2(reportPublicShares.revokedAt),
+        gt(reportPublicShares.expiresAt, asOf)
+      )
+    ).orderBy(desc(reportPublicShares.createdAt), desc(reportPublicShares.id));
+    return rows.map(
+      (row) => ({
+        ...row,
+        active: true
+      })
+    );
+  });
+}
+async function resolveReportPublicShare(input) {
+  const token = input.token.trim();
+  if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
+  const asOf = normalizedDate(input.asOf, "asOf");
+  const db = await database();
+  const shares = await db.select().from(reportPublicShares).where(
+    and2(
+      eq2(reportPublicShares.tokenHash, hashPublicShareToken(token)),
+      isNull2(reportPublicShares.revokedAt),
+      gt(reportPublicShares.expiresAt, asOf)
+    )
+  ).limit(2);
+  if (shares.length !== 1) return null;
+  const share = shares[0];
+  const row = await loadVerifiedReportClaimHealthRow(db, {
+    reportInstanceId: share.reportInstanceId,
+    organizationId: share.organizationId,
+    snapshotId: share.snapshotId
+  });
+  if (!row) return null;
+  const claimHealth = verifyReportClaimHealthRow(row);
+  if (!claimHealth) return null;
+  const content = row.reportContent && typeof row.reportContent === "object" && !Array.isArray(row.reportContent) ? row.reportContent : null;
+  return {
+    report: {
+      reportType: row.reportType,
+      locale: content?.locale === "ar" ? "ar" : "en",
+      generatedAt: row.reportGeneratedAt
+    },
+    claimHealth,
+    expiresAt: share.expiresAt
+  };
+}
+async function listClaimHealthBenchmarkFacts(input, context3) {
+  const ids = Array.from(new Set(input.benchmarkProposalIds)).map(
+    (id) => positiveInteger(id, "benchmarkProposalId")
+  );
+  const evaluationClock = normalizedDate(
+    input.evaluationClock,
+    "evaluationClock"
+  );
+  if (ids.length > 2e3) {
+    throw new ClaimHealthStoreError(
+      "INVALID",
+      "At most 2000 benchmark proposals may be loaded"
+    );
+  }
+  if (ids.length === 0) return [];
+  const db = await database();
+  await assertOrganizationMember(db, context3, false);
+  await assertScopedResources(db, {
+    scope: "project",
+    organizationId: context3.organizationId,
+    projectId: input.projectId
+  });
+  const rows = await db.select({
+    id: benchmarkProposals.id,
+    specId: benchmarkProposals.specId,
+    proposalOrganizationId: benchmarkProposals.orgId,
+    priceScope: benchmarkProposals.priceScope,
+    sourceKind: benchmarkProposals.sourceKind,
+    sourceLadderRung: benchmarkProposals.sourceLadderRung,
+    benchmarkVersionId: benchmarkProposals.benchmarkVersionId,
+    benchmarkVersion: benchmarkVersions.versionTag,
+    supplierQuoteId: benchmarkProposals.supplierQuoteId,
+    proposalSupersedesId: benchmarkProposals.supersedesId,
+    sourceLabel: benchmarkProposals.sourceLabel,
+    priceConfidence: benchmarkProposals.priceConfidence,
+    provenancePolicyVersion: benchmarkProposals.provenancePolicyVersion,
+    keyPolicyVersion: benchmarkProposals.keyPolicyVersion,
+    proposedP25: benchmarkProposals.proposedP25,
+    proposedP50: benchmarkProposals.proposedP50,
+    proposedP75: benchmarkProposals.proposedP75,
+    weightedMean: benchmarkProposals.weightedMean,
+    recommendation: benchmarkProposals.recommendation,
+    status: benchmarkProposals.status,
+    reviewedBy: benchmarkProposals.reviewedBy,
+    reviewedAt: benchmarkProposals.reviewedAt,
+    createdAt: benchmarkProposals.createdAt,
+    specificationCategory: specifications.category,
+    specificationFinishLevel: specifications.finishLevel,
+    specificationUnitBasis: specifications.unitBasis,
+    specificationGeography: specifications.geography,
+    quoteOrganizationId: supplierQuotes.orgId,
+    quoteReceivedAt: supplierQuotes.receivedAt,
+    quoteValidUntil: supplierQuotes.validUntil,
+    quoteSupersedesId: supplierQuotes.supersedesId
+  }).from(benchmarkProposals).leftJoin(specifications, eq2(specifications.id, benchmarkProposals.specId)).leftJoin(
+    benchmarkVersions,
+    eq2(benchmarkVersions.id, benchmarkProposals.benchmarkVersionId)
+  ).leftJoin(
+    supplierQuotes,
+    eq2(supplierQuotes.id, benchmarkProposals.supplierQuoteId)
+  ).where(
+    and2(
+      inArray2(benchmarkProposals.id, ids),
+      eq2(benchmarkProposals.status, "approved"),
+      eq2(benchmarkProposals.recommendation, "publish"),
+      isNotNull2(benchmarkProposals.reviewedAt),
+      lte2(benchmarkProposals.reviewedAt, evaluationClock),
+      or2(
+        isNull2(benchmarkProposals.orgId),
+        eq2(benchmarkProposals.orgId, context3.organizationId)
+      )
+    )
+  );
+  const successorRows = await db.select({
+    id: benchmarkProposals.id,
+    supersedesId: benchmarkProposals.supersedesId,
+    reviewedAt: benchmarkProposals.reviewedAt
+  }).from(benchmarkProposals).where(
+    and2(
+      inArray2(benchmarkProposals.supersedesId, ids),
+      eq2(benchmarkProposals.status, "approved"),
+      eq2(benchmarkProposals.recommendation, "publish"),
+      isNotNull2(benchmarkProposals.reviewedAt),
+      lte2(benchmarkProposals.reviewedAt, evaluationClock),
+      or2(
+        isNull2(benchmarkProposals.orgId),
+        eq2(benchmarkProposals.orgId, context3.organizationId)
+      )
+    )
+  );
+  const approvedSuccessors = /* @__PURE__ */ new Map();
+  for (const successor of successorRows) {
+    if (successor.supersedesId !== null && successor.reviewedAt !== null && successor.reviewedAt.getTime() <= evaluationClock.getTime()) {
+      approvedSuccessors.set(successor.supersedesId, successor.id);
+    }
+  }
+  const visibleQuoteIds = rows.filter(
+    (row) => row.supplierQuoteId !== null && row.proposalOrganizationId === context3.organizationId && row.quoteOrganizationId === context3.organizationId
+  ).map((row) => row.supplierQuoteId);
+  const quoteSuccessors = visibleQuoteIds.length === 0 ? [] : await db.select({
+    id: supplierQuotes.id,
+    supersedesId: supplierQuotes.supersedesId
+  }).from(supplierQuotes).where(
+    and2(
+      inArray2(supplierQuotes.supersedesId, visibleQuoteIds),
+      eq2(supplierQuotes.orgId, context3.organizationId),
+      lte2(supplierQuotes.receivedAt, evaluationClock)
+    )
+  );
+  const supersededQuotes = /* @__PURE__ */ new Map();
+  for (const successor of quoteSuccessors) {
+    if (successor.supersedesId !== null) {
+      supersededQuotes.set(successor.supersedesId, successor.id);
+    }
+  }
+  return rows.filter((row) => {
+    if (row.reviewedAt === null || row.reviewedAt.getTime() > evaluationClock.getTime()) {
+      return false;
+    }
+    if (row.supplierQuoteId === null) return true;
+    return row.proposalOrganizationId === context3.organizationId && row.quoteOrganizationId === context3.organizationId;
+  }).map((row) => ({
+    id: row.id,
+    specId: row.specId,
+    proposalScope: row.proposalOrganizationId === null ? "platform_public" : "organization",
+    priceScope: row.priceScope,
+    sourceKind: row.sourceKind,
+    sourceLadderRung: row.sourceLadderRung,
+    benchmarkVersionId: row.benchmarkVersionId,
+    benchmarkVersion: row.benchmarkVersion,
+    supplierQuoteId: row.supplierQuoteId,
+    proposalSupersedesId: row.proposalSupersedesId,
+    supersededByApprovedProposalId: approvedSuccessors.get(row.id) ?? null,
+    sourceLabel: row.sourceLabel,
+    priceConfidence: row.priceConfidence,
+    provenancePolicyVersion: row.provenancePolicyVersion,
+    keyPolicyVersion: row.keyPolicyVersion,
+    proposedP25: row.proposedP25,
+    proposedP50: row.proposedP50,
+    proposedP75: row.proposedP75,
+    weightedMean: row.weightedMean,
+    specification: row.specId === null ? null : {
+      category: row.specificationCategory,
+      finishLevel: row.specificationFinishLevel,
+      unitBasis: row.specificationUnitBasis,
+      geography: row.specificationGeography
+    },
+    recommendation: row.recommendation,
+    status: row.status,
+    humanApprovalComplete: row.status === "approved" && row.reviewedBy !== null && row.reviewedAt !== null,
+    reviewedAt: row.reviewedAt,
+    proposalCreatedAt: row.createdAt,
+    observationAt: row.sourceLadderRung === "supplier_quote" ? row.quoteReceivedAt : null,
+    supplierQuote: row.supplierQuoteId === null ? null : {
+      id: row.supplierQuoteId,
+      receivedAt: row.quoteReceivedAt,
+      validUntil: row.quoteValidUntil,
+      supersedesId: row.quoteSupersedesId,
+      supersededByQuoteId: supersededQuotes.get(row.supplierQuoteId) ?? null
+    }
+  }));
+}
+function createIncidentAuthorityRevisionDigest(evaluationClock, sourceIdentity, incidents, latestByIncident) {
+  return claimHealthDigest({
+    evaluationClock,
+    sourceIdentity,
+    incidents: incidents.filter((incident) => incident.sourceIdentity === sourceIdentity).map((incident) => {
+      const event = latestByIncident.get(incident.id);
+      return {
+        incidentId: incident.id,
+        scope: incident.scope,
+        organizationId: incident.organizationId,
+        projectId: incident.projectId,
+        supplierQuoteId: incident.supplierQuoteId,
+        incidentType: incident.incidentType,
+        openedAt: incident.openedAt,
+        event: event ? {
+          id: event.id,
+          eventSequence: event.eventSequence,
+          resultingState: event.resultingState,
+          severity: event.severity,
+          blockingEffect: event.blockingEffect,
+          effectiveAt: event.effectiveAt,
+          policyVersionId: event.policyVersionId,
+          requestDigest: event.requestDigest
+        } : null
+      };
+    })
+  });
+}
+async function getEffectiveClaimIncidentStates(input, context3) {
+  const db = await database();
+  const organizationId = positiveInteger(
+    input.organizationId,
+    "organizationId"
+  );
+  if (context3.organizationId !== organizationId) {
+    throw new ClaimHealthStoreError(
+      "CONCEALED",
+      "Claim-health resource not found"
+    );
+  }
+  const sourceIdentities = Array.from(new Set(input.sourceIdentities)).map((identity) => boundedText(identity, "sourceIdentity", 255)).sort();
+  if (sourceIdentities.length > 500) {
+    throw new ClaimHealthStoreError(
+      "INVALID",
+      "At most 500 source identities may be evaluated"
+    );
+  }
+  if (sourceIdentities.length === 0) return [];
+  const evaluationClock = normalizedDate(
+    input.evaluationClock,
+    "evaluationClock"
+  );
+  const projectId = input.projectId ? positiveInteger(input.projectId, "projectId") : null;
+  const supplierQuoteId = input.supplierQuoteId ? positiveInteger(input.supplierQuoteId, "supplierQuoteId") : null;
+  return withClaimHealthTransaction(db, async (tx) => {
+    await assertOrganizationMember(tx, context3, false);
+    if (projectId !== null) {
+      await assertScopedResources(tx, {
+        scope: "project",
+        organizationId,
+        projectId
+      });
+    }
+    if (supplierQuoteId !== null) {
+      await assertScopedResources(tx, {
+        scope: "supplier_quote",
+        organizationId,
+        supplierQuoteId
+      });
+    }
+    const incidents = await tx.select().from(sourceIncidents).where(
+      and2(
+        inArray2(sourceIncidents.sourceIdentity, sourceIdentities),
+        lte2(sourceIncidents.openedAt, evaluationClock),
+        or2(
+          and2(
+            eq2(sourceIncidents.scope, "platform"),
+            isNull2(sourceIncidents.organizationId),
+            isNull2(sourceIncidents.projectId),
+            isNull2(sourceIncidents.supplierQuoteId)
+          ),
+          and2(
+            eq2(sourceIncidents.scope, "organization"),
+            eq2(sourceIncidents.organizationId, organizationId),
+            isNull2(sourceIncidents.projectId),
+            isNull2(sourceIncidents.supplierQuoteId)
+          ),
+          projectId === null ? void 0 : and2(
+            eq2(sourceIncidents.scope, "project"),
+            eq2(sourceIncidents.organizationId, organizationId),
+            eq2(sourceIncidents.projectId, projectId),
+            isNull2(sourceIncidents.supplierQuoteId)
+          ),
+          supplierQuoteId === null ? void 0 : and2(
+            eq2(sourceIncidents.scope, "supplier_quote"),
+            eq2(sourceIncidents.organizationId, organizationId),
+            isNull2(sourceIncidents.projectId),
+            eq2(sourceIncidents.supplierQuoteId, supplierQuoteId)
+          )
+        )
+      )
+    ).orderBy(asc(sourceIncidents.id));
+    if (incidents.length === 0) {
+      return sourceIdentities.map((sourceIdentity) => ({
+        sourceIdentity,
+        platform: "none",
+        organization: "none",
+        project: "none",
+        supplierQuote: "none",
+        aggregate: "none",
+        authorityRevisionDigest: createIncidentAuthorityRevisionDigest(
+          evaluationClock,
+          sourceIdentity,
+          [],
+          /* @__PURE__ */ new Map()
+        )
+      }));
+    }
+    const events = await tx.select({
+      id: sourceIncidentEvents.id,
+      incidentId: sourceIncidentEvents.incidentId,
+      eventSequence: sourceIncidentEvents.eventSequence,
+      resultingState: sourceIncidentEvents.resultingState,
+      severity: sourceIncidentEvents.severity,
+      blockingEffect: sourceIncidentEvents.blockingEffect,
+      effectiveAt: sourceIncidentEvents.effectiveAt,
+      policyVersionId: sourceIncidentEvents.policyVersionId,
+      requestDigest: sourceIncidentEvents.requestDigest
+    }).from(sourceIncidentEvents).where(
+      and2(
+        inArray2(
+          sourceIncidentEvents.incidentId,
+          incidents.map((incident) => incident.id)
+        ),
+        lte2(sourceIncidentEvents.effectiveAt, evaluationClock)
+      )
+    ).orderBy(
+      asc(sourceIncidentEvents.incidentId),
+      asc(sourceIncidentEvents.eventSequence)
+    );
+    const latestByIncident = /* @__PURE__ */ new Map();
+    for (const event of events) {
+      latestByIncident.set(event.incidentId, event);
+    }
+    const bySource = /* @__PURE__ */ new Map();
+    for (const sourceIdentity of sourceIdentities) {
+      bySource.set(sourceIdentity, {
+        platform: "none",
+        organization: "none",
+        project: "none",
+        supplierQuote: "none"
+      });
+    }
+    for (const incident of incidents) {
+      const event = latestByIncident.get(incident.id);
+      if (!event || event.resultingState === "resolved" || !event.blockingEffect && event.severity !== "advisory") {
+        continue;
+      }
+      const state = event.blockingEffect ? "blocking" : "advisory";
+      const target = bySource.get(incident.sourceIdentity);
+      if (!target) continue;
+      const key = incident.scope === "supplier_quote" ? "supplierQuote" : incident.scope;
+      const composed = composeClaimHealthIncidentStates([target[key], state]);
+      target[key] = composed === "unknown" ? "none" : composed;
+    }
+    return sourceIdentities.map((sourceIdentity) => {
+      const states = bySource.get(sourceIdentity);
+      return {
+        sourceIdentity,
+        ...states,
+        aggregate: composeClaimHealthIncidentStates([
+          states.platform,
+          states.organization,
+          states.project,
+          states.supplierQuote
+        ]),
+        authorityRevisionDigest: createIncidentAuthorityRevisionDigest(
+          evaluationClock,
+          sourceIdentity,
+          incidents,
+          latestByIncident
+        )
+      };
+    });
+  });
+}
+var ClaimHealthStoreError, claimHealthDigest, EV04_POLICY_VERSION, EV04_REQUIRED_CELL_SCHEMA_VERSION;
+var init_claim_health3 = __esm({
+  "server/db/claim-health.ts"() {
+    "use strict";
+    init_schema();
+    init_claim_health();
+    init_db();
+    init_claim_health2();
+    init_project_claim_health_loader();
+    ClaimHealthStoreError = class extends Error {
+      constructor(code, message) {
+        super(message);
+        this.code = code;
+      }
+    };
+    claimHealthDigest = createClaimHealthValueDigest;
+    EV04_POLICY_VERSION = "ev04-claim-health-v1";
+    EV04_REQUIRED_CELL_SCHEMA_VERSION = "ev04-required-cell-v1";
   }
 });
 
@@ -5810,20 +10473,20 @@ __export(db_exports, {
   verifyPdfExtractionForOrg: () => verifyPdfExtractionForOrg
 });
 import {
-  eq,
-  and,
-  desc,
-  asc,
-  sql,
-  inArray,
+  eq as eq3,
+  and as and3,
+  desc as desc2,
+  asc as asc2,
+  sql as sql2,
+  inArray as inArray3,
   gte,
-  isNull,
-  isNotNull,
-  or
+  isNull as isNull3,
+  isNotNull as isNotNull3,
+  or as or3
 } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2";
-import { createHash } from "node:crypto";
+import { createHash as createHash4 } from "node:crypto";
 async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     assertDatabaseAccess();
@@ -5866,14 +10529,14 @@ async function getPublicMarketEvidenceCounts() {
   if (!db) return null;
   const [transactions, rents, projectRows] = await Promise.all([
     db.select({
-      count: sql`COUNT(*)`,
-      observedThrough: sql`MAX(${dldTransactions.instanceDate})`
+      count: sql2`COUNT(*)`,
+      observedThrough: sql2`MAX(${dldTransactions.instanceDate})`
     }).from(dldTransactions),
     db.select({
-      count: sql`COUNT(*)`,
-      observedThrough: sql`MAX(${dldRents.contractStartDate})`
+      count: sql2`COUNT(*)`,
+      observedThrough: sql2`MAX(${dldRents.contractStartDate})`
     }).from(dldRents),
-    db.select({ count: sql`COUNT(*)` }).from(dldProjects)
+    db.select({ count: sql2`COUNT(*)` }).from(dldProjects)
   ]);
   return {
     transactionCount: transactions[0]?.count,
@@ -5920,7 +10583,7 @@ async function upsertUser(user) {
 async function getUserByOpenId(openId) {
   const db = await getDb();
   if (!db) return void 0;
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+  const result = await db.select().from(users).where(eq3(users.openId, openId)).limit(1);
   return result.length > 0 ? result[0] : void 0;
 }
 async function getUserByEmail(email) {
@@ -5932,14 +10595,14 @@ async function getUserByEmail(email) {
     email
   );
   if (!db) return void 0;
-  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  const result = await db.select().from(users).where(eq3(users.email, email)).limit(1);
   console.log("[Database] getUserByEmail query result count:", result.length);
   return result.length > 0 ? result[0] : void 0;
 }
 async function emailExists(email) {
   const db = await getDb();
   if (!db) return false;
-  const result = await db.select({ count: sql`COUNT(*)` }).from(users).where(eq(users.email, email));
+  const result = await db.select({ count: sql2`COUNT(*)` }).from(users).where(eq3(users.email, email));
   return (result[0]?.count ?? 0) > 0;
 }
 async function createProject(data) {
@@ -5966,43 +10629,43 @@ async function createProject(data) {
 async function getProjectsByUser(userId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(projects).where(eq(projects.userId, userId)).orderBy(desc(projects.updatedAt));
+  return db.select().from(projects).where(eq3(projects.userId, userId)).orderBy(desc2(projects.updatedAt));
 }
 async function getProjectsByOrg(orgId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(projects).where(eq(projects.orgId, orgId)).orderBy(desc(projects.updatedAt));
+  return db.select().from(projects).where(eq3(projects.orgId, orgId)).orderBy(desc2(projects.updatedAt));
 }
 async function getOrganizationMemberships(userId, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.select().from(organizationMembers).where(
-    and(
-      eq(organizationMembers.userId, userId),
-      eq(organizationMembers.orgId, orgId)
+    and3(
+      eq3(organizationMembers.userId, userId),
+      eq3(organizationMembers.orgId, orgId)
     )
   ).limit(2);
 }
 async function getAllProjects() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(projects).orderBy(desc(projects.updatedAt));
+  return db.select().from(projects).orderBy(desc2(projects.updatedAt));
 }
 async function getProjectById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const result = await db.select().from(projects).where(eq(projects.id, id)).limit(1);
+  const result = await db.select().from(projects).where(eq3(projects.id, id)).limit(1);
   return result[0];
 }
 async function updateProject(id, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.update(projects).set(data).where(eq(projects.id, id));
+  await db.update(projects).set(data).where(eq3(projects.id, id));
 }
 async function updateProjectForOrg(id, orgId, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.update(projects).set(data).where(and(eq(projects.id, id), eq(projects.orgId, orgId)));
+  const result = await db.update(projects).set(data).where(and3(eq3(projects.id, id), eq3(projects.orgId, orgId)));
   return Number(result[0].affectedRows) === 1;
 }
 async function updateProjectAndInvalidateMaterialPricingForOrg(id, orgId, data) {
@@ -6012,15 +10675,15 @@ async function updateProjectAndInvalidateMaterialPricingForOrg(id, orgId, data) 
     const current = await tx.select({
       materialPriceGeography: projects.materialPriceGeography,
       materialPricingRevision: projects.materialPricingRevision
-    }).from(projects).where(and(eq(projects.id, id), eq(projects.orgId, orgId))).limit(1).for("update");
+    }).from(projects).where(and3(eq3(projects.id, id), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (current.length !== 1) return false;
     const geographyChanged = data.materialPriceGeography !== void 0 && data.materialPriceGeography !== current[0].materialPriceGeography;
     const result = await tx.update(projects).set({
       ...data,
       ...geographyChanged ? {
-        materialPricingRevision: sql`${projects.materialPricingRevision} + 1`
+        materialPricingRevision: sql2`${projects.materialPricingRevision} + 1`
       } : {}
-    }).where(and(eq(projects.id, id), eq(projects.orgId, orgId)));
+    }).where(and3(eq3(projects.id, id), eq3(projects.orgId, orgId)));
     if (Number(result[0].affectedRows) !== 1) return false;
     if (geographyChanged) {
       await tx.update(materialAllocations).set({
@@ -6044,9 +10707,9 @@ async function updateProjectAndInvalidateMaterialPricingForOrg(id, orgId, data) 
         quantityPolicyVersion: null,
         quantityConversionInputs: null
       }).where(
-        and(
-          eq(materialAllocations.projectId, id),
-          eq(materialAllocations.organizationId, orgId)
+        and3(
+          eq3(materialAllocations.projectId, id),
+          eq3(materialAllocations.organizationId, orgId)
         )
       );
       await tx.update(rfqLineItems).set({
@@ -6070,10 +10733,10 @@ async function updateProjectAndInvalidateMaterialPricingForOrg(id, orgId, data) 
         quantityPolicyVersion: null,
         quantityConversionInputs: null
       }).where(
-        and(
-          eq(rfqLineItems.projectId, id),
-          eq(rfqLineItems.organizationId, orgId),
-          eq(rfqLineItems.artifactState, "draft")
+        and3(
+          eq3(rfqLineItems.projectId, id),
+          eq3(rfqLineItems.organizationId, orgId),
+          eq3(rfqLineItems.artifactState, "draft")
         )
       );
     }
@@ -6081,12 +10744,12 @@ async function updateProjectAndInvalidateMaterialPricingForOrg(id, orgId, data) 
   });
 }
 async function lockLegacyGeometryProjectForOrg(tx, projectId, organizationId) {
-  const ownedProject = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, organizationId))).limit(1).for("update");
+  const ownedProject = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, projectId), eq3(projects.orgId, organizationId))).limit(1).for("update");
   if (ownedProject.length !== 1) return "not_found";
   const authority = await tx.select({ mode: projectGeometryAuthorities.mode }).from(projectGeometryAuthorities).where(
-    and(
-      eq(projectGeometryAuthorities.organizationId, organizationId),
-      eq(projectGeometryAuthorities.projectId, projectId)
+    and3(
+      eq3(projectGeometryAuthorities.organizationId, organizationId),
+      eq3(projectGeometryAuthorities.projectId, projectId)
     )
   ).limit(1).for("update");
   return authority[0]?.mode === "canonical" ? "canonical" : "legacy";
@@ -6102,10 +10765,10 @@ async function updateProjectWithLegacyGeometryAuthorityForOrg(projectId, organiz
     );
     if (authority !== "legacy") return authority;
     const result = await tx.update(projects).set(data).where(
-      and(
-        eq(projects.id, projectId),
-        eq(projects.orgId, organizationId),
-        sql`not exists (
+      and3(
+        eq3(projects.id, projectId),
+        eq3(projects.orgId, organizationId),
+        sql2`not exists (
             select 1 from ${projectGeometryAuthorities}
             where ${projectGeometryAuthorities.organizationId} = ${organizationId}
               and ${projectGeometryAuthorities.projectId} = ${projectId}
@@ -6119,12 +10782,12 @@ async function updateProjectWithLegacyGeometryAuthorityForOrg(projectId, organiz
 async function deleteProject(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.delete(projects).where(eq(projects.id, id));
+  await db.delete(projects).where(eq3(projects.id, id));
 }
 async function deleteProjectForOrg(id, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.delete(projects).where(and(eq(projects.id, id), eq(projects.orgId, orgId)));
+  const result = await db.delete(projects).where(and3(eq3(projects.id, id), eq3(projects.orgId, orgId)));
   return Number(result[0].affectedRows) === 1;
 }
 async function createDirection(data) {
@@ -6136,12 +10799,12 @@ async function createDirection(data) {
 async function getDirectionsByProject(projectId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(directionCandidates).where(eq(directionCandidates.projectId, projectId));
+  return db.select().from(directionCandidates).where(eq3(directionCandidates.projectId, projectId));
 }
 async function deleteDirection(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.delete(directionCandidates).where(eq(directionCandidates.id, id));
+  await db.delete(directionCandidates).where(eq3(directionCandidates.id, id));
 }
 async function createScoreMatrix(data) {
   const db = await getDb();
@@ -6152,26 +10815,26 @@ async function createScoreMatrix(data) {
 async function getScoreMatricesByProject(projectId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(scoreMatrices).where(eq(scoreMatrices.projectId, projectId)).orderBy(desc(scoreMatrices.computedAt));
+  return db.select().from(scoreMatrices).where(eq3(scoreMatrices.projectId, projectId)).orderBy(desc2(scoreMatrices.computedAt));
 }
 async function getScoreMatrixById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const result = await db.select().from(scoreMatrices).where(eq(scoreMatrices.id, id)).limit(1);
+  const result = await db.select().from(scoreMatrices).where(eq3(scoreMatrices.id, id)).limit(1);
   return result[0];
 }
 async function getAllScoreMatrices() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(scoreMatrices).orderBy(desc(scoreMatrices.computedAt));
+  return db.select().from(scoreMatrices).orderBy(desc2(scoreMatrices.computedAt));
 }
 async function getComparableScoreMatricesForOrg(orgId, excludeProjectId) {
   const db = await getDb();
   if (!db) return [];
-  const conditions = [eq(projects.orgId, orgId)];
+  const conditions = [eq3(projects.orgId, orgId)];
   if (excludeProjectId !== void 0)
-    conditions.push(sql`${scoreMatrices.projectId} <> ${excludeProjectId}`);
-  return db.select({ scoreMatrix: scoreMatrices, project: projects }).from(scoreMatrices).innerJoin(projects, eq(scoreMatrices.projectId, projects.id)).where(and(...conditions)).orderBy(desc(scoreMatrices.computedAt));
+    conditions.push(sql2`${scoreMatrices.projectId} <> ${excludeProjectId}`);
+  return db.select({ scoreMatrix: scoreMatrices, project: projects }).from(scoreMatrices).innerJoin(projects, eq3(scoreMatrices.projectId, projects.id)).where(and3(...conditions)).orderBy(desc2(scoreMatrices.computedAt));
 }
 async function createScenarioRecord(data) {
   const db = await getDb();
@@ -6183,7 +10846,7 @@ async function createScenarioRecordForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const project = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, data.projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (project.length !== 1) return null;
     const result = await tx.insert(scenarios).values({ ...data, orgId });
     return { id: Number(result[0].insertId) };
@@ -6192,36 +10855,36 @@ async function createScenarioRecordForOrg(data, orgId) {
 async function getScenariosByProject(projectId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(scenarios).where(eq(scenarios.projectId, projectId));
+  return db.select().from(scenarios).where(eq3(scenarios.projectId, projectId));
 }
 async function getScenarioById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(scenarios).where(eq(scenarios.id, id)).limit(1);
+  const rows = await db.select().from(scenarios).where(eq3(scenarios.id, id)).limit(1);
   return rows[0];
 }
 async function deleteScenario(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.delete(scenarios).where(eq(scenarios.id, id));
+  await db.delete(scenarios).where(eq3(scenarios.id, id));
 }
 async function deleteScenarioForOrg(id, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.delete(scenarios).where(and(eq(scenarios.id, id), eq(scenarios.orgId, orgId)));
+  const result = await db.delete(scenarios).where(and3(eq3(scenarios.id, id), eq3(scenarios.orgId, orgId)));
   return Number(result[0].affectedRows) === 1;
 }
 async function getMonteCarloSimulationById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(monteCarloSimulations).where(eq(monteCarloSimulations.id, id)).limit(1);
+  const rows = await db.select().from(monteCarloSimulations).where(eq3(monteCarloSimulations.id, id)).limit(1);
   return rows[0];
 }
 async function createScenarioStressTestForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const scenario = await tx.select({ id: scenarios.id }).from(scenarios).innerJoin(projects, eq(scenarios.projectId, projects.id)).where(and(eq(scenarios.id, data.scenarioId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const scenario = await tx.select({ id: scenarios.id }).from(scenarios).innerJoin(projects, eq3(scenarios.projectId, projects.id)).where(and3(eq3(scenarios.id, data.scenarioId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (scenario.length !== 1) return false;
     await tx.insert(scenarioStressTests).values(data);
     return true;
@@ -6231,14 +10894,14 @@ async function createProjectRoiModelForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const project = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, data.projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (project.length !== 1) return false;
     if (data.scenarioId !== null && data.scenarioId !== void 0) {
       const scenario = await tx.select({ id: scenarios.id }).from(scenarios).where(
-        and(
-          eq(scenarios.id, data.scenarioId),
-          eq(scenarios.projectId, data.projectId),
-          eq(scenarios.orgId, orgId)
+        and3(
+          eq3(scenarios.id, data.scenarioId),
+          eq3(scenarios.projectId, data.projectId),
+          eq3(scenarios.orgId, orgId)
         )
       ).limit(1).for("update");
       if (scenario.length !== 1) return false;
@@ -6254,7 +10917,7 @@ async function createRiskSurfaceMapsForOrg(data, orgId) {
   const projectId = data[0].projectId;
   if (data.some((row) => row.projectId !== projectId)) return false;
   return db.transaction(async (tx) => {
-    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const project = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (project.length !== 1) return false;
     await tx.insert(riskSurfaceMaps).values(data);
     return true;
@@ -6264,7 +10927,7 @@ async function createMonteCarloSimulationForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const project = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, data.projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (project.length !== 1) return false;
     await tx.insert(monteCarloSimulations).values({ ...data, orgId });
     return true;
@@ -6274,7 +10937,7 @@ async function createDigitalTwinForOrg(model, snapshot, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, model.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const project = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, model.projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (project.length !== 1 || snapshot.projectId !== model.projectId) {
       return false;
     }
@@ -6286,18 +10949,18 @@ async function createDigitalTwinForOrg(model, snapshot, orgId) {
 async function getActiveModelVersion() {
   const db = await getDb();
   if (!db) return void 0;
-  const result = await db.select().from(modelVersions).where(eq(modelVersions.isActive, true)).limit(1);
+  const result = await db.select().from(modelVersions).where(eq3(modelVersions.isActive, true)).limit(1);
   return result[0];
 }
 async function getAllModelVersions() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(modelVersions).orderBy(desc(modelVersions.createdAt));
+  return db.select().from(modelVersions).orderBy(desc2(modelVersions.createdAt));
 }
 async function createModelVersion(data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.update(modelVersions).set({ isActive: false }).where(eq(modelVersions.isActive, true));
+  await db.update(modelVersions).set({ isActive: false }).where(eq3(modelVersions.isActive, true));
   const result = await db.insert(modelVersions).values({ ...data, isActive: true });
   return { id: Number(result[0].insertId) };
 }
@@ -6306,11 +10969,11 @@ async function getBenchmarks(typology, location, marketTier) {
   if (!db) return [];
   let query = db.select().from(benchmarkData);
   const conditions = [];
-  if (typology) conditions.push(eq(benchmarkData.typology, typology));
-  if (location) conditions.push(eq(benchmarkData.location, location));
-  if (marketTier) conditions.push(eq(benchmarkData.marketTier, marketTier));
+  if (typology) conditions.push(eq3(benchmarkData.typology, typology));
+  if (location) conditions.push(eq3(benchmarkData.location, location));
+  if (marketTier) conditions.push(eq3(benchmarkData.marketTier, marketTier));
   if (conditions.length > 0) {
-    query = query.where(and(...conditions));
+    query = query.where(and3(...conditions));
   }
   return query;
 }
@@ -6332,28 +10995,28 @@ async function createBenchmark(data) {
 async function deleteBenchmark(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.delete(benchmarkData).where(eq(benchmarkData.id, id));
+  await db.delete(benchmarkData).where(eq3(benchmarkData.id, id));
 }
 async function getAllBenchmarkData() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(benchmarkData).orderBy(desc(benchmarkData.updatedAt));
+  return db.select().from(benchmarkData).orderBy(desc2(benchmarkData.updatedAt));
 }
 async function getAllBenchmarkVersions() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(benchmarkVersions).orderBy(desc(benchmarkVersions.createdAt));
+  return db.select().from(benchmarkVersions).orderBy(desc2(benchmarkVersions.createdAt));
 }
 async function getActiveBenchmarkVersion() {
   const db = await getDb();
   if (!db) return void 0;
-  const result = await db.select().from(benchmarkVersions).where(eq(benchmarkVersions.status, "published")).orderBy(desc(benchmarkVersions.publishedAt)).limit(1);
+  const result = await db.select().from(benchmarkVersions).where(eq3(benchmarkVersions.status, "published")).orderBy(desc2(benchmarkVersions.publishedAt)).limit(1);
   return result[0];
 }
 async function getBenchmarkVersionById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const result = await db.select().from(benchmarkVersions).where(eq(benchmarkVersions.id, id)).limit(1);
+  const result = await db.select().from(benchmarkVersions).where(eq3(benchmarkVersions.id, id)).limit(1);
   return result[0];
 }
 async function createBenchmarkVersion(data) {
@@ -6365,20 +11028,20 @@ async function createBenchmarkVersion(data) {
 async function publishBenchmarkVersion(id, publishedBy) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.update(benchmarkVersions).set({ status: "archived" }).where(eq(benchmarkVersions.status, "published"));
-  const count2 = await db.select({ count: sql`COUNT(*)` }).from(benchmarkData).where(eq(benchmarkData.benchmarkVersionId, id));
+  await db.update(benchmarkVersions).set({ status: "archived" }).where(eq3(benchmarkVersions.status, "published"));
+  const count2 = await db.select({ count: sql2`COUNT(*)` }).from(benchmarkData).where(eq3(benchmarkData.benchmarkVersionId, id));
   await db.update(benchmarkVersions).set({
     status: "published",
     publishedAt: /* @__PURE__ */ new Date(),
     publishedBy,
     recordCount: count2[0]?.count ?? 0
-  }).where(eq(benchmarkVersions.id, id));
+  }).where(eq3(benchmarkVersions.id, id));
 }
 async function getBenchmarkDiff(oldVersionId, newVersionId) {
   const db = await getDb();
   if (!db) return { added: 0, removed: 0, changed: 0 };
-  const oldData = await db.select().from(benchmarkData).where(eq(benchmarkData.benchmarkVersionId, oldVersionId));
-  const newData = await db.select().from(benchmarkData).where(eq(benchmarkData.benchmarkVersionId, newVersionId));
+  const oldData = await db.select().from(benchmarkData).where(eq3(benchmarkData.benchmarkVersionId, oldVersionId));
+  const newData = await db.select().from(benchmarkData).where(eq3(benchmarkData.benchmarkVersionId, newVersionId));
   const oldKeys = new Set(
     oldData.map(
       (d) => `${d.typology}-${d.location}-${d.marketTier}-${d.materialLevel}`
@@ -6423,14 +11086,14 @@ async function getAllBenchmarkCategories(category, projectClass) {
   if (!db) return [];
   const conditions = [];
   if (category)
-    conditions.push(eq(benchmarkCategories.category, category));
+    conditions.push(eq3(benchmarkCategories.category, category));
   if (projectClass)
-    conditions.push(eq(benchmarkCategories.projectClass, projectClass));
+    conditions.push(eq3(benchmarkCategories.projectClass, projectClass));
   let query = db.select().from(benchmarkCategories);
   if (conditions.length > 0) {
-    query = query.where(and(...conditions));
+    query = query.where(and3(...conditions));
   }
-  return query.orderBy(desc(benchmarkCategories.createdAt));
+  return query.orderBy(desc2(benchmarkCategories.createdAt));
 }
 async function createBenchmarkCategory(data) {
   const db = await getDb();
@@ -6441,12 +11104,12 @@ async function createBenchmarkCategory(data) {
 async function updateBenchmarkCategory(id, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.update(benchmarkCategories).set(data).where(eq(benchmarkCategories.id, id));
+  await db.update(benchmarkCategories).set(data).where(eq3(benchmarkCategories.id, id));
 }
 async function deleteBenchmarkCategory(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.delete(benchmarkCategories).where(eq(benchmarkCategories.id, id));
+  await db.delete(benchmarkCategories).where(eq3(benchmarkCategories.id, id));
 }
 async function createProjectIntelligence(data) {
   const db = await getDb();
@@ -6457,45 +11120,45 @@ async function createProjectIntelligence(data) {
 async function getProjectIntelligenceByProject(projectId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(projectIntelligence).where(eq(projectIntelligence.projectId, projectId)).orderBy(desc(projectIntelligence.computedAt));
+  return db.select().from(projectIntelligence).where(eq3(projectIntelligence.projectId, projectId)).orderBy(desc2(projectIntelligence.computedAt));
 }
 async function getAllProjectIntelligence() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(projectIntelligence).orderBy(desc(projectIntelligence.computedAt));
+  return db.select().from(projectIntelligence).orderBy(desc2(projectIntelligence.computedAt));
 }
 async function getActiveRoiConfig() {
   const db = await getDb();
   if (!db) return void 0;
-  const result = await db.select().from(roiConfigs).where(eq(roiConfigs.isActive, true)).limit(1);
+  const result = await db.select().from(roiConfigs).where(eq3(roiConfigs.isActive, true)).limit(1);
   return result[0];
 }
 async function getAllRoiConfigs() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(roiConfigs).orderBy(desc(roiConfigs.createdAt));
+  return db.select().from(roiConfigs).orderBy(desc2(roiConfigs.createdAt));
 }
 async function createRoiConfig(data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.update(roiConfigs).set({ isActive: false }).where(eq(roiConfigs.isActive, true));
+  await db.update(roiConfigs).set({ isActive: false }).where(eq3(roiConfigs.isActive, true));
   const result = await db.insert(roiConfigs).values({ ...data, isActive: true });
   return { id: Number(result[0].insertId) };
 }
 async function updateRoiConfig(id, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.update(roiConfigs).set(data).where(eq(roiConfigs.id, id));
+  await db.update(roiConfigs).set(data).where(eq3(roiConfigs.id, id));
 }
 async function getAllWebhookConfigs() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(webhookConfigs).orderBy(desc(webhookConfigs.createdAt));
+  return db.select().from(webhookConfigs).orderBy(desc2(webhookConfigs.createdAt));
 }
 async function getActiveWebhookConfigs(event) {
   const db = await getDb();
   if (!db) return [];
-  const all = await db.select().from(webhookConfigs).where(eq(webhookConfigs.isActive, true));
+  const all = await db.select().from(webhookConfigs).where(eq3(webhookConfigs.isActive, true));
   if (!event) return all;
   return all.filter((w) => {
     const events = w.events;
@@ -6511,12 +11174,12 @@ async function createWebhookConfig(data) {
 async function updateWebhookConfig(id, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.update(webhookConfigs).set(data).where(eq(webhookConfigs.id, id));
+  await db.update(webhookConfigs).set(data).where(eq3(webhookConfigs.id, id));
 }
 async function deleteWebhookConfig(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.delete(webhookConfigs).where(eq(webhookConfigs.id, id));
+  await db.delete(webhookConfigs).where(eq3(webhookConfigs.id, id));
 }
 async function createReportInstance(data) {
   const db = await getDb();
@@ -6609,24 +11272,33 @@ async function createReportArtifactsForOrg(input) {
       id: projects.id,
       materialPricingRevision: projects.materialPricingRevision
     }).from(projects).where(
-      and(eq(projects.id, input.projectId), eq(projects.orgId, input.orgId))
+      and3(eq3(projects.id, input.projectId), eq3(projects.orgId, input.orgId))
     ).limit(1).for("update");
     if (owned.length !== 1 || input.report.projectId !== input.projectId) {
       return null;
     }
     const score = await tx.select({ id: scoreMatrices.id }).from(scoreMatrices).where(
-      and(
-        eq(scoreMatrices.id, input.report.scoreMatrixId),
-        eq(scoreMatrices.projectId, input.projectId)
+      and3(
+        eq3(scoreMatrices.id, input.report.scoreMatrixId),
+        eq3(scoreMatrices.projectId, input.projectId)
       )
     ).limit(1).for("update");
     if (score.length !== 1) return null;
     let briefId = null;
     const artifacts = input.designArtifacts;
-    if (artifacts) {
+    if (artifacts || input.claimHealthSnapshot) {
       if (!Number.isInteger(input.expectedMaterialPricingRevision) || owned[0].materialPricingRevision !== input.expectedMaterialPricingRevision) {
         return null;
       }
+    }
+    if (input.claimHealthSnapshot) {
+      const binding = input.claimHealthSnapshot.authorityBinding;
+      if (binding.organizationId !== input.orgId || binding.projectId !== input.projectId || new Date(binding.evaluationClock).getTime() !== input.claimHealthSnapshot.evaluationClock.getTime()) {
+        return null;
+      }
+      await assertProjectClaimHealthAuthorityBindingInTransaction(tx, binding);
+    }
+    if (artifacts) {
       const rowsMatch = artifacts.finishSchedule.every(
         (row) => row.projectId === input.projectId && row.organizationId === input.orgId
       ) && artifacts.colorPalette.projectId === input.projectId && artifacts.colorPalette.organizationId === input.orgId && artifacts.complianceChecklist.projectId === input.projectId && artifacts.complianceChecklist.organizationId === input.orgId && artifacts.brief.projectId === input.projectId && artifacts.rfqItems.every(
@@ -6651,27 +11323,76 @@ async function createReportArtifactsForOrg(input) {
         );
       }
     }
+    const health = input.claimHealthSnapshot;
+    let verifiedHealth;
+    if (health) {
+      const recomputedEvaluation = evaluateClaimHealth(health.evaluationInput);
+      const recomputedDigests = createClaimHealthDigests(
+        health.evaluationInput,
+        recomputedEvaluation
+      );
+      const content = input.report.content && typeof input.report.content === "object" && !Array.isArray(input.report.content) ? input.report.content : null;
+      if (input.report.generatedBy !== health.actorUserId || !content || claimHealthDigest(content.claimHealth) !== claimHealthDigest(recomputedEvaluation.safeProjection) || claimHealthDigest(health.evaluation) !== claimHealthDigest(recomputedEvaluation) || health.digests.algorithm !== recomputedDigests.algorithm || health.digests.inputDigest !== recomputedDigests.inputDigest || health.digests.contentDigest !== recomputedDigests.contentDigest) {
+        return null;
+      }
+      verifiedHealth = {
+        evaluation: recomputedEvaluation,
+        digests: recomputedDigests
+      };
+    }
     const reportResult = await tx.insert(reportInstances).values(input.report);
+    const reportId = Number(reportResult[0].insertId);
+    let claimHealthSnapshotId = null;
+    if (health) {
+      const policy = await resolveApprovedClaimHealthPolicyInTransaction(tx, {
+        version: health.evaluationInput.policyVersion,
+        requiredCellSchemaVersion: health.evaluationInput.requiredCellSchemaVersion,
+        asOf: health.evaluationClock
+      });
+      const snapshot = await createClaimHealthSnapshotInTransaction(
+        tx,
+        {
+          scope: "project",
+          organizationId: input.orgId,
+          projectId: input.projectId,
+          consumer: "stored_project_report",
+          evaluationClock: health.evaluationClock,
+          policyVersionId: policy.id,
+          evaluationInput: health.evaluationInput,
+          evaluation: verifiedHealth.evaluation,
+          digests: verifiedHealth.digests,
+          reportInstanceId: reportId
+        },
+        {
+          kind: "organization_member",
+          organizationId: input.orgId,
+          userId: health.actorUserId,
+          sessionIdentity: health.actorSessionIdentity
+        }
+      );
+      claimHealthSnapshotId = snapshot.id;
+    }
     return {
-      reportId: Number(reportResult[0].insertId),
-      briefId
+      reportId,
+      briefId,
+      claimHealthSnapshotId
     };
   });
 }
 async function getReportsByProject(projectId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(reportInstances).where(eq(reportInstances.projectId, projectId)).orderBy(desc(reportInstances.generatedAt));
+  return db.select().from(reportInstances).where(eq3(reportInstances.projectId, projectId)).orderBy(desc2(reportInstances.generatedAt));
 }
 async function getAllReports() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(reportInstances).orderBy(desc(reportInstances.generatedAt));
+  return db.select().from(reportInstances).orderBy(desc2(reportInstances.generatedAt));
 }
 async function getReportById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(reportInstances).where(eq(reportInstances.id, id)).limit(1);
+  const rows = await db.select().from(reportInstances).where(eq3(reportInstances.id, id)).limit(1);
   return rows[0];
 }
 async function createAuditLog(data) {
@@ -6692,7 +11413,7 @@ async function getAuditLogs(limit = 50) {
       email: users.email,
       name: users.name
     }
-  }).from(auditLogs).leftJoin(users, eq(auditLogs.userId, users.id)).orderBy(desc(auditLogs.createdAt)).limit(limit);
+  }).from(auditLogs).leftJoin(users, eq3(auditLogs.userId, users.id)).orderBy(desc2(auditLogs.createdAt)).limit(limit);
   return results.map((r) => ({ ...r.log, user: r.user }));
 }
 async function createOverrideRecord(data) {
@@ -6705,7 +11426,7 @@ async function createOverrideRecordForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const project = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, data.projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (project.length !== 1) return null;
     const result = await tx.insert(overrideRecords).values(data);
     return { id: Number(result[0].insertId) };
@@ -6714,7 +11435,7 @@ async function createOverrideRecordForOrg(data, orgId) {
 async function getOverridesByProject(projectId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(overrideRecords).where(eq(overrideRecords.projectId, projectId)).orderBy(desc(overrideRecords.createdAt));
+  return db.select().from(overrideRecords).where(eq3(overrideRecords.projectId, projectId)).orderBy(desc2(overrideRecords.createdAt));
 }
 async function createProjectAsset(data) {
   const db = await getDb();
@@ -6726,7 +11447,7 @@ async function createProjectAssetForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, data.projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (!owned[0]) return null;
     const result = await tx.insert(projectAssets).values(data);
     return { id: Number(result[0].insertId) };
@@ -6735,28 +11456,28 @@ async function createProjectAssetForOrg(data, orgId) {
 async function getProjectAssets(projectId, category) {
   const db = await getDb();
   if (!db) return [];
-  const conditions = [eq(projectAssets.projectId, projectId)];
-  if (category) conditions.push(eq(projectAssets.category, category));
-  return db.select().from(projectAssets).where(and(...conditions)).orderBy(desc(projectAssets.uploadedAt));
+  const conditions = [eq3(projectAssets.projectId, projectId)];
+  if (category) conditions.push(eq3(projectAssets.category, category));
+  return db.select().from(projectAssets).where(and3(...conditions)).orderBy(desc2(projectAssets.uploadedAt));
 }
 async function getProjectAssetById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const result = await db.select().from(projectAssets).where(eq(projectAssets.id, id));
+  const result = await db.select().from(projectAssets).where(eq3(projectAssets.id, id));
   return result[0];
 }
 async function deleteProjectAsset(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.delete(projectAssets).where(eq(projectAssets.id, id));
+  await db.delete(projectAssets).where(eq3(projectAssets.id, id));
 }
 async function deleteProjectAssetForOrg(id, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const result = await db.delete(projectAssets).where(
-    and(
-      eq(projectAssets.id, id),
-      sql`exists (
+    and3(
+      eq3(projectAssets.id, id),
+      sql2`exists (
       select 1 from ${projects}
       where ${projects.id} = ${projectAssets.projectId}
         and ${projects.orgId} = ${orgId}
@@ -6768,15 +11489,15 @@ async function deleteProjectAssetForOrg(id, orgId) {
 async function updateProjectAsset(id, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.update(projectAssets).set(data).where(eq(projectAssets.id, id));
+  await db.update(projectAssets).set(data).where(eq3(projectAssets.id, id));
 }
 async function updateProjectAssetForOrg(id, orgId, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const result = await db.update(projectAssets).set(data).where(
-    and(
-      eq(projectAssets.id, id),
-      sql`exists (
+    and3(
+      eq3(projectAssets.id, id),
+      sql2`exists (
       select 1 from ${projects}
       where ${projects.id} = ${projectAssets.projectId}
         and ${projects.orgId} = ${orgId}
@@ -6791,16 +11512,16 @@ async function linkProjectAssetsForOrg(assetIds, projectId, orgId) {
   const uniqueAssetIds = Array.from(new Set(assetIds));
   if (uniqueAssetIds.length === 0) return true;
   return db.transaction(async (tx) => {
-    const target = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const target = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (target.length !== 1) return false;
-    const authorizedAssets = await tx.select({ id: projectAssets.id }).from(projectAssets).innerJoin(projects, eq(projectAssets.projectId, projects.id)).where(
-      and(
-        inArray(projectAssets.id, uniqueAssetIds),
-        eq(projects.orgId, orgId)
+    const authorizedAssets = await tx.select({ id: projectAssets.id }).from(projectAssets).innerJoin(projects, eq3(projectAssets.projectId, projects.id)).where(
+      and3(
+        inArray3(projectAssets.id, uniqueAssetIds),
+        eq3(projects.orgId, orgId)
       )
     ).for("update");
     if (authorizedAssets.length !== uniqueAssetIds.length) return false;
-    const result = await tx.update(projectAssets).set({ projectId }).where(inArray(projectAssets.id, uniqueAssetIds));
+    const result = await tx.update(projectAssets).set({ projectId }).where(inArray3(projectAssets.id, uniqueAssetIds));
     return Number(result[0].affectedRows) === uniqueAssetIds.length;
   });
 }
@@ -6808,7 +11529,7 @@ async function createAssetLinkForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const source = await tx.select({ projectId: projectAssets.projectId }).from(projectAssets).innerJoin(projects, eq(projects.id, projectAssets.projectId)).where(and(eq(projectAssets.id, data.assetId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const source = await tx.select({ projectId: projectAssets.projectId }).from(projectAssets).innerJoin(projects, eq3(projects.id, projectAssets.projectId)).where(and3(eq3(projectAssets.id, data.assetId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (!source[0]) return null;
     const target = await assetLinkTargetResolvers[data.linkType](
       tx,
@@ -6823,21 +11544,21 @@ async function createAssetLinkForOrg(data, orgId) {
 async function getAssetLinksByAsset(assetId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(assetLinks).where(eq(assetLinks.assetId, assetId));
+  return db.select().from(assetLinks).where(eq3(assetLinks.assetId, assetId));
 }
 async function getAssetLinkById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(assetLinks).where(eq(assetLinks.id, id)).limit(1);
+  const rows = await db.select().from(assetLinks).where(eq3(assetLinks.id, id)).limit(1);
   return rows[0];
 }
 async function getAssetLinksByEntity(linkType, linkId) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(assetLinks).where(
-    and(
-      eq(assetLinks.linkType, linkType),
-      eq(assetLinks.linkId, linkId)
+    and3(
+      eq3(assetLinks.linkType, linkType),
+      eq3(assetLinks.linkId, linkId)
     )
   );
 }
@@ -6850,7 +11571,7 @@ async function deleteAssetLinkForOrg(id, orgId) {
       linkType: assetLinks.linkType,
       linkId: assetLinks.linkId,
       projectId: projectAssets.projectId
-    }).from(assetLinks).innerJoin(projectAssets, eq(projectAssets.id, assetLinks.assetId)).innerJoin(projects, eq(projects.id, projectAssets.projectId)).where(and(eq(assetLinks.id, id), eq(projects.orgId, orgId))).limit(1).for("update");
+    }).from(assetLinks).innerJoin(projectAssets, eq3(projectAssets.id, assetLinks.assetId)).innerJoin(projects, eq3(projects.id, projectAssets.projectId)).where(and3(eq3(assetLinks.id, id), eq3(projects.orgId, orgId))).limit(1).for("update");
     const link = links[0];
     if (!link) return false;
     const linkType = link.linkType;
@@ -6860,7 +11581,7 @@ async function deleteAssetLinkForOrg(id, orgId) {
       orgId
     );
     if (!target[0] || target[0].projectId !== link.projectId) return false;
-    const result = await tx.delete(assetLinks).where(eq(assetLinks.id, id));
+    const result = await tx.delete(assetLinks).where(eq3(assetLinks.id, id));
     return Number(result[0].affectedRows) === 1;
   });
 }
@@ -6874,11 +11595,11 @@ async function createDesignBriefForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, data.projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (!owned[0]) return null;
     if (data.scenarioId !== null && data.scenarioId !== void 0) {
       const scenario = await tx.select({ projectId: scenarios.projectId }).from(scenarios).where(
-        and(eq(scenarios.id, data.scenarioId), eq(scenarios.orgId, orgId))
+        and3(eq3(scenarios.id, data.scenarioId), eq3(scenarios.orgId, orgId))
       ).limit(1).for("update");
       if (!scenario[0] || scenario[0].projectId !== data.projectId) return null;
     }
@@ -6889,18 +11610,18 @@ async function createDesignBriefForOrg(data, orgId) {
 async function getDesignBriefsByProject(projectId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(designBriefs).where(eq(designBriefs.projectId, projectId)).orderBy(desc(designBriefs.createdAt));
+  return db.select().from(designBriefs).where(eq3(designBriefs.projectId, projectId)).orderBy(desc2(designBriefs.createdAt));
 }
 async function getDesignBriefById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const result = await db.select().from(designBriefs).where(eq(designBriefs.id, id));
+  const result = await db.select().from(designBriefs).where(eq3(designBriefs.id, id));
   return result[0];
 }
 async function getLatestDesignBrief(projectId) {
   const db = await getDb();
   if (!db) return null;
-  const result = await db.select().from(designBriefs).where(eq(designBriefs.projectId, projectId)).orderBy(desc(designBriefs.version)).limit(1);
+  const result = await db.select().from(designBriefs).where(eq3(designBriefs.projectId, projectId)).orderBy(desc2(designBriefs.version)).limit(1);
   return result[0] ?? null;
 }
 async function createGeneratedVisual(data) {
@@ -6913,11 +11634,11 @@ async function createGeneratedVisualForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, data.projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (!owned[0]) return null;
     if (data.scenarioId !== null && data.scenarioId !== void 0) {
       const scenario = await tx.select({ projectId: scenarios.projectId }).from(scenarios).where(
-        and(eq(scenarios.id, data.scenarioId), eq(scenarios.orgId, orgId))
+        and3(eq3(scenarios.id, data.scenarioId), eq3(scenarios.orgId, orgId))
       ).limit(1).for("update");
       if (!scenario[0] || scenario[0].projectId !== data.projectId) return null;
     }
@@ -6928,20 +11649,20 @@ async function createGeneratedVisualForOrg(data, orgId) {
 async function getGeneratedVisualsByProject(projectId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(generatedVisuals).where(eq(generatedVisuals.projectId, projectId)).orderBy(desc(generatedVisuals.createdAt));
+  return db.select().from(generatedVisuals).where(eq3(generatedVisuals.projectId, projectId)).orderBy(desc2(generatedVisuals.createdAt));
 }
 async function updateGeneratedVisual(id, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.update(generatedVisuals).set(data).where(eq(generatedVisuals.id, id));
+  await db.update(generatedVisuals).set(data).where(eq3(generatedVisuals.id, id));
 }
 async function updateGeneratedVisualForOrg(id, orgId, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const result = await db.update(generatedVisuals).set(data).where(
-    and(
-      eq(generatedVisuals.id, id),
-      sql`exists (
+    and3(
+      eq3(generatedVisuals.id, id),
+      sql2`exists (
       select 1 from ${projects}
       where ${projects.id} = ${generatedVisuals.projectId}
         and ${projects.orgId} = ${orgId}
@@ -6953,7 +11674,7 @@ async function updateGeneratedVisualForOrg(id, orgId, data) {
 async function getGeneratedVisualById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const result = await db.select().from(generatedVisuals).where(eq(generatedVisuals.id, id));
+  const result = await db.select().from(generatedVisuals).where(eq3(generatedVisuals.id, id));
   return result[0];
 }
 async function createMaterialBoard(data) {
@@ -6966,11 +11687,11 @@ async function createMaterialBoardForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, data.projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (!owned[0]) return null;
     if (data.scenarioId !== null && data.scenarioId !== void 0) {
       const scenario = await tx.select({ projectId: scenarios.projectId }).from(scenarios).where(
-        and(eq(scenarios.id, data.scenarioId), eq(scenarios.orgId, orgId))
+        and3(eq3(scenarios.id, data.scenarioId), eq3(scenarios.orgId, orgId))
       ).limit(1).for("update");
       if (!scenario[0] || scenario[0].projectId !== data.projectId) return null;
     }
@@ -6981,7 +11702,7 @@ async function createMaterialBoardForOrg(data, orgId) {
 async function getMaterialBoardsByProject(projectId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(materialBoards).where(eq(materialBoards.projectId, projectId)).orderBy(desc(materialBoards.createdAt));
+  return db.select().from(materialBoards).where(eq3(materialBoards.projectId, projectId)).orderBy(desc2(materialBoards.createdAt));
 }
 async function getReportBoardSnapshotForOrg(projectId, orgId) {
   const db = await getDb();
@@ -7004,19 +11725,19 @@ async function getReportBoardSnapshotForOrg(projectId, orgId) {
     unitOfMeasure: materialsToBoards.unitOfMeasure,
     notes: materialsToBoards.notes,
     sortOrder: materialsToBoards.sortOrder
-  }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).leftJoin(
+  }).from(materialBoards).innerJoin(projects, eq3(projects.id, materialBoards.projectId)).leftJoin(
     materialsToBoards,
-    eq(materialsToBoards.boardId, materialBoards.id)
+    eq3(materialsToBoards.boardId, materialBoards.id)
   ).leftJoin(
     materialsCatalog,
-    eq(materialsCatalog.id, materialsToBoards.materialId)
+    eq3(materialsCatalog.id, materialsToBoards.materialId)
   ).where(
-    and(eq(materialBoards.projectId, projectId), eq(projects.orgId, orgId))
+    and3(eq3(materialBoards.projectId, projectId), eq3(projects.orgId, orgId))
   ).orderBy(
-    desc(materialBoards.createdAt),
-    desc(materialBoards.id),
-    asc(materialsToBoards.sortOrder),
-    asc(materialsToBoards.id)
+    desc2(materialBoards.createdAt),
+    desc2(materialBoards.id),
+    asc2(materialsToBoards.sortOrder),
+    asc2(materialsToBoards.id)
   );
   const boards = /* @__PURE__ */ new Map();
   for (const row of rows) {
@@ -7056,31 +11777,31 @@ async function getReportBoardSnapshotForOrg(projectId, orgId) {
 async function getMaterialBoardById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const result = await db.select().from(materialBoards).where(eq(materialBoards.id, id));
+  const result = await db.select().from(materialBoards).where(eq3(materialBoards.id, id));
   return result[0];
 }
 async function updateMaterialBoard(id, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.update(materialBoards).set(data).where(eq(materialBoards.id, id));
+  await db.update(materialBoards).set(data).where(eq3(materialBoards.id, id));
 }
 async function deleteMaterialBoard(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.delete(materialsToBoards).where(eq(materialsToBoards.boardId, id));
-  await db.delete(materialBoards).where(eq(materialBoards.id, id));
+  await db.delete(materialsToBoards).where(eq3(materialsToBoards.boardId, id));
+  await db.delete(materialBoards).where(eq3(materialBoards.id, id));
 }
 async function deleteMaterialBoardForOrg(id, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const boardRows = await tx.select({ id: materialBoards.id }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).where(and(eq(materialBoards.id, id), eq(projects.orgId, orgId))).limit(1).for("update");
+    const boardRows = await tx.select({ id: materialBoards.id }).from(materialBoards).innerJoin(projects, eq3(projects.id, materialBoards.projectId)).where(and3(eq3(materialBoards.id, id), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (!boardRows[0]) return false;
-    await tx.delete(materialsToBoards).where(eq(materialsToBoards.boardId, id));
+    await tx.delete(materialsToBoards).where(eq3(materialsToBoards.boardId, id));
     const result = await tx.delete(materialBoards).where(
-      and(
-        eq(materialBoards.id, id),
-        sql`exists (
+      and3(
+        eq3(materialBoards.id, id),
+        sql2`exists (
         select 1 from ${projects}
         where ${projects.id} = ${materialBoards.projectId}
         and ${projects.orgId} = ${orgId}
@@ -7098,20 +11819,20 @@ async function createMaterialBoardWithMaterialsForOrg(data, materialIds, orgId) 
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, data.projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (!owned[0]) return null;
     if (data.scenarioId !== null && data.scenarioId !== void 0) {
       const scenario = await tx.select({ projectId: scenarios.projectId }).from(scenarios).where(
-        and(eq(scenarios.id, data.scenarioId), eq(scenarios.orgId, orgId))
+        and3(eq3(scenarios.id, data.scenarioId), eq3(scenarios.orgId, orgId))
       ).limit(1).for("update");
       if (!scenario[0] || scenario[0].projectId !== data.projectId) return null;
     }
     let orderedMaterials = [];
     if (materialIds.length > 0) {
       const rows = await tx.select().from(materialsCatalog).where(
-        and(
-          inArray(materialsCatalog.id, materialIds),
-          eq(materialsCatalog.isActive, true)
+        and3(
+          inArray3(materialsCatalog.id, materialIds),
+          eq3(materialsCatalog.isActive, true)
         )
       ).for("update");
       const materialsById = new Map(
@@ -7148,15 +11869,15 @@ async function createMaterialBoardWithMaterialsForOrg(data, materialIds, orgId) 
 async function getAllMaterials(category, tier) {
   const db = await getDb();
   if (!db) return [];
-  const conditions = [eq(materialsCatalog.isActive, true)];
-  if (category) conditions.push(eq(materialsCatalog.category, category));
-  if (tier) conditions.push(eq(materialsCatalog.tier, tier));
-  return db.select().from(materialsCatalog).where(and(...conditions)).orderBy(materialsCatalog.name);
+  const conditions = [eq3(materialsCatalog.isActive, true)];
+  if (category) conditions.push(eq3(materialsCatalog.category, category));
+  if (tier) conditions.push(eq3(materialsCatalog.tier, tier));
+  return db.select().from(materialsCatalog).where(and3(...conditions)).orderBy(materialsCatalog.name);
 }
 async function getMaterialById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const result = await db.select().from(materialsCatalog).where(eq(materialsCatalog.id, id));
+  const result = await db.select().from(materialsCatalog).where(eq3(materialsCatalog.id, id));
   return result[0];
 }
 async function createMaterial(data) {
@@ -7168,12 +11889,12 @@ async function createMaterial(data) {
 async function updateMaterial(id, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.update(materialsCatalog).set(data).where(eq(materialsCatalog.id, id));
+  await db.update(materialsCatalog).set(data).where(eq3(materialsCatalog.id, id));
 }
 async function deleteMaterial(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.update(materialsCatalog).set({ isActive: false }).where(eq(materialsCatalog.id, id));
+  await db.update(materialsCatalog).set({ isActive: false }).where(eq3(materialsCatalog.id, id));
 }
 async function addMaterialToBoard(data) {
   const db = await getDb();
@@ -7185,17 +11906,17 @@ async function addMaterialToBoardForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const owned = await tx.select({ id: materialBoards.id }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).where(
-      and(eq(materialBoards.id, data.boardId), eq(projects.orgId, orgId))
+    const owned = await tx.select({ id: materialBoards.id }).from(materialBoards).innerJoin(projects, eq3(projects.id, materialBoards.projectId)).where(
+      and3(eq3(materialBoards.id, data.boardId), eq3(projects.orgId, orgId))
     ).limit(1).for("update");
     if (!owned[0]) return null;
     const material = await tx.select({
       id: materialsCatalog.id,
       productId: materialsCatalog.productId
     }).from(materialsCatalog).where(
-      and(
-        eq(materialsCatalog.id, data.materialId),
-        eq(materialsCatalog.isActive, true)
+      and3(
+        eq3(materialsCatalog.id, data.materialId),
+        eq3(materialsCatalog.isActive, true)
       )
     ).limit(1).for("update");
     if (!material[0]) return null;
@@ -7213,26 +11934,26 @@ async function addMaterialToBoardForOrg(data, orgId) {
 async function getMaterialsByBoard(boardId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(materialsToBoards).where(eq(materialsToBoards.boardId, boardId)).orderBy(materialsToBoards.sortOrder);
+  return db.select().from(materialsToBoards).where(eq3(materialsToBoards.boardId, boardId)).orderBy(materialsToBoards.sortOrder);
 }
 async function getMaterialToBoardById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(materialsToBoards).where(eq(materialsToBoards.id, id)).limit(1);
+  const rows = await db.select().from(materialsToBoards).where(eq3(materialsToBoards.id, id)).limit(1);
   return rows[0];
 }
 async function removeMaterialFromBoard(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.delete(materialsToBoards).where(eq(materialsToBoards.id, id));
+  await db.delete(materialsToBoards).where(eq3(materialsToBoards.id, id));
 }
 async function removeMaterialFromBoardForOrg(id, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const result = await db.delete(materialsToBoards).where(
-    and(
-      eq(materialsToBoards.id, id),
-      sql`exists (
+    and3(
+      eq3(materialsToBoards.id, id),
+      sql2`exists (
       select 1
       from ${materialBoards}
       inner join ${projects} on ${projects.id} = ${materialBoards.projectId}
@@ -7260,7 +11981,7 @@ async function updateBoardTile(id, data) {
     updates.identityState = "unresolved";
   }
   if (Object.keys(updates).length > 0) {
-    await db.update(materialsToBoards).set(updates).where(eq(materialsToBoards.id, id));
+    await db.update(materialsToBoards).set(updates).where(eq3(materialsToBoards.id, id));
   }
 }
 async function updateBoardTileForOrg(id, orgId, data) {
@@ -7275,9 +11996,9 @@ async function updateBoardTileForOrg(id, orgId, data) {
   }
   if (Object.keys(updates).length === 0) return true;
   const result = await db.update(materialsToBoards).set(updates).where(
-    and(
-      eq(materialsToBoards.id, id),
-      sql`exists (
+    and3(
+      eq3(materialsToBoards.id, id),
+      sql2`exists (
       select 1
       from ${materialBoards}
       inner join ${projects} on ${projects.id} = ${materialBoards.projectId}
@@ -7292,30 +12013,30 @@ async function reorderBoardTiles(boardId, orderedIds) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   for (let i = 0; i < orderedIds.length; i++) {
-    await db.update(materialsToBoards).set({ sortOrder: i }).where(eq(materialsToBoards.id, orderedIds[i]));
+    await db.update(materialsToBoards).set({ sortOrder: i }).where(eq3(materialsToBoards.id, orderedIds[i]));
   }
 }
 async function reorderBoardTilesForOrg(boardId, orderedIds, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const boardRows = await tx.select({ id: materialBoards.id }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).where(and(eq(materialBoards.id, boardId), eq(projects.orgId, orgId))).limit(1);
+    const boardRows = await tx.select({ id: materialBoards.id }).from(materialBoards).innerJoin(projects, eq3(projects.id, materialBoards.projectId)).where(and3(eq3(materialBoards.id, boardId), eq3(projects.orgId, orgId))).limit(1);
     if (!boardRows[0]) return false;
     if (orderedIds.length > 0) {
       const joins = await tx.select({ id: materialsToBoards.id }).from(materialsToBoards).where(
-        and(
-          eq(materialsToBoards.boardId, boardId),
-          inArray(materialsToBoards.id, orderedIds)
+        and3(
+          eq3(materialsToBoards.boardId, boardId),
+          inArray3(materialsToBoards.id, orderedIds)
         )
       );
       if (joins.length !== orderedIds.length) return false;
     }
     for (let i = 0; i < orderedIds.length; i++) {
       const result = await tx.update(materialsToBoards).set({ sortOrder: i }).where(
-        and(
-          eq(materialsToBoards.id, orderedIds[i]),
-          eq(materialsToBoards.boardId, boardId),
-          sql`exists (
+        and3(
+          eq3(materialsToBoards.id, orderedIds[i]),
+          eq3(materialsToBoards.boardId, boardId),
+          sql2`exists (
           select 1
           from ${materialBoards}
           inner join ${projects} on ${projects.id} = ${materialBoards.projectId}
@@ -7334,29 +12055,29 @@ async function getAllPromptTemplates(type, orgId) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [];
-  if (type) conditions.push(eq(promptTemplates.type, type));
-  if (orgId) conditions.push(eq(promptTemplates.orgId, orgId));
+  if (type) conditions.push(eq3(promptTemplates.type, type));
+  if (orgId) conditions.push(eq3(promptTemplates.orgId, orgId));
   let query = db.select().from(promptTemplates);
   if (conditions.length > 0) {
-    query = query.where(and(...conditions));
+    query = query.where(and3(...conditions));
   }
-  return query.orderBy(desc(promptTemplates.createdAt));
+  return query.orderBy(desc2(promptTemplates.createdAt));
 }
 async function getPromptTemplateById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(promptTemplates).where(eq(promptTemplates.id, id)).limit(1);
+  const rows = await db.select().from(promptTemplates).where(eq3(promptTemplates.id, id)).limit(1);
   return rows[0];
 }
 async function getActivePromptTemplate(type, orgId) {
   const db = await getDb();
   if (!db) return void 0;
   const conditions = [
-    eq(promptTemplates.type, type),
-    eq(promptTemplates.isActive, true)
+    eq3(promptTemplates.type, type),
+    eq3(promptTemplates.isActive, true)
   ];
-  if (orgId) conditions.push(eq(promptTemplates.orgId, orgId));
-  let query = db.select().from(promptTemplates).where(and(...conditions)).limit(1);
+  if (orgId) conditions.push(eq3(promptTemplates.orgId, orgId));
+  let query = db.select().from(promptTemplates).where(and3(...conditions)).limit(1);
   const result = await query;
   return result[0];
 }
@@ -7369,7 +12090,7 @@ async function createPromptTemplate(data) {
 async function updatePromptTemplate(id, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.update(promptTemplates).set(data).where(eq(promptTemplates.id, id));
+  await db.update(promptTemplates).set(data).where(eq3(promptTemplates.id, id));
 }
 async function createComment(data) {
   const db = await getDb();
@@ -7381,7 +12102,7 @@ async function createCommentForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, data.projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (!owned[0]) return null;
     if (data.entityType === "general") {
       if (data.entityId !== null && data.entityId !== void 0) return null;
@@ -7389,11 +12110,11 @@ async function createCommentForOrg(data, orgId) {
       if (data.entityId === null || data.entityId === void 0) return null;
       let target = [];
       if (data.entityType === "design_brief") {
-        target = await tx.select({ projectId: designBriefs.projectId }).from(designBriefs).where(eq(designBriefs.id, data.entityId)).limit(1).for("update");
+        target = await tx.select({ projectId: designBriefs.projectId }).from(designBriefs).where(eq3(designBriefs.id, data.entityId)).limit(1).for("update");
       } else if (data.entityType === "material_board") {
-        target = await tx.select({ projectId: materialBoards.projectId }).from(materialBoards).where(eq(materialBoards.id, data.entityId)).limit(1).for("update");
+        target = await tx.select({ projectId: materialBoards.projectId }).from(materialBoards).where(eq3(materialBoards.id, data.entityId)).limit(1).for("update");
       } else if (data.entityType === "visual") {
-        target = await tx.select({ projectId: generatedVisuals.projectId }).from(generatedVisuals).where(eq(generatedVisuals.id, data.entityId)).limit(1).for("update");
+        target = await tx.select({ projectId: generatedVisuals.projectId }).from(generatedVisuals).where(eq3(generatedVisuals.id, data.entityId)).limit(1).for("update");
       }
       if (!target[0] || target[0].projectId !== data.projectId) return null;
     }
@@ -7405,43 +12126,43 @@ async function getCommentsByEntity(projectId, entityType, entityId) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [
-    eq(comments.projectId, projectId),
-    eq(comments.entityType, entityType)
+    eq3(comments.projectId, projectId),
+    eq3(comments.entityType, entityType)
   ];
-  if (entityId !== void 0) conditions.push(eq(comments.entityId, entityId));
-  return db.select().from(comments).where(and(...conditions)).orderBy(desc(comments.createdAt));
+  if (entityId !== void 0) conditions.push(eq3(comments.entityId, entityId));
+  return db.select().from(comments).where(and3(...conditions)).orderBy(desc2(comments.createdAt));
 }
 async function getCommentsByProject(projectId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(comments).where(eq(comments.projectId, projectId)).orderBy(desc(comments.createdAt));
+  return db.select().from(comments).where(eq3(comments.projectId, projectId)).orderBy(desc2(comments.createdAt));
 }
 async function updateProjectApprovalState(projectId, approvalState) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.update(projects).set({ approvalState }).where(eq(projects.id, projectId));
+  await db.update(projects).set({ approvalState }).where(eq3(projects.id, projectId));
 }
 async function updateProjectApprovalStateForOrg(projectId, orgId, approvalState) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.update(projects).set({ approvalState }).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId)));
+  const result = await db.update(projects).set({ approvalState }).where(and3(eq3(projects.id, projectId), eq3(projects.orgId, orgId)));
   return Number(result[0].affectedRows) === 1;
 }
 async function getPublishedLogicVersion() {
   const db = await getDb();
   if (!db) return null;
-  const rows = await db.select().from(logicVersions).where(eq(logicVersions.status, "published")).orderBy(desc(logicVersions.publishedAt)).limit(1);
+  const rows = await db.select().from(logicVersions).where(eq3(logicVersions.status, "published")).orderBy(desc2(logicVersions.publishedAt)).limit(1);
   return rows[0] ?? null;
 }
 async function listLogicVersions() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(logicVersions).orderBy(desc(logicVersions.createdAt));
+  return db.select().from(logicVersions).orderBy(desc2(logicVersions.createdAt));
 }
 async function getLogicVersionById(id) {
   const db = await getDb();
   if (!db) return null;
-  const rows = await db.select().from(logicVersions).where(eq(logicVersions.id, id));
+  const rows = await db.select().from(logicVersions).where(eq3(logicVersions.id, id));
   return rows[0] ?? null;
 }
 async function createLogicVersion(data) {
@@ -7453,23 +12174,23 @@ async function createLogicVersion(data) {
 async function publishLogicVersion(id) {
   const db = await getDb();
   if (!db) return;
-  await db.update(logicVersions).set({ status: "archived" }).where(eq(logicVersions.status, "published"));
-  await db.update(logicVersions).set({ status: "published", publishedAt: /* @__PURE__ */ new Date() }).where(eq(logicVersions.id, id));
+  await db.update(logicVersions).set({ status: "archived" }).where(eq3(logicVersions.status, "published"));
+  await db.update(logicVersions).set({ status: "published", publishedAt: /* @__PURE__ */ new Date() }).where(eq3(logicVersions.id, id));
 }
 async function archiveLogicVersion(id) {
   const db = await getDb();
   if (!db) return;
-  await db.update(logicVersions).set({ status: "archived" }).where(eq(logicVersions.id, id));
+  await db.update(logicVersions).set({ status: "archived" }).where(eq3(logicVersions.id, id));
 }
 async function getLogicWeights(logicVersionId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(logicWeights).where(eq(logicWeights.logicVersionId, logicVersionId));
+  return db.select().from(logicWeights).where(eq3(logicWeights.logicVersionId, logicVersionId));
 }
 async function setLogicWeights(logicVersionId, weights) {
   const db = await getDb();
   if (!db) return;
-  await db.delete(logicWeights).where(eq(logicWeights.logicVersionId, logicVersionId));
+  await db.delete(logicWeights).where(eq3(logicWeights.logicVersionId, logicVersionId));
   if (weights.length > 0) {
     await db.insert(logicWeights).values(
       weights.map((w) => ({
@@ -7483,12 +12204,12 @@ async function setLogicWeights(logicVersionId, weights) {
 async function getLogicThresholds(logicVersionId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(logicThresholds).where(eq(logicThresholds.logicVersionId, logicVersionId));
+  return db.select().from(logicThresholds).where(eq3(logicThresholds.logicVersionId, logicVersionId));
 }
 async function setLogicThresholds(logicVersionId, thresholds) {
   const db = await getDb();
   if (!db) return;
-  await db.delete(logicThresholds).where(eq(logicThresholds.logicVersionId, logicVersionId));
+  await db.delete(logicThresholds).where(eq3(logicThresholds.logicVersionId, logicVersionId));
   if (thresholds.length > 0) {
     await db.insert(logicThresholds).values(thresholds.map((t2) => ({ logicVersionId, ...t2 })));
   }
@@ -7496,7 +12217,7 @@ async function setLogicThresholds(logicVersionId, thresholds) {
 async function getLogicChangeLog(logicVersionId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(logicChangeLog).where(eq(logicChangeLog.logicVersionId, logicVersionId)).orderBy(desc(logicChangeLog.createdAt));
+  return db.select().from(logicChangeLog).where(eq3(logicChangeLog.logicVersionId, logicVersionId)).orderBy(desc2(logicChangeLog.createdAt));
 }
 async function addLogicChangeLogEntry(data) {
   const db = await getDb();
@@ -7517,7 +12238,7 @@ async function createScenarioInputForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const rows = await tx.select({ id: scenarios.id }).from(scenarios).innerJoin(projects, eq(scenarios.projectId, projects.id)).where(and(eq(scenarios.id, data.scenarioId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const rows = await tx.select({ id: scenarios.id }).from(scenarios).innerJoin(projects, eq3(scenarios.projectId, projects.id)).where(and3(eq3(scenarios.id, data.scenarioId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (rows.length !== 1) return null;
     const [result] = await tx.insert(scenarioInputs).values(data);
     return Number(result.insertId);
@@ -7526,7 +12247,7 @@ async function createScenarioInputForOrg(data, orgId) {
 async function getScenarioInput(scenarioId) {
   const db = await getDb();
   if (!db) return null;
-  const rows = await db.select().from(scenarioInputs).where(eq(scenarioInputs.scenarioId, scenarioId)).orderBy(desc(scenarioInputs.createdAt)).limit(1);
+  const rows = await db.select().from(scenarioInputs).where(eq3(scenarioInputs.scenarioId, scenarioId)).orderBy(desc2(scenarioInputs.createdAt)).limit(1);
   return rows[0] ?? null;
 }
 async function createScenarioOutput(data) {
@@ -7539,7 +12260,7 @@ async function createScenarioOutputForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const rows = await tx.select({ id: scenarios.id }).from(scenarios).innerJoin(projects, eq(scenarios.projectId, projects.id)).where(and(eq(scenarios.id, data.scenarioId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const rows = await tx.select({ id: scenarios.id }).from(scenarios).innerJoin(projects, eq3(scenarios.projectId, projects.id)).where(and3(eq3(scenarios.id, data.scenarioId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (rows.length !== 1) return null;
     const [result] = await tx.insert(scenarioOutputs).values(data);
     return Number(result.insertId);
@@ -7548,14 +12269,14 @@ async function createScenarioOutputForOrg(data, orgId) {
 async function getScenarioOutput(scenarioId) {
   const db = await getDb();
   if (!db) return null;
-  const rows = await db.select().from(scenarioOutputs).where(eq(scenarioOutputs.scenarioId, scenarioId)).orderBy(desc(scenarioOutputs.computedAt)).limit(1);
+  const rows = await db.select().from(scenarioOutputs).where(eq3(scenarioOutputs.scenarioId, scenarioId)).orderBy(desc2(scenarioOutputs.computedAt)).limit(1);
   return rows[0] ?? null;
 }
 async function listScenarioOutputs(scenarioIds) {
   if (scenarioIds.length === 0) return [];
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(scenarioOutputs).where(inArray(scenarioOutputs.scenarioId, scenarioIds)).orderBy(desc(scenarioOutputs.computedAt));
+  return db.select().from(scenarioOutputs).where(inArray3(scenarioOutputs.scenarioId, scenarioIds)).orderBy(desc2(scenarioOutputs.computedAt));
 }
 async function createScenarioComparison(data) {
   const db = await getDb();
@@ -7570,13 +12291,13 @@ async function createScenarioComparisonForOrg(data, orgId) {
     /* @__PURE__ */ new Set([data.baselineScenarioId, ...data.comparedScenarioIds])
   );
   return db.transaction(async (tx) => {
-    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const project = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, data.projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (project.length !== 1) return null;
     const scenarioRows = await tx.select({ id: scenarios.id }).from(scenarios).where(
-      and(
-        inArray(scenarios.id, scenarioIds),
-        eq(scenarios.projectId, data.projectId),
-        eq(scenarios.orgId, orgId)
+      and3(
+        inArray3(scenarios.id, scenarioIds),
+        eq3(scenarios.projectId, data.projectId),
+        eq3(scenarios.orgId, orgId)
       )
     ).for("update");
     if (scenarioRows.length !== scenarioIds.length) return null;
@@ -7587,12 +12308,12 @@ async function createScenarioComparisonForOrg(data, orgId) {
 async function listScenarioComparisons(projectId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(scenarioComparisons).where(eq(scenarioComparisons.projectId, projectId)).orderBy(desc(scenarioComparisons.createdAt));
+  return db.select().from(scenarioComparisons).where(eq3(scenarioComparisons.projectId, projectId)).orderBy(desc2(scenarioComparisons.createdAt));
 }
 async function getScenarioComparisonById(id) {
   const db = await getDb();
   if (!db) return null;
-  const rows = await db.select().from(scenarioComparisons).where(eq(scenarioComparisons.id, id));
+  const rows = await db.select().from(scenarioComparisons).where(eq3(scenarioComparisons.id, id));
   return rows[0] ?? null;
 }
 async function createProjectOutcome(data) {
@@ -7605,7 +12326,7 @@ async function createProjectOutcomeForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const project = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, data.projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (project.length !== 1) return null;
     const [result] = await tx.insert(projectOutcomes).values(data);
     return Number(result.insertId);
@@ -7614,40 +12335,40 @@ async function createProjectOutcomeForOrg(data, orgId) {
 async function getProjectOutcomes(projectId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(projectOutcomes).where(eq(projectOutcomes.projectId, projectId)).orderBy(desc(projectOutcomes.capturedAt));
+  return db.select().from(projectOutcomes).where(eq3(projectOutcomes.projectId, projectId)).orderBy(desc2(projectOutcomes.capturedAt));
 }
 async function getProjectOutcomesForOrg(projectId, orgId) {
   const db = await getDb();
   if (!db) return [];
-  const rows = await db.select({ outcome: projectOutcomes }).from(projectOutcomes).innerJoin(projects, eq(projectOutcomes.projectId, projects.id)).where(
-    and(eq(projectOutcomes.projectId, projectId), eq(projects.orgId, orgId))
-  ).orderBy(desc(projectOutcomes.capturedAt));
+  const rows = await db.select({ outcome: projectOutcomes }).from(projectOutcomes).innerJoin(projects, eq3(projectOutcomes.projectId, projects.id)).where(
+    and3(eq3(projectOutcomes.projectId, projectId), eq3(projects.orgId, orgId))
+  ).orderBy(desc2(projectOutcomes.capturedAt));
   return rows.map((row) => row.outcome);
 }
 async function getLatestProjectOutcomeForOrg(projectId, orgId) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select({ outcome: projectOutcomes }).from(projectOutcomes).innerJoin(projects, eq(projectOutcomes.projectId, projects.id)).where(
-    and(eq(projectOutcomes.projectId, projectId), eq(projects.orgId, orgId))
-  ).orderBy(desc(projectOutcomes.capturedAt)).limit(1);
+  const rows = await db.select({ outcome: projectOutcomes }).from(projectOutcomes).innerJoin(projects, eq3(projectOutcomes.projectId, projects.id)).where(
+    and3(eq3(projectOutcomes.projectId, projectId), eq3(projects.orgId, orgId))
+  ).orderBy(desc2(projectOutcomes.capturedAt)).limit(1);
   return rows[0]?.outcome;
 }
 async function getLatestOutcomeComparisonForOrg(projectId, orgId) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select({ comparison: outcomeComparisons }).from(outcomeComparisons).innerJoin(projects, eq(outcomeComparisons.projectId, projects.id)).where(
-    and(
-      eq(outcomeComparisons.projectId, projectId),
-      eq(projects.orgId, orgId)
+  const rows = await db.select({ comparison: outcomeComparisons }).from(outcomeComparisons).innerJoin(projects, eq3(outcomeComparisons.projectId, projects.id)).where(
+    and3(
+      eq3(outcomeComparisons.projectId, projectId),
+      eq3(projects.orgId, orgId)
     )
-  ).orderBy(desc(outcomeComparisons.comparedAt)).limit(1);
+  ).orderBy(desc2(outcomeComparisons.comparedAt)).limit(1);
   return rows[0]?.comparison;
 }
 async function createOutcomeComparisonForOrg(projectId, orgId, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const ownedProject = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const ownedProject = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (ownedProject.length !== 1 || data.projectId !== projectId) return null;
     const values = data;
     const [result] = await tx.insert(outcomeComparisons).values({
@@ -7664,7 +12385,7 @@ async function createOutcomeComparisonForOrg(projectId, orgId, data) {
 async function listAllOutcomes() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(projectOutcomes).orderBy(desc(projectOutcomes.capturedAt));
+  return db.select().from(projectOutcomes).orderBy(desc2(projectOutcomes.capturedAt));
 }
 async function createBenchmarkSuggestion(data) {
   const db = await getDb();
@@ -7675,22 +12396,22 @@ async function createBenchmarkSuggestion(data) {
 async function listBenchmarkSuggestions() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(benchmarkSuggestions).orderBy(desc(benchmarkSuggestions.createdAt));
+  return db.select().from(benchmarkSuggestions).orderBy(desc2(benchmarkSuggestions.createdAt));
 }
 async function reviewBenchmarkSuggestion(id, data) {
   const db = await getDb();
   if (!db) return;
-  await db.update(benchmarkSuggestions).set({ ...data, reviewedAt: /* @__PURE__ */ new Date() }).where(eq(benchmarkSuggestions.id, id));
+  await db.update(benchmarkSuggestions).set({ ...data, reviewedAt: /* @__PURE__ */ new Date() }).where(eq3(benchmarkSuggestions.id, id));
 }
 async function listSourceRegistry() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(sourceRegistry).orderBy(desc(sourceRegistry.addedAt));
+  return db.select().from(sourceRegistry).orderBy(desc2(sourceRegistry.addedAt));
 }
 async function getSourceRegistryById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(sourceRegistry).where(eq(sourceRegistry.id, id));
+  const rows = await db.select().from(sourceRegistry).where(eq3(sourceRegistry.id, id));
   return rows[0];
 }
 async function createSourceRegistryEntry(data) {
@@ -7702,115 +12423,115 @@ async function createSourceRegistryEntry(data) {
 async function updateSourceRegistryEntry(id, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.update(sourceRegistry).set(data).where(eq(sourceRegistry.id, id));
+  await db.update(sourceRegistry).set(data).where(eq3(sourceRegistry.id, id));
 }
 async function deleteSourceRegistryEntry(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.delete(sourceRegistry).where(eq(sourceRegistry.id, id));
+  await db.delete(sourceRegistry).where(eq3(sourceRegistry.id, id));
 }
 async function listEvidenceRecords(filters) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [];
   if (filters?.projectId)
-    conditions.push(eq(evidenceRecords.projectId, filters.projectId));
+    conditions.push(eq3(evidenceRecords.projectId, filters.projectId));
   if (filters?.category)
-    conditions.push(eq(evidenceRecords.category, filters.category));
+    conditions.push(eq3(evidenceRecords.category, filters.category));
   if (filters?.reliabilityGrade)
     conditions.push(
-      eq(evidenceRecords.reliabilityGrade, filters.reliabilityGrade)
+      eq3(evidenceRecords.reliabilityGrade, filters.reliabilityGrade)
     );
   if (filters?.evidencePhase)
     conditions.push(
-      eq(evidenceRecords.evidencePhase, filters.evidencePhase)
+      eq3(evidenceRecords.evidencePhase, filters.evidencePhase)
     );
   if (filters?.confidentiality)
     conditions.push(
-      eq(evidenceRecords.confidentiality, filters.confidentiality)
+      eq3(evidenceRecords.confidentiality, filters.confidentiality)
     );
   if (filters?.intelligenceType)
     conditions.push(
-      eq(evidenceRecords.intelligenceType, filters.intelligenceType)
+      eq3(evidenceRecords.intelligenceType, filters.intelligenceType)
     );
   if (filters?.corpusScope)
     conditions.push(
-      eq(evidenceRecords.corpusScope, filters.corpusScope)
+      eq3(evidenceRecords.corpusScope, filters.corpusScope)
     );
   if (filters?.excludeConfidential) {
     conditions.push(
-      sql`${evidenceRecords.confidentiality} NOT IN ('confidential', 'restricted')`
+      sql2`${evidenceRecords.confidentiality} NOT IN ('confidential', 'restricted')`
     );
   }
   let query = db.select().from(evidenceRecords);
   if (conditions.length > 0) {
-    query = query.where(and(...conditions));
+    query = query.where(and3(...conditions));
   }
-  return query.orderBy(desc(evidenceRecords.createdAt)).limit(filters?.limit ?? 100);
+  return query.orderBy(desc2(evidenceRecords.createdAt)).limit(filters?.limit ?? 100);
 }
 async function listOrganizationEvidenceRecords(orgId, filters) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [
-    eq(evidenceRecords.orgId, orgId),
-    eq(evidenceRecords.corpusScope, "organization")
+    eq3(evidenceRecords.orgId, orgId),
+    eq3(evidenceRecords.corpusScope, "organization")
   ];
   if (filters?.projectId !== void 0)
-    conditions.push(eq(evidenceRecords.projectId, filters.projectId));
+    conditions.push(eq3(evidenceRecords.projectId, filters.projectId));
   if (filters?.category)
-    conditions.push(eq(evidenceRecords.category, filters.category));
+    conditions.push(eq3(evidenceRecords.category, filters.category));
   if (filters?.reliabilityGrade)
     conditions.push(
-      eq(evidenceRecords.reliabilityGrade, filters.reliabilityGrade)
+      eq3(evidenceRecords.reliabilityGrade, filters.reliabilityGrade)
     );
   if (filters?.evidencePhase)
     conditions.push(
-      eq(evidenceRecords.evidencePhase, filters.evidencePhase)
+      eq3(evidenceRecords.evidencePhase, filters.evidencePhase)
     );
   if (filters?.confidentiality)
     conditions.push(
-      eq(evidenceRecords.confidentiality, filters.confidentiality)
+      eq3(evidenceRecords.confidentiality, filters.confidentiality)
     );
   if (filters?.excludeConfidential) {
     conditions.push(
-      sql`${evidenceRecords.confidentiality} NOT IN ('confidential', 'restricted')`
+      sql2`${evidenceRecords.confidentiality} NOT IN ('confidential', 'restricted')`
     );
   }
   if (filters?.presentationSafe) {
     conditions.push(
-      sql`${evidenceRecords.confidentiality} NOT IN ('confidential', 'restricted')`
+      sql2`${evidenceRecords.confidentiality} NOT IN ('confidential', 'restricted')`
     );
-    conditions.push(isNull(evidenceRecords.supplierQuoteId));
+    conditions.push(isNull3(evidenceRecords.supplierQuoteId));
     conditions.push(
-      sql`(${evidenceRecords.observationKind} IS NULL OR ${evidenceRecords.observationKind} <> 'supplier_quote')`
+      sql2`(${evidenceRecords.observationKind} IS NULL OR ${evidenceRecords.observationKind} <> 'supplier_quote')`
     );
   }
-  return db.select().from(evidenceRecords).where(and(...conditions)).orderBy(desc(evidenceRecords.createdAt)).limit(filters?.limit ?? 100);
+  return db.select().from(evidenceRecords).where(and3(...conditions)).orderBy(desc2(evidenceRecords.createdAt)).limit(filters?.limit ?? 100);
 }
 async function listPublicCorpusEvidence(filters) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [
-    isNull(evidenceRecords.projectId),
-    isNull(evidenceRecords.orgId),
-    eq(evidenceRecords.corpusScope, "platform_public")
+    isNull3(evidenceRecords.projectId),
+    isNull3(evidenceRecords.orgId),
+    eq3(evidenceRecords.corpusScope, "platform_public")
   ];
   if (filters?.category)
-    conditions.push(eq(evidenceRecords.category, filters.category));
+    conditions.push(eq3(evidenceRecords.category, filters.category));
   if (filters?.reliabilityGrade)
     conditions.push(
-      eq(evidenceRecords.reliabilityGrade, filters.reliabilityGrade)
+      eq3(evidenceRecords.reliabilityGrade, filters.reliabilityGrade)
     );
   if (filters?.evidencePhase)
     conditions.push(
-      eq(evidenceRecords.evidencePhase, filters.evidencePhase)
+      eq3(evidenceRecords.evidencePhase, filters.evidencePhase)
     );
-  return db.select().from(evidenceRecords).where(and(...conditions)).orderBy(desc(evidenceRecords.createdAt)).limit(filters?.limit ?? 100);
+  return db.select().from(evidenceRecords).where(and3(...conditions)).orderBy(desc2(evidenceRecords.createdAt)).limit(filters?.limit ?? 100);
 }
 async function getEvidenceRecordById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(evidenceRecords).where(eq(evidenceRecords.id, id));
+  const rows = await db.select().from(evidenceRecords).where(eq3(evidenceRecords.id, id));
   return rows[0];
 }
 async function createEvidenceRecord(data) {
@@ -7842,7 +12563,7 @@ async function createEvidenceRecordWithConfidenceAssessment(data, assessment) {
       evidenceRecordId
     });
     const assessmentId = Number(assessmentResult.insertId);
-    await tx.update(evidenceRecords).set({ currentConfidenceAssessmentId: assessmentId }).where(eq(evidenceRecords.id, evidenceRecordId));
+    await tx.update(evidenceRecords).set({ currentConfidenceAssessmentId: assessmentId }).where(eq3(evidenceRecords.id, evidenceRecordId));
     return { id: evidenceRecordId, assessmentId };
   });
 }
@@ -7855,28 +12576,28 @@ async function upsertPublicEvidenceObservation(data, assessment) {
     );
   }
   assertLegacyEvidenceWrite(data);
-  const publicObservationKey = createHash("sha256").update(JSON.stringify([data.sourceUrl, data.itemName])).digest("hex");
+  const publicObservationKey = createHash4("sha256").update(JSON.stringify([data.sourceUrl, data.itemName])).digest("hex");
   return db.transaction(async (tx) => {
-    const identityMatch = data.platformProductKey && data.sourceRegistryId != null ? and(
-      eq(evidenceRecords.sourceRegistryId, data.sourceRegistryId),
-      eq(evidenceRecords.platformProductKey, data.platformProductKey)
-    ) : and(
-      eq(evidenceRecords.sourceUrl, data.sourceUrl),
-      eq(evidenceRecords.itemName, data.itemName)
+    const identityMatch = data.platformProductKey && data.sourceRegistryId != null ? and3(
+      eq3(evidenceRecords.sourceRegistryId, data.sourceRegistryId),
+      eq3(evidenceRecords.platformProductKey, data.platformProductKey)
+    ) : and3(
+      eq3(evidenceRecords.sourceUrl, data.sourceUrl),
+      eq3(evidenceRecords.itemName, data.itemName)
     );
     const legacyMatches = await tx.select({
       id: evidenceRecords.id
     }).from(evidenceRecords).where(
-      and(
+      and3(
         identityMatch,
-        isNull(evidenceRecords.orgId),
-        isNull(evidenceRecords.projectId),
-        isNull(evidenceRecords.specId),
-        isNull(evidenceRecords.priceScope),
-        isNull(evidenceRecords.observationKind),
-        eq(evidenceRecords.corpusScope, "platform_public")
+        isNull3(evidenceRecords.orgId),
+        isNull3(evidenceRecords.projectId),
+        isNull3(evidenceRecords.specId),
+        isNull3(evidenceRecords.priceScope),
+        isNull3(evidenceRecords.observationKind),
+        eq3(evidenceRecords.corpusScope, "platform_public")
       )
-    ).orderBy(desc(evidenceRecords.captureDate)).limit(1);
+    ).orderBy(desc2(evidenceRecords.captureDate)).limit(1);
     let rootId = legacyMatches[0]?.id;
     if (rootId === void 0) {
       const [insertResult] = await tx.insert(evidenceRecords).values({
@@ -7884,7 +12605,7 @@ async function upsertPublicEvidenceObservation(data, assessment) {
         publicObservationKey,
         confidencePolicyVersion: assessment.confidencePolicyId
       }).onDuplicateKeyUpdate({
-        set: { id: sql`LAST_INSERT_ID(${evidenceRecords.id})` }
+        set: { id: sql2`LAST_INSERT_ID(${evidenceRecords.id})` }
       });
       rootId = Number(insertResult.insertId);
     }
@@ -7896,14 +12617,14 @@ async function upsertPublicEvidenceObservation(data, assessment) {
       currentConfidenceAssessmentId: evidenceRecords.currentConfidenceAssessmentId,
       productId: evidenceRecords.productId
     }).from(evidenceRecords).where(
-      and(
-        eq(evidenceRecords.id, rootId),
-        isNull(evidenceRecords.orgId),
-        isNull(evidenceRecords.projectId),
-        isNull(evidenceRecords.specId),
-        isNull(evidenceRecords.priceScope),
-        isNull(evidenceRecords.observationKind),
-        eq(evidenceRecords.corpusScope, "platform_public")
+      and3(
+        eq3(evidenceRecords.id, rootId),
+        isNull3(evidenceRecords.orgId),
+        isNull3(evidenceRecords.projectId),
+        isNull3(evidenceRecords.specId),
+        isNull3(evidenceRecords.priceScope),
+        isNull3(evidenceRecords.observationKind),
+        eq3(evidenceRecords.corpusScope, "platform_public")
       )
     ).limit(1).for("update");
     if (!lockedRoot[0]) {
@@ -7930,14 +12651,14 @@ async function upsertPublicEvidenceObservation(data, assessment) {
         currentConfidenceAssessmentId: evidenceRecords.currentConfidenceAssessmentId,
         productId: evidenceRecords.productId
       }).from(evidenceRecords).where(
-        and(
-          eq(evidenceRecords.supersedesObservationId, latest.id),
-          isNull(evidenceRecords.orgId),
-          isNull(evidenceRecords.projectId),
-          isNull(evidenceRecords.specId),
-          isNull(evidenceRecords.priceScope),
-          isNull(evidenceRecords.observationKind),
-          eq(evidenceRecords.corpusScope, "platform_public")
+        and3(
+          eq3(evidenceRecords.supersedesObservationId, latest.id),
+          isNull3(evidenceRecords.orgId),
+          isNull3(evidenceRecords.projectId),
+          isNull3(evidenceRecords.specId),
+          isNull3(evidenceRecords.priceScope),
+          isNull3(evidenceRecords.observationKind),
+          eq3(evidenceRecords.corpusScope, "platform_public")
         )
       ).limit(1).for("update");
       if (!successor[0]) break;
@@ -7977,14 +12698,14 @@ async function upsertPublicEvidenceObservation(data, assessment) {
       currentConfidenceAssessmentId: assessmentId,
       confidencePolicyVersion: assessment.confidencePolicyId
     }).where(
-      and(
-        eq(evidenceRecords.id, evidenceRecordId),
-        isNull(evidenceRecords.orgId),
-        isNull(evidenceRecords.projectId),
-        isNull(evidenceRecords.specId),
-        isNull(evidenceRecords.priceScope),
-        isNull(evidenceRecords.observationKind),
-        eq(evidenceRecords.corpusScope, "platform_public")
+      and3(
+        eq3(evidenceRecords.id, evidenceRecordId),
+        isNull3(evidenceRecords.orgId),
+        isNull3(evidenceRecords.projectId),
+        isNull3(evidenceRecords.specId),
+        isNull3(evidenceRecords.priceScope),
+        isNull3(evidenceRecords.observationKind),
+        eq3(evidenceRecords.corpusScope, "platform_public")
       )
     );
     return {
@@ -8010,14 +12731,14 @@ async function recordRejectedConfidenceAssessment(assessment) {
 async function listConfidenceAssessmentHistory(evidenceRecordId, limit = 50) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(evidenceConfidenceAssessments).where(eq(evidenceConfidenceAssessments.evidenceRecordId, evidenceRecordId)).orderBy(desc(evidenceConfidenceAssessments.createdAt)).limit(Math.min(Math.max(limit, 1), 100));
+  return db.select().from(evidenceConfidenceAssessments).where(eq3(evidenceConfidenceAssessments.evidenceRecordId, evidenceRecordId)).orderBy(desc2(evidenceConfidenceAssessments.createdAt)).limit(Math.min(Math.max(limit, 1), 100));
 }
 async function createEvidenceRecordForOrg(orgId, projectId, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   assertLegacyEvidenceWrite(data);
   return db.transaction(async (tx) => {
-    const ownedProject = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const ownedProject = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (ownedProject.length !== 1) return null;
     const [result] = await tx.insert(evidenceRecords).values({
       ...data,
@@ -8043,14 +12764,14 @@ async function getPreviousPublicEvidenceRecord(itemName, sourceRegistryId, befor
   const db = await getDb();
   if (!db) return void 0;
   const query = db.select().from(evidenceRecords).where(
-    and(
-      eq(evidenceRecords.itemName, itemName),
-      eq(evidenceRecords.sourceRegistryId, sourceRegistryId),
-      isNull(evidenceRecords.orgId),
-      eq(evidenceRecords.corpusScope, "platform_public"),
-      sql`${evidenceRecords.captureDate} < ${beforeDate}`
+    and3(
+      eq3(evidenceRecords.itemName, itemName),
+      eq3(evidenceRecords.sourceRegistryId, sourceRegistryId),
+      isNull3(evidenceRecords.orgId),
+      eq3(evidenceRecords.corpusScope, "platform_public"),
+      sql2`${evidenceRecords.captureDate} < ${beforeDate}`
     )
-  ).orderBy(desc(evidenceRecords.captureDate)).limit(1);
+  ).orderBy(desc2(evidenceRecords.captureDate)).limit(1);
   const rows = await query;
   return rows[0];
 }
@@ -8146,7 +12867,7 @@ async function getDataHealthStats() {
       });
     }
   }
-  const recentPriceChanges = await db.select().from(priceChangeEvents).orderBy(desc(priceChangeEvents.detectedAt)).limit(20);
+  const recentPriceChanges = await db.select().from(priceChangeEvents).orderBy(desc2(priceChangeEvents.detectedAt)).limit(20);
   return {
     sourceHealth,
     categoryStats,
@@ -8158,14 +12879,14 @@ async function listBenchmarkProposals(status) {
   const db = await getDb();
   if (!db) return [];
   if (status) {
-    return db.select().from(benchmarkProposals).where(eq(benchmarkProposals.status, status)).orderBy(desc(benchmarkProposals.createdAt));
+    return db.select().from(benchmarkProposals).where(eq3(benchmarkProposals.status, status)).orderBy(desc2(benchmarkProposals.createdAt));
   }
-  return db.select().from(benchmarkProposals).orderBy(desc(benchmarkProposals.createdAt));
+  return db.select().from(benchmarkProposals).orderBy(desc2(benchmarkProposals.createdAt));
 }
 async function getBenchmarkProposalById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(benchmarkProposals).where(eq(benchmarkProposals.id, id));
+  const rows = await db.select().from(benchmarkProposals).where(eq3(benchmarkProposals.id, id));
   return rows[0];
 }
 async function createBenchmarkProposal(data) {
@@ -8191,11 +12912,11 @@ async function reviewBenchmarkProposal(id, data, options = {}) {
   const db = await getDb();
   if (!db) return false;
   const result = await db.update(benchmarkProposals).set({ ...data, reviewedAt: options.now ?? /* @__PURE__ */ new Date() }).where(
-    and(
-      eq(benchmarkProposals.id, id),
-      eq(benchmarkProposals.status, "pending"),
-      isNull(benchmarkProposals.reviewedAt),
-      isNull(benchmarkProposals.reviewedBy)
+    and3(
+      eq3(benchmarkProposals.id, id),
+      eq3(benchmarkProposals.status, "pending"),
+      isNull3(benchmarkProposals.reviewedAt),
+      isNull3(benchmarkProposals.reviewedBy)
     )
   );
   return Number(result[0].affectedRows) === 1;
@@ -8203,12 +12924,12 @@ async function reviewBenchmarkProposal(id, data, options = {}) {
 async function listBenchmarkSnapshots() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(benchmarkSnapshots).orderBy(desc(benchmarkSnapshots.createdAt));
+  return db.select().from(benchmarkSnapshots).orderBy(desc2(benchmarkSnapshots.createdAt));
 }
 async function getBenchmarkSnapshotById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(benchmarkSnapshots).where(eq(benchmarkSnapshots.id, id));
+  const rows = await db.select().from(benchmarkSnapshots).where(eq3(benchmarkSnapshots.id, id));
   return rows[0];
 }
 async function createBenchmarkSnapshot(data) {
@@ -8220,12 +12941,12 @@ async function createBenchmarkSnapshot(data) {
 async function listCompetitorEntities() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(competitorEntities).orderBy(desc(competitorEntities.createdAt));
+  return db.select().from(competitorEntities).orderBy(desc2(competitorEntities.createdAt));
 }
 async function getCompetitorEntityById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(competitorEntities).where(eq(competitorEntities.id, id));
+  const rows = await db.select().from(competitorEntities).where(eq3(competitorEntities.id, id));
   return rows[0];
 }
 async function createCompetitorEntity(data) {
@@ -8237,31 +12958,31 @@ async function createCompetitorEntity(data) {
 async function updateCompetitorEntity(id, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.update(competitorEntities).set(data).where(eq(competitorEntities.id, id));
+  await db.update(competitorEntities).set(data).where(eq3(competitorEntities.id, id));
 }
 async function deleteCompetitorEntity(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.delete(competitorProjects).where(eq(competitorProjects.competitorId, id));
-  await db.delete(competitorEntities).where(eq(competitorEntities.id, id));
+  await db.delete(competitorProjects).where(eq3(competitorProjects.competitorId, id));
+  await db.delete(competitorEntities).where(eq3(competitorEntities.id, id));
 }
 async function listCompetitorProjects(competitorId, segment) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [];
   if (competitorId)
-    conditions.push(eq(competitorProjects.competitorId, competitorId));
-  if (segment) conditions.push(eq(competitorProjects.segment, segment));
+    conditions.push(eq3(competitorProjects.competitorId, competitorId));
+  if (segment) conditions.push(eq3(competitorProjects.segment, segment));
   let query = db.select().from(competitorProjects);
   if (conditions.length > 0) {
-    query = query.where(and(...conditions));
+    query = query.where(and3(...conditions));
   }
-  return query.orderBy(desc(competitorProjects.createdAt));
+  return query.orderBy(desc2(competitorProjects.createdAt));
 }
 async function getCompetitorProjectById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(competitorProjects).where(eq(competitorProjects.id, id));
+  const rows = await db.select().from(competitorProjects).where(eq3(competitorProjects.id, id));
   return rows[0];
 }
 async function createCompetitorProject(data) {
@@ -8273,18 +12994,18 @@ async function createCompetitorProject(data) {
 async function updateCompetitorProject(id, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.update(competitorProjects).set(data).where(eq(competitorProjects.id, id));
+  await db.update(competitorProjects).set(data).where(eq3(competitorProjects.id, id));
 }
 async function deleteCompetitorProject(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.delete(competitorProjects).where(eq(competitorProjects.id, id));
+  await db.delete(competitorProjects).where(eq3(competitorProjects.id, id));
 }
 async function listTrendTags(category) {
   const db = await getDb();
   if (!db) return [];
   if (category) {
-    return db.select().from(trendTags).where(eq(trendTags.category, category)).orderBy(trendTags.name);
+    return db.select().from(trendTags).where(eq3(trendTags.category, category)).orderBy(trendTags.name);
   }
   return db.select().from(trendTags).orderBy(trendTags.name);
 }
@@ -8297,8 +13018,8 @@ async function createTrendTag(data) {
 async function deleteTrendTag(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.delete(entityTags).where(eq(entityTags.tagId, id));
-  await db.delete(trendTags).where(eq(trendTags.id, id));
+  await db.delete(entityTags).where(eq3(entityTags.tagId, id));
+  await db.delete(trendTags).where(eq3(trendTags.id, id));
 }
 async function createEntityTag(data) {
   const db = await getDb();
@@ -8309,17 +13030,17 @@ async function createEntityTag(data) {
 async function getEntityTagById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(entityTags).where(eq(entityTags.id, id)).limit(1);
+  const rows = await db.select().from(entityTags).where(eq3(entityTags.id, id)).limit(1);
   return rows[0];
 }
 async function deleteEntityTagIfMatches(id, expected) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const result = await db.delete(entityTags).where(
-    and(
-      eq(entityTags.id, id),
-      eq(entityTags.entityType, expected.entityType),
-      eq(entityTags.entityId, expected.entityId)
+    and3(
+      eq3(entityTags.id, id),
+      eq3(entityTags.entityType, expected.entityType),
+      eq3(entityTags.entityId, expected.entityId)
     )
   );
   return Number(result[0].affectedRows) === 1;
@@ -8327,20 +13048,20 @@ async function deleteEntityTagIfMatches(id, expected) {
 async function deleteEntityTag(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.delete(entityTags).where(eq(entityTags.id, id));
+  await db.delete(entityTags).where(eq3(entityTags.id, id));
 }
 async function getEntityTags(entityType, entityId) {
   const db = await getDb();
   if (!db) return [];
   const tags = await db.select().from(entityTags).where(
-    and(
-      eq(entityTags.entityType, entityType),
-      eq(entityTags.entityId, entityId)
+    and3(
+      eq3(entityTags.entityType, entityType),
+      eq3(entityTags.entityId, entityId)
     )
   );
   if (tags.length === 0) return [];
   const tagIds = tags.map((t2) => t2.tagId);
-  const tagDetails = await db.select().from(trendTags).where(inArray(trendTags.id, tagIds));
+  const tagDetails = await db.select().from(trendTags).where(inArray3(trendTags.id, tagIds));
   const tagMap = new Map(tagDetails.map((t2) => [t2.id, t2]));
   return tags.map((t2) => ({
     ...t2,
@@ -8350,7 +13071,7 @@ async function getEntityTags(entityType, entityId) {
 async function getTaggedEntities(tagId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(entityTags).where(eq(entityTags.tagId, tagId));
+  return db.select().from(entityTags).where(eq3(entityTags.tagId, tagId));
 }
 async function createIntelligenceAuditEntry(data) {
   const db = await getDb();
@@ -8361,14 +13082,14 @@ async function listIntelligenceAuditLog(runType, limit = 50) {
   const db = await getDb();
   if (!db) return [];
   if (runType) {
-    return db.select().from(intelligenceAuditLog).where(eq(intelligenceAuditLog.runType, runType)).orderBy(desc(intelligenceAuditLog.startedAt)).limit(limit);
+    return db.select().from(intelligenceAuditLog).where(eq3(intelligenceAuditLog.runType, runType)).orderBy(desc2(intelligenceAuditLog.startedAt)).limit(limit);
   }
-  return db.select().from(intelligenceAuditLog).orderBy(desc(intelligenceAuditLog.startedAt)).limit(limit);
+  return db.select().from(intelligenceAuditLog).orderBy(desc2(intelligenceAuditLog.startedAt)).limit(limit);
 }
 async function getIntelligenceAuditEntryById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(intelligenceAuditLog).where(eq(intelligenceAuditLog.id, id));
+  const rows = await db.select().from(intelligenceAuditLog).where(eq3(intelligenceAuditLog.id, id));
   return rows[0];
 }
 async function listEvidenceReferences(filters) {
@@ -8377,19 +13098,19 @@ async function listEvidenceReferences(filters) {
   const conditions = [];
   if (filters?.evidenceRecordId)
     conditions.push(
-      eq(evidenceReferences.evidenceRecordId, filters.evidenceRecordId)
+      eq3(evidenceReferences.evidenceRecordId, filters.evidenceRecordId)
     );
   if (filters?.targetType)
     conditions.push(
-      eq(evidenceReferences.targetType, filters.targetType)
+      eq3(evidenceReferences.targetType, filters.targetType)
     );
   if (filters?.targetId)
-    conditions.push(eq(evidenceReferences.targetId, filters.targetId));
+    conditions.push(eq3(evidenceReferences.targetId, filters.targetId));
   let query = db.select().from(evidenceReferences);
   if (conditions.length > 0) {
-    query = query.where(and(...conditions));
+    query = query.where(and3(...conditions));
   }
-  return query.orderBy(desc(evidenceReferences.addedAt));
+  return query.orderBy(desc2(evidenceReferences.addedAt));
 }
 async function createEvidenceReference(data) {
   const db = await getDb();
@@ -8400,18 +13121,18 @@ async function createEvidenceReference(data) {
 async function getEvidenceReferenceById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(evidenceReferences).where(eq(evidenceReferences.id, id)).limit(1);
+  const rows = await db.select().from(evidenceReferences).where(eq3(evidenceReferences.id, id)).limit(1);
   return rows[0];
 }
 async function deleteEvidenceReferenceIfMatches(id, expected) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const result = await db.delete(evidenceReferences).where(
-    and(
-      eq(evidenceReferences.id, id),
-      eq(evidenceReferences.evidenceRecordId, expected.evidenceRecordId),
-      eq(evidenceReferences.targetType, expected.targetType),
-      eq(evidenceReferences.targetId, expected.targetId)
+    and3(
+      eq3(evidenceReferences.id, id),
+      eq3(evidenceReferences.evidenceRecordId, expected.evidenceRecordId),
+      eq3(evidenceReferences.targetType, expected.targetType),
+      eq3(evidenceReferences.targetId, expected.targetId)
     )
   );
   return Number(result[0].affectedRows) === 1;
@@ -8419,20 +13140,20 @@ async function deleteEvidenceReferenceIfMatches(id, expected) {
 async function deleteEvidenceReference(id) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.delete(evidenceReferences).where(eq(evidenceReferences.id, id));
+  await db.delete(evidenceReferences).where(eq3(evidenceReferences.id, id));
 }
 async function getEvidenceForTarget(targetType, targetId) {
   const db = await getDb();
   if (!db) return [];
   const refs = await db.select().from(evidenceReferences).where(
-    and(
-      eq(evidenceReferences.targetType, targetType),
-      eq(evidenceReferences.targetId, targetId)
+    and3(
+      eq3(evidenceReferences.targetType, targetType),
+      eq3(evidenceReferences.targetId, targetId)
     )
   );
   if (refs.length === 0) return [];
   const recordIds = refs.map((r) => r.evidenceRecordId);
-  const records = await db.select().from(evidenceRecords).where(inArray(evidenceRecords.id, recordIds));
+  const records = await db.select().from(evidenceRecords).where(inArray3(evidenceRecords.id, recordIds));
   const recordMap = new Map(records.map((r) => [r.id, r]));
   return refs.map((ref) => ({
     reference: ref,
@@ -8447,34 +13168,34 @@ async function insertConnectorHealth(data) {
 async function getConnectorHealthByRun(runId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(connectorHealth).where(eq(connectorHealth.runId, runId)).orderBy(connectorHealth.sourceId);
+  return db.select().from(connectorHealth).where(eq3(connectorHealth.runId, runId)).orderBy(connectorHealth.sourceId);
 }
 async function getConnectorHealthHistory(sourceId, limit = 30) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(connectorHealth).where(eq(connectorHealth.sourceId, sourceId)).orderBy(desc(connectorHealth.createdAt)).limit(limit);
+  return db.select().from(connectorHealth).where(eq3(connectorHealth.sourceId, sourceId)).orderBy(desc2(connectorHealth.createdAt)).limit(limit);
 }
 async function getConnectorHealthSummary() {
   const db = await getDb();
   if (!db) return [];
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1e3);
-  return db.select().from(connectorHealth).where(gte(connectorHealth.createdAt, thirtyDaysAgo)).orderBy(desc(connectorHealth.createdAt));
+  return db.select().from(connectorHealth).where(gte(connectorHealth.createdAt, thirtyDaysAgo)).orderBy(desc2(connectorHealth.createdAt));
 }
 async function getIngestionRunById(runId) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(ingestionRuns).where(eq(ingestionRuns.runId, runId));
+  const rows = await db.select().from(ingestionRuns).where(eq3(ingestionRuns.runId, runId));
   return rows[0];
 }
 async function getIngestionRunHistory(limit = 20) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(ingestionRuns).orderBy(desc(ingestionRuns.startedAt)).limit(limit);
+  return db.select().from(ingestionRuns).orderBy(desc2(ingestionRuns.startedAt)).limit(limit);
 }
 async function getDldAreas() {
   const db = await getDb();
   if (!db) return [];
-  const rows = await db.execute(sql`
+  const rows = await db.execute(sql2`
     SELECT area_id as areaId, area_name_en as areaNameEn, area_name_ar as areaNameAr,
            COUNT(*) as projectCount,
            SUM(COALESCE(no_of_units, 0) + COALESCE(no_of_villas, 0)) as totalUnits
@@ -8488,12 +13209,12 @@ async function getDldAreas() {
 async function getDldProjectsByArea(areaId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(dldProjects).where(eq(dldProjects.areaId, areaId));
+  return db.select().from(dldProjects).where(eq3(dldProjects.areaId, areaId));
 }
 async function getDldAreaComparison(areaId) {
   const db = await getDb();
   if (!db) return null;
-  const rows = await db.execute(sql`
+  const rows = await db.execute(sql2`
     SELECT
       project_status as status,
       COUNT(*) as projectCount,
@@ -8505,7 +13226,7 @@ async function getDldAreaComparison(areaId) {
     WHERE area_id = ${areaId}
     GROUP BY project_status
   `);
-  const developers = await db.execute(sql`
+  const developers = await db.execute(sql2`
     SELECT developer_name as name, COUNT(*) as projects,
            SUM(COALESCE(no_of_units, 0) + COALESCE(no_of_villas, 0)) as totalUnits
     FROM dld_projects
@@ -8522,31 +13243,31 @@ async function getDldAreaComparison(areaId) {
 async function getDldAreaBenchmark(areaId) {
   const db = await getDb();
   if (!db) return null;
-  const rows = await db.select().from(dldAreaBenchmarks).where(eq(dldAreaBenchmarks.areaId, areaId)).orderBy(desc(dldAreaBenchmarks.computedAt)).limit(1);
+  const rows = await db.select().from(dldAreaBenchmarks).where(eq3(dldAreaBenchmarks.areaId, areaId)).orderBy(desc2(dldAreaBenchmarks.computedAt)).limit(1);
   return rows[0] ?? null;
 }
 async function getDldAreaBenchmarkByName(areaName) {
   const db = await getDb();
   if (!db) return null;
-  const rows = await db.select().from(dldAreaBenchmarks).where(eq(dldAreaBenchmarks.areaNameEn, areaName)).orderBy(desc(dldAreaBenchmarks.computedAt)).limit(1);
+  const rows = await db.select().from(dldAreaBenchmarks).where(eq3(dldAreaBenchmarks.areaNameEn, areaName)).orderBy(desc2(dldAreaBenchmarks.computedAt)).limit(1);
   return rows[0] ?? null;
 }
 async function getAllAreaBenchmarks() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(dldAreaBenchmarks).orderBy(desc(dldAreaBenchmarks.saleTransactionCount));
+  return db.select().from(dldAreaBenchmarks).orderBy(desc2(dldAreaBenchmarks.saleTransactionCount));
 }
 async function upsertAreaBenchmark(data) {
   const db = await getDb();
   if (!db) return;
   const existing = await db.select({ id: dldAreaBenchmarks.id }).from(dldAreaBenchmarks).where(
-    and(
-      eq(dldAreaBenchmarks.areaId, data.areaId),
-      eq(dldAreaBenchmarks.period, data.period)
+    and3(
+      eq3(dldAreaBenchmarks.areaId, data.areaId),
+      eq3(dldAreaBenchmarks.period, data.period)
     )
   ).limit(1);
   if (existing.length > 0) {
-    await db.update(dldAreaBenchmarks).set({ ...data, computedAt: /* @__PURE__ */ new Date() }).where(eq(dldAreaBenchmarks.id, existing[0].id));
+    await db.update(dldAreaBenchmarks).set({ ...data, computedAt: /* @__PURE__ */ new Date() }).where(eq3(dldAreaBenchmarks.id, existing[0].id));
   } else {
     await db.insert(dldAreaBenchmarks).values(data);
   }
@@ -8555,14 +13276,14 @@ async function getDldTransactionCount() {
   const db = await getDb();
   if (!db) return 0;
   const rows = await db.execute(
-    sql`SELECT COUNT(*) as cnt FROM dld_transactions`
+    sql2`SELECT COUNT(*) as cnt FROM dld_transactions`
   );
   return rows?.[0]?.[0]?.cnt ?? 0;
 }
 async function getDldRentCount() {
   const db = await getDb();
   if (!db) return 0;
-  const rows = await db.execute(sql`SELECT COUNT(*) as cnt FROM dld_rents`);
+  const rows = await db.execute(sql2`SELECT COUNT(*) as cnt FROM dld_rents`);
   return rows?.[0]?.[0]?.cnt ?? 0;
 }
 async function insertTrendSnapshot(data) {
@@ -8592,114 +13313,114 @@ async function getTrendSnapshots(filters) {
   if (!db) return [];
   const conditions = [];
   if (filters?.category)
-    conditions.push(eq(trendSnapshots.category, filters.category));
+    conditions.push(eq3(trendSnapshots.category, filters.category));
   if (filters?.geography)
-    conditions.push(eq(trendSnapshots.geography, filters.geography));
+    conditions.push(eq3(trendSnapshots.geography, filters.geography));
   if (filters?.direction)
-    conditions.push(eq(trendSnapshots.direction, filters.direction));
+    conditions.push(eq3(trendSnapshots.direction, filters.direction));
   if (filters?.confidence)
-    conditions.push(eq(trendSnapshots.confidence, filters.confidence));
+    conditions.push(eq3(trendSnapshots.confidence, filters.confidence));
   const query = db.select().from(trendSnapshots);
   if (conditions.length > 0) {
-    return query.where(and(...conditions)).orderBy(desc(trendSnapshots.createdAt)).limit(filters?.limit ?? 50);
+    return query.where(and3(...conditions)).orderBy(desc2(trendSnapshots.createdAt)).limit(filters?.limit ?? 50);
   }
-  return query.orderBy(desc(trendSnapshots.createdAt)).limit(filters?.limit ?? 50);
+  return query.orderBy(desc2(trendSnapshots.createdAt)).limit(filters?.limit ?? 50);
 }
 async function getTrendSnapshotsForOrg(orgId, filters) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [
-    or(
-      and(
-        eq(trendSnapshots.corpusScope, "organization"),
-        eq(trendSnapshots.orgId, orgId)
+    or3(
+      and3(
+        eq3(trendSnapshots.corpusScope, "organization"),
+        eq3(trendSnapshots.orgId, orgId)
       ),
-      and(
-        eq(trendSnapshots.corpusScope, "platform_public"),
-        isNull(trendSnapshots.orgId)
+      and3(
+        eq3(trendSnapshots.corpusScope, "platform_public"),
+        isNull3(trendSnapshots.orgId)
       )
     )
   ];
   if (filters?.category)
-    conditions.push(eq(trendSnapshots.category, filters.category));
+    conditions.push(eq3(trendSnapshots.category, filters.category));
   if (filters?.geography)
-    conditions.push(eq(trendSnapshots.geography, filters.geography));
+    conditions.push(eq3(trendSnapshots.geography, filters.geography));
   if (filters?.direction)
-    conditions.push(eq(trendSnapshots.direction, filters.direction));
+    conditions.push(eq3(trendSnapshots.direction, filters.direction));
   if (filters?.confidence)
-    conditions.push(eq(trendSnapshots.confidence, filters.confidence));
-  return db.select().from(trendSnapshots).where(and(...conditions)).orderBy(desc(trendSnapshots.createdAt)).limit(filters?.limit ?? 50);
+    conditions.push(eq3(trendSnapshots.confidence, filters.confidence));
+  return db.select().from(trendSnapshots).where(and3(...conditions)).orderBy(desc2(trendSnapshots.createdAt)).limit(filters?.limit ?? 50);
 }
 async function getPublicTrendSnapshots(filters) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [
-    eq(trendSnapshots.corpusScope, "platform_public"),
-    isNull(trendSnapshots.orgId)
+    eq3(trendSnapshots.corpusScope, "platform_public"),
+    isNull3(trendSnapshots.orgId)
   ];
   if (filters?.category)
-    conditions.push(eq(trendSnapshots.category, filters.category));
+    conditions.push(eq3(trendSnapshots.category, filters.category));
   if (filters?.geography)
-    conditions.push(eq(trendSnapshots.geography, filters.geography));
+    conditions.push(eq3(trendSnapshots.geography, filters.geography));
   if (filters?.direction)
-    conditions.push(eq(trendSnapshots.direction, filters.direction));
+    conditions.push(eq3(trendSnapshots.direction, filters.direction));
   if (filters?.confidence)
-    conditions.push(eq(trendSnapshots.confidence, filters.confidence));
-  return db.select().from(trendSnapshots).where(and(...conditions)).orderBy(desc(trendSnapshots.createdAt)).limit(filters?.limit ?? 50);
+    conditions.push(eq3(trendSnapshots.confidence, filters.confidence));
+  return db.select().from(trendSnapshots).where(and3(...conditions)).orderBy(desc2(trendSnapshots.createdAt)).limit(filters?.limit ?? 50);
 }
 async function getTrendHistoryForOrg(orgId, metric, geography, limit = 20) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(trendSnapshots).where(
-    and(
-      eq(trendSnapshots.metric, metric),
-      eq(trendSnapshots.geography, geography),
-      or(
-        and(
-          eq(trendSnapshots.corpusScope, "organization"),
-          eq(trendSnapshots.orgId, orgId)
+    and3(
+      eq3(trendSnapshots.metric, metric),
+      eq3(trendSnapshots.geography, geography),
+      or3(
+        and3(
+          eq3(trendSnapshots.corpusScope, "organization"),
+          eq3(trendSnapshots.orgId, orgId)
         ),
-        and(
-          eq(trendSnapshots.corpusScope, "platform_public"),
-          isNull(trendSnapshots.orgId)
+        and3(
+          eq3(trendSnapshots.corpusScope, "platform_public"),
+          isNull3(trendSnapshots.orgId)
         )
       )
     )
-  ).orderBy(desc(trendSnapshots.createdAt)).limit(limit);
+  ).orderBy(desc2(trendSnapshots.createdAt)).limit(limit);
 }
 async function getAnomaliesForOrg(orgId, limit = 50) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(trendSnapshots).where(
-    and(
-      sql`${trendSnapshots.anomalyCount} > 0`,
-      or(
-        and(
-          eq(trendSnapshots.corpusScope, "organization"),
-          eq(trendSnapshots.orgId, orgId)
+    and3(
+      sql2`${trendSnapshots.anomalyCount} > 0`,
+      or3(
+        and3(
+          eq3(trendSnapshots.corpusScope, "organization"),
+          eq3(trendSnapshots.orgId, orgId)
         ),
-        and(
-          eq(trendSnapshots.corpusScope, "platform_public"),
-          isNull(trendSnapshots.orgId)
+        and3(
+          eq3(trendSnapshots.corpusScope, "platform_public"),
+          isNull3(trendSnapshots.orgId)
         )
       )
     )
-  ).orderBy(desc(trendSnapshots.createdAt)).limit(limit);
+  ).orderBy(desc2(trendSnapshots.createdAt)).limit(limit);
 }
 async function getTrendHistory(metric, geography, limit = 20) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(trendSnapshots).where(
-    and(
-      eq(trendSnapshots.metric, metric),
-      eq(trendSnapshots.geography, geography)
+    and3(
+      eq3(trendSnapshots.metric, metric),
+      eq3(trendSnapshots.geography, geography)
     )
-  ).orderBy(desc(trendSnapshots.createdAt)).limit(limit);
+  ).orderBy(desc2(trendSnapshots.createdAt)).limit(limit);
 }
 async function getAnomalies(limit = 50) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(trendSnapshots).where(sql`${trendSnapshots.anomalyCount} > 0`).orderBy(desc(trendSnapshots.createdAt)).limit(limit);
+  return db.select().from(trendSnapshots).where(sql2`${trendSnapshots.anomalyCount} > 0`).orderBy(desc2(trendSnapshots.createdAt)).limit(limit);
 }
 async function insertProjectInsight(data) {
   const db = await getDb();
@@ -8719,7 +13440,7 @@ async function insertProjectInsightForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const project = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, data.projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (project.length !== 1) return false;
     await tx.insert(projectInsights).values({
       ...data,
@@ -8733,7 +13454,7 @@ async function insertProjectInsightForOrg(data, orgId) {
 async function getProjectInsightById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(projectInsights).where(eq(projectInsights.id, id)).limit(1);
+  const rows = await db.select().from(projectInsights).where(eq3(projectInsights.id, id)).limit(1);
   return rows[0];
 }
 async function getProjectInsights(filters) {
@@ -8741,58 +13462,58 @@ async function getProjectInsights(filters) {
   if (!db) return [];
   const conditions = [];
   if (filters?.projectId)
-    conditions.push(eq(projectInsights.projectId, filters.projectId));
+    conditions.push(eq3(projectInsights.projectId, filters.projectId));
   if (filters?.insightType)
     conditions.push(
-      eq(projectInsights.insightType, filters.insightType)
+      eq3(projectInsights.insightType, filters.insightType)
     );
   if (filters?.severity)
-    conditions.push(eq(projectInsights.severity, filters.severity));
+    conditions.push(eq3(projectInsights.severity, filters.severity));
   if (filters?.status)
-    conditions.push(eq(projectInsights.status, filters.status));
+    conditions.push(eq3(projectInsights.status, filters.status));
   const query = db.select().from(projectInsights);
   if (conditions.length > 0) {
-    return query.where(and(...conditions)).orderBy(desc(projectInsights.createdAt)).limit(filters?.limit ?? 50);
+    return query.where(and3(...conditions)).orderBy(desc2(projectInsights.createdAt)).limit(filters?.limit ?? 50);
   }
-  return query.orderBy(desc(projectInsights.createdAt)).limit(filters?.limit ?? 50);
+  return query.orderBy(desc2(projectInsights.createdAt)).limit(filters?.limit ?? 50);
 }
 async function getProjectInsightsForOrg(orgId, filters) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [
-    eq(projectInsights.projectId, filters.projectId),
-    eq(projectInsights.orgId, orgId),
-    eq(projectInsights.corpusScope, "organization"),
-    eq(projects.orgId, orgId)
+    eq3(projectInsights.projectId, filters.projectId),
+    eq3(projectInsights.orgId, orgId),
+    eq3(projectInsights.corpusScope, "organization"),
+    eq3(projects.orgId, orgId)
   ];
   if (filters.insightType)
     conditions.push(
-      eq(projectInsights.insightType, filters.insightType)
+      eq3(projectInsights.insightType, filters.insightType)
     );
   if (filters.severity)
-    conditions.push(eq(projectInsights.severity, filters.severity));
+    conditions.push(eq3(projectInsights.severity, filters.severity));
   if (filters.status)
-    conditions.push(eq(projectInsights.status, filters.status));
-  const rows = await db.select({ insight: projectInsights }).from(projectInsights).innerJoin(projects, eq(projectInsights.projectId, projects.id)).where(and(...conditions)).orderBy(desc(projectInsights.createdAt)).limit(filters.limit ?? 50);
+    conditions.push(eq3(projectInsights.status, filters.status));
+  const rows = await db.select({ insight: projectInsights }).from(projectInsights).innerJoin(projects, eq3(projectInsights.projectId, projects.id)).where(and3(...conditions)).orderBy(desc2(projectInsights.createdAt)).limit(filters.limit ?? 50);
   return rows.map((row) => row.insight);
 }
 async function getGlobalProjectInsights(filters) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [
-    isNull(projectInsights.projectId),
-    isNull(projectInsights.orgId),
-    eq(projectInsights.corpusScope, "platform_public")
+    isNull3(projectInsights.projectId),
+    isNull3(projectInsights.orgId),
+    eq3(projectInsights.corpusScope, "platform_public")
   ];
   if (filters?.insightType)
     conditions.push(
-      eq(projectInsights.insightType, filters.insightType)
+      eq3(projectInsights.insightType, filters.insightType)
     );
   if (filters?.severity)
-    conditions.push(eq(projectInsights.severity, filters.severity));
+    conditions.push(eq3(projectInsights.severity, filters.severity));
   if (filters?.status)
-    conditions.push(eq(projectInsights.status, filters.status));
-  return db.select().from(projectInsights).where(and(...conditions)).orderBy(desc(projectInsights.createdAt)).limit(filters?.limit ?? 50);
+    conditions.push(eq3(projectInsights.status, filters.status));
+  return db.select().from(projectInsights).where(and3(...conditions)).orderBy(desc2(projectInsights.createdAt)).limit(filters?.limit ?? 50);
 }
 async function updateInsightStatus(insightId, status, userId) {
   const db = await getDb();
@@ -8802,20 +13523,20 @@ async function updateInsightStatus(insightId, status, userId) {
     updates.acknowledgedBy = userId;
     updates.acknowledgedAt = /* @__PURE__ */ new Date();
   }
-  return db.update(projectInsights).set(updates).where(eq(projectInsights.id, insightId));
+  return db.update(projectInsights).set(updates).where(eq3(projectInsights.id, insightId));
 }
 async function updateInsightStatusForOrg(insightId, orgId, status, userId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const rows = await tx.select({ id: projectInsights.id }).from(projectInsights).innerJoin(projects, eq(projectInsights.projectId, projects.id)).where(and(eq(projectInsights.id, insightId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const rows = await tx.select({ id: projectInsights.id }).from(projectInsights).innerJoin(projects, eq3(projectInsights.projectId, projects.id)).where(and3(eq3(projectInsights.id, insightId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (rows.length !== 1) return false;
     const updates = { status };
     if (status === "acknowledged" && userId) {
       updates.acknowledgedBy = userId;
       updates.acknowledgedAt = /* @__PURE__ */ new Date();
     }
-    const result = await tx.update(projectInsights).set(updates).where(eq(projectInsights.id, insightId));
+    const result = await tx.update(projectInsights).set(updates).where(eq3(projectInsights.id, insightId));
     return Number(result[0].affectedRows) === 1;
   });
 }
@@ -8842,7 +13563,7 @@ async function insertRfqLineItemForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, data.projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (!owned[0]) return false;
     await tx.insert(rfqLineItems).values({
       ...data,
@@ -8864,27 +13585,27 @@ async function insertRfqLineItemsForOrg(data, expected) {
       id: projects.id,
       materialPricingRevision: projects.materialPricingRevision
     }).from(projects).where(
-      and(
-        eq(projects.id, expected.projectId),
-        eq(projects.orgId, expected.orgId)
+      and3(
+        eq3(projects.id, expected.projectId),
+        eq3(projects.orgId, expected.orgId)
       )
     ).limit(1).for("update");
     if (!owned[0] || owned[0].materialPricingRevision !== expected.materialPricingRevision) {
       return false;
     }
     const brief = await tx.select({ projectId: designBriefs.projectId }).from(designBriefs).where(
-      and(
-        eq(designBriefs.id, expected.briefId),
-        eq(designBriefs.projectId, expected.projectId)
+      and3(
+        eq3(designBriefs.id, expected.briefId),
+        eq3(designBriefs.projectId, expected.projectId)
       )
     ).limit(1).for("update");
     if (!brief[0]) return false;
     await tx.delete(rfqLineItems).where(
-      and(
-        eq(rfqLineItems.projectId, expected.projectId),
-        eq(rfqLineItems.briefId, expected.briefId),
-        eq(rfqLineItems.organizationId, expected.orgId),
-        eq(rfqLineItems.artifactState, "draft")
+      and3(
+        eq3(rfqLineItems.projectId, expected.projectId),
+        eq3(rfqLineItems.briefId, expected.briefId),
+        eq3(rfqLineItems.organizationId, expected.orgId),
+        eq3(rfqLineItems.artifactState, "draft")
       )
     );
     if (data.length > 0) {
@@ -8917,42 +13638,42 @@ async function createBiasAlerts(data) {
 async function getBiasAlertsByProject(projectId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(biasAlerts).where(eq(biasAlerts.projectId, projectId)).orderBy(desc(biasAlerts.createdAt));
+  return db.select().from(biasAlerts).where(eq3(biasAlerts.projectId, projectId)).orderBy(desc2(biasAlerts.createdAt));
 }
 async function getBiasAlertById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(biasAlerts).where(eq(biasAlerts.id, id)).limit(1);
+  const rows = await db.select().from(biasAlerts).where(eq3(biasAlerts.id, id)).limit(1);
   return rows[0];
 }
 async function getActiveBiasAlerts(projectId) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(biasAlerts).where(
-    and(eq(biasAlerts.projectId, projectId), eq(biasAlerts.dismissed, false))
-  ).orderBy(desc(biasAlerts.createdAt));
+    and3(eq3(biasAlerts.projectId, projectId), eq3(biasAlerts.dismissed, false))
+  ).orderBy(desc2(biasAlerts.createdAt));
 }
 async function dismissBiasAlert(alertId, userId) {
   const db = await getDb();
   if (!db) return;
-  return db.update(biasAlerts).set({ dismissed: true, dismissedBy: userId, dismissedAt: /* @__PURE__ */ new Date() }).where(eq(biasAlerts.id, alertId));
+  return db.update(biasAlerts).set({ dismissed: true, dismissedBy: userId, dismissedAt: /* @__PURE__ */ new Date() }).where(eq3(biasAlerts.id, alertId));
 }
 async function dismissBiasAlertForOrg(alertId, orgId, userId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.update(biasAlerts).set({ dismissed: true, dismissedBy: userId, dismissedAt: /* @__PURE__ */ new Date() }).where(and(eq(biasAlerts.id, alertId), eq(biasAlerts.orgId, orgId)));
+  const result = await db.update(biasAlerts).set({ dismissed: true, dismissedBy: userId, dismissedAt: /* @__PURE__ */ new Date() }).where(and3(eq3(biasAlerts.id, alertId), eq3(biasAlerts.orgId, orgId)));
   return Number(result[0].affectedRows) === 1;
 }
 async function getUserBiasProfile(userId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(biasProfiles).where(eq(biasProfiles.userId, userId));
+  return db.select().from(biasProfiles).where(eq3(biasProfiles.userId, userId));
 }
 async function upsertBiasProfile(userId, orgId, biasType, severityNumeric) {
   const db = await getDb();
   if (!db) return;
   const existing = await db.select().from(biasProfiles).where(
-    and(eq(biasProfiles.userId, userId), eq(biasProfiles.biasType, biasType))
+    and3(eq3(biasProfiles.userId, userId), eq3(biasProfiles.biasType, biasType))
   );
   if (existing.length > 0) {
     const prev = existing[0];
@@ -8965,7 +13686,7 @@ async function upsertBiasProfile(userId, orgId, biasType, severityNumeric) {
       lastDetectedAt: /* @__PURE__ */ new Date(),
       avgSeverity: String(newAvg.toFixed(2)),
       trend
-    }).where(eq(biasProfiles.id, prev.id));
+    }).where(eq3(biasProfiles.id, prev.id));
   } else {
     await db.insert(biasProfiles).values({
       userId,
@@ -8981,12 +13702,12 @@ async function upsertBiasProfile(userId, orgId, biasType, severityNumeric) {
 async function getProjectEvaluationHistory(projectId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(scoreMatrices).where(eq(scoreMatrices.projectId, projectId)).orderBy(desc(scoreMatrices.computedAt));
+  return db.select().from(scoreMatrices).where(eq3(scoreMatrices.projectId, projectId)).orderBy(desc2(scoreMatrices.computedAt));
 }
 async function getUserOverrideStats(projectId) {
   const db = await getDb();
   if (!db) return { count: 0, netEffect: 0 };
-  const overrides = await db.select().from(overrideRecords).where(eq(overrideRecords.projectId, projectId));
+  const overrides = await db.select().from(overrideRecords).where(eq3(overrideRecords.projectId, projectId));
   const count2 = overrides.length;
   const netEffect = overrides.reduce((sum, o) => {
     const delta = Number(o.newValue || 0) - Number(o.originalValue || 0);
@@ -8997,7 +13718,7 @@ async function getUserOverrideStats(projectId) {
 async function getMaterialLibrary() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(materialLibrary).where(eq(materialLibrary.isActive, true));
+  return db.select().from(materialLibrary).where(eq3(materialLibrary.isActive, true));
 }
 async function createSpaceRecommendation(data) {
   const db = await getDb();
@@ -9008,9 +13729,9 @@ async function clearSpaceRecommendations(projectId, orgId) {
   const db = await getDb();
   if (!db) return;
   await db.delete(spaceRecommendations).where(
-    and(
-      eq(spaceRecommendations.projectId, projectId),
-      eq(spaceRecommendations.orgId, orgId)
+    and3(
+      eq3(spaceRecommendations.projectId, projectId),
+      eq3(spaceRecommendations.orgId, orgId)
     )
   );
 }
@@ -9018,15 +13739,15 @@ async function replaceSpaceRecommendationsForOrg(projectId, orgId, recommendatio
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const project = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (project.length !== 1 || recommendations.some(
       (row) => row.projectId !== projectId || row.orgId !== orgId
     ))
       return false;
     await tx.delete(spaceRecommendations).where(
-      and(
-        eq(spaceRecommendations.projectId, projectId),
-        eq(spaceRecommendations.orgId, orgId)
+      and3(
+        eq3(spaceRecommendations.projectId, projectId),
+        eq3(spaceRecommendations.orgId, orgId)
       )
     );
     if (recommendations.length > 0) {
@@ -9039,9 +13760,9 @@ async function getSpaceRecommendations(projectId, orgId) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(spaceRecommendations).where(
-    and(
-      eq(spaceRecommendations.projectId, projectId),
-      eq(spaceRecommendations.orgId, orgId)
+    and3(
+      eq3(spaceRecommendations.projectId, projectId),
+      eq3(spaceRecommendations.orgId, orgId)
     )
   ).orderBy(spaceRecommendations.roomId);
 }
@@ -9055,7 +13776,7 @@ async function createDesignPackageForOrg(projectId, orgId, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const project = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (project.length !== 1 || data.orgId !== orgId) return null;
     const result = await tx.insert(designPackages).values(data);
     return { id: Number(result[0].insertId) };
@@ -9064,7 +13785,7 @@ async function createDesignPackageForOrg(projectId, orgId, data) {
 async function getDesignPackages(typology, tier) {
   const db = await getDb();
   if (!db) return [];
-  let query = db.select().from(designPackages).where(eq(designPackages.isActive, true));
+  let query = db.select().from(designPackages).where(eq3(designPackages.isActive, true));
   const results = await query;
   return results.filter((p) => {
     if (typology && p.typology !== typology) return false;
@@ -9081,7 +13802,7 @@ async function createAiDesignBriefForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const project = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, data.projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (project.length !== 1 || data.orgId !== orgId) return false;
     await tx.insert(aiDesignBriefs).values(data);
     return true;
@@ -9091,50 +13812,50 @@ async function getLatestAiDesignBrief(projectId, orgId) {
   const db = await getDb();
   if (!db) return null;
   const results = await db.select().from(aiDesignBriefs).where(
-    and(
-      eq(aiDesignBriefs.projectId, projectId),
-      eq(aiDesignBriefs.orgId, orgId)
+    and3(
+      eq3(aiDesignBriefs.projectId, projectId),
+      eq3(aiDesignBriefs.orgId, orgId)
     )
-  ).orderBy(desc(aiDesignBriefs.generatedAt)).limit(1);
+  ).orderBy(desc2(aiDesignBriefs.generatedAt)).limit(1);
   return results[0] || null;
 }
 async function getAiDesignBrief(projectId) {
   const db = await getDb();
   if (!db) return null;
-  const results = await db.select().from(aiDesignBriefs).where(eq(aiDesignBriefs.projectId, projectId)).orderBy(desc(aiDesignBriefs.generatedAt)).limit(1);
+  const results = await db.select().from(aiDesignBriefs).where(eq3(aiDesignBriefs.projectId, projectId)).orderBy(desc2(aiDesignBriefs.generatedAt)).limit(1);
   return results[0] || null;
 }
 async function getAiDesignBriefById(id) {
   const db = await getDb();
   if (!db) return null;
-  const rows = await db.select().from(aiDesignBriefs).where(eq(aiDesignBriefs.id, id)).limit(1);
+  const rows = await db.select().from(aiDesignBriefs).where(eq3(aiDesignBriefs.id, id)).limit(1);
   return rows[0] || null;
 }
 async function updateAiDesignBriefShareToken(briefId, token, expiresAt) {
   const db = await getDb();
   if (!db) return;
-  await db.update(aiDesignBriefs).set({ shareToken: token, shareExpiresAt: expiresAt }).where(eq(aiDesignBriefs.id, briefId));
+  await db.update(aiDesignBriefs).set({ shareToken: token, shareExpiresAt: expiresAt }).where(eq3(aiDesignBriefs.id, briefId));
 }
 async function updateAiDesignBriefShareTokenForOrg(briefId, projectId, orgId, token, expiresAt) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const rows = await tx.select({ id: aiDesignBriefs.id }).from(aiDesignBriefs).innerJoin(projects, eq(projects.id, aiDesignBriefs.projectId)).where(
-      and(
-        eq(aiDesignBriefs.id, briefId),
-        eq(aiDesignBriefs.projectId, projectId),
-        eq(aiDesignBriefs.orgId, orgId),
-        eq(projects.id, projectId),
-        eq(projects.orgId, orgId)
+    const rows = await tx.select({ id: aiDesignBriefs.id }).from(aiDesignBriefs).innerJoin(projects, eq3(projects.id, aiDesignBriefs.projectId)).where(
+      and3(
+        eq3(aiDesignBriefs.id, briefId),
+        eq3(aiDesignBriefs.projectId, projectId),
+        eq3(aiDesignBriefs.orgId, orgId),
+        eq3(projects.id, projectId),
+        eq3(projects.orgId, orgId)
       )
     ).limit(1).for("update");
     if (!rows[0]) return false;
     const result = await tx.update(aiDesignBriefs).set({ shareToken: token, shareExpiresAt: expiresAt }).where(
-      and(
-        eq(aiDesignBriefs.id, briefId),
-        eq(aiDesignBriefs.projectId, projectId),
-        eq(aiDesignBriefs.orgId, orgId),
-        sql`exists (
+      and3(
+        eq3(aiDesignBriefs.id, briefId),
+        eq3(aiDesignBriefs.projectId, projectId),
+        eq3(aiDesignBriefs.orgId, orgId),
+        sql2`exists (
           select 1 from ${projects}
           where ${projects.id} = ${projectId}
             and ${projects.orgId} = ${orgId}
@@ -9153,24 +13874,24 @@ async function revokeAiDesignBriefSharesForProjectForOrg(projectId, orgId) {
     orgId
   );
 }
-async function revokeAiDesignBriefSharesForProjectForOrgInDatabase(database4, projectId, orgId) {
-  return database4.transaction(async (tx) => {
-    const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+async function revokeAiDesignBriefSharesForProjectForOrgInDatabase(database5, projectId, orgId) {
+  return database5.transaction(async (tx) => {
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (owned.length !== 1) return null;
     await tx.update(aiDesignBriefs).set({ shareExpiresAt: null }).where(
-      and(
-        eq(aiDesignBriefs.projectId, projectId),
-        eq(aiDesignBriefs.orgId, orgId),
-        isNull(aiDesignBriefs.shareToken),
-        isNotNull(aiDesignBriefs.shareExpiresAt)
+      and3(
+        eq3(aiDesignBriefs.projectId, projectId),
+        eq3(aiDesignBriefs.orgId, orgId),
+        isNull3(aiDesignBriefs.shareToken),
+        isNotNull3(aiDesignBriefs.shareExpiresAt)
       )
     );
     const result = await tx.update(aiDesignBriefs).set({ shareToken: null, shareExpiresAt: null }).where(
-      and(
-        eq(aiDesignBriefs.projectId, projectId),
-        eq(aiDesignBriefs.orgId, orgId),
-        isNotNull(aiDesignBriefs.shareToken),
-        sql`exists (
+      and3(
+        eq3(aiDesignBriefs.projectId, projectId),
+        eq3(aiDesignBriefs.orgId, orgId),
+        isNotNull3(aiDesignBriefs.shareToken),
+        sql2`exists (
           select 1 from ${projects}
           where ${projects.id} = ${projectId}
             and ${projects.orgId} = ${orgId}
@@ -9184,11 +13905,11 @@ async function createFloorPlanAssetAndLinkForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const owned = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const owned = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, data.projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (!owned[0]) return null;
     const assetResult = await tx.insert(projectAssets).values(data);
     const assetId = Number(assetResult[0].insertId);
-    const projectResult = await tx.update(projects).set({ floorPlanAssetId: assetId }).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId)));
+    const projectResult = await tx.update(projects).set({ floorPlanAssetId: assetId }).where(and3(eq3(projects.id, data.projectId), eq3(projects.orgId, orgId)));
     if (Number(projectResult[0].affectedRows) !== 1) {
       throw new Error("Floor-plan project link lost authorization");
     }
@@ -9198,7 +13919,7 @@ async function createFloorPlanAssetAndLinkForOrg(data, orgId) {
 async function getAiDesignBriefByShareToken(token) {
   const db = await getDb();
   if (!db) return null;
-  const results = await db.select().from(aiDesignBriefs).where(eq(aiDesignBriefs.shareToken, token)).limit(1);
+  const results = await db.select().from(aiDesignBriefs).where(eq3(aiDesignBriefs.shareToken, token)).limit(1);
   return results[0] || null;
 }
 async function getMaterialConstants() {
@@ -9209,90 +13930,90 @@ async function getMaterialConstants() {
 async function getMaterialConstantByType(materialType) {
   const db = await getDb();
   if (!db) return void 0;
-  const results = await db.select().from(materialConstants).where(eq(materialConstants.materialType, materialType)).limit(1);
+  const results = await db.select().from(materialConstants).where(eq3(materialConstants.materialType, materialType)).limit(1);
   return results[0];
 }
 async function getDesignTrends(filters) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [];
-  if (filters?.region) conditions.push(eq(designTrends.region, filters.region));
+  if (filters?.region) conditions.push(eq3(designTrends.region, filters.region));
   if (filters?.styleClassification)
     conditions.push(
-      eq(designTrends.styleClassification, filters.styleClassification)
+      eq3(designTrends.styleClassification, filters.styleClassification)
     );
   const query = db.select().from(designTrends);
-  if (conditions.length > 0) query.where(and(...conditions));
-  const rows = await query.orderBy(desc(designTrends.mentionCount)).limit(filters?.limit ?? 30);
+  if (conditions.length > 0) query.where(and3(...conditions));
+  const rows = await query.orderBy(desc2(designTrends.mentionCount)).limit(filters?.limit ?? 30);
   return rows;
 }
 async function getPublicDesignTrends(filters) {
   const db = await getDb();
   if (!db) return [];
-  const conditions = [eq(designTrends.corpusScope, "platform_public")];
-  if (filters?.region) conditions.push(eq(designTrends.region, filters.region));
+  const conditions = [eq3(designTrends.corpusScope, "platform_public")];
+  if (filters?.region) conditions.push(eq3(designTrends.region, filters.region));
   if (filters?.styleClassification)
     conditions.push(
-      eq(designTrends.styleClassification, filters.styleClassification)
+      eq3(designTrends.styleClassification, filters.styleClassification)
     );
-  return db.select().from(designTrends).where(and(...conditions)).orderBy(desc(designTrends.mentionCount)).limit(filters?.limit ?? 30);
+  return db.select().from(designTrends).where(and3(...conditions)).orderBy(desc2(designTrends.mentionCount)).limit(filters?.limit ?? 30);
 }
 async function getPublicDecisionPatterns() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(decisionPatterns).where(eq(decisionPatterns.corpusScope, "platform_public")).orderBy(decisionPatterns.id);
+  return db.select().from(decisionPatterns).where(eq3(decisionPatterns.corpusScope, "platform_public")).orderBy(decisionPatterns.id);
 }
 async function getGovernedAccuracySnapshots(limit = 20) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(accuracySnapshots).where(eq(accuracySnapshots.corpusScope, "platform_public")).orderBy(desc(accuracySnapshots.snapshotDate)).limit(limit);
+  return db.select().from(accuracySnapshots).where(eq3(accuracySnapshots.corpusScope, "platform_public")).orderBy(desc2(accuracySnapshots.snapshotDate)).limit(limit);
 }
 async function getGovernedBenchmarkSuggestions(status) {
   const db = await getDb();
   if (!db) return [];
-  const conditions = [eq(benchmarkSuggestions.corpusScope, "platform_public")];
-  if (status) conditions.push(eq(benchmarkSuggestions.status, status));
-  return db.select().from(benchmarkSuggestions).where(and(...conditions)).orderBy(desc(benchmarkSuggestions.createdAt));
+  const conditions = [eq3(benchmarkSuggestions.corpusScope, "platform_public")];
+  if (status) conditions.push(eq3(benchmarkSuggestions.status, status));
+  return db.select().from(benchmarkSuggestions).where(and3(...conditions)).orderBy(desc2(benchmarkSuggestions.createdAt));
 }
 async function getGovernedLogicChangeLog(status) {
   const db = await getDb();
   if (!db) return [];
-  const conditions = [eq(logicChangeLog.corpusScope, "platform_public")];
-  if (status) conditions.push(eq(logicChangeLog.status, status));
-  return db.select().from(logicChangeLog).where(and(...conditions)).orderBy(desc(logicChangeLog.createdAt));
+  const conditions = [eq3(logicChangeLog.corpusScope, "platform_public")];
+  if (status) conditions.push(eq3(logicChangeLog.status, status));
+  return db.select().from(logicChangeLog).where(and3(...conditions)).orderBy(desc2(logicChangeLog.createdAt));
 }
 async function getBenchmarkForProject(typology, location, marketTier) {
   const db = await getDb();
   if (!db) return null;
   const exact = await db.select().from(benchmarkData).where(
-    and(
-      eq(benchmarkData.typology, typology),
-      eq(benchmarkData.location, location),
-      eq(benchmarkData.marketTier, marketTier)
+    and3(
+      eq3(benchmarkData.typology, typology),
+      eq3(benchmarkData.location, location),
+      eq3(benchmarkData.marketTier, marketTier)
     )
   ).limit(1);
   if (exact.length > 0) return exact[0];
   const noLoc = await db.select().from(benchmarkData).where(
-    and(
-      eq(benchmarkData.typology, typology),
-      eq(benchmarkData.marketTier, marketTier)
+    and3(
+      eq3(benchmarkData.typology, typology),
+      eq3(benchmarkData.marketTier, marketTier)
     )
   ).limit(1);
   if (noLoc.length > 0) return noLoc[0];
-  const justTier = await db.select().from(benchmarkData).where(eq(benchmarkData.marketTier, marketTier)).limit(1);
+  const justTier = await db.select().from(benchmarkData).where(eq3(benchmarkData.marketTier, marketTier)).limit(1);
   return justTier[0] ?? null;
 }
 async function getEvidenceWithSources(filters) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [];
-  conditions.push(eq(evidenceRecords.orgId, filters.orgId));
+  conditions.push(eq3(evidenceRecords.orgId, filters.orgId));
   if (filters.category)
-    conditions.push(eq(evidenceRecords.category, filters.category));
+    conditions.push(eq3(evidenceRecords.category, filters.category));
   if (filters.projectId)
-    conditions.push(eq(evidenceRecords.projectId, filters.projectId));
+    conditions.push(eq3(evidenceRecords.projectId, filters.projectId));
   conditions.push(
-    sql`${evidenceRecords.confidentiality} NOT IN ('confidential', 'restricted')`
+    sql2`${evidenceRecords.confidentiality} NOT IN ('confidential', 'restricted')`
   );
   let query = db.select({
     id: evidenceRecords.id,
@@ -9318,12 +14039,12 @@ async function getEvidenceWithSources(filters) {
     sourceLastFetch: sourceRegistry.lastSuccessfulFetch
   }).from(evidenceRecords).leftJoin(
     sourceRegistry,
-    eq(evidenceRecords.sourceRegistryId, sourceRegistry.id)
+    eq3(evidenceRecords.sourceRegistryId, sourceRegistry.id)
   );
   if (conditions.length > 0) {
-    query = query.where(and(...conditions));
+    query = query.where(and3(...conditions));
   }
-  return query.orderBy(desc(evidenceRecords.captureDate)).limit(filters.limit ?? 20);
+  return query.orderBy(desc2(evidenceRecords.captureDate)).limit(filters.limit ?? 20);
 }
 async function getActiveSourceRegistry(limit = 10) {
   const db = await getDb();
@@ -9340,13 +14061,13 @@ async function getActiveSourceRegistry(limit = 10) {
     lastRecordCount: sourceRegistry.lastRecordCount,
     notes: sourceRegistry.notes
   }).from(sourceRegistry).where(
-    and(
-      eq(sourceRegistry.isWhitelisted, true),
-      eq(sourceRegistry.isActive, true)
+    and3(
+      eq3(sourceRegistry.isWhitelisted, true),
+      eq3(sourceRegistry.isActive, true)
     )
   ).orderBy(
-    asc(sourceRegistry.reliabilityDefault),
-    desc(sourceRegistry.lastSuccessfulFetch)
+    asc2(sourceRegistry.reliabilityDefault),
+    desc2(sourceRegistry.lastSuccessfulFetch)
   ).limit(limit);
   return rows;
 }
@@ -9360,7 +14081,7 @@ async function createPdfExtractionForOrg(data, orgId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const project = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, data.projectId), eq(projects.orgId, orgId))).limit(1).for("update");
+    const project = await tx.select({ id: projects.id }).from(projects).where(and3(eq3(projects.id, data.projectId), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (project.length !== 1) return null;
     const result = await tx.insert(pdfExtractions).values(data);
     return { id: Number(result[0].insertId) };
@@ -9369,26 +14090,26 @@ async function createPdfExtractionForOrg(data, orgId) {
 async function getPdfExtractionsByProject(projectId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(pdfExtractions).where(eq(pdfExtractions.projectId, projectId)).orderBy(desc(pdfExtractions.createdAt));
+  return db.select().from(pdfExtractions).where(eq3(pdfExtractions.projectId, projectId)).orderBy(desc2(pdfExtractions.createdAt));
 }
 async function getPdfExtractionById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(pdfExtractions).where(eq(pdfExtractions.id, id));
+  const rows = await db.select().from(pdfExtractions).where(eq3(pdfExtractions.id, id));
   return rows[0];
 }
 async function updatePdfExtraction(id, data) {
   const db = await getDb();
   if (!db) return;
-  return db.update(pdfExtractions).set(data).where(eq(pdfExtractions.id, id));
+  return db.update(pdfExtractions).set(data).where(eq3(pdfExtractions.id, id));
 }
 async function updatePdfExtractionForOrg(id, orgId, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const extraction = await tx.select({ id: pdfExtractions.id }).from(pdfExtractions).innerJoin(projects, eq(pdfExtractions.projectId, projects.id)).where(and(eq(pdfExtractions.id, id), eq(projects.orgId, orgId))).limit(1).for("update");
+    const extraction = await tx.select({ id: pdfExtractions.id }).from(pdfExtractions).innerJoin(projects, eq3(pdfExtractions.projectId, projects.id)).where(and3(eq3(pdfExtractions.id, id), eq3(projects.orgId, orgId))).limit(1).for("update");
     if (extraction.length !== 1) return false;
-    const result = await tx.update(pdfExtractions).set(data).where(eq(pdfExtractions.id, id));
+    const result = await tx.update(pdfExtractions).set(data).where(eq3(pdfExtractions.id, id));
     return Number(result[0].affectedRows) === 1;
   });
 }
@@ -9396,11 +14117,11 @@ async function verifyPdfExtractionForOrg(id, projectId, orgId, userId, verifiedA
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
-    const extraction = await tx.select({ id: pdfExtractions.id }).from(pdfExtractions).innerJoin(projects, eq(pdfExtractions.projectId, projects.id)).where(
-      and(
-        eq(pdfExtractions.id, id),
-        eq(pdfExtractions.projectId, projectId),
-        eq(projects.orgId, orgId)
+    const extraction = await tx.select({ id: pdfExtractions.id }).from(pdfExtractions).innerJoin(projects, eq3(pdfExtractions.projectId, projects.id)).where(
+      and3(
+        eq3(pdfExtractions.id, id),
+        eq3(pdfExtractions.projectId, projectId),
+        eq3(projects.orgId, orgId)
       )
     ).limit(1).for("update");
     if (extraction.length !== 1) return false;
@@ -9408,11 +14129,11 @@ async function verifyPdfExtractionForOrg(id, projectId, orgId, userId, verifiedA
       status: "verified",
       verifiedBy: userId,
       verifiedAt: /* @__PURE__ */ new Date()
-    }).where(eq(pdfExtractions.id, id));
+    }).where(eq3(pdfExtractions.id, id));
     const result = await tx.update(projects).set({
       fitoutAreaVerified: true,
       totalFitoutArea: String(verifiedArea)
-    }).where(and(eq(projects.id, projectId), eq(projects.orgId, orgId)));
+    }).where(and3(eq3(projects.id, projectId), eq3(projects.orgId, orgId)));
     return Number(result[0].affectedRows) === 1;
   });
 }
@@ -9424,7 +14145,7 @@ async function updateProjectVerification(projectId, data) {
     updates.fitoutAreaVerified = data.fitoutAreaVerified;
   if (data.totalFitoutArea !== void 0)
     updates.totalFitoutArea = String(data.totalFitoutArea);
-  return db.update(projects).set(updates).where(eq(projects.id, projectId));
+  return db.update(projects).set(updates).where(eq3(projects.id, projectId));
 }
 async function updateProjectVerificationForOrg(projectId, orgId, data) {
   const updates = {};
@@ -9438,9 +14159,9 @@ async function getMaterialAllocations(projectId, organizationId) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(materialAllocations).where(
-    and(
-      eq(materialAllocations.projectId, projectId),
-      eq(materialAllocations.organizationId, organizationId)
+    and3(
+      eq3(materialAllocations.projectId, projectId),
+      eq3(materialAllocations.organizationId, organizationId)
     )
   ).orderBy(materialAllocations.roomId, materialAllocations.element);
 }
@@ -9462,7 +14183,7 @@ async function createExplicitMaterialAllocationForOrg(projectId, organizationId,
       materialPricingRevision: projects.materialPricingRevision,
       materialPriceGeography: projects.materialPriceGeography
     }).from(projects).where(
-      and(eq(projects.id, projectId), eq(projects.orgId, organizationId))
+      and3(eq3(projects.id, projectId), eq3(projects.orgId, organizationId))
     ).limit(1).for("update");
     if (project.length !== 1 || project[0].materialPricingRevision !== expected.materialPricingRevision || project[0].materialPriceGeography !== expected.materialPriceGeography) {
       return null;
@@ -9472,10 +14193,10 @@ async function createExplicitMaterialAllocationForOrg(projectId, organizationId,
         roomName: spaceProgramRooms.roomName,
         isFitOut: spaceProgramRooms.isFitOut
       }).from(spaceProgramRooms).where(
-        and(
-          eq(spaceProgramRooms.projectId, projectId),
-          eq(spaceProgramRooms.organizationId, organizationId),
-          eq(spaceProgramRooms.roomCode, data.roomId)
+        and3(
+          eq3(spaceProgramRooms.projectId, projectId),
+          eq3(spaceProgramRooms.organizationId, organizationId),
+          eq3(spaceProgramRooms.roomCode, data.roomId)
         )
       ).limit(1).for("update"),
       data.materialLibraryId === null || data.materialLibraryId === void 0 ? [] : tx.select({
@@ -9483,9 +14204,9 @@ async function createExplicitMaterialAllocationForOrg(projectId, organizationId,
         productName: materialLibrary.productName,
         category: materialLibrary.category
       }).from(materialLibrary).where(
-        and(
-          eq(materialLibrary.id, data.materialLibraryId),
-          eq(materialLibrary.isActive, true)
+        and3(
+          eq3(materialLibrary.id, data.materialLibraryId),
+          eq3(materialLibrary.isActive, true)
         )
       ).limit(1).for("update")
     ]);
@@ -9493,19 +14214,19 @@ async function createExplicitMaterialAllocationForOrg(projectId, organizationId,
       return null;
     }
     const existing = await tx.select({ id: materialAllocations.id }).from(materialAllocations).where(
-      and(
-        eq(materialAllocations.projectId, projectId),
-        eq(materialAllocations.organizationId, organizationId),
-        eq(materialAllocations.roomId, data.roomId),
-        eq(materialAllocations.element, data.element)
+      and3(
+        eq3(materialAllocations.projectId, projectId),
+        eq3(materialAllocations.organizationId, organizationId),
+        eq3(materialAllocations.roomId, data.roomId),
+        eq3(materialAllocations.element, data.element)
       )
     ).limit(1);
     if (existing.length > 0) return null;
     const result = await tx.insert(materialAllocations).values(data);
     await tx.update(projects).set({
-      materialPricingRevision: sql`${projects.materialPricingRevision} + 1`
+      materialPricingRevision: sql2`${projects.materialPricingRevision} + 1`
     }).where(
-      and(eq(projects.id, projectId), eq(projects.orgId, organizationId))
+      and3(eq3(projects.id, projectId), eq3(projects.orgId, organizationId))
     );
     return { id: Number(result[0].insertId) };
   });
@@ -9519,16 +14240,16 @@ async function replaceMaterialAllocationsForOrg(projectId, organizationId, data,
       materialPricingRevision: projects.materialPricingRevision,
       materialPriceGeography: projects.materialPriceGeography
     }).from(projects).where(
-      and(eq(projects.id, projectId), eq(projects.orgId, organizationId))
+      and3(eq3(projects.id, projectId), eq3(projects.orgId, organizationId))
     ).limit(1).for("update");
     if (project.length !== 1 || project[0].materialPricingRevision !== expected.materialPricingRevision || project[0].materialPriceGeography !== expected.materialPriceGeography) {
       return false;
     }
     await tx.delete(materialAllocations).where(
-      and(
-        eq(materialAllocations.projectId, projectId),
-        eq(materialAllocations.organizationId, organizationId),
-        eq(materialAllocations.isLocked, false)
+      and3(
+        eq3(materialAllocations.projectId, projectId),
+        eq3(materialAllocations.organizationId, organizationId),
+        eq3(materialAllocations.isLocked, false)
       )
     );
     if (data.length > 0) {
@@ -9539,9 +14260,9 @@ async function replaceMaterialAllocationsForOrg(projectId, organizationId, data,
       await tx.insert(materialAllocations).values(data);
     }
     await tx.update(projects).set({
-      materialPricingRevision: sql`${projects.materialPricingRevision} + 1`
+      materialPricingRevision: sql2`${projects.materialPricingRevision} + 1`
     }).where(
-      and(eq(projects.id, projectId), eq(projects.orgId, organizationId))
+      and3(eq3(projects.id, projectId), eq3(projects.orgId, organizationId))
     );
     return true;
   });
@@ -9550,23 +14271,23 @@ async function deleteMaterialAllocations(projectId, organizationId, excludeLocke
   const db = await getDb();
   if (!db) return;
   const conditions = [
-    eq(materialAllocations.projectId, projectId),
-    eq(materialAllocations.organizationId, organizationId)
+    eq3(materialAllocations.projectId, projectId),
+    eq3(materialAllocations.organizationId, organizationId)
   ];
   if (excludeLockedIds && excludeLockedIds.length > 0) {
-    conditions.push(eq(materialAllocations.isLocked, false));
+    conditions.push(eq3(materialAllocations.isLocked, false));
   }
-  return db.delete(materialAllocations).where(and(...conditions));
+  return db.delete(materialAllocations).where(and3(...conditions));
 }
 async function updateMaterialAllocation(id, data) {
   const db = await getDb();
   if (!db) return;
-  return db.update(materialAllocations).set(data).where(eq(materialAllocations.id, id));
+  return db.update(materialAllocations).set(data).where(eq3(materialAllocations.id, id));
 }
 async function getMaterialAllocationById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(materialAllocations).where(eq(materialAllocations.id, id)).limit(1);
+  const rows = await db.select().from(materialAllocations).where(eq3(materialAllocations.id, id)).limit(1);
   return rows[0];
 }
 async function updateMaterialAllocationForOrg(id, organizationId, data) {
@@ -9574,33 +14295,33 @@ async function updateMaterialAllocationForOrg(id, organizationId, data) {
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
     const allocation = await tx.select({ projectId: materialAllocations.projectId }).from(materialAllocations).where(
-      and(
-        eq(materialAllocations.id, id),
-        eq(materialAllocations.organizationId, organizationId)
+      and3(
+        eq3(materialAllocations.id, id),
+        eq3(materialAllocations.organizationId, organizationId)
       )
     ).limit(1);
     if (allocation.length !== 1) return false;
     const project = await tx.select({ id: projects.id }).from(projects).where(
-      and(
-        eq(projects.id, allocation[0].projectId),
-        eq(projects.orgId, organizationId)
+      and3(
+        eq3(projects.id, allocation[0].projectId),
+        eq3(projects.orgId, organizationId)
       )
     ).limit(1).for("update");
     if (project.length !== 1) return false;
     const result = await tx.update(materialAllocations).set(data).where(
-      and(
-        eq(materialAllocations.id, id),
-        eq(materialAllocations.projectId, allocation[0].projectId),
-        eq(materialAllocations.organizationId, organizationId)
+      and3(
+        eq3(materialAllocations.id, id),
+        eq3(materialAllocations.projectId, allocation[0].projectId),
+        eq3(materialAllocations.organizationId, organizationId)
       )
     );
     if (Number(result[0].affectedRows) !== 1) return false;
     await tx.update(projects).set({
-      materialPricingRevision: sql`${projects.materialPricingRevision} + 1`
+      materialPricingRevision: sql2`${projects.materialPricingRevision} + 1`
     }).where(
-      and(
-        eq(projects.id, allocation[0].projectId),
-        eq(projects.orgId, organizationId)
+      and3(
+        eq3(projects.id, allocation[0].projectId),
+        eq3(projects.orgId, organizationId)
       )
     );
     return true;
@@ -9610,9 +14331,9 @@ async function lockMaterialAllocations(projectId, organizationId, isLocked) {
   const db = await getDb();
   if (!db) return;
   return db.update(materialAllocations).set({ isLocked }).where(
-    and(
-      eq(materialAllocations.projectId, projectId),
-      eq(materialAllocations.organizationId, organizationId)
+    and3(
+      eq3(materialAllocations.projectId, projectId),
+      eq3(materialAllocations.organizationId, organizationId)
     )
   );
 }
@@ -9621,13 +14342,13 @@ async function getMaterialSupplierSources(organizationId) {
   if (!db) return [];
   if (organizationId) {
     return db.select().from(materialSupplierSources).where(
-      and(
-        eq(materialSupplierSources.isActive, true),
-        eq(materialSupplierSources.organizationId, organizationId)
+      and3(
+        eq3(materialSupplierSources.isActive, true),
+        eq3(materialSupplierSources.organizationId, organizationId)
       )
     ).orderBy(materialSupplierSources.supplierName);
   }
-  return db.select().from(materialSupplierSources).where(eq(materialSupplierSources.isActive, true)).orderBy(materialSupplierSources.supplierName);
+  return db.select().from(materialSupplierSources).where(eq3(materialSupplierSources.isActive, true)).orderBy(materialSupplierSources.supplierName);
 }
 async function insertMaterialSupplierSource(data) {
   const db = await getDb();
@@ -9638,21 +14359,21 @@ async function insertMaterialSupplierSource(data) {
 async function updateMaterialSupplierSource(id, data) {
   const db = await getDb();
   if (!db) return;
-  return db.update(materialSupplierSources).set(data).where(eq(materialSupplierSources.id, id));
+  return db.update(materialSupplierSources).set(data).where(eq3(materialSupplierSources.id, id));
 }
 async function getMaterialSupplierSourceById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(materialSupplierSources).where(eq(materialSupplierSources.id, id)).limit(1);
+  const rows = await db.select().from(materialSupplierSources).where(eq3(materialSupplierSources.id, id)).limit(1);
   return rows[0];
 }
 async function updateMaterialSupplierSourceForOrg(id, organizationId, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const result = await db.update(materialSupplierSources).set(data).where(
-    and(
-      eq(materialSupplierSources.id, id),
-      eq(materialSupplierSources.organizationId, organizationId)
+    and3(
+      eq3(materialSupplierSources.id, id),
+      eq3(materialSupplierSources.organizationId, organizationId)
     )
   );
   return Number(result[0].affectedRows) === 1;
@@ -9661,9 +14382,9 @@ async function getSpaceProgramRooms(projectId, organizationId) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(spaceProgramRooms).where(
-    and(
-      eq(spaceProgramRooms.projectId, projectId),
-      eq(spaceProgramRooms.organizationId, organizationId)
+    and3(
+      eq3(spaceProgramRooms.projectId, projectId),
+      eq3(spaceProgramRooms.organizationId, organizationId)
     )
   ).orderBy(spaceProgramRooms.sortOrder);
 }
@@ -9678,14 +14399,14 @@ async function insertSpaceProgramRoomForOrg(data, organizationId) {
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
     const project = await tx.select({ id: projects.id }).from(projects).where(
-      and(eq(projects.id, data.projectId), eq(projects.orgId, organizationId))
+      and3(eq3(projects.id, data.projectId), eq3(projects.orgId, organizationId))
     ).limit(1).for("update");
     if (project.length !== 1 || data.organizationId !== organizationId)
       return false;
     const authority = await tx.select({ mode: projectGeometryAuthorities.mode }).from(projectGeometryAuthorities).where(
-      and(
-        eq(projectGeometryAuthorities.organizationId, organizationId),
-        eq(projectGeometryAuthorities.projectId, data.projectId)
+      and3(
+        eq3(projectGeometryAuthorities.organizationId, organizationId),
+        eq3(projectGeometryAuthorities.projectId, data.projectId)
       )
     ).limit(1).for("update");
     if (authority[0]?.mode === "canonical") return false;
@@ -9696,66 +14417,66 @@ async function insertSpaceProgramRoomForOrg(data, organizationId) {
 async function getSpaceProgramRoomById(id) {
   const db = await getDb();
   if (!db) return void 0;
-  const rows = await db.select().from(spaceProgramRooms).where(eq(spaceProgramRooms.id, id)).limit(1);
+  const rows = await db.select().from(spaceProgramRooms).where(eq3(spaceProgramRooms.id, id)).limit(1);
   return rows[0];
 }
 async function updateSpaceProgramRoom(id, data) {
   const db = await getDb();
   if (!db) return;
-  return db.update(spaceProgramRooms).set(data).where(eq(spaceProgramRooms.id, id));
+  return db.update(spaceProgramRooms).set(data).where(eq3(spaceProgramRooms.id, id));
 }
 async function updateSpaceProgramRoomForOrg(id, organizationId, data) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const conditions = [
-    eq(spaceProgramRooms.id, id),
-    eq(spaceProgramRooms.organizationId, organizationId)
+    eq3(spaceProgramRooms.id, id),
+    eq3(spaceProgramRooms.organizationId, organizationId)
   ];
   if (data.sqm !== void 0) {
-    conditions.push(sql`not exists (
+    conditions.push(sql2`not exists (
       select 1 from ${projectGeometryAuthorities}
       where ${projectGeometryAuthorities.organizationId} = ${organizationId}
         and ${projectGeometryAuthorities.projectId} = ${spaceProgramRooms.projectId}
         and ${projectGeometryAuthorities.mode} = 'canonical'
     )`);
   }
-  const result = await db.update(spaceProgramRooms).set(data).where(and(...conditions));
+  const result = await db.update(spaceProgramRooms).set(data).where(and3(...conditions));
   return Number(result[0].affectedRows) === 1;
 }
 async function deleteSpaceProgramRoom(id) {
   const db = await getDb();
   if (!db) return;
-  await db.delete(amenitySubSpaces).where(eq(amenitySubSpaces.spaceProgramRoomId, id));
-  return db.delete(spaceProgramRooms).where(eq(spaceProgramRooms.id, id));
+  await db.delete(amenitySubSpaces).where(eq3(amenitySubSpaces.spaceProgramRoomId, id));
+  return db.delete(spaceProgramRooms).where(eq3(spaceProgramRooms.id, id));
 }
 async function deleteSpaceProgramRoomForOrg(id, organizationId) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
     const rows = await tx.select({ id: spaceProgramRooms.id }).from(spaceProgramRooms).where(
-      and(
-        eq(spaceProgramRooms.id, id),
-        eq(spaceProgramRooms.organizationId, organizationId)
+      and3(
+        eq3(spaceProgramRooms.id, id),
+        eq3(spaceProgramRooms.organizationId, organizationId)
       )
     ).limit(1).for("update");
     if (rows.length !== 1) return false;
     const authority = await tx.select({ mode: projectGeometryAuthorities.mode }).from(projectGeometryAuthorities).innerJoin(
       spaceProgramRooms,
-      and(
-        eq(spaceProgramRooms.id, id),
-        eq(spaceProgramRooms.projectId, projectGeometryAuthorities.projectId),
-        eq(
+      and3(
+        eq3(spaceProgramRooms.id, id),
+        eq3(spaceProgramRooms.projectId, projectGeometryAuthorities.projectId),
+        eq3(
           spaceProgramRooms.organizationId,
           projectGeometryAuthorities.organizationId
         )
       )
-    ).where(eq(projectGeometryAuthorities.organizationId, organizationId)).limit(1).for("update");
+    ).where(eq3(projectGeometryAuthorities.organizationId, organizationId)).limit(1).for("update");
     if (authority[0]?.mode === "canonical") return false;
-    await tx.delete(amenitySubSpaces).where(eq(amenitySubSpaces.spaceProgramRoomId, id));
+    await tx.delete(amenitySubSpaces).where(eq3(amenitySubSpaces.spaceProgramRoomId, id));
     const result = await tx.delete(spaceProgramRooms).where(
-      and(
-        eq(spaceProgramRooms.id, id),
-        eq(spaceProgramRooms.organizationId, organizationId)
+      and3(
+        eq3(spaceProgramRooms.id, id),
+        eq3(spaceProgramRooms.organizationId, organizationId)
       )
     );
     return Number(result[0].affectedRows) === 1;
@@ -9764,7 +14485,7 @@ async function deleteSpaceProgramRoomForOrg(id, organizationId) {
 async function getAmenitySubSpacesForRoom(spaceProgramRoomId) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(amenitySubSpaces).where(eq(amenitySubSpaces.spaceProgramRoomId, spaceProgramRoomId));
+  return db.select().from(amenitySubSpaces).where(eq3(amenitySubSpaces.spaceProgramRoomId, spaceProgramRoomId));
 }
 async function insertAmenitySubSpaces(data) {
   const db = await getDb();
@@ -9777,28 +14498,28 @@ async function replaceSpaceProgramRoomsForOrg(projectId, organizationId, rooms, 
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
     const project = await tx.select({ id: projects.id }).from(projects).where(
-      and(eq(projects.id, projectId), eq(projects.orgId, organizationId))
+      and3(eq3(projects.id, projectId), eq3(projects.orgId, organizationId))
     ).limit(1).for("update");
     if (project.length !== 1) return null;
     const authority = await tx.select({ mode: projectGeometryAuthorities.mode }).from(projectGeometryAuthorities).where(
-      and(
-        eq(projectGeometryAuthorities.organizationId, organizationId),
-        eq(projectGeometryAuthorities.projectId, projectId)
+      and3(
+        eq3(projectGeometryAuthorities.organizationId, organizationId),
+        eq3(projectGeometryAuthorities.projectId, projectId)
       )
     ).limit(1).for("update");
     if (authority[0]?.mode === "canonical") return null;
     const deleteConditions = [
-      eq(spaceProgramRooms.projectId, projectId),
-      eq(spaceProgramRooms.organizationId, organizationId)
+      eq3(spaceProgramRooms.projectId, projectId),
+      eq3(spaceProgramRooms.organizationId, organizationId)
     ];
     if (preserveOverridden) {
-      deleteConditions.push(eq(spaceProgramRooms.fitOutOverridden, false));
+      deleteConditions.push(eq3(spaceProgramRooms.fitOutOverridden, false));
     }
-    const deleting = await tx.select({ id: spaceProgramRooms.id }).from(spaceProgramRooms).where(and(...deleteConditions)).for("update");
+    const deleting = await tx.select({ id: spaceProgramRooms.id }).from(spaceProgramRooms).where(and3(...deleteConditions)).for("update");
     const deletingIds = deleting.map((row) => row.id);
     if (deletingIds.length > 0) {
-      await tx.delete(amenitySubSpaces).where(inArray(amenitySubSpaces.spaceProgramRoomId, deletingIds));
-      await tx.delete(spaceProgramRooms).where(and(...deleteConditions));
+      await tx.delete(amenitySubSpaces).where(inArray3(amenitySubSpaces.spaceProgramRoomId, deletingIds));
+      await tx.delete(spaceProgramRooms).where(and3(...deleteConditions));
     }
     if (rooms.some(
       (room) => room.projectId !== projectId || room.organizationId !== organizationId
@@ -9806,9 +14527,9 @@ async function replaceSpaceProgramRoomsForOrg(projectId, organizationId, rooms, 
       return null;
     if (rooms.length > 0) await tx.insert(spaceProgramRooms).values(rooms);
     const storedRooms = await tx.select().from(spaceProgramRooms).where(
-      and(
-        eq(spaceProgramRooms.projectId, projectId),
-        eq(spaceProgramRooms.organizationId, organizationId)
+      and3(
+        eq3(spaceProgramRooms.projectId, projectId),
+        eq3(spaceProgramRooms.organizationId, organizationId)
       )
     );
     const roomByCode = new Map(
@@ -9836,19 +14557,19 @@ async function insertPortfolioAlertsForOrg(input) {
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
     const portfolio = await tx.select({ id: portfolios.id }).from(portfolios).where(
-      and(
-        eq(portfolios.id, input.portfolioId),
-        eq(portfolios.organizationId, input.orgId)
+      and3(
+        eq3(portfolios.id, input.portfolioId),
+        eq3(portfolios.organizationId, input.orgId)
       )
     ).limit(1).for("update");
     if (portfolio.length !== 1) return null;
-    const links = await tx.select({ projectId: portfolioProjects.projectId }).from(portfolioProjects).where(eq(portfolioProjects.portfolioId, input.portfolioId)).for("update");
+    const links = await tx.select({ projectId: portfolioProjects.projectId }).from(portfolioProjects).where(eq3(portfolioProjects.portfolioId, input.portfolioId)).for("update");
     const projectIds = Array.from(
       new Set(links.map((row) => row.projectId))
     );
     if (projectIds.length > 0) {
       const ownedProjects = await tx.select({ id: projects.id }).from(projects).where(
-        and(inArray(projects.id, projectIds), eq(projects.orgId, input.orgId))
+        and3(inArray3(projects.id, projectIds), eq3(projects.orgId, input.orgId))
       ).for("update");
       if (ownedProjects.length !== projectIds.length) return null;
     }
@@ -9858,18 +14579,18 @@ async function insertPortfolioAlertsForOrg(input) {
     });
     if (!valid) return null;
     await tx.update(portfolioAlerts).set({ status: "expired", activeDedupKey: null }).where(
-      and(
-        eq(portfolioAlerts.organizationId, input.orgId),
-        eq(portfolioAlerts.portfolioId, input.portfolioId),
-        eq(portfolioAlerts.status, "active"),
-        sql`${portfolioAlerts.expiresAt} <= now()`
+      and3(
+        eq3(portfolioAlerts.organizationId, input.orgId),
+        eq3(portfolioAlerts.portfolioId, input.portfolioId),
+        eq3(portfolioAlerts.status, "active"),
+        sql2`${portfolioAlerts.expiresAt} <= now()`
       )
     );
     const inserted = [];
     for (const alert of input.alerts) {
       const result = await tx.insert(portfolioAlerts).ignore().values(alert);
       if (Number(result[0].affectedRows) === 1) {
-        const rows = await tx.select().from(portfolioAlerts).where(eq(portfolioAlerts.id, Number(result[0].insertId))).limit(1);
+        const rows = await tx.select().from(portfolioAlerts).where(eq3(portfolioAlerts.id, Number(result[0].insertId))).limit(1);
         if (rows[0]) inserted.push(rows[0]);
       }
     }
@@ -9892,26 +14613,26 @@ async function resetSpaceProgramRooms(projectId, organizationId, preserveOverrid
       );
     }
     const conditions = [
-      eq(spaceProgramRooms.projectId, projectId),
-      eq(spaceProgramRooms.organizationId, organizationId)
+      eq3(spaceProgramRooms.projectId, projectId),
+      eq3(spaceProgramRooms.organizationId, organizationId)
     ];
     if (preserveOverridden) {
-      conditions.push(eq(spaceProgramRooms.fitOutOverridden, false));
+      conditions.push(eq3(spaceProgramRooms.fitOutOverridden, false));
     }
-    const deleting = await tx.select({ id: spaceProgramRooms.id }).from(spaceProgramRooms).where(and(...conditions)).for("update");
+    const deleting = await tx.select({ id: spaceProgramRooms.id }).from(spaceProgramRooms).where(and3(...conditions)).for("update");
     const idsToDelete = deleting.map((room) => room.id);
     if (idsToDelete.length > 0) {
-      await tx.delete(amenitySubSpaces).where(inArray(amenitySubSpaces.spaceProgramRoomId, idsToDelete));
-      await tx.delete(spaceProgramRooms).where(and(...conditions));
+      await tx.delete(amenitySubSpaces).where(inArray3(amenitySubSpaces.spaceProgramRoomId, idsToDelete));
+      await tx.delete(spaceProgramRooms).where(and3(...conditions));
     }
     return true;
   });
 }
 function scopedNullableIdCondition(column, value) {
-  return value === null ? isNull(column) : eq(column, value);
+  return value === null ? isNull3(column) : eq3(column, value);
 }
 function geometryContentFingerprint(value) {
-  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+  return createHash4("sha256").update(JSON.stringify(value)).digest("hex");
 }
 function area2ToDecimal12(value) {
   const trillion = BigInt(1e12);
@@ -9924,9 +14645,9 @@ async function getProjectGeometryAuthorityForOrg(projectId, organizationId) {
   const db = await getDb();
   if (!db) return void 0;
   const rows = await db.select().from(projectGeometryAuthorities).where(
-    and(
-      eq(projectGeometryAuthorities.projectId, projectId),
-      eq(projectGeometryAuthorities.organizationId, organizationId)
+    and3(
+      eq3(projectGeometryAuthorities.projectId, projectId),
+      eq3(projectGeometryAuthorities.organizationId, organizationId)
     )
   ).limit(1);
   return rows[0];
@@ -9944,17 +14665,17 @@ async function saveGeometryDraftForOrg(input) {
   try {
     return await db.transaction(async (tx) => {
       const ownedProjects = await tx.select({ id: projects.id }).from(projects).where(
-        and(
-          eq(projects.id, input.projectId),
-          eq(projects.orgId, input.organizationId)
+        and3(
+          eq3(projects.id, input.projectId),
+          eq3(projects.orgId, input.organizationId)
         )
       ).limit(1).for("update");
       if (ownedProjects.length !== 1) return { kind: "not_found" };
       if (input.source.assetId != null) {
         const assets = await tx.select({ id: projectAssets.id, checksum: projectAssets.checksum }).from(projectAssets).where(
-          and(
-            eq(projectAssets.id, input.source.assetId),
-            eq(projectAssets.projectId, input.projectId)
+          and3(
+            eq3(projectAssets.id, input.source.assetId),
+            eq3(projectAssets.projectId, input.projectId)
           )
         ).limit(1).for("update");
         if (assets.length !== 1 || !input.source.assetChecksum || assets[0].checksum !== input.source.assetChecksum) {
@@ -9962,27 +14683,27 @@ async function saveGeometryDraftForOrg(input) {
         }
       }
       const replaySources = await tx.select({ id: geometrySources.id }).from(geometrySources).where(
-        and(
-          eq(geometrySources.organizationId, input.organizationId),
-          eq(geometrySources.projectId, input.projectId),
-          eq(geometrySources.idempotencyKey, input.source.idempotencyKey)
+        and3(
+          eq3(geometrySources.organizationId, input.organizationId),
+          eq3(geometrySources.projectId, input.projectId),
+          eq3(geometrySources.idempotencyKey, input.source.idempotencyKey)
         )
       ).limit(1).for("update");
       let replayGraph;
       if (replaySources[0]) {
         const replayGraphs = await tx.select().from(spatialGraphVersions).where(
-          and(
-            eq(spatialGraphVersions.organizationId, input.organizationId),
-            eq(spatialGraphVersions.projectId, input.projectId),
-            eq(spatialGraphVersions.geometrySourceId, replaySources[0].id)
+          and3(
+            eq3(spatialGraphVersions.organizationId, input.organizationId),
+            eq3(spatialGraphVersions.projectId, input.projectId),
+            eq3(spatialGraphVersions.geometrySourceId, replaySources[0].id)
           )
         ).limit(1);
         replayGraph = replayGraphs[0];
       }
       let authorityRows = await tx.select().from(projectGeometryAuthorities).where(
-        and(
-          eq(projectGeometryAuthorities.organizationId, input.organizationId),
-          eq(projectGeometryAuthorities.projectId, input.projectId)
+        and3(
+          eq3(projectGeometryAuthorities.organizationId, input.organizationId),
+          eq3(projectGeometryAuthorities.projectId, input.projectId)
         )
       ).limit(1).for("update");
       if (!authorityRows[0]) {
@@ -9999,13 +14720,13 @@ async function saveGeometryDraftForOrg(input) {
           updatedBy: input.userId
         });
         authorityRows = await tx.select().from(projectGeometryAuthorities).where(
-          and(
-            eq(projectGeometryAuthorities.id, Number(inserted[0].insertId)),
-            eq(
+          and3(
+            eq3(projectGeometryAuthorities.id, Number(inserted[0].insertId)),
+            eq3(
               projectGeometryAuthorities.organizationId,
               input.organizationId
             ),
-            eq(projectGeometryAuthorities.projectId, input.projectId)
+            eq3(projectGeometryAuthorities.projectId, input.projectId)
           )
         ).limit(1).for("update");
       }
@@ -10055,10 +14776,10 @@ async function saveGeometryDraftForOrg(input) {
       });
       const geometrySourceId = Number(sourceInsert[0].insertId);
       const previousGraph = authority.currentGraphVersionId ? (await tx.select().from(spatialGraphVersions).where(
-        and(
-          eq(spatialGraphVersions.id, authority.currentGraphVersionId),
-          eq(spatialGraphVersions.organizationId, input.organizationId),
-          eq(spatialGraphVersions.projectId, input.projectId)
+        and3(
+          eq3(spatialGraphVersions.id, authority.currentGraphVersionId),
+          eq3(spatialGraphVersions.organizationId, input.organizationId),
+          eq3(spatialGraphVersions.projectId, input.projectId)
         )
       ).limit(1))[0] : void 0;
       if (authority.currentGraphVersionId && !previousGraph) {
@@ -10068,7 +14789,7 @@ async function saveGeometryDraftForOrg(input) {
         (total, room) => total + BigInt(room.areaSquareMicrometresTwice),
         BigInt(0)
       );
-      const graphId = previousGraph?.graphId ?? createHash("sha256").update(`MIYAR_GRAPH_V1\0${input.organizationId}\0${input.projectId}`).digest("hex");
+      const graphId = previousGraph?.graphId ?? createHash4("sha256").update(`MIYAR_GRAPH_V1\0${input.organizationId}\0${input.projectId}`).digest("hex");
       const graphInsert = await tx.insert(spatialGraphVersions).values({
         organizationId: input.organizationId,
         projectId: input.projectId,
@@ -10099,10 +14820,10 @@ async function saveGeometryDraftForOrg(input) {
       const createdMeasurementIds = [];
       for (const room of input.canonical.geometry.rooms) {
         let identities = await tx.select().from(spaceIdentities).where(
-          and(
-            eq(spaceIdentities.organizationId, input.organizationId),
-            eq(spaceIdentities.projectId, input.projectId),
-            eq(spaceIdentities.publicId, room.spaceId)
+          and3(
+            eq3(spaceIdentities.organizationId, input.organizationId),
+            eq3(spaceIdentities.projectId, input.projectId),
+            eq3(spaceIdentities.publicId, room.spaceId)
           )
         ).limit(1).for("update");
         if (!identities[0]) {
@@ -10115,22 +14836,22 @@ async function saveGeometryDraftForOrg(input) {
             createdBy: input.userId
           });
           identities = await tx.select().from(spaceIdentities).where(
-            and(
-              eq(spaceIdentities.id, Number(identityInsert[0].insertId)),
-              eq(spaceIdentities.organizationId, input.organizationId),
-              eq(spaceIdentities.projectId, input.projectId)
+            and3(
+              eq3(spaceIdentities.id, Number(identityInsert[0].insertId)),
+              eq3(spaceIdentities.organizationId, input.organizationId),
+              eq3(spaceIdentities.projectId, input.projectId)
             )
           ).limit(1);
         }
         const identity = identities[0];
         if (!identity) throw new Error("Scoped space identity insert was lost");
         const priorVersions = await tx.select({ id: spaceVersions.id, version: spaceVersions.version }).from(spaceVersions).where(
-          and(
-            eq(spaceVersions.organizationId, input.organizationId),
-            eq(spaceVersions.projectId, input.projectId),
-            eq(spaceVersions.spaceIdentityId, identity.id)
+          and3(
+            eq3(spaceVersions.organizationId, input.organizationId),
+            eq3(spaceVersions.projectId, input.projectId),
+            eq3(spaceVersions.spaceIdentityId, identity.id)
           )
-        ).orderBy(desc(spaceVersions.version)).limit(1);
+        ).orderBy(desc2(spaceVersions.version)).limit(1);
         const metadata = metadataBySpace.get(room.spaceId);
         const versionContent = {
           room,
@@ -10197,13 +14918,13 @@ async function saveGeometryDraftForOrg(input) {
       }
       const casResult = await tx.update(projectGeometryAuthorities).set({
         currentGraphVersionId: graphVersionId,
-        revision: sql`${projectGeometryAuthorities.revision} + 1`,
+        revision: sql2`${projectGeometryAuthorities.revision} + 1`,
         updatedBy: input.userId
       }).where(
-        and(
-          eq(projectGeometryAuthorities.id, authority.id),
-          eq(projectGeometryAuthorities.organizationId, input.organizationId),
-          eq(projectGeometryAuthorities.projectId, input.projectId),
+        and3(
+          eq3(projectGeometryAuthorities.id, authority.id),
+          eq3(projectGeometryAuthorities.organizationId, input.organizationId),
+          eq3(projectGeometryAuthorities.projectId, input.projectId),
           scopedNullableIdCondition(
             projectGeometryAuthorities.currentGraphVersionId,
             input.expectedCurrentVersionId
@@ -10253,16 +14974,16 @@ async function reviewGeometryDraftForOrg(input) {
   if (!db) throw new Error("DB not available");
   return db.transaction(async (tx) => {
     const projectsFound = await tx.select({ id: projects.id }).from(projects).where(
-      and(
-        eq(projects.id, input.projectId),
-        eq(projects.orgId, input.organizationId)
+      and3(
+        eq3(projects.id, input.projectId),
+        eq3(projects.orgId, input.organizationId)
       )
     ).limit(1).for("update");
     if (projectsFound.length !== 1) return { kind: "not_found" };
     const authorities = await tx.select().from(projectGeometryAuthorities).where(
-      and(
-        eq(projectGeometryAuthorities.organizationId, input.organizationId),
-        eq(projectGeometryAuthorities.projectId, input.projectId)
+      and3(
+        eq3(projectGeometryAuthorities.organizationId, input.organizationId),
+        eq3(projectGeometryAuthorities.projectId, input.projectId)
       )
     ).limit(1).for("update");
     const authority = authorities[0];
@@ -10274,10 +14995,10 @@ async function reviewGeometryDraftForOrg(input) {
       };
     }
     const drafts = await tx.select().from(spatialGraphVersions).where(
-      and(
-        eq(spatialGraphVersions.id, input.geometryVersionId),
-        eq(spatialGraphVersions.organizationId, input.organizationId),
-        eq(spatialGraphVersions.projectId, input.projectId)
+      and3(
+        eq3(spatialGraphVersions.id, input.geometryVersionId),
+        eq3(spatialGraphVersions.organizationId, input.organizationId),
+        eq3(spatialGraphVersions.projectId, input.projectId)
       )
     ).limit(1).for("update");
     const draft = drafts[0];
@@ -10294,20 +15015,20 @@ async function reviewGeometryDraftForOrg(input) {
     const selectedGeometryVersionId = input.decision === "approve_as_canonical" ? input.geometryVersionId : authority.selectedGeometryVersionId;
     if (input.decision === "approve_as_canonical" && authority.selectedGeometryVersionId != null && authority.selectedGeometryVersionId !== input.geometryVersionId) {
       await tx.update(spatialGraphVersions).set({ status: "superseded" }).where(
-        and(
-          eq(spatialGraphVersions.id, authority.selectedGeometryVersionId),
-          eq(spatialGraphVersions.organizationId, input.organizationId),
-          eq(spatialGraphVersions.projectId, input.projectId),
-          eq(spatialGraphVersions.status, "canonical")
+        and3(
+          eq3(spatialGraphVersions.id, authority.selectedGeometryVersionId),
+          eq3(spatialGraphVersions.organizationId, input.organizationId),
+          eq3(spatialGraphVersions.projectId, input.projectId),
+          eq3(spatialGraphVersions.status, "canonical")
         )
       );
     }
     const graphResult = await tx.update(spatialGraphVersions).set({ status: graphStatus }).where(
-      and(
-        eq(spatialGraphVersions.id, input.geometryVersionId),
-        eq(spatialGraphVersions.organizationId, input.organizationId),
-        eq(spatialGraphVersions.projectId, input.projectId),
-        eq(spatialGraphVersions.status, "draft")
+      and3(
+        eq3(spatialGraphVersions.id, input.geometryVersionId),
+        eq3(spatialGraphVersions.organizationId, input.organizationId),
+        eq3(spatialGraphVersions.projectId, input.projectId),
+        eq3(spatialGraphVersions.status, "draft")
       )
     );
     if (Number(graphResult[0].affectedRows) !== 1) {
@@ -10321,23 +15042,23 @@ async function reviewGeometryDraftForOrg(input) {
       reviewedBy: input.userId,
       reviewedAt: /* @__PURE__ */ new Date()
     }).where(
-      and(
-        eq(measurementRecords.organizationId, input.organizationId),
-        eq(measurementRecords.projectId, input.projectId),
-        eq(measurementRecords.graphVersionId, input.geometryVersionId),
-        eq(measurementRecords.reviewState, "unreviewed")
+      and3(
+        eq3(measurementRecords.organizationId, input.organizationId),
+        eq3(measurementRecords.projectId, input.projectId),
+        eq3(measurementRecords.graphVersionId, input.geometryVersionId),
+        eq3(measurementRecords.reviewState, "unreviewed")
       )
     );
     const result = await tx.update(projectGeometryAuthorities).set({
       mode: input.decision === "approve_as_canonical" ? "canonical" : authority.mode,
       selectedGeometryVersionId,
-      revision: sql`${projectGeometryAuthorities.revision} + 1`,
+      revision: sql2`${projectGeometryAuthorities.revision} + 1`,
       updatedBy: input.userId
     }).where(
-      and(
-        eq(projectGeometryAuthorities.id, authority.id),
-        eq(projectGeometryAuthorities.organizationId, input.organizationId),
-        eq(projectGeometryAuthorities.projectId, input.projectId),
+      and3(
+        eq3(projectGeometryAuthorities.id, authority.id),
+        eq3(projectGeometryAuthorities.organizationId, input.organizationId),
+        eq3(projectGeometryAuthorities.projectId, input.projectId),
         scopedNullableIdCondition(
           projectGeometryAuthorities.currentGraphVersionId,
           input.expectedCurrentVersionId
@@ -10389,11 +15110,11 @@ async function getAcceptedRoomFloorMeasurementsForOrg(projectId, organizationId)
     geometrySourceId: spatialGraphVersions.geometrySourceId,
     canonicalGeometry: spatialGraphVersions.canonicalGeometry
   }).from(spatialGraphVersions).where(
-    and(
-      eq(spatialGraphVersions.organizationId, organizationId),
-      eq(spatialGraphVersions.projectId, projectId),
-      eq(spatialGraphVersions.id, authority.selectedGeometryVersionId),
-      eq(spatialGraphVersions.status, "canonical")
+    and3(
+      eq3(spatialGraphVersions.organizationId, organizationId),
+      eq3(spatialGraphVersions.projectId, projectId),
+      eq3(spatialGraphVersions.id, authority.selectedGeometryVersionId),
+      eq3(spatialGraphVersions.status, "canonical")
     )
   ).limit(1);
   const selectedGraph = selectedGraphs[0];
@@ -10430,50 +15151,50 @@ async function getAcceptedRoomFloorMeasurementsForOrg(projectId, organizationId)
     tolerancePolicyVersion: spatialGraphVersions.tolerancePolicyVersion
   }).from(measurementRecords).innerJoin(
     spatialGraphVersions,
-    and(
-      eq(spatialGraphVersions.id, measurementRecords.graphVersionId),
-      eq(
+    and3(
+      eq3(spatialGraphVersions.id, measurementRecords.graphVersionId),
+      eq3(
         spatialGraphVersions.organizationId,
         measurementRecords.organizationId
       ),
-      eq(spatialGraphVersions.projectId, measurementRecords.projectId)
+      eq3(spatialGraphVersions.projectId, measurementRecords.projectId)
     )
   ).innerJoin(
     spaceVersions,
-    and(
-      eq(spaceVersions.id, measurementRecords.spaceVersionId),
-      eq(spaceVersions.organizationId, measurementRecords.organizationId),
-      eq(spaceVersions.projectId, measurementRecords.projectId)
+    and3(
+      eq3(spaceVersions.id, measurementRecords.spaceVersionId),
+      eq3(spaceVersions.organizationId, measurementRecords.organizationId),
+      eq3(spaceVersions.projectId, measurementRecords.projectId)
     )
   ).innerJoin(
     spaceIdentities,
-    and(
-      eq(spaceIdentities.id, measurementRecords.spaceIdentityId),
-      eq(spaceIdentities.organizationId, measurementRecords.organizationId),
-      eq(spaceIdentities.projectId, measurementRecords.projectId)
+    and3(
+      eq3(spaceIdentities.id, measurementRecords.spaceIdentityId),
+      eq3(spaceIdentities.organizationId, measurementRecords.organizationId),
+      eq3(spaceIdentities.projectId, measurementRecords.projectId)
     )
   ).where(
-    and(
-      eq(measurementRecords.organizationId, organizationId),
-      eq(measurementRecords.projectId, projectId),
-      eq(
+    and3(
+      eq3(measurementRecords.organizationId, organizationId),
+      eq3(measurementRecords.projectId, projectId),
+      eq3(
         measurementRecords.graphVersionId,
         authority.selectedGeometryVersionId
       ),
-      eq(measurementRecords.measurementBasis, ROOM_FLOOR_POLYGON_AREA),
-      eq(measurementRecords.recordKind, "derivation"),
-      eq(measurementRecords.normalizedUnit, "m2"),
-      eq(measurementRecords.evidenceClass, "geometry_derived"),
-      eq(
+      eq3(measurementRecords.measurementBasis, ROOM_FLOOR_POLYGON_AREA),
+      eq3(measurementRecords.recordKind, "derivation"),
+      eq3(measurementRecords.normalizedUnit, "m2"),
+      eq3(measurementRecords.evidenceClass, "geometry_derived"),
+      eq3(
         measurementRecords.formulaVersion,
         spatialGraphVersions.canonicalizerVersion
       ),
-      eq(measurementRecords.reviewState, "accepted"),
-      eq(measurementRecords.resultState, "valid"),
-      eq(spatialGraphVersions.status, "canonical"),
-      eq(spaceVersions.spaceIdentityId, measurementRecords.spaceIdentityId),
-      eq(spaceVersions.geometryVersionId, measurementRecords.graphVersionId),
-      eq(
+      eq3(measurementRecords.reviewState, "accepted"),
+      eq3(measurementRecords.resultState, "valid"),
+      eq3(spatialGraphVersions.status, "canonical"),
+      eq3(spaceVersions.spaceIdentityId, measurementRecords.spaceIdentityId),
+      eq3(spaceVersions.geometryVersionId, measurementRecords.graphVersionId),
+      eq3(
         spatialGraphVersions.geometrySourceId,
         measurementRecords.geometrySourceId
       )
@@ -10523,34 +15244,34 @@ async function getGeometryReviewStateForOrg(projectId, organizationId) {
   async function getScopedGraph(id) {
     if (id == null) return void 0;
     return (await db.select().from(spatialGraphVersions).where(
-      and(
-        eq(spatialGraphVersions.id, id),
-        eq(spatialGraphVersions.organizationId, organizationId),
-        eq(spatialGraphVersions.projectId, projectId)
+      and3(
+        eq3(spatialGraphVersions.id, id),
+        eq3(spatialGraphVersions.organizationId, organizationId),
+        eq3(spatialGraphVersions.projectId, projectId)
       )
     ).limit(1))[0];
   }
   async function getScopedSource(graph) {
     if (!graph?.geometrySourceId) return void 0;
     return (await db.select().from(geometrySources).where(
-      and(
-        eq(geometrySources.id, graph.geometrySourceId),
-        eq(geometrySources.organizationId, organizationId),
-        eq(geometrySources.projectId, projectId)
+      and3(
+        eq3(geometrySources.id, graph.geometrySourceId),
+        eq3(geometrySources.organizationId, organizationId),
+        eq3(geometrySources.projectId, projectId)
       )
     ).limit(1))[0];
   }
   const latest = await getScopedGraph(authority?.currentGraphVersionId);
   const canonical3 = await getScopedGraph(authority?.selectedGeometryVersionId);
   const latestReviews = latest ? await db.select().from(geometryReconciliationEvents).where(
-    and(
-      eq(geometryReconciliationEvents.organizationId, organizationId),
-      eq(geometryReconciliationEvents.projectId, projectId),
-      eq(geometryReconciliationEvents.draftGraphVersionId, latest.id)
+    and3(
+      eq3(geometryReconciliationEvents.organizationId, organizationId),
+      eq3(geometryReconciliationEvents.projectId, projectId),
+      eq3(geometryReconciliationEvents.draftGraphVersionId, latest.id)
     )
   ).orderBy(
-    desc(geometryReconciliationEvents.createdAt),
-    desc(geometryReconciliationEvents.id)
+    desc2(geometryReconciliationEvents.createdAt),
+    desc2(geometryReconciliationEvents.id)
   ).limit(1) : [];
   const acceptedMeasurements = await getAcceptedRoomFloorMeasurementsForOrg(
     projectId,
@@ -10574,21 +15295,23 @@ var init_db = __esm({
     init_schema();
     init_env();
     init_database_safety();
+    init_claim_health3();
+    init_claim_health2();
     init_geometry();
     _db = null;
     assetLinkTargetResolvers = {
-      evaluation: (tx, id, orgId) => tx.select({ projectId: scoreMatrices.projectId }).from(scoreMatrices).innerJoin(projects, eq(projects.id, scoreMatrices.projectId)).where(and(eq(scoreMatrices.id, id), eq(projects.orgId, orgId))).limit(1).for("update"),
-      report: (tx, id, orgId) => tx.select({ projectId: reportInstances.projectId }).from(reportInstances).innerJoin(projects, eq(projects.id, reportInstances.projectId)).where(and(eq(reportInstances.id, id), eq(projects.orgId, orgId))).limit(1).for("update"),
-      scenario: (tx, id, orgId) => tx.select({ projectId: scenarios.projectId }).from(scenarios).innerJoin(projects, eq(projects.id, scenarios.projectId)).where(
-        and(
-          eq(scenarios.id, id),
-          eq(scenarios.orgId, orgId),
-          eq(projects.orgId, orgId)
+      evaluation: (tx, id, orgId) => tx.select({ projectId: scoreMatrices.projectId }).from(scoreMatrices).innerJoin(projects, eq3(projects.id, scoreMatrices.projectId)).where(and3(eq3(scoreMatrices.id, id), eq3(projects.orgId, orgId))).limit(1).for("update"),
+      report: (tx, id, orgId) => tx.select({ projectId: reportInstances.projectId }).from(reportInstances).innerJoin(projects, eq3(projects.id, reportInstances.projectId)).where(and3(eq3(reportInstances.id, id), eq3(projects.orgId, orgId))).limit(1).for("update"),
+      scenario: (tx, id, orgId) => tx.select({ projectId: scenarios.projectId }).from(scenarios).innerJoin(projects, eq3(projects.id, scenarios.projectId)).where(
+        and3(
+          eq3(scenarios.id, id),
+          eq3(scenarios.orgId, orgId),
+          eq3(projects.orgId, orgId)
         )
       ).limit(1).for("update"),
-      material_board: (tx, id, orgId) => tx.select({ projectId: materialBoards.projectId }).from(materialBoards).innerJoin(projects, eq(projects.id, materialBoards.projectId)).where(and(eq(materialBoards.id, id), eq(projects.orgId, orgId))).limit(1).for("update"),
-      design_brief: (tx, id, orgId) => tx.select({ projectId: designBriefs.projectId }).from(designBriefs).innerJoin(projects, eq(projects.id, designBriefs.projectId)).where(and(eq(designBriefs.id, id), eq(projects.orgId, orgId))).limit(1).for("update"),
-      visual: (tx, id, orgId) => tx.select({ projectId: generatedVisuals.projectId }).from(generatedVisuals).innerJoin(projects, eq(projects.id, generatedVisuals.projectId)).where(and(eq(generatedVisuals.id, id), eq(projects.orgId, orgId))).limit(1).for("update")
+      material_board: (tx, id, orgId) => tx.select({ projectId: materialBoards.projectId }).from(materialBoards).innerJoin(projects, eq3(projects.id, materialBoards.projectId)).where(and3(eq3(materialBoards.id, id), eq3(projects.orgId, orgId))).limit(1).for("update"),
+      design_brief: (tx, id, orgId) => tx.select({ projectId: designBriefs.projectId }).from(designBriefs).innerJoin(projects, eq3(projects.id, designBriefs.projectId)).where(and3(eq3(designBriefs.id, id), eq3(projects.orgId, orgId))).limit(1).for("update"),
+      visual: (tx, id, orgId) => tx.select({ projectId: generatedVisuals.projectId }).from(generatedVisuals).innerJoin(projects, eq3(projects.id, generatedVisuals.projectId)).where(and3(eq3(generatedVisuals.id, id), eq3(projects.orgId, orgId))).limit(1).for("update")
     };
     listPublicEvidenceRecords = listPublicCorpusEvidence;
     GeometryDraftCasRollback = class extends Error {
@@ -11303,7 +16026,7 @@ var init_report_catalog = __esm({
 });
 
 // server/engines/report-render-context.ts
-import { createHash as createHash2, randomUUID } from "node:crypto";
+import { createHash as createHash5, randomUUID } from "node:crypto";
 function toReportFingerprintValue(value) {
   if (value === null || typeof value === "string" || typeof value === "boolean") return value;
   if (typeof value === "number") {
@@ -11342,7 +16065,7 @@ function createRenderFingerprintPayload(reportType, locale, labels, rendered) {
     rendered
   });
 }
-function canonicalize(value) {
+function canonicalize2(value) {
   if (value === null) return "null";
   if (typeof value === "string") return JSON.stringify(value);
   if (typeof value === "boolean") return value ? "true" : "false";
@@ -11350,12 +16073,12 @@ function canonicalize(value) {
     if (!Number.isFinite(value)) throw new TypeError("Render fingerprint inputs must be finite numbers");
     return Object.is(value, -0) ? "0" : String(value);
   }
-  if (Array.isArray(value)) return `[${value.map(canonicalize).join(",")}]`;
+  if (Array.isArray(value)) return `[${value.map(canonicalize2).join(",")}]`;
   const record = value;
-  return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalize(record[key])}`).join(",")}}`;
+  return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalize2(record[key])}`).join(",")}}`;
 }
 function createRenderInputFingerprint(input) {
-  return createHash2("sha256").update(canonicalize(input), "utf8").digest("hex");
+  return createHash5("sha256").update(canonicalize2(input), "utf8").digest("hex");
 }
 function normalizeVersion(value) {
   if (value === null || value === void 0 || value.trim().length === 0) return null;
@@ -11824,121 +16547,6 @@ var init_tier_policy = __esm({
       "premium",
       "ultra"
     ]);
-  }
-});
-
-// server/engines/material-pricing/policy.ts
-function materialLibraryCategoryToCanonical(category) {
-  return LIBRARY_CATEGORY_MAP[category] ?? "other";
-}
-function materialCatalogCategoryToCanonical(category) {
-  return CATALOG_CATEGORY_MAP[category] ?? "other";
-}
-function materialLibraryTierToFinish(tier) {
-  return LIBRARY_TIER_MAP[tier] ?? null;
-}
-function materialCatalogTierToFinish(tier) {
-  return CATALOG_TIER_MAP[tier] ?? null;
-}
-function normalizeUnitBasis(unit) {
-  const normalized = (unit ?? "").trim().toLowerCase().replace(/\s+/g, "_");
-  if (["sqm", "m\xB2", "m2", "aed/sqm", "per_sqm", "sq_m"].includes(normalized)) {
-    return "per_sqm";
-  }
-  if (["lm", "linear_metre", "linear_meter", "per_lm"].includes(normalized)) {
-    return "per_lm";
-  }
-  if (["l", "litre", "liter", "per_litre"].includes(normalized)) {
-    return "per_litre";
-  }
-  if (["piece", "pc", "unit", "set", "point", "per_piece"].includes(normalized)) {
-    return "per_piece";
-  }
-  if (["pack", "box", "per_pack"].includes(normalized)) {
-    return "per_pack";
-  }
-  return null;
-}
-function sourceLadderPriority(rung) {
-  return LADDER_PRIORITY[rung];
-}
-function toMinorUnits(value) {
-  if (!/^\d+(?:\.\d{1,2})?$/.test(value)) {
-    throw new Error(`Expected a non-negative decimal with at most 2 places: ${value}`);
-  }
-  const [whole, fraction2 = ""] = value.split(".");
-  return BigInt(whole) * BigInt(100) + BigInt(fraction2.padEnd(2, "0"));
-}
-function exactDecimalMidpoint(min, max2) {
-  const a = toMinorUnits(min);
-  const b = toMinorUnits(max2);
-  if (a > b) throw new Error("Minimum price cannot exceed maximum price");
-  const midpoint = (a + b + BigInt(1)) / BigInt(2);
-  const hundred = BigInt(100);
-  return `${midpoint / hundred}.${String(midpoint % hundred).padStart(2, "0")}`;
-}
-var LIBRARY_CATEGORY_MAP, CATALOG_CATEGORY_MAP, LIBRARY_TIER_MAP, CATALOG_TIER_MAP, LADDER_PRIORITY;
-var init_policy = __esm({
-  "server/engines/material-pricing/policy.ts"() {
-    "use strict";
-    LIBRARY_CATEGORY_MAP = {
-      flooring: "floors",
-      wall_paint: "walls",
-      wall_tile: "walls",
-      ceiling: "ceilings",
-      joinery: "joinery",
-      sanitaryware: "sanitary",
-      fittings: "hardware",
-      lighting: "lighting",
-      hardware: "hardware",
-      specialty: "other"
-    };
-    CATALOG_CATEGORY_MAP = {
-      tile: "floors",
-      stone: "floors",
-      wood: "floors",
-      paint: "walls",
-      wallpaper: "walls",
-      lighting: "lighting",
-      furniture: "ffe",
-      fixture: "sanitary",
-      accessory: "hardware",
-      metal: "other",
-      fabric: "ffe",
-      glass: "other",
-      other: "other"
-    };
-    LIBRARY_TIER_MAP = {
-      affordable: "basic",
-      mid: "standard",
-      premium: "premium",
-      ultra: "ultra_luxury"
-    };
-    CATALOG_TIER_MAP = {
-      economy: "basic",
-      mid: "standard",
-      premium: "premium",
-      luxury: "luxury",
-      ultra_luxury: "ultra_luxury"
-    };
-    LADDER_PRIORITY = {
-      supplier_quote: 0,
-      official_statistic: 1,
-      consultancy_benchmark: 2,
-      market_observation: 3,
-      retail_sanity: 4,
-      assumption: 5
-    };
-  }
-});
-
-// shared/material-calculations.ts
-var MATERIAL_RESOLUTION_POLICY_VERSION, PAINT_QUANTITY_POLICY_VERSION;
-var init_material_calculations = __esm({
-  "shared/material-calculations.ts"() {
-    "use strict";
-    MATERIAL_RESOLUTION_POLICY_VERSION = "ev03-material-resolution-v1";
-    PAINT_QUANTITY_POLICY_VERSION = "ev03-paint-quantity-v1";
   }
 });
 
@@ -14667,10 +19275,10 @@ __export(dm_compliance_exports, {
 function buildDMComplianceChecklist(projectId, orgId, project) {
   const typology = (project.ctx01Typology || "Residential").toLowerCase();
   const items = [];
-  const pushItem = (code, desc14, status) => {
+  const pushItem = (code, desc15, status) => {
     items.push({
       code,
-      description: desc14,
+      description: desc15,
       status,
       verified: false
     });
@@ -15489,7 +20097,7 @@ function isValidDate(value) {
 function normalizeScore(value) {
   return Number(value.toFixed(12));
 }
-function isValidCalendarDate(year, month, day) {
+function isValidCalendarDate2(year, month, day) {
   if (month < 1 || month > 12 || day < 1) return false;
   const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
   const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
@@ -15500,7 +20108,7 @@ function parseDateOnly(raw) {
   const year = Number(yearText);
   const month = Number(monthText);
   const day = Number(dayText);
-  if (!isValidCalendarDate(year, month, day)) return null;
+  if (!isValidCalendarDate2(year, month, day)) return null;
   const parsed = /* @__PURE__ */ new Date(0);
   parsed.setUTCFullYear(year, month - 1, day);
   parsed.setUTCHours(0, 0, 0, 0);
@@ -15508,7 +20116,7 @@ function parseDateOnly(raw) {
 }
 function utcDayOrdinal(value) {
   return Math.floor(
-    Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()) / MILLIS_PER_DAY
+    Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()) / MILLIS_PER_DAY2
   );
 }
 function classifyPublicationDate(input, evaluatedAt) {
@@ -15517,8 +20125,8 @@ function classifyPublicationDate(input, evaluatedAt) {
   }
   const raw = input instanceof Date ? isValidDate(input) ? input.toISOString() : String(input) : String(input).trim();
   const datetimeMatch = typeof input === "string" ? raw.match(ISO_DATETIME_PATTERN) : null;
-  const precision = typeof input !== "string" ? "datetime" : DATE_ONLY_PATTERN.test(raw) ? "date" : datetimeMatch ? "datetime" : "unknown";
-  const hasInvalidDatetimeCalendarDate = datetimeMatch !== null && !isValidCalendarDate(
+  const precision = typeof input !== "string" ? "datetime" : DATE_ONLY_PATTERN2.test(raw) ? "date" : datetimeMatch ? "datetime" : "unknown";
+  const hasInvalidDatetimeCalendarDate = datetimeMatch !== null && !isValidCalendarDate2(
     Number(datetimeMatch[1]),
     Number(datetimeMatch[2]),
     Number(datetimeMatch[3])
@@ -15576,7 +20184,7 @@ function evaluateConnectorConfidence(input) {
   let dateAdjustment = STALENESS_PENALTY;
   if (publicationDate.status === "valid" && publicationDate.parsedAt) {
     ageDays = publicationDate.precision === "date" ? utcDayOrdinal(evaluatedAt) - utcDayOrdinal(publicationDate.parsedAt) : Math.floor(
-      (evaluatedAt.getTime() - publicationDate.parsedAt.getTime()) / MILLIS_PER_DAY
+      (evaluatedAt.getTime() - publicationDate.parsedAt.getTime()) / MILLIS_PER_DAY2
     );
     dateAdjustment = ageDays <= 90 ? RECENCY_BONUS : ageDays > 365 ? STALENESS_PENALTY : 0;
   }
@@ -15616,7 +20224,7 @@ function buildQualityConfidenceStage(input) {
     score: normalizeScore(floor === null ? multiplied : Math.max(multiplied, floor))
   };
 }
-var CONFIDENCE_CHAIN_POLICY_VERSION, CONNECTOR_CONFIDENCE_POLICY_VERSION, STATIC_SOURCE_GRADE_POLICY_VERSION, REGISTRY_SOURCE_GRADE_POLICY_VERSION, QUALITY_CONFIDENCE_POLICY_VERSION, BASE_CONFIDENCE, RECENCY_BONUS, STALENESS_PENALTY, CONFIDENCE_CAP, CONFIDENCE_FLOOR, MILLIS_PER_DAY, DATE_ONLY_PATTERN, ISO_DATETIME_PATTERN, ConfidencePolicyError;
+var CONFIDENCE_CHAIN_POLICY_VERSION, CONNECTOR_CONFIDENCE_POLICY_VERSION, STATIC_SOURCE_GRADE_POLICY_VERSION, REGISTRY_SOURCE_GRADE_POLICY_VERSION, QUALITY_CONFIDENCE_POLICY_VERSION, BASE_CONFIDENCE, RECENCY_BONUS, STALENESS_PENALTY, CONFIDENCE_CAP, CONFIDENCE_FLOOR, MILLIS_PER_DAY2, DATE_ONLY_PATTERN2, ISO_DATETIME_PATTERN, ConfidencePolicyError;
 var init_confidence_policy = __esm({
   "server/engines/ingestion/confidence-policy.ts"() {
     "use strict";
@@ -15634,8 +20242,8 @@ var init_confidence_policy = __esm({
     STALENESS_PENALTY = -0.15;
     CONFIDENCE_CAP = 1;
     CONFIDENCE_FLOOR = 0.2;
-    MILLIS_PER_DAY = 864e5;
-    DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+    MILLIS_PER_DAY2 = 864e5;
+    DATE_ONLY_PATTERN2 = /^\d{4}-\d{2}-\d{2}$/;
     ISO_DATETIME_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})$/;
     ConfidencePolicyError = class extends Error {
       constructor(rejection) {
@@ -17823,7 +22431,7 @@ var init_alert_delivery = __esm({
 });
 
 // server/engines/autonomous/alert-engine.ts
-import { eq as eq7, inArray as inArray3, and as and4, sql as sql2 } from "drizzle-orm";
+import { eq as eq8, inArray as inArray4, and as and5, sql as sql3 } from "drizzle-orm";
 async function evaluateAlerts(params) {
   const db = await getDb();
   if (!db) return [];
@@ -17847,13 +22455,13 @@ async function evaluateAlerts(params) {
   let loadedPatterns = {};
   if (params.patternMatches.length > 0) {
     const pIds = params.patternMatches.map((m) => m.patternId);
-    const patterns = await db.select().from(decisionPatterns).where(inArray3(decisionPatterns.id, pIds));
+    const patterns = await db.select().from(decisionPatterns).where(inArray4(decisionPatterns.id, pIds));
     for (const p of patterns) loadedPatterns[p.id] = p;
   }
   let loadedProjects = {};
   if (params.patternMatches.length > 0) {
     const prjIds = params.patternMatches.map((m) => m.projectId);
-    const prjs = await db.select().from(projects).where(inArray3(projects.id, prjIds));
+    const prjs = await db.select().from(projects).where(inArray4(projects.id, prjIds));
     for (const p of prjs) loadedProjects[p.id] = p;
   }
   for (const match of params.patternMatches) {
@@ -17924,9 +22532,9 @@ async function evaluateAlerts(params) {
   const insertedAlerts = [];
   for (const alert of newAlerts) {
     const existing = await db.select().from(platformAlerts).where(
-      and4(
-        eq7(platformAlerts.alertType, alert.alertType),
-        eq7(platformAlerts.status, "active")
+      and5(
+        eq8(platformAlerts.alertType, alert.alertType),
+        eq8(platformAlerts.status, "active")
         // For perfect duplicate suppression on JSON array, we can use simple string equality or fetch and filter
         // We'll fetch active of this type and filter by JS equality
       )
@@ -17949,12 +22557,12 @@ async function triggerAlertEngine() {
   const db = await getDb();
   if (!db) return [];
   const memoryWindow = new Date(Date.now() - 24 * 60 * 60 * 1e3);
-  const recentPrices = await db.select().from(priceChangeEvents).where(sql2`${priceChangeEvents.detectedAt} >= ${memoryWindow}`);
-  const recentInsights = await db.select().from(projectInsights).where(sql2`${projectInsights.createdAt} >= ${memoryWindow}`);
-  const recentComparisons = await db.select().from(outcomeComparisons).orderBy(sql2`${outcomeComparisons.comparedAt} DESC`).limit(20);
-  const recentMatches = await db.select().from(projectPatternMatches).where(sql2`${projectPatternMatches.matchedAt} >= ${memoryWindow}`);
-  const ledgerRows = await db.select().from(accuracySnapshots).orderBy(sql2`${accuracySnapshots.snapshotDate} DESC`).limit(1);
-  const recentProposals = await db.select().from(benchmarkProposals).where(sql2`${benchmarkProposals.createdAt} >= ${memoryWindow}`);
+  const recentPrices = await db.select().from(priceChangeEvents).where(sql3`${priceChangeEvents.detectedAt} >= ${memoryWindow}`);
+  const recentInsights = await db.select().from(projectInsights).where(sql3`${projectInsights.createdAt} >= ${memoryWindow}`);
+  const recentComparisons = await db.select().from(outcomeComparisons).orderBy(sql3`${outcomeComparisons.comparedAt} DESC`).limit(20);
+  const recentMatches = await db.select().from(projectPatternMatches).where(sql3`${projectPatternMatches.matchedAt} >= ${memoryWindow}`);
+  const ledgerRows = await db.select().from(accuracySnapshots).orderBy(sql3`${accuracySnapshots.snapshotDate} DESC`).limit(1);
+  const recentProposals = await db.select().from(benchmarkProposals).where(sql3`${benchmarkProposals.createdAt} >= ${memoryWindow}`);
   return evaluateAlerts({
     priceChangeEvents: recentPrices,
     projectInsights: recentInsights,
@@ -18377,7 +22985,7 @@ var evidence_to_materials_exports = {};
 __export(evidence_to_materials_exports, {
   syncEvidenceToMaterials: () => syncEvidenceToMaterials
 });
-import { eq as eq8, desc as desc4 } from "drizzle-orm";
+import { eq as eq9, desc as desc5 } from "drizzle-orm";
 function detectTier(priceMin, priceMax, unit) {
   return classifyCatalogTier(priceMin, priceMax, unit);
 }
@@ -18388,9 +22996,9 @@ async function syncEvidenceToMaterials(runId, limit = 500) {
   const constantsMap = new Map(constants.map((c) => [c.materialType, c]));
   let evidence;
   if (runId) {
-    evidence = await db.select().from(evidenceRecords).where(eq8(evidenceRecords.runId, runId)).limit(limit);
+    evidence = await db.select().from(evidenceRecords).where(eq9(evidenceRecords.runId, runId)).limit(limit);
   } else {
-    evidence = await db.select().from(evidenceRecords).orderBy(desc4(evidenceRecords.createdAt)).limit(limit);
+    evidence = await db.select().from(evidenceRecords).orderBy(desc5(evidenceRecords.createdAt)).limit(limit);
   }
   if (evidence.length === 0) {
     return { created: 0, updated: 0, skipped: 0 };
@@ -18471,7 +23079,7 @@ async function syncEvidenceToMaterials(runId, limit = 500) {
             embodiedCarbon: String(defaultCarbon),
             brandStandardApproval: brandApproval,
             notes: `Updated from market data ${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}. ${record.publisher || ""}`
-          }).where(eq8(materialsCatalog.id, existingMatch.id));
+          }).where(eq9(materialsCatalog.id, existingMatch.id));
           updated++;
         } else {
           skipped++;
@@ -18548,7 +23156,7 @@ __export(orchestrator_exports, {
   testScrape: () => testScrape
 });
 import { randomUUID as randomUUID6 } from "crypto";
-import { eq as eq9, sql as sql3 } from "drizzle-orm";
+import { eq as eq10, sql as sql4 } from "drizzle-orm";
 async function runWithConcurrencyLimit(tasks, limit) {
   const results = [];
   let index2 = 0;
@@ -18651,7 +23259,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
           id: sourceRegistry.id,
           lastSuccessfulFetch: sourceRegistry.lastSuccessfulFetch
         }).from(sourceRegistry).where(
-          connector.sourceRegistryId !== void 0 ? eq9(sourceRegistry.id, connector.sourceRegistryId) : eq9(sourceRegistry.slug, connector.sourceId)
+          connector.sourceRegistryId !== void 0 ? eq10(sourceRegistry.id, connector.sourceRegistryId) : eq10(sourceRegistry.slug, connector.sourceId)
         ).limit(1);
         if (rows.length > 0) {
           connector.sourceRegistryId = rows[0].id;
@@ -18958,7 +23566,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
       for (const result of connectorResults) {
         const resolvedId = registryIdBySourceId.get(String(result.sourceId));
         if (resolvedId === void 0) continue;
-        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures }).from(sourceRegistry).where(eq9(sourceRegistry.id, resolvedId)).limit(1);
+        const current = await db.select({ consecutiveFailures: sourceRegistry.consecutiveFailures }).from(sourceRegistry).where(eq10(sourceRegistry.id, resolvedId)).limit(1);
         const currentFailures = current.length > 0 ? current[0].consecutiveFailures : 0;
         const isSuccess = result.status === "success";
         const statusEnum = isSuccess ? result.evidenceExtracted > 0 ? "success" : "partial" : "failed";
@@ -18971,7 +23579,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
         if (isSuccess) {
           updates.lastSuccessfulFetch = /* @__PURE__ */ new Date();
         }
-        await db.update(sourceRegistry).set(updates).where(eq9(sourceRegistry.id, resolvedId));
+        await db.update(sourceRegistry).set(updates).where(eq10(sourceRegistry.id, resolvedId));
       }
     }
   } catch (err) {
@@ -19084,7 +23692,7 @@ async function runIngestion(connectors, triggeredBy = "manual", actorId) {
     try {
       const db = await getDb();
       if (db) {
-        const recentEvidence = await db.select().from(evidenceRecords).orderBy(sql3`${evidenceRecords.createdAt} DESC`).limit(500);
+        const recentEvidence = await db.select().from(evidenceRecords).orderBy(sql4`${evidenceRecords.createdAt} DESC`).limit(500);
         const categoryGroups = /* @__PURE__ */ new Map();
         for (const record of recentEvidence) {
           const value = record.priceMin ? parseFloat(String(record.priceMin)) : null;
@@ -22085,7 +26693,7 @@ async function auditLog(data) {
 
 // server/routers/auth.ts
 init_schema();
-import { eq as eq2 } from "drizzle-orm";
+import { eq as eq4 } from "drizzle-orm";
 var authRouter = router({
   me: publicProcedure.query((opts) => opts.ctx.user),
   logout: publicProcedure.mutation(async ({ ctx }) => {
@@ -22155,7 +26763,7 @@ var authRouter = router({
           userId: user.id,
           role: "admin"
         });
-        await drizzleDb.update(users).set({ orgId }).where(eq2(users.id, user.id));
+        await drizzleDb.update(users).set({ orgId }).where(eq4(users.id, user.id));
       }
     }
     await auditLog({
@@ -22208,7 +26816,7 @@ var authRouter = router({
           userId: createdUser.id,
           role: "admin"
         });
-        await drizzleDb.update(users).set({ orgId }).where(eq2(users.id, createdUser.id));
+        await drizzleDb.update(users).set({ orgId }).where(eq4(users.id, createdUser.id));
       }
       await auditLog({
         userId: createdUser.id,
@@ -23156,7 +27764,15 @@ function renderEvidenceReferences(refs, locale) {
     <td>${r.category ? dynamicText(r.category) : "\u2014"}</td>
     <td style="color:${gradeColor2}; font-weight:600;">${r.reliabilityGrade ? dynamicText(r.reliabilityGrade) : "\u2014"}</td>
     <td>${r.captureDate ? formatReportDate(r.captureDate, locale) : "\u2014"}</td>
-    <td>${!r.confidenceStatus || r.confidenceStatus === "legacy_unknown" ? reportCopy(locale, "legacyCalculationProvenanceUnavailable") : r.confidenceStatus === "asserted" ? reportCopy(locale, "operatorAssertedConfidence").replace("{policy}", dynamicText(r.confidencePolicyVersion || "manual-asserted-confidence-v1")) : reportCopy(locale, "computedConfidence").replace("{policy}", dynamicText(r.confidencePolicyVersion || "policy unavailable"))}</td>
+    <td>${!r.confidenceStatus || r.confidenceStatus === "legacy_unknown" ? reportCopy(locale, "legacyCalculationProvenanceUnavailable") : r.confidenceStatus === "asserted" ? reportCopy(locale, "operatorAssertedConfidence").replace(
+      "{policy}",
+      dynamicText(
+        r.confidencePolicyVersion || "manual-asserted-confidence-v1"
+      )
+    ) : reportCopy(locale, "computedConfidence").replace(
+      "{policy}",
+      dynamicText(r.confidencePolicyVersion || "policy unavailable")
+    )}</td>
     <td>${sourceUrl ? `<a href="${sourceUrl}" rel="noopener noreferrer" style="color:#0f3460;">${reportCopy(locale, "evidenceLink")}</a>` : "\u2014"}</td>
   </tr>`;
   }).join("");
@@ -23169,6 +27785,62 @@ function renderEvidenceReferences(refs, locale) {
     ${rows}
   </table>
   <p style="font-size:8px; color:#999; margin-top:4px;">${reportCopy(locale, "evidenceGradeLegend")}</p>
+</div>
+`;
+}
+var CLAIM_HEALTH_STATE_LABELS = {
+  en: {
+    current: "Current",
+    current_with_fallback: "Current with approved fallback",
+    qualified: "Qualified",
+    aging: "Aging",
+    stale: "Stale",
+    incident: "Incident affected",
+    insufficient: "Insufficient",
+    unknown: "Unknown",
+    legacy: "Legacy \u2014 health snapshot unavailable"
+  },
+  ar: {
+    current: "\u062D\u0627\u0644\u064A",
+    current_with_fallback: "\u062D\u0627\u0644\u064A \u0645\u0639 \u0628\u062F\u064A\u0644 \u0645\u0639\u062A\u0645\u062F",
+    qualified: "\u0645\u0642\u064A\u0651\u062F",
+    aging: "\u064A\u0642\u062A\u0631\u0628 \u0645\u0646 \u0627\u0644\u062A\u0642\u0627\u062F\u0645",
+    stale: "\u0642\u062F\u064A\u0645",
+    incident: "\u0645\u062A\u0623\u062B\u0631 \u0628\u062D\u0627\u062F\u062B\u0629",
+    insufficient: "\u063A\u064A\u0631 \u0643\u0627\u0641\u064D",
+    unknown: "\u063A\u064A\u0631 \u0645\u0639\u0631\u0648\u0641",
+    legacy: "\u0642\u062F\u064A\u0645 \u2014 \u0644\u0642\u0637\u0629 \u0635\u062D\u0629 \u0627\u0644\u0623\u062F\u0644\u0629 \u063A\u064A\u0631 \u0645\u062A\u0627\u062D\u0629"
+  }
+};
+function renderClaimHealth(health, locale) {
+  if (!health) {
+    return `
+<div class="section" id="sec-claim-health">
+  <h2>${locale === "ar" ? "\u0635\u062D\u0629 \u0627\u0644\u0623\u062F\u0644\u0629" : "Evidence Health"}</h2>
+  <div class="evidence-trace">
+    <strong>${locale === "ar" ? "\u0627\u0644\u062D\u0627\u0644\u0629" : "Claim state"}:</strong> ${escapeReportText(CLAIM_HEALTH_STATE_LABELS[locale].legacy)}
+  </div>
+  <p style="font-size:9px; color:#666; margin-top:8px;">${locale === "ar" ? "\u0644\u0627 \u062A\u0648\u062C\u062F \u0644\u0642\u0637\u0629 \u0635\u062D\u0629 \u0623\u062F\u0644\u0629 \u0645\u062C\u0645\u0651\u062F\u0629 \u0648\u0645\u062F\u0639\u0648\u0645\u0629 \u0645\u0631\u062A\u0628\u0637\u0629 \u0628\u0647\u0630\u0627 \u0627\u0644\u062A\u0642\u0631\u064A\u0631. \u062D\u0627\u0644\u0629 \u0627\u0644\u0623\u062F\u0644\u0629 \u063A\u064A\u0631 \u0645\u062A\u0627\u062D\u0629 \u0648\u0644\u0645 \u062A\u062A\u0645 \u0625\u0639\u0627\u062F\u0629 \u062A\u0642\u064A\u064A\u0645\u0647\u0627." : "No supported frozen evidence-health snapshot is bound to this report. Evidence health is unavailable and was not recomputed."}</p>
+</div>
+`;
+  }
+  const label = CLAIM_HEALTH_STATE_LABELS[locale][health.claimState];
+  const coverage = `${health.counts.eligible}/${health.counts.required}`;
+  return `
+<div class="section" id="sec-claim-health">
+  <h2>${locale === "ar" ? "\u0635\u062D\u0629 \u0627\u0644\u0623\u062F\u0644\u0629" : "Evidence Health"}</h2>
+  <div class="evidence-trace">
+    <strong>${locale === "ar" ? "\u0627\u0644\u062D\u0627\u0644\u0629" : "Claim state"}:</strong> ${escapeReportText(label)}<br>
+    <strong>${locale === "ar" ? "\u0627\u0644\u062A\u063A\u0637\u064A\u0629 \u0627\u0644\u0645\u0624\u0647\u0644\u0629" : "Eligible coverage"}:</strong> ${escapeReportText(coverage)}<br>
+    <strong>${locale === "ar" ? "\u0627\u0644\u062E\u0644\u0627\u064A\u0627 \u0627\u0644\u0645\u0637\u0644\u0648\u0628\u0629" : "Required cells"}:</strong> ${health.counts.required}<br>
+    <strong>${locale === "ar" ? "\u0627\u0644\u0645\u0637\u0627\u0628\u0642\u0627\u062A \u0627\u0644\u062F\u0642\u064A\u0642\u0629" : "Exact matches"}:</strong> ${health.counts.exact}<br>
+    <strong>${locale === "ar" ? "\u0627\u0644\u0628\u062F\u0627\u0626\u0644 \u0627\u0644\u0645\u0639\u062A\u0645\u062F\u0629" : "Approved fallbacks"}:</strong> ${health.counts.fallback}<br>
+    <strong>${locale === "ar" ? "\u0648\u0642\u062A \u0627\u0644\u062A\u0642\u064A\u064A\u0645" : "Evaluated at"}:</strong> ${escapeReportText(health.evaluatedAt ? formatReportDate(health.evaluatedAt, locale) : locale === "ar" ? "\u063A\u064A\u0631 \u0645\u062A\u0627\u062D" : "Unavailable")}<br>
+    <strong>${locale === "ar" ? "\u0625\u0635\u062F\u0627\u0631 \u0627\u0644\u0633\u064A\u0627\u0633\u0629" : "Policy version"}:</strong> ${escapeReportText(health.policyVersion)}<br>
+    <strong>${locale === "ar" ? "\u0628\u0635\u0645\u0629 \u0628\u064A\u0627\u0646 \u0627\u0644\u0633\u064A\u0627\u0633\u0629" : "Policy manifest digest"}:</strong> ${escapeReportText(health.policyManifestDigest ?? (locale === "ar" ? "\u063A\u064A\u0631 \u0645\u062A\u0627\u062D" : "Unavailable"))}<br>
+    <strong>${locale === "ar" ? "\u0625\u0635\u062F\u0627\u0631 \u0645\u062E\u0637\u0637 \u0627\u0644\u062E\u0644\u0627\u064A\u0627" : "Required-cell schema"}:</strong> ${escapeReportText(health.requiredCellSchemaVersion)}
+  </div>
+  <p style="font-size:9px; color:#666; margin-top:8px;">${locale === "ar" ? "\u0647\u0630\u0647 \u0627\u0644\u062D\u0627\u0644\u0629 \u0644\u0642\u0637\u0629 \u062B\u0627\u0628\u062A\u0629 \u0645\u0631\u062A\u0628\u0637\u0629 \u0628\u0647\u0630\u0627 \u0627\u0644\u062A\u0642\u0631\u064A\u0631 \u0648\u0644\u064A\u0633\u062A \u0625\u0639\u0627\u062F\u0629 \u062A\u0642\u064A\u064A\u0645 \u0645\u0628\u0627\u0634\u0631\u0629." : "This is the frozen evidence-health snapshot bound to this report, not a live recomputation."}</p>
 </div>
 `;
 }
@@ -23258,9 +27930,7 @@ function renderRiskAssessment(scoreResult) {
   const penalties = scoreResult.penalties.map(
     (p) => `<div class="penalty-item"><strong>${dynamicText(p.id)}:</strong> ${dynamicText(p.description)} (Effect: ${p.effect > 0 ? "+" : ""}${p.effect.toFixed(1)})</div>`
   ).join("");
-  const flags = scoreResult.riskFlags.map(
-    (f) => `<div class="risk-flag">${dynamicText(f)}</div>`
-  ).join("");
+  const flags = scoreResult.riskFlags.map((f) => `<div class="risk-flag">${dynamicText(f)}</div>`).join("");
   return `
 <div class="section">
   <h2>Risk Assessment</h2>
@@ -23327,9 +27997,20 @@ function renderInputSummary(inputs) {
       items: [
         ["Typology", inputs.ctx01Typology],
         ["Scale", inputs.ctx02Scale],
-        ["Gross Floor Area (sqm)", inputs.ctx03Gfa ? inputs.ctx03Gfa.toLocaleString() : "N/A"],
-        ["Interior Fit-out Area (sqm)", inputs.totalFitoutArea ? inputs.totalFitoutArea.toLocaleString() : "N/A"],
-        ...inputs.ctx03Gfa && inputs.totalFitoutArea ? [["Fitout Efficiency Ratio", `${Math.round(inputs.totalFitoutArea / inputs.ctx03Gfa * 100)}%`]] : [],
+        [
+          "Gross Floor Area (sqm)",
+          inputs.ctx03Gfa ? inputs.ctx03Gfa.toLocaleString() : "N/A"
+        ],
+        [
+          "Interior Fit-out Area (sqm)",
+          inputs.totalFitoutArea ? inputs.totalFitoutArea.toLocaleString() : "N/A"
+        ],
+        ...inputs.ctx03Gfa && inputs.totalFitoutArea ? [
+          [
+            "Fitout Efficiency Ratio",
+            `${Math.round(inputs.totalFitoutArea / inputs.ctx03Gfa * 100)}%`
+          ]
+        ] : [],
         ["Location", inputs.ctx04Location],
         ["Delivery Horizon", inputs.ctx05Horizon],
         ["City", inputs.city || "Dubai"]
@@ -23354,7 +28035,10 @@ function renderInputSummary(inputs) {
     {
       title: "Financial",
       items: [
-        ["Budget Cap (AED/sqm)", inputs.fin01BudgetCap ? inputs.fin01BudgetCap.toLocaleString() : "N/A"],
+        [
+          "Budget Cap (AED/sqm)",
+          inputs.fin01BudgetCap ? inputs.fin01BudgetCap.toLocaleString() : "N/A"
+        ],
         ["Flexibility", `${inputs.fin02Flexibility}/5`],
         ["Shock Tolerance", `${inputs.fin03ShockTolerance}/5`],
         ["Sales Premium", `${inputs.fin04SalesPremium}/5`]
@@ -23381,7 +28065,9 @@ function renderInputSummary(inputs) {
     }
   ];
   const tables = groups.map((g) => {
-    const rows = g.items.map(([k, v]) => `<tr><td style="width:50%;">${escapeReportText(k)}</td><td>${dynamicText(v)}</td></tr>`).join("");
+    const rows = g.items.map(
+      ([k, v]) => `<tr><td style="width:50%;">${escapeReportText(k)}</td><td>${dynamicText(v)}</td></tr>`
+    ).join("");
     return `<div class="keep-together"><h3>${escapeReportText(g.title)}</h3><table><tr><th>Parameter</th><th>Value</th></tr>${rows}</table></div>`;
   }).join("");
   return `<div class="section"><h2>Project Input Summary</h2>${tables}</div>`;
@@ -23390,7 +28076,9 @@ function renderVariableContributions(contributions) {
   const dims = Object.keys(contributions);
   const sections = dims.map((dim) => {
     const vars = contributions[dim];
-    const sorted = Object.entries(vars).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+    const sorted = Object.entries(vars).sort(
+      (a, b) => Math.abs(b[1]) - Math.abs(a[1])
+    );
     const rows = sorted.map(
       ([v, c]) => `<tr><td>${dynamicText(v)}</td><td style="text-align:center; color: ${c >= 0 ? "#4ecdc4" : "#e07a5f"}; font-weight:600;">${c >= 0 ? "+" : ""}${c.toFixed(2)}</td></tr>`
     ).join("");
@@ -23402,11 +28090,13 @@ function renderROINarrative(roi, locale) {
   if (!roi) return "";
   const totalValue = roi.totalCostAvoided?.mid || roi.totalCostAvoided?.base || roi.totalValue || roi.totalValueCreated || 0;
   const roiMultiple = roi.roiMultiple || (totalValue > 0 ? totalValue / 15e4 : 0);
-  const drivers = roi.drivers || roi.components || Object.entries(roi).filter(([k, v]) => typeof v === "number" && k !== "totalValue" && k !== "roiMultiple" && k !== "fee" && k !== "netROI").map(([name, value]) => ({ name, value })) || [];
+  const drivers = roi.drivers || roi.components || Object.entries(roi).filter(
+    ([k, v]) => typeof v === "number" && k !== "totalValue" && k !== "roiMultiple" && k !== "fee" && k !== "netROI"
+  ).map(([name, value]) => ({ name, value })) || [];
   return `
 <div class="section">
   <h2>ROI & Economic Impact Analysis</h2>
-  
+
   <div class="roi-highlight">
     <div class="roi-label">Total Value Created</div>
     <div class="roi-value">AED ${Number(totalValue).toLocaleString()}</div>
@@ -23417,13 +28107,15 @@ function renderROINarrative(roi, locale) {
   <h3>Value Breakdown</h3>
   <table>
     <tr><th>Value Component</th><th>Conservative</th><th>Base</th><th>Aggressive</th></tr>
-    ${drivers.length > 0 ? drivers.map((c) => `
+    ${drivers.length > 0 ? drivers.map(
+    (c) => `
     <tr>
       <td><strong>${dynamicText(c.name)}</strong><br><span style="font-size:9px; color:#666;">${dynamicText(c.description || c.narrative || "")}</span></td>
       <td style="text-align:right;">AED ${Number(c.costAvoided?.conservative || c.conservative || (c.value ? c.value * 0.8 : 0)).toLocaleString()}</td>
       <td style="text-align:right; font-weight:600;">AED ${Number(c.costAvoided?.mid || c.base || c.value || 0).toLocaleString()}</td>
       <td style="text-align:right;">AED ${Number(c.costAvoided?.aggressive || c.aggressive || (c.value ? c.value * 1.2 : 0)).toLocaleString()}</td>
-    </tr>`).join("") : `
+    </tr>`
+  ).join("") : `
     <tr><td>Rework Avoided</td><td style="text-align:right;" colspan="3">AED ${Number(roi.reworkAvoided || 0).toLocaleString()}</td></tr>
     <tr><td>Procurement Savings</td><td style="text-align:right;" colspan="3">AED ${Number(roi.procurementSavings || 0).toLocaleString()}</td></tr>
     <tr><td>Time-Value Gain</td><td style="text-align:right;" colspan="3">AED ${Number(roi.timeValueGain || 0).toLocaleString()}</td></tr>
@@ -23444,7 +28136,7 @@ function renderROINarrative(roi, locale) {
   </ul>
   ` : `
   <p style="margin-top:12px; font-size:10px; color:#666;">
-    <em>Assumptions: Rework avoidance based on industry benchmarks (15-25% of construction cost for misaligned projects). 
+    <em>Assumptions: Rework avoidance based on industry benchmarks (15-25% of construction cost for misaligned projects).
     Procurement savings estimated at 3-8% through validated specifications. Time-value calculated using standard cost-of-capital models.</em>
   </p>
   `}
@@ -23472,7 +28164,11 @@ function renderFiveLens(fiveLens) {
       <p style="font-size:10px; margin-bottom:6px;">${dynamicText(lens.rationale || "")}</p>
       ${lens.evidence && lens.evidence.length > 0 ? `
       <div class="lens-evidence">
-        <strong>Evidence:</strong> ${dynamicText(lens.evidence.slice(0, 3).map((e) => typeof e === "string" ? e : e.label && e.value ? `${e.label}: ${e.value}` : JSON.stringify(e)).join(" \u2022 "))}
+        <strong>Evidence:</strong> ${dynamicText(
+      lens.evidence.slice(0, 3).map(
+        (e) => typeof e === "string" ? e : e.label && e.value ? `${e.label}: ${e.value}` : JSON.stringify(e)
+      ).join(" \u2022 ")
+    )}
       </div>
       ` : ""}
       ${lens.gaps && lens.gaps.length > 0 ? `
@@ -23555,12 +28251,24 @@ function renderBoardResolutionMessage(board, locale) {
     return copy("boardEmptyResolution");
   }
   if (board.state === "unresolvable") {
-    return copy("boardUnresolvableResolution").replace("{linked}", String(board.linkedItemCount));
+    return copy("boardUnresolvableResolution").replace(
+      "{linked}",
+      String(board.linkedItemCount)
+    );
   }
   if (board.state === "partial") {
-    return copy("boardPartialResolution").replace("{resolved}", String(board.resolvedItemCount)).replace("{linked}", String(board.linkedItemCount)).replace("{unresolved}", String(board.unresolvedItemCount)).replace("{itemStatus}", reportCopy(locale, board.unresolvedItemCount === 1 ? "boardItemIs" : "boardItemsAre"));
+    return copy("boardPartialResolution").replace("{resolved}", String(board.resolvedItemCount)).replace("{linked}", String(board.linkedItemCount)).replace("{unresolved}", String(board.unresolvedItemCount)).replace(
+      "{itemStatus}",
+      reportCopy(
+        locale,
+        board.unresolvedItemCount === 1 ? "boardItemIs" : "boardItemsAre"
+      )
+    );
   }
-  return board.linkedItemCount === 1 ? copy("boardCompleteSingleResolution") : copy("boardCompleteMultipleResolution").replace("{linked}", String(board.linkedItemCount));
+  return board.linkedItemCount === 1 ? copy("boardCompleteSingleResolution") : copy("boardCompleteMultipleResolution").replace(
+    "{linked}",
+    String(board.linkedItemCount)
+  );
 }
 function renderBoardCard(board, locale) {
   const stateColor = board.state === "complete" ? "#166534" : board.state === "partial" ? "#92400e" : "#991b1b";
@@ -23832,10 +28540,21 @@ function pdfFingerprintRenderedValues(reportType, data) {
     project: { id: report.projectId, name: report.projectName }
   };
   if (reportType === "autonomous_design_brief") {
-    return { ...common, autonomousContent: report.autonomousContent, evidenceReferences: renderedEvidenceReferences(report.evidenceRefs) };
+    return {
+      ...common,
+      autonomousContent: report.autonomousContent,
+      claimHealth: report.claimHealth,
+      evidenceReferences: renderedEvidenceReferences(report.evidenceRefs)
+    };
   }
   if (reportType === "design_brief") {
-    return { ...common, designBrief: report.designBrief, boardAnnex: report.boardAnnex, evidenceReferences: renderedEvidenceReferences(report.evidenceRefs) };
+    return {
+      ...common,
+      designBrief: report.designBrief,
+      boardAnnex: report.boardAnnex,
+      claimHealth: report.claimHealth,
+      evidenceReferences: renderedEvidenceReferences(report.evidenceRefs)
+    };
   }
   if (reportType === "full_report") {
     return {
@@ -23848,6 +28567,7 @@ function pdfFingerprintRenderedValues(reportType, data) {
       roi: report.roiNarrative ? void 0 : report.roi,
       boardAnnex: report.boardAnnex,
       workflowReconciliation: report.workflowReconciliation,
+      claimHealth: report.claimHealth,
       evidenceReferences: renderedEvidenceReferences(report.evidenceRefs)
     };
   }
@@ -23857,6 +28577,7 @@ function pdfFingerprintRenderedValues(reportType, data) {
     score: scoreFingerprint(report.scoreResult, false),
     sensitivity: report.sensitivity,
     fiveLens: report.fiveLens,
+    claimHealth: report.claimHealth,
     evidenceReferences: renderedEvidenceReferences(report.evidenceRefs)
   };
 }
@@ -23876,7 +28597,12 @@ function createPdfReportRenderContext(reportType, data, overrides = {}) {
     generatedAt: overrides.generatedAt,
     locale,
     ...labels,
-    fingerprintInput: createRenderFingerprintPayload(reportType, locale, labels, pdfFingerprintRenderedValues(reportType, data))
+    fingerprintInput: createRenderFingerprintPayload(
+      reportType,
+      locale,
+      labels,
+      pdfFingerprintRenderedValues(reportType, data)
+    )
   });
 }
 function resolveReportContext(reportType, data) {
@@ -23889,39 +28615,56 @@ function finalizeReportHtml(html, context3) {
 function generateAutonomousBriefHTML(data) {
   const context3 = resolveReportContext("autonomous_design_brief", data);
   const contentHtml = `<div class="section markdown-body">${renderReportMarkdown(data.autonomousContent || reportCopy(context3.locale, "noContentGenerated"))}</div>`;
-  return finalizeReportHtml([
-    htmlHeader("Autonomous Design Brief", "AI-Generated Concept & Technical Specification", data.projectName, context3),
-    contentHtml,
-    renderEvidenceTrace(data.projectId, context3),
-    htmlFooter(context3)
-  ].join(""), context3);
+  return finalizeReportHtml(
+    [
+      htmlHeader(
+        "Autonomous Design Brief",
+        "AI-Generated Concept & Technical Specification",
+        data.projectName,
+        context3
+      ),
+      contentHtml,
+      renderClaimHealth(data.claimHealth, context3.locale),
+      renderEvidenceTrace(data.projectId, context3),
+      htmlFooter(context3)
+    ].join(""),
+    context3
+  );
 }
 function generateValidationSummaryHTML(data) {
   const context3 = resolveReportContext("validation_summary", data);
-  return finalizeReportHtml([
-    htmlHeader("Executive Decision Pack", "Interior Design Direction Assessment", data.projectName, context3),
-    renderExecutiveSummary(data.scoreResult),
-    renderDimensionTable(data.scoreResult),
-    renderRiskAssessment(data.scoreResult),
-    renderSensitivity(data.sensitivity, context3.locale),
-    renderConditionalActions(data.scoreResult, context3.locale),
-    data.fiveLens ? renderFiveLens(data.fiveLens) : "",
-    renderEvidenceReferences(data.evidenceRefs, context3.locale),
-    renderEvidenceTrace(data.projectId, context3),
-    renderInputSummary(data.inputs),
-    htmlFooter(context3)
-  ].join("\n"), context3);
+  return finalizeReportHtml(
+    [
+      htmlHeader(
+        "Executive Decision Pack",
+        "Interior Design Direction Assessment",
+        data.projectName,
+        context3
+      ),
+      renderExecutiveSummary(data.scoreResult),
+      renderDimensionTable(data.scoreResult),
+      renderRiskAssessment(data.scoreResult),
+      renderSensitivity(data.sensitivity, context3.locale),
+      renderConditionalActions(data.scoreResult, context3.locale),
+      data.fiveLens ? renderFiveLens(data.fiveLens) : "",
+      renderClaimHealth(data.claimHealth, context3.locale),
+      renderEvidenceReferences(data.evidenceRefs, context3.locale),
+      renderEvidenceTrace(data.projectId, context3),
+      renderInputSummary(data.inputs),
+      htmlFooter(context3)
+    ].join("\n"),
+    context3
+  );
 }
 function renderDesignBrief(brief) {
-  if (!brief) return "<div class='section'><p>No Design Brief data available.</p></div>";
+  if (!brief)
+    return "<div class='section'><p>No Design Brief data available.</p></div>";
   const narrative = brief.designNarrative || {};
   const materials = brief.materialSpecifications || {};
   const boq = brief.boqFramework || { coreAllocations: [] };
   const budget = brief.detailedBudget || {};
   const instructions = brief.designerInstructions || { phasedDeliverables: {} };
-  const colorChips = (narrative.colorPalette || []).map(
-    (c) => `<span class="color-chip">${dynamicText(c)}</span>`
-  ).join("");
+  const colorChips = (narrative.colorPalette || []).map((c) => `<span class="color-chip">${dynamicText(c)}</span>`).join("");
   const boqRows = (boq.coreAllocations || []).map((b) => {
     const rawPct = Number(b.percentage);
     const pct2 = Number.isFinite(rawPct) ? Math.max(0, Math.min(100, rawPct)) : 0;
@@ -23973,13 +28716,13 @@ ${toc}
     <tr><td style="font-weight:bold;">Quality Benchmark</td><td>${dynamicText(materials.qualityBenchmark || "\u2014")}</td></tr>
     <tr><td style="font-weight:bold;">Sustainability</td><td>${dynamicText(materials.sustainabilityMandate || "\u2014")}</td></tr>
   </table>
-  
+
   <h3>Approved Materials (Primary)</h3>
   <ul class="brief-list">${(materials.approvedMaterials || []).map((m) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
-  
+
   <h3>Approved Finishes &amp; Textures</h3>
   <ul class="brief-list">${(materials.finishesAndTextures || []).map((m) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
-  
+
   <h3 style="color: #c62828;">Prohibited Materials (Value Engineering Flags)</h3>
   <ul class="brief-list">${(materials.prohibitedMaterials || []).map((m) => `<li><span style="color: #c62828;">${dynamicText(m)}</span></li>`).join("")}</ul>
 </div>
@@ -24008,7 +28751,7 @@ ${toc}
     <tr><td style="font-weight:bold;">Contingency</td><td>${dynamicText(budget.contingencyRecommendation || "\u2014")}</td></tr>
     <tr><td style="font-weight:bold;">Flexibility Level</td><td>${dynamicText(budget.flexibilityLevel || "\u2014")}</td></tr>
   </table>
-  
+
   <h3>Value Engineering Directives</h3>
   <ul class="brief-list">${(budget.valueEngineeringMandates || []).map((m) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
 </div>
@@ -24016,13 +28759,13 @@ ${toc}
 <div class="section">
   <h2 id="sec-workflow">Workflow &amp; Execution Instructions</h2>
   <p><strong>Lead Time Window:</strong> ${dynamicText((instructions.procurementAndLogistics || {}).leadTimeWindow || "\u2014")}</p>
-  
+
   <h3>Critical Path Procurement Items</h3>
   <ul class="brief-list">${((instructions.procurementAndLogistics || {}).criticalPathItems || []).map((m) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
-  
+
   <h3>Local Authority Approvals (Dubai)</h3>
   <ul class="brief-list">${(instructions.authorityApprovals || []).map((m) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
-  
+
   <h3>Contractor Coordination Requirements</h3>
   <ul class="brief-list">${(instructions.coordinationRequirements || []).map((m) => `<li>${dynamicText(m)}</li>`).join("")}</ul>
 </div>
@@ -24042,21 +28785,35 @@ ${toc}
 }
 function generateDesignBriefHTML(data) {
   const context3 = resolveReportContext("design_brief", data);
-  return finalizeReportHtml([
-    htmlHeader("Interior Design Instruction Brief", "Technical Specification & Execution Workflows", data.projectName, context3),
-    `<div class="content-wrapper">`,
-    renderDesignBrief(data.designBrief),
-    renderBoardAnnex(data.boardAnnex, context3.locale),
-    renderEvidenceReferences(data.evidenceRefs, context3.locale),
-    renderEvidenceTrace(data.projectId, context3),
-    `</div>`,
-    htmlFooter(context3)
-  ].join(""), context3);
+  return finalizeReportHtml(
+    [
+      htmlHeader(
+        "Interior Design Instruction Brief",
+        "Technical Specification & Execution Workflows",
+        data.projectName,
+        context3
+      ),
+      `<div class="content-wrapper">`,
+      renderDesignBrief(data.designBrief),
+      renderBoardAnnex(data.boardAnnex, context3.locale),
+      renderClaimHealth(data.claimHealth, context3.locale),
+      renderEvidenceReferences(data.evidenceRefs, context3.locale),
+      renderEvidenceTrace(data.projectId, context3),
+      `</div>`,
+      htmlFooter(context3)
+    ].join(""),
+    context3
+  );
 }
 function generateFullReportHTML(data) {
   const context3 = resolveReportContext("full_report", data);
   const sections = [
-    htmlHeader("Full Evaluation Report", "Comprehensive Decision Intelligence Analysis", data.projectName, context3),
+    htmlHeader(
+      "Full Evaluation Report",
+      "Comprehensive Decision Intelligence Analysis",
+      data.projectName,
+      context3
+    ),
     renderExecutiveSummary(data.scoreResult),
     renderDimensionTable(data.scoreResult),
     renderVariableContributions(data.scoreResult.variableContributions),
@@ -24073,8 +28830,11 @@ function generateFullReportHTML(data) {
     sections.push(renderROI(data.roi, context3.locale));
   }
   if (data.workflowReconciliation) {
-    sections.push(renderWorkflowReconciliation(data.workflowReconciliation, context3.locale));
+    sections.push(
+      renderWorkflowReconciliation(data.workflowReconciliation, context3.locale)
+    );
   }
+  sections.push(renderClaimHealth(data.claimHealth, context3.locale));
   sections.push(renderBoardAnnex(data.boardAnnex, context3.locale));
   sections.push(renderEvidenceReferences(data.evidenceRefs, context3.locale));
   sections.push(renderEvidenceTrace(data.projectId, context3));
@@ -24130,8 +28890,14 @@ function renderScenarioComparisonTable(data) {
 }
 function renderROIComparison(data) {
   const baseRoi = data.baselineScenario.roi ?? {};
-  if (!baseRoi.totalValue && data.comparedScenarios.every((s) => !s.roi)) return "";
-  const metrics = ["totalValue", "reworkAvoided", "procurementSavings", "timeValueGain"];
+  if (!baseRoi.totalValue && data.comparedScenarios.every((s) => !s.roi))
+    return "";
+  const metrics = [
+    "totalValue",
+    "reworkAvoided",
+    "procurementSavings",
+    "timeValueGain"
+  ];
   const metricLabels = {
     totalValue: "Total Value Created",
     reworkAvoided: "Rework Avoided",
@@ -24191,18 +28957,28 @@ function renderTradeoffAnalysis(data, locale) {
 }
 function generateScenarioComparisonHTML(data) {
   const context3 = resolveReportContext("scenario_comparison", data);
-  return finalizeReportHtml([
-    htmlHeader("Scenario Comparison Pack", "Decision Tradeoff Analysis", data.projectName, context3),
-    renderScenarioComparisonTable(data),
-    renderROIComparison(data),
-    renderTradeoffAnalysis(data, context3.locale),
-    renderEvidenceTrace(data.projectId, context3),
-    htmlFooter(context3)
-  ].join("\n"), context3);
+  return finalizeReportHtml(
+    [
+      htmlHeader(
+        "Scenario Comparison Pack",
+        "Decision Tradeoff Analysis",
+        data.projectName,
+        context3
+      ),
+      renderScenarioComparisonTable(data),
+      renderROIComparison(data),
+      renderTradeoffAnalysis(data, context3.locale),
+      renderEvidenceTrace(data.projectId, context3),
+      htmlFooter(context3)
+    ].join("\n"),
+    context3
+  );
 }
 function requireBoardAnnex(data) {
   if (!data.boardAnnex) {
-    throw new Error("Material Board Annex data is required for this issued report");
+    throw new Error(
+      "Material Board Annex data is required for this issued report"
+    );
   }
   return data;
 }
@@ -24319,7 +29095,9 @@ function generatePortfolioReportHTML(data) {
   let distSection = "";
   if (data.distributions.length > 0) {
     const distTables = data.distributions.map((dist) => {
-      const rows = dist.buckets.filter((b) => b.count > 0).map((b) => `<tr><td>${dynamicText(b.label)}</td><td style="text-align:center;">${b.count}</td><td style="text-align:center; font-weight:700;">${b.avgScore}</td></tr>`).join("");
+      const rows = dist.buckets.filter((b) => b.count > 0).map(
+        (b) => `<tr><td>${dynamicText(b.label)}</td><td style="text-align:center;">${b.count}</td><td style="text-align:center; font-weight:700;">${b.avgScore}</td></tr>`
+      ).join("");
       return `<h3>${dynamicText(dist.dimension)}</h3><table><tr><th>Group</th><th>Count</th><th>Avg Score</th></tr>${rows}</table>`;
     }).join("");
     distSection = `<div class="section"><h2>Score Distributions by Dimension</h2>${distTables}</div>`;
@@ -24342,12 +29120,19 @@ function generatePortfolioReportHTML(data) {
   let heatmapSection = "";
   if (data.complianceHeatmap.length > 0) {
     const dims = ["sa", "ff", "mp", "ds", "er"];
-    const dimLabels = { sa: "SA", ff: "FF", mp: "MP", ds: "DS", er: "ER" };
+    const dimLabels = {
+      sa: "SA",
+      ff: "FF",
+      mp: "MP",
+      ds: "DS",
+      er: "ER"
+    };
     const headerCols = dims.map((d) => `<th style="text-align:center;">${dimLabels[d] || d}</th>`).join("");
     const heatRows = data.complianceHeatmap.map((row) => {
       const cells = dims.map((d) => {
         const cell = row.dimensions[d];
-        if (!cell || cell.count === 0) return `<td style="text-align:center; color:#999;">\u2014</td>`;
+        if (!cell || cell.count === 0)
+          return `<td style="text-align:center; color:#999;">\u2014</td>`;
         const color = cell.avg >= 75 ? "#e8f5e9" : cell.avg >= 55 ? "#fff8e1" : "#fce4ec";
         const textColor = cell.avg >= 75 ? "#2e7d32" : cell.avg >= 55 ? "#f57f17" : "#c62828";
         return `<td style="text-align:center; background:${color}; color:${textColor}; font-weight:700;">${cell.avg} <span style="font-size:8px; font-weight:400;">(${cell.count})</span></td>`;
@@ -24365,17 +29150,20 @@ function generatePortfolioReportHTML(data) {
 </body>
 </html>
 `;
-  return finalizeReportHtml([
-    cover,
-    summary,
-    projectTable,
-    distSection,
-    heatmapSection,
-    fpSection,
-    leverSection,
-    renderDisclaimer(context3.locale),
-    footer
-  ].join("\n"), context3);
+  return finalizeReportHtml(
+    [
+      cover,
+      summary,
+      projectTable,
+      distSection,
+      heatmapSection,
+      fpSection,
+      leverSection,
+      renderDisclaimer(context3.locale),
+      footer
+    ].join("\n"),
+    context3
+  );
 }
 
 // server/engines/board-composer.ts
@@ -24729,1313 +29517,12 @@ function buildWorkflowSpaceMqiReconciliation(input) {
   };
 }
 
-// server/db/material-pricing.ts
-init_schema();
-init_db();
-import { and as and2, eq as eq3, inArray as inArray2, isNotNull as isNotNull2, isNull as isNull2, lte, ne, or as or2 } from "drizzle-orm";
-function isGlobalGovernedCandidateScope(candidate2) {
-  return candidate2.orgId === null && candidate2.supplierQuoteId === null && candidate2.sourceLadderRung !== "supplier_quote" && (candidate2.productId === null || candidate2.joinedProductId === candidate2.productId && candidate2.productOrgId === null);
-}
-async function listApprovedPaintCoverageProfiles(input, database4) {
-  const db = database4 ?? await getDb();
-  if (!db) throw new Error("DB not available");
-  const productIds = Array.from(new Set(input.productIds));
-  if (productIds.length === 0) return [];
-  const rows = await db.select({
-    id: paintCoverageProfiles.id,
-    productId: paintCoverageProfiles.productId,
-    specId: paintCoverageProfiles.specId,
-    coverageM2PerLitrePerCoat: paintCoverageProfiles.coverageM2PerLitrePerCoat,
-    coatCount: paintCoverageProfiles.coatCount,
-    wastePct: paintCoverageProfiles.wastePct,
-    packSizesLitres: paintCoverageProfiles.packSizesLitres,
-    effectiveAt: paintCoverageProfiles.effectiveAt,
-    policyVersion: paintCoverageProfiles.policyVersion,
-    sourceDocumentDigest: paintCoverageProfiles.sourceDocumentDigest,
-    reviewedBy: paintCoverageProfiles.reviewedBy,
-    reviewedAt: paintCoverageProfiles.reviewedAt,
-    supersedesId: paintCoverageProfiles.supersedesId
-  }).from(paintCoverageProfiles).where(
-    and2(
-      inArray2(paintCoverageProfiles.productId, productIds),
-      eq3(paintCoverageProfiles.status, "approved"),
-      lte(paintCoverageProfiles.effectiveAt, input.asOf)
-    )
-  );
-  const rowById = new Map(rows.map((row) => [row.id, row]));
-  const cyclicIds = /* @__PURE__ */ new Set();
-  for (const row of rows) {
-    const seen = /* @__PURE__ */ new Set();
-    let cursor = row;
-    while (cursor?.supersedesId && rowById.has(cursor.supersedesId)) {
-      if (seen.has(cursor.supersedesId)) {
-        for (const id of Array.from(seen)) cyclicIds.add(id);
-        cyclicIds.add(cursor.supersedesId);
-        break;
-      }
-      seen.add(cursor.id);
-      cursor = rowById.get(cursor.supersedesId);
-    }
-  }
-  const supersededIds = new Set(
-    rows.map((row) => row.supersedesId).filter((id) => id !== null)
-  );
-  return rows.filter((row) => cyclicIds.has(row.id) || !supersededIds.has(row.id)).map((row) => ({
-    ...row,
-    lineageValid: !cyclicIds.has(row.id),
-    packSizesLitres: Array.isArray(row.packSizesLitres) ? row.packSizesLitres.map(String) : []
-  }));
-}
-async function listMaterialResolutionIdentitiesWithScope(input, database4) {
-  const db = database4 ?? await getDb();
-  if (!db) throw new Error("DB not available");
-  const rows = [];
-  const libraryIds = Array.from(new Set(input.materialLibraryIds ?? []));
-  if (libraryIds.length > 0) {
-    const libraryRows = await db.select({
-      legacyId: materialLibrary.id,
-      productId: products.id,
-      productOrgId: products.orgId,
-      productCanonicalCategory: products.canonicalCategory,
-      category: materialLibrary.category,
-      tier: materialLibrary.tier,
-      unit: materialLibrary.unitLabel
-    }).from(materialLibrary).leftJoin(
-      products,
-      input.globalOnly ? and2(
-        eq3(products.id, materialLibrary.productId),
-        isNull2(products.orgId)
-      ) : eq3(products.id, materialLibrary.productId)
-    ).where(inArray2(materialLibrary.id, libraryIds));
-    rows.push(
-      ...libraryRows.map((row) => ({
-        source: "material_library",
-        ...row
-      }))
-    );
-  }
-  const catalogIds = Array.from(new Set(input.materialCatalogIds ?? []));
-  if (catalogIds.length > 0) {
-    const catalogRows = await db.select({
-      legacyId: materialsCatalog.id,
-      productId: products.id,
-      productOrgId: products.orgId,
-      productCanonicalCategory: products.canonicalCategory,
-      category: materialsCatalog.category,
-      tier: materialsCatalog.tier,
-      unit: materialsCatalog.costUnit
-    }).from(materialsCatalog).leftJoin(
-      products,
-      input.globalOnly ? and2(
-        eq3(products.id, materialsCatalog.productId),
-        isNull2(products.orgId)
-      ) : eq3(products.id, materialsCatalog.productId)
-    ).where(inArray2(materialsCatalog.id, catalogIds));
-    rows.push(
-      ...catalogRows.map((row) => ({
-        source: "materials_catalog",
-        ...row
-      }))
-    );
-  }
-  return rows;
-}
-async function listMaterialResolutionIdentities(input) {
-  return listMaterialResolutionIdentitiesWithScope({
-    ...input,
-    globalOnly: false
-  });
-}
-async function listGlobalMaterialResolutionIdentities(input) {
-  return listMaterialResolutionIdentitiesWithScope({
-    ...input,
-    globalOnly: true
-  });
-}
-async function listLegacyCompatibilityPriceRows(materialLibraryIds) {
-  const db = await getDb();
-  if (!db) throw new Error("DB not available");
-  const ids = materialLibraryIds === void 0 ? void 0 : Array.from(new Set(materialLibraryIds));
-  if (ids?.length === 0) return [];
-  const eligibilityConditions = [
-    isNotNull2(materialLibrary.priceAedMin),
-    isNotNull2(materialLibrary.priceAedMax),
-    isNotNull2(benchmarkProposals.productId),
-    eq3(benchmarkProposals.sourceKind, "assumption"),
-    eq3(benchmarkProposals.sourceLadderRung, "assumption"),
-    isNull2(benchmarkProposals.orgId),
-    isNull2(benchmarkProposals.priceScope),
-    eq3(benchmarkProposals.keyPolicyVersion, "ev02-backfill-v1"),
-    eq3(benchmarkProposals.status, "approved"),
-    eq3(benchmarkProposals.recommendation, "publish")
-  ];
-  if (ids !== void 0) {
-    eligibilityConditions.unshift(inArray2(materialLibrary.id, ids));
-  }
-  const rows = await db.select({
-    legacyId: materialLibrary.id,
-    productId: benchmarkProposals.productId,
-    specId: benchmarkProposals.specId,
-    benchmarkProposalId: benchmarkProposals.id,
-    benchmarkVersionId: benchmarkProposals.benchmarkVersionId,
-    benchmarkVersionTag: benchmarkVersions.versionTag,
-    provenancePolicyVersion: benchmarkProposals.provenancePolicyVersion,
-    unitBasis: specifications.unitBasis,
-    geography: specifications.geography,
-    priceMin: materialLibrary.priceAedMin,
-    priceMax: materialLibrary.priceAedMax
-  }).from(materialLibrary).innerJoin(
-    benchmarkProposals,
-    and2(
-      eq3(benchmarkProposals.legacyMaterialLibraryId, materialLibrary.id),
-      eq3(benchmarkProposals.productId, materialLibrary.productId)
-    )
-  ).innerJoin(specifications, eq3(specifications.id, benchmarkProposals.specId)).leftJoin(
-    benchmarkVersions,
-    eq3(benchmarkVersions.id, benchmarkProposals.benchmarkVersionId)
-  ).where(and2(...eligibilityConditions));
-  const unique = /* @__PURE__ */ new Map();
-  for (const row of rows) {
-    if (row.productId === null || row.specId === null || row.priceMin === null || row.priceMax === null) {
-      continue;
-    }
-    const eligible = {
-      ...row,
-      benchmarkVersion: row.benchmarkVersionTag ?? "legacy-unversioned-benchmark",
-      productId: row.productId,
-      specId: row.specId,
-      priceMin: row.priceMin,
-      priceMax: row.priceMax
-    };
-    delete eligible.benchmarkVersionTag;
-    const existing = unique.get(row.legacyId);
-    if (existing && JSON.stringify(existing) !== JSON.stringify(eligible)) {
-      throw new Error(
-        `Ambiguous EV-02 compatibility link for material_library:${row.legacyId}`
-      );
-    }
-    unique.set(row.legacyId, eligible);
-  }
-  return Array.from(unique.values());
-}
-async function listMaterialResolutionSpecifications(input, database4) {
-  const db = database4 ?? await getDb();
-  if (!db) throw new Error("DB not available");
-  if (input.categories.length === 0 || input.finishLevels.length === 0 || input.unitBases.length === 0 || input.geographies.length === 0) {
-    return [];
-  }
-  return db.select({
-    id: specifications.id,
-    category: specifications.category,
-    finishLevel: specifications.finishLevel,
-    unitBasis: specifications.unitBasis,
-    geography: specifications.geography
-  }).from(specifications).where(
-    and2(
-      inArray2(specifications.category, input.categories),
-      inArray2(specifications.finishLevel, input.finishLevels),
-      inArray2(specifications.unitBasis, input.unitBases),
-      inArray2(specifications.geography, input.geographies)
-    )
-  );
-}
-async function listGovernedValueCandidatesForSpecificationsWithScope(input, database4) {
-  const db = database4 ?? await getDb();
-  if (!db) throw new Error("DB not available");
-  const specIds = Array.from(new Set(input.specIds));
-  if (specIds.length === 0) return [];
-  const scopeCondition = input.globalOnly || input.organizationId === void 0 ? isNull2(benchmarkProposals.orgId) : or2(
-    isNull2(benchmarkProposals.orgId),
-    eq3(benchmarkProposals.orgId, input.organizationId)
-  );
-  const rows = await db.select({
-    id: benchmarkProposals.id,
-    specId: benchmarkProposals.specId,
-    productId: benchmarkProposals.productId,
-    orgId: benchmarkProposals.orgId,
-    priceScope: benchmarkProposals.priceScope,
-    sourceKind: benchmarkProposals.sourceKind,
-    sourceLadderRung: benchmarkProposals.sourceLadderRung,
-    benchmarkVersionId: benchmarkProposals.benchmarkVersionId,
-    benchmarkVersionTag: benchmarkVersions.versionTag,
-    createdAt: benchmarkProposals.createdAt,
-    reviewedAt: benchmarkProposals.reviewedAt,
-    supplierQuoteId: benchmarkProposals.supplierQuoteId,
-    supersedesId: benchmarkProposals.supersedesId,
-    p25: benchmarkProposals.proposedP25,
-    p50: benchmarkProposals.proposedP50,
-    p75: benchmarkProposals.proposedP75,
-    weightedMean: benchmarkProposals.weightedMean,
-    sourceLabel: benchmarkProposals.sourceLabel,
-    provenancePolicyVersion: benchmarkProposals.provenancePolicyVersion,
-    unitBasis: specifications.unitBasis,
-    geography: specifications.geography,
-    quoteValidUntil: supplierQuotes.validUntil,
-    quoteReceivedAt: supplierQuotes.receivedAt,
-    quoteOrgId: supplierQuotes.orgId,
-    joinedProductId: products.id,
-    productOrgId: products.orgId
-  }).from(benchmarkProposals).innerJoin(specifications, eq3(specifications.id, benchmarkProposals.specId)).leftJoin(products, eq3(products.id, benchmarkProposals.productId)).leftJoin(
-    benchmarkVersions,
-    eq3(benchmarkVersions.id, benchmarkProposals.benchmarkVersionId)
-  ).leftJoin(
-    supplierQuotes,
-    eq3(supplierQuotes.id, benchmarkProposals.supplierQuoteId)
-  ).where(
-    and2(
-      inArray2(benchmarkProposals.specId, specIds),
-      eq3(benchmarkProposals.status, "approved"),
-      eq3(benchmarkProposals.recommendation, "publish"),
-      or2(
-        and2(
-          isNotNull2(benchmarkProposals.reviewedBy),
-          isNotNull2(benchmarkProposals.reviewedAt)
-        ),
-        and2(
-          eq3(benchmarkProposals.sourceKind, "assumption"),
-          eq3(benchmarkProposals.sourceLadderRung, "assumption"),
-          isNotNull2(benchmarkProposals.legacyMaterialLibraryId),
-          eq3(benchmarkProposals.keyPolicyVersion, "ev02-backfill-v1")
-        )
-      ),
-      scopeCondition,
-      ...input.globalOnly ? [
-        isNull2(benchmarkProposals.supplierQuoteId),
-        ne(benchmarkProposals.sourceLadderRung, "supplier_quote"),
-        or2(
-          isNull2(benchmarkProposals.productId),
-          and2(isNotNull2(products.id), isNull2(products.orgId))
-        )
-      ] : []
-    )
-  );
-  const quoteIds = rows.map((row) => row.supplierQuoteId).filter((id) => id !== null);
-  const quoteSupersededAt = /* @__PURE__ */ new Map();
-  const quoteOrganizations = new Map(
-    rows.filter(
-      (row) => row.supplierQuoteId !== null && row.quoteOrgId !== null
-    ).map((row) => [row.supplierQuoteId, row.quoteOrgId])
-  );
-  if (quoteIds.length > 0) {
-    const successors = await db.select({
-      supersedesId: supplierQuotes.supersedesId,
-      orgId: supplierQuotes.orgId,
-      receivedAt: supplierQuotes.receivedAt
-    }).from(supplierQuotes).where(inArray2(supplierQuotes.supersedesId, quoteIds));
-    for (const successor of successors) {
-      if (successor.supersedesId !== null && quoteOrganizations.get(successor.supersedesId) === successor.orgId) {
-        quoteSupersededAt.set(successor.supersedesId, successor.receivedAt);
-      }
-    }
-  }
-  return rows.filter((row) => !input.globalOnly || isGlobalGovernedCandidateScope(row)).filter(
-    (row) => row.specId !== null && row.sourceLadderRung !== null
-  ).map((row) => {
-    const {
-      joinedProductId: _joinedProductId,
-      productOrgId: _productOrgId,
-      ...candidate2
-    } = row;
-    return {
-      ...candidate2,
-      benchmarkVersion: row.benchmarkVersionTag ?? "legacy-unversioned-benchmark",
-      benchmarkVersionTag: void 0,
-      effectiveAt: row.reviewedAt ?? row.createdAt,
-      quoteSupersededAt: row.supplierQuoteId === null ? null : quoteSupersededAt.get(row.supplierQuoteId) ?? null
-    };
-  });
-}
-async function listGovernedValueCandidatesForSpecifications(input) {
-  return listGovernedValueCandidatesForSpecificationsWithScope({
-    ...input,
-    globalOnly: false
-  });
-}
-async function listGlobalGovernedValueCandidatesForSpecifications(input) {
-  return listGovernedValueCandidatesForSpecificationsWithScope({
-    ...input,
-    organizationId: void 0,
-    globalOnly: true
-  });
-}
-
-// server/engines/material-pricing/material-resolution.ts
-init_material_calculations();
-
-// shared/material-pricing.ts
-var UAE_PRICE_GEOGRAPHIES = [
-  "dubai",
-  "abu_dhabi",
-  "sharjah",
-  "ajman",
-  "umm_al_quwain",
-  "ras_al_khaimah",
-  "fujairah",
-  "uae"
-];
-
-// server/engines/material-pricing/material-resolution.ts
-init_policy();
-
-// server/engines/material-pricing/resolver.ts
-init_policy();
-function retailBand(candidates) {
-  const retail = candidates.filter(
-    (candidate2) => candidate2.sourceLadderRung === "retail_sanity"
-  );
-  if (retail.length !== 1) return void 0;
-  return {
-    p25: retail[0].p25,
-    p50: retail[0].p50,
-    p75: retail[0].p75
-  };
-}
-function resolveGovernedMaterialValueFromCandidates(input, candidates) {
-  if (!Number.isFinite(input.asOf.getTime())) {
-    throw new Error("Resolver requires a valid explicit asOf clock");
-  }
-  const availableAtClock = candidates.filter(
-    (candidate2) => candidate2.effectiveAt.getTime() <= input.asOf.getTime()
-  );
-  const supersededIds = new Set(
-    availableAtClock.map((candidate2) => candidate2.supersedesId).filter((id) => id !== null)
-  );
-  const active = availableAtClock.filter(
-    (candidate2) => !supersededIds.has(candidate2.id)
-  );
-  const scoped = active.filter((candidate2) => {
-    if (candidate2.orgId !== null && candidate2.orgId !== input.organizationId) {
-      return false;
-    }
-    if (input.productId === void 0) {
-      if (candidate2.productId !== null) return false;
-    } else if (candidate2.productId !== null && candidate2.productId !== input.productId) {
-      return false;
-    }
-    return true;
-  });
-  const diagnosticBand = retailBand(
-    scoped.filter((candidate2) => candidate2.priceScope === input.priceScope)
-  );
-  const eligible = scoped.filter((candidate2) => {
-    if (candidate2.sourceLadderRung === "retail_sanity") return false;
-    if (candidate2.sourceLadderRung === "supplier_quote") {
-      return input.organizationId !== void 0 && candidate2.orgId === input.organizationId && candidate2.quoteOrgId === input.organizationId && candidate2.supplierQuoteId !== null && candidate2.quoteReceivedAt !== null && candidate2.quoteReceivedAt.getTime() <= input.asOf.getTime() && candidate2.quoteValidUntil !== null && candidate2.quoteValidUntil.getTime() >= input.asOf.getTime() && (candidate2.quoteSupersededAt === null || candidate2.quoteSupersededAt.getTime() > input.asOf.getTime()) && candidate2.priceScope === input.priceScope;
-    }
-    if (candidate2.priceScope === input.priceScope) return true;
-    return candidate2.sourceLadderRung === "assumption" && candidate2.priceScope === null && input.allowLegacyUnknownScope === true;
-  });
-  if (eligible.length === 0) {
-    const hasLegacyUnknown = scoped.some(
-      (candidate2) => candidate2.sourceLadderRung === "assumption" && candidate2.priceScope === null
-    );
-    return {
-      status: "insufficient",
-      reason: diagnosticBand && !hasLegacyUnknown ? "only_retail_sanity" : hasLegacyUnknown ? "legacy_scope_unknown" : "no_governed_value",
-      retailSanityBand: diagnosticBand
-    };
-  }
-  const ranked = eligible.map((candidate2) => ({
-    candidate: candidate2,
-    ladder: sourceLadderPriority(candidate2.sourceLadderRung),
-    productSpecific: input.productId !== void 0 && candidate2.productId === input.productId ? 0 : 1,
-    orgSpecific: input.organizationId !== void 0 && candidate2.orgId === input.organizationId ? 0 : 1,
-    legacyScope: candidate2.priceScope === null ? 1 : 0
-  })).sort(
-    (a, b) => a.ladder - b.ladder || a.productSpecific - b.productSpecific || a.orgSpecific - b.orgSpecific || a.legacyScope - b.legacyScope
-  );
-  const best = ranked[0];
-  const tied = ranked.filter(
-    (row) => row.ladder === best.ladder && row.productSpecific === best.productSpecific && row.orgSpecific === best.orgSpecific && row.legacyScope === best.legacyScope
-  );
-  if (tied.length !== 1) {
-    return {
-      status: "insufficient",
-      reason: "ambiguous_governed_value",
-      retailSanityBand: diagnosticBand
-    };
-  }
-  const selected = best.candidate;
-  if (selected.sourceLadderRung === "retail_sanity") {
-    throw new Error("Retail sanity rows cannot resolve authoritatively");
-  }
-  const p25 = Number(selected.p25);
-  const p50 = Number(selected.p50);
-  const p75 = Number(selected.p75);
-  const weightedMean = Number(selected.weightedMean);
-  if (!Number.isFinite(p25) || !Number.isFinite(p50) || !Number.isFinite(p75) || !Number.isFinite(weightedMean) || p25 <= 0 || p50 <= 0 || p75 <= 0 || weightedMean <= 0 || p25 > p50 || p50 > p75) {
-    return {
-      status: "insufficient",
-      reason: "no_governed_value",
-      retailSanityBand: diagnosticBand
-    };
-  }
-  const value = {
-    benchmarkProposalId: selected.id,
-    benchmarkVersionId: selected.benchmarkVersionId,
-    benchmarkVersion: selected.benchmarkVersion,
-    specificationId: selected.specId,
-    productId: selected.productId,
-    organizationId: selected.orgId,
-    p25: selected.p25,
-    p50: selected.p50,
-    p75: selected.p75,
-    weightedMean: selected.weightedMean,
-    currency: "AED",
-    unitBasis: selected.unitBasis,
-    geography: selected.geography,
-    priceScope: selected.priceScope ?? "legacy_unknown",
-    sourceKind: selected.sourceKind,
-    sourceLadderRung: selected.sourceLadderRung,
-    sourceLabel: selected.sourceLabel,
-    provenancePolicyVersion: selected.provenancePolicyVersion,
-    isLegacyScopeFallback: selected.priceScope === null
-  };
-  return {
-    status: "resolved",
-    value,
-    retailSanityBand: diagnosticBand
-  };
-}
-
-// server/engines/material-pricing/rollout-comparison.ts
-init_database_safety();
-import { createHash as createHash3 } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { gunzipSync } from "node:zlib";
-
-// server/engines/material-pricing/ev03-identity-backfill.ts
-init_database_safety();
-init_policy();
-
-// server/engines/material-pricing/rollout-comparison.ts
-init_policy();
-var EV03_ROLLOUT_EVIDENCE_VERSION = "ev03-rollout-comparison-v2";
-var EV03_ELIGIBILITY_QUERY_VERSION = "ev02-linked-legacy-assumptions-v1";
-var EV03_MAX_ROLLOUT_EVIDENCE_COMPRESSED_BYTES = 1024 * 1024;
-var EV03_MAX_ROLLOUT_EVIDENCE_DECOMPRESSED_BYTES = 8 * 1024 * 1024;
-function canonicalize2(value) {
-  if (value === null || typeof value === "string" || typeof value === "boolean") {
-    return value;
-  }
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) {
-      throw new Error("Rollout evidence cannot contain non-finite numbers");
-    }
-    return value;
-  }
-  if (Array.isArray(value)) return value.map(canonicalize2);
-  if (typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value).filter(([, item]) => item !== void 0).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonicalize2(item)])
-    );
-  }
-  throw new Error(`Unsupported rollout evidence value: ${typeof value}`);
-}
-function sha256(value) {
-  return createHash3("sha256").update(JSON.stringify(canonicalize2(value))).digest("hex");
-}
-function referenceKey(reference2) {
-  return `${reference2.source}:${reference2.legacyId}`;
-}
-function governedFingerprint(snapshot) {
-  return {
-    productId: snapshot.productId,
-    specificationId: snapshot.specificationId,
-    benchmarkProposalId: snapshot.benchmarkProposalId,
-    benchmarkVersionId: snapshot.benchmarkVersionId,
-    benchmarkVersion: snapshot.provenance.benchmarkVersion,
-    resolvedPriceScope: snapshot.resolvedPriceScope,
-    unitBasis: snapshot.unitBasis,
-    resolvedGeography: snapshot.resolvedGeography,
-    resolverPolicyVersion: snapshot.policyVersion,
-    provenancePolicyVersion: snapshot.provenance.provenancePolicyVersion,
-    min: snapshot.priceMin,
-    mid: snapshot.priceMid,
-    max: snapshot.priceMax
-  };
-}
-function assertUniqueReferences(label, references) {
-  const seen = /* @__PURE__ */ new Set();
-  for (const reference2 of references) {
-    if (!Number.isInteger(reference2.legacyId) || reference2.legacyId <= 0) {
-      throw new Error(`${label} contains an invalid legacy identity`);
-    }
-    const key = referenceKey(reference2);
-    if (seen.has(key)) throw new Error(`${label} contains duplicate ${key}`);
-    seen.add(key);
-  }
-}
-function compareLegacyAndGovernedMaterialPrices(input) {
-  assertUniqueReferences(
-    "Eligible legacy set",
-    input.legacyRanges.map((range) => range.reference)
-  );
-  assertUniqueReferences(
-    "Governed snapshot set",
-    input.snapshots.map((snapshot) => snapshot.reference)
-  );
-  const eligibleKeys = new Set(
-    input.legacyRanges.map((range) => referenceKey(range.reference))
-  );
-  const unexpectedSnapshot = input.snapshots.find(
-    (snapshot) => !eligibleKeys.has(referenceKey(snapshot.reference))
-  );
-  if (unexpectedSnapshot) {
-    throw new Error(
-      `Governed snapshot set contains ineligible ${referenceKey(unexpectedSnapshot.reference)}`
-    );
-  }
-  const snapshots = new Map(
-    input.snapshots.map((snapshot) => [
-      referenceKey(snapshot.reference),
-      snapshot
-    ])
-  );
-  return input.legacyRanges.map((legacy) => {
-    const expected = {
-      min: legacy.priceMin,
-      mid: exactDecimalMidpoint(legacy.priceMin, legacy.priceMax),
-      max: legacy.priceMax
-    };
-    const snapshot = snapshots.get(referenceKey(legacy.reference));
-    if (!snapshot || snapshot.state === "insufficient") {
-      return {
-        reference: legacy.reference,
-        state: "insufficient",
-        legacy: expected,
-        governed: null,
-        differences: [],
-        insufficiencyReason: snapshot?.state === "insufficient" ? snapshot.reason : "identity_not_found"
-      };
-    }
-    const governed = governedFingerprint(snapshot);
-    const differences = [];
-    if (expected.min !== governed.min) differences.push("min");
-    if (expected.mid !== governed.mid) differences.push("mid");
-    if (expected.max !== governed.max) differences.push("max");
-    return {
-      reference: legacy.reference,
-      state: differences.length === 0 ? "equal" : "different",
-      legacy: expected,
-      governed,
-      differences
-    };
-  });
-}
-var FORBIDDEN_EVIDENCE_KEYS = /^(organizationId|orgId|supplierQuoteId|quoteRef|contactRef|sourceLabel|supplierName|supplierContact|supplierUrl|provenance|presentationProvenance|internalProvenance|description)$/i;
-function assertNoConfidentialFields(value, path = "evidence") {
-  if (Array.isArray(value)) {
-    value.forEach(
-      (item, index2) => assertNoConfidentialFields(item, `${path}[${index2}]`)
-    );
-    return;
-  }
-  if (!value || typeof value !== "object") return;
-  for (const [key, item] of Object.entries(value)) {
-    if (FORBIDDEN_EVIDENCE_KEYS.test(key)) {
-      throw new Error(
-        `Confidential field is forbidden in rollout evidence: ${path}.${key}`
-      );
-    }
-    assertNoConfidentialFields(item, `${path}.${key}`);
-  }
-}
-function assertMaterialPricingComparisonEvidence(evidence) {
-  if (evidence.version !== EV03_ROLLOUT_EVIDENCE_VERSION || evidence.eligibilityQueryVersion !== EV03_ELIGIBILITY_QUERY_VERSION || evidence.digestAlgorithm !== "sha256") {
-    throw new Error("Unsupported EV-03 rollout evidence contract");
-  }
-  if (!Number.isInteger(evidence.eligibleRowCount) || evidence.eligibleRowCount <= 0 || evidence.comparisonRowCount !== evidence.eligibleRowCount || evidence.comparisons.length !== evidence.eligibleRowCount) {
-    throw new Error("Rollout evidence does not cover every eligible EV-02 row");
-  }
-  assertUniqueReferences(
-    "Rollout comparisons",
-    evidence.comparisons.map((row) => row.reference)
-  );
-  assertNoConfidentialFields(evidence);
-  const counts = {
-    equal: evidence.comparisons.filter((row) => row.state === "equal").length,
-    different: evidence.comparisons.filter((row) => row.state === "different").length,
-    insufficient: evidence.comparisons.filter(
-      (row) => row.state === "insufficient"
-    ).length
-  };
-  if (evidence.equalRowCount !== counts.equal || evidence.differentRowCount !== counts.different || evidence.insufficientRowCount !== counts.insufficient || counts.equal + counts.different + counts.insufficient !== evidence.eligibleRowCount) {
-    throw new Error("Rollout evidence summary counts diverge");
-  }
-  const eligibleSet = evidence.comparisons.map((comparison) => ({
-    reference: comparison.reference,
-    priceMin: comparison.legacy.min,
-    priceMax: comparison.legacy.max
-  })).sort(
-    (a, b) => referenceKey(a.reference).localeCompare(referenceKey(b.reference))
-  );
-  const sortedComparisons = [...evidence.comparisons].sort(
-    (a, b) => referenceKey(a.reference).localeCompare(referenceKey(b.reference))
-  );
-  if (!/^[a-f0-9]{64}$/.test(evidence.eligibleSetDigest) || evidence.eligibleSetDigest !== sha256(eligibleSet) || !/^[a-f0-9]{64}$/.test(evidence.comparisonsDigest) || evidence.comparisonsDigest !== sha256(sortedComparisons)) {
-    throw new Error("Rollout evidence content digest mismatch");
-  }
-  const { evidenceDigest, ...unsigned } = evidence;
-  if (!/^[a-f0-9]{64}$/.test(evidenceDigest) || evidenceDigest !== sha256(unsigned)) {
-    throw new Error("Rollout evidence SHA-256 mismatch");
-  }
-}
-function assertMaterialPricingEvidenceMatchesLiveEligibleSet(evidence, liveRanges) {
-  assertMaterialPricingComparisonEvidence(evidence);
-  assertUniqueReferences(
-    "Live eligible legacy set",
-    liveRanges.map((range) => range.reference)
-  );
-  const liveEligibleSet = liveRanges.map((range) => ({
-    reference: range.reference,
-    priceMin: range.priceMin,
-    priceMax: range.priceMax
-  })).sort(
-    (a, b) => referenceKey(a.reference).localeCompare(referenceKey(b.reference))
-  );
-  if (liveEligibleSet.length !== evidence.eligibleRowCount || sha256(liveEligibleSet) !== evidence.eligibleSetDigest) {
-    throw new Error(
-      "EV-03 rollout evidence does not match the complete live eligible set"
-    );
-  }
-}
-function assertGovernedSnapshotsMatchApprovedEvidence(evidence, snapshots) {
-  assertMaterialPricingComparisonEvidence(evidence);
-  assertUniqueReferences(
-    "Live governed snapshot set",
-    snapshots.map((snapshot) => snapshot.reference)
-  );
-  const approved = new Map(
-    evidence.comparisons.map((comparison) => [
-      referenceKey(comparison.reference),
-      comparison.governed
-    ])
-  );
-  for (const snapshot of snapshots) {
-    const expected = approved.get(referenceKey(snapshot.reference));
-    if (expected === void 0) continue;
-    if (snapshot.state === "resolved" && snapshot.requestedPriceScope === "supply_and_install" && snapshot.resolvedPriceScope === "supply_and_install") {
-      continue;
-    }
-    if (expected === null || snapshot.state !== "resolved" || sha256(governedFingerprint(snapshot)) !== sha256(expected)) {
-      throw new Error(
-        `EV-03 governed snapshot drifted from approved evidence for ${referenceKey(snapshot.reference)}`
-      );
-    }
-  }
-}
-function buildMaterialPricingRuntimeComparisonEvidence(input) {
-  assertMaterialPricingComparisonEvidence(input.baselineEvidence);
-  if (!Number.isFinite(input.resolverAsOf.getTime())) {
-    throw new Error("Runtime comparison requires a valid explicit clock");
-  }
-  assertUniqueReferences("Runtime comparison request", input.references);
-  const baselineByReference = new Map(
-    input.baselineEvidence.comparisons.map((comparison) => [
-      referenceKey(comparison.reference),
-      comparison
-    ])
-  );
-  const legacyRanges = input.references.flatMap((reference2) => {
-    const baseline = baselineByReference.get(referenceKey(reference2));
-    return baseline ? [
-      {
-        reference: reference2,
-        priceMin: baseline.legacy.min,
-        priceMax: baseline.legacy.max
-      }
-    ] : [];
-  });
-  const legacyKeys = new Set(
-    legacyRanges.map((range) => referenceKey(range.reference))
-  );
-  const comparisons = compareLegacyAndGovernedMaterialPrices({
-    legacyRanges,
-    snapshots: input.governedSnapshots.filter(
-      (snapshot) => legacyKeys.has(referenceKey(snapshot.reference))
-    )
-  }).map((comparison) => ({
-    reference: comparison.reference,
-    state: comparison.state,
-    differences: comparison.differences,
-    ...comparison.insufficiencyReason === void 0 ? {} : { insufficiencyReason: comparison.insufficiencyReason }
-  }));
-  const unsigned = {
-    version: "ev03-runtime-comparison-v1",
-    digestAlgorithm: "sha256",
-    baselineEvidenceDigest: input.baselineEvidence.evidenceDigest,
-    requestedPriceScope: input.requestedPriceScope,
-    requestedGeography: input.requestedGeography,
-    resolverAsOf: input.resolverAsOf.toISOString(),
-    comparisonRowCount: comparisons.length,
-    equalRowCount: comparisons.filter((row) => row.state === "equal").length,
-    differentRowCount: comparisons.filter((row) => row.state === "different").length,
-    insufficientRowCount: comparisons.filter(
-      (row) => row.state === "insufficient"
-    ).length,
-    comparisons
-  };
-  assertNoConfidentialFields(unsigned);
-  return { ...unsigned, comparisonDigest: sha256(unsigned) };
-}
-function assertGoldenMaterialPriceEquality(comparisons) {
-  const failures = comparisons.filter(
-    (comparison) => comparison.state !== "equal"
-  );
-  if (failures.length > 0) {
-    throw new Error(
-      `Governed material-price equality failed for ${failures.length}/${comparisons.length} eligible rows`
-    );
-  }
-}
-function assertMaterialPricingRolloutGate(gate) {
-  const effective = gate ?? { mode: "legacy" };
-  if (effective.mode === "legacy") return "legacy";
-  assertMaterialPricingComparisonEvidence(effective.evidence);
-  if (effective.mode === "compare") return "compare";
-  assertGoldenMaterialPriceEquality(effective.evidence.comparisons);
-  if (!/^user-approved:\d{4}-\d{2}-\d{2}:ev03-governed-cutover$/.test(
-    effective.cutoverApproval.reference
-  )) {
-    throw new Error(
-      "Governed material pricing requires explicit EV-03 cutover approval"
-    );
-  }
-  if (effective.cutoverApproval.approvedEvidenceDigest !== effective.evidence.evidenceDigest) {
-    throw new Error(
-      "Governed cutover approval does not bind the evidence SHA-256"
-    );
-  }
-  return "governed";
-}
-function loadMaterialPricingRolloutGate(environment = process.env) {
-  const mode = environment.MIYAR_EV03_PRICING_MODE ?? "legacy";
-  if (mode === "legacy") return { mode: "legacy" };
-  if (mode !== "compare" && mode !== "governed") {
-    throw new Error(`Unsupported MIYAR_EV03_PRICING_MODE: ${mode}`);
-  }
-  const inline = environment.MIYAR_EV03_ROLLOUT_EVIDENCE_JSON;
-  const evidencePath = environment.MIYAR_EV03_ROLLOUT_EVIDENCE_PATH;
-  const gzipBase64 = environment.MIYAR_EV03_ROLLOUT_EVIDENCE_GZIP_BASE64;
-  if ((inline ? 1 : 0) + (evidencePath ? 1 : 0) + (gzipBase64 ? 1 : 0) !== 1) {
-    throw new Error(
-      "EV-03 compare/governed mode requires exactly one rollout evidence source"
-    );
-  }
-  let serialized;
-  if (gzipBase64) {
-    const maxEncodedBytes = Math.ceil(EV03_MAX_ROLLOUT_EVIDENCE_COMPRESSED_BYTES / 3) * 4 + 4;
-    if (Buffer.byteLength(gzipBase64, "utf8") > maxEncodedBytes || gzipBase64.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(gzipBase64)) {
-      throw new Error(
-        "EV-03 compressed rollout evidence is not canonical bounded base64"
-      );
-    }
-    const compressed = Buffer.from(gzipBase64, "base64");
-    if (compressed.length === 0 || compressed.length > EV03_MAX_ROLLOUT_EVIDENCE_COMPRESSED_BYTES || compressed.toString("base64") !== gzipBase64) {
-      throw new Error(
-        "EV-03 compressed rollout evidence exceeds the compressed size limit"
-      );
-    }
-    let decompressed;
-    try {
-      decompressed = gunzipSync(compressed, {
-        maxOutputLength: EV03_MAX_ROLLOUT_EVIDENCE_DECOMPRESSED_BYTES
-      });
-    } catch {
-      throw new Error(
-        "EV-03 compressed rollout evidence is invalid or exceeds the decompressed size limit"
-      );
-    }
-    if (decompressed.length === 0 || decompressed.length > EV03_MAX_ROLLOUT_EVIDENCE_DECOMPRESSED_BYTES) {
-      throw new Error(
-        "EV-03 compressed rollout evidence exceeds the decompressed size limit"
-      );
-    }
-    try {
-      serialized = new TextDecoder("utf-8", { fatal: true }).decode(
-        decompressed
-      );
-    } catch {
-      throw new Error("EV-03 compressed rollout evidence is not valid UTF-8");
-    }
-  } else {
-    serialized = inline ?? readFileSync(evidencePath, { encoding: "utf8", flag: "r" });
-  }
-  let evidence;
-  try {
-    evidence = JSON.parse(serialized);
-  } catch {
-    throw new Error("EV-03 rollout evidence is not valid JSON");
-  }
-  assertMaterialPricingComparisonEvidence(evidence);
-  if (mode === "compare") return { mode, evidence };
-  return {
-    mode,
-    evidence,
-    cutoverApproval: {
-      reference: environment.MIYAR_EV03_GOVERNED_CUTOVER_APPROVAL_REF ?? "",
-      approvedEvidenceDigest: environment.MIYAR_EV03_GOVERNED_EVIDENCE_SHA256 ?? ""
-    }
-  };
-}
-
-// server/engines/material-pricing/material-resolution.ts
-var SAFE_SOURCE_LABEL = {
-  supplier_quote: "Organization supplier quote",
-  official_statistic: "Official statistic",
-  consultancy_benchmark: "Consultancy-derived benchmark",
-  market_observation: "Governed market-observation benchmark",
-  retail_sanity: "Retail sanity band",
-  assumption: "MIYAR assumption"
-};
-function resolveProjectMaterialPriceGeography(value) {
-  return typeof value === "string" && UAE_PRICE_GEOGRAPHIES.includes(value) ? value : "uae";
-}
-function attachPaintCoverageProfiles(snapshots, coverageProfiles) {
-  return snapshots.map((snapshot) => {
-    if (snapshot.state !== "resolved" || snapshot.unitBasis !== "per_litre") {
-      return snapshot;
-    }
-    const matches = coverageProfiles.filter(
-      (profile2) => profile2.productId === snapshot.productId && profile2.specId === snapshot.specificationId
-    );
-    if (matches.length === 0) {
-      return { ...snapshot, paintCoverageState: "fallback" };
-    }
-    if (matches.length > 1) {
-      return { ...snapshot, paintCoverageState: "invalid" };
-    }
-    const profile = matches[0];
-    const coverage = Number(profile.coverageM2PerLitrePerCoat);
-    const wastePct = Number(profile.wastePct);
-    const packSizes = profile.packSizesLitres.map(Number);
-    if (profile.lineageValid === false || profile.reviewedBy === null || profile.reviewedBy <= 0 || !(profile.reviewedAt instanceof Date) || !Number.isFinite(profile.reviewedAt.getTime()) || profile.reviewedAt.getTime() > new Date(snapshot.resolverAsOf).getTime() || !/^sha256:[a-f0-9]{64}$/i.test(profile.sourceDocumentDigest) || !profile.policyVersion.trim() || !Number.isFinite(coverage) || coverage <= 0 || !Number.isInteger(profile.coatCount) || profile.coatCount <= 0 || !Number.isFinite(wastePct) || wastePct < 0 || packSizes.length === 0 || packSizes.some((size) => !Number.isFinite(size) || size <= 0)) {
-      return { ...snapshot, paintCoverageState: "invalid" };
-    }
-    return {
-      ...snapshot,
-      paintCoverageState: "approved",
-      paintCoverageProfile: {
-        profileId: profile.id,
-        policyVersion: profile.policyVersion,
-        coverageM2PerLitrePerCoat: profile.coverageM2PerLitrePerCoat,
-        coatCount: profile.coatCount,
-        wastePct: profile.wastePct,
-        effectiveAt: profile.effectiveAt.toISOString(),
-        sourceDocumentDigest: profile.sourceDocumentDigest,
-        packSizesLitres: profile.packSizesLitres
-      }
-    };
-  });
-}
-function mapIdentity(row) {
-  const isLibrary = row.source === "material_library";
-  return {
-    ...row,
-    reference: { source: row.source, legacyId: row.legacyId },
-    canonicalCategory: isLibrary ? materialLibraryCategoryToCanonical(row.category) : materialCatalogCategoryToCanonical(row.category),
-    finishLevel: isLibrary ? materialLibraryTierToFinish(row.tier) : materialCatalogTierToFinish(row.tier),
-    unitBasis: normalizeUnitBasis(row.unit)
-  };
-}
-function specificationKey(input) {
-  return [
-    input.category,
-    input.finishLevel,
-    input.unitBasis,
-    input.geography
-  ].join("\0");
-}
-function insufficiency(input) {
-  return {
-    state: "insufficient",
-    policyVersion: MATERIAL_RESOLUTION_POLICY_VERSION,
-    reference: input.reference,
-    resolverAsOf: input.asOf.toISOString(),
-    requestedGeography: input.requestedGeography,
-    requestedPriceScope: input.priceScope,
-    reason: input.reason,
-    ...input.productId === void 0 ? {} : { productId: input.productId },
-    ...input.specificationId === void 0 ? {} : { specificationId: input.specificationId }
-  };
-}
-function mapResolverReason(reason4) {
-  return reason4;
-}
-function safeProvenance(input) {
-  return {
-    sourceLadderRung: input.sourceLadderRung,
-    sourceLabel: input.isLegacyScopeFallback ? "Legacy scope-unknown assumption" : SAFE_SOURCE_LABEL[input.sourceLadderRung],
-    provenancePolicyVersion: input.provenancePolicyVersion ?? "legacy_unknown",
-    benchmarkVersion: input.benchmarkVersion,
-    compatibilityFallback: input.isLegacyScopeFallback
-  };
-}
-function resolveMaterialPriceSnapshotsFromRows(input) {
-  if (!Number.isFinite(input.asOf.getTime())) {
-    throw new Error("Material resolution requires a valid explicit asOf clock");
-  }
-  const identityByReference = new Map(
-    input.identities.map((row) => [
-      `${row.source}:${row.legacyId}`,
-      mapIdentity(row)
-    ])
-  );
-  const specificationsByKey = /* @__PURE__ */ new Map();
-  for (const specification of input.specifications) {
-    const key = specificationKey(specification);
-    const rows = specificationsByKey.get(key) ?? [];
-    rows.push(specification);
-    specificationsByKey.set(key, rows);
-  }
-  const candidatesBySpecId = /* @__PURE__ */ new Map();
-  for (const candidate2 of input.candidates) {
-    const rows = candidatesBySpecId.get(candidate2.specId) ?? [];
-    rows.push(candidate2);
-    candidatesBySpecId.set(candidate2.specId, rows);
-  }
-  return input.references.map((reference2) => {
-    const identity = identityByReference.get(
-      `${reference2.source}:${reference2.legacyId}`
-    );
-    if (!identity || identity.productId === null) {
-      return insufficiency({
-        reference: reference2,
-        asOf: input.asOf,
-        requestedGeography: input.requestedGeography,
-        priceScope: input.priceScope,
-        reason: "identity_not_found"
-      });
-    }
-    if (identity.productOrgId !== null && identity.productOrgId !== input.organizationId) {
-      return insufficiency({
-        reference: reference2,
-        asOf: input.asOf,
-        requestedGeography: input.requestedGeography,
-        priceScope: input.priceScope,
-        reason: "identity_not_found"
-      });
-    }
-    if (identity.productCanonicalCategory !== identity.canonicalCategory) {
-      return insufficiency({
-        reference: reference2,
-        asOf: input.asOf,
-        requestedGeography: input.requestedGeography,
-        priceScope: input.priceScope,
-        reason: "identity_not_found"
-      });
-    }
-    if (identity.finishLevel === null) {
-      return insufficiency({
-        reference: reference2,
-        productId: identity.productId,
-        asOf: input.asOf,
-        requestedGeography: input.requestedGeography,
-        priceScope: input.priceScope,
-        reason: "unknown_finish_level"
-      });
-    }
-    if (identity.unitBasis === null) {
-      return insufficiency({
-        reference: reference2,
-        productId: identity.productId,
-        asOf: input.asOf,
-        requestedGeography: input.requestedGeography,
-        priceScope: input.priceScope,
-        reason: "unknown_unit_basis"
-      });
-    }
-    const productId = identity.productId;
-    const geographies = input.requestedGeography === "uae" ? ["uae"] : [input.requestedGeography, "uae"];
-    let lastReason = "specification_not_found";
-    let lastSpecificationId;
-    for (const geography of geographies) {
-      const specifications2 = specificationsByKey.get(
-        specificationKey({
-          category: identity.canonicalCategory,
-          finishLevel: identity.finishLevel,
-          unitBasis: identity.unitBasis,
-          geography
-        })
-      );
-      if (!specifications2 || specifications2.length === 0) continue;
-      lastSpecificationId = specifications2.length === 1 ? specifications2[0].id : void 0;
-      const resolutions = specifications2.map((specification) => ({
-        specification,
-        resolution: resolveGovernedMaterialValueFromCandidates(
-          {
-            specId: specification.id,
-            productId,
-            organizationId: input.organizationId,
-            priceScope: input.priceScope,
-            asOf: input.asOf,
-            allowLegacyUnknownScope: input.allowLegacyUnknownScope
-          },
-          candidatesBySpecId.get(specification.id) ?? []
-        )
-      }));
-      const ambiguous = resolutions.some(
-        (row) => row.resolution.status === "insufficient" && row.resolution.reason === "ambiguous_governed_value"
-      );
-      const resolved2 = resolutions.filter(
-        (row) => row.resolution.status === "resolved"
-      );
-      if (ambiguous || resolved2.length > 1) {
-        lastReason = "ambiguous_governed_value";
-        break;
-      }
-      if (resolved2.length === 1) {
-        const { specification, resolution } = resolved2[0];
-        return {
-          state: "resolved",
-          policyVersion: MATERIAL_RESOLUTION_POLICY_VERSION,
-          reference: reference2,
-          productId,
-          specificationId: specification.id,
-          benchmarkProposalId: resolution.value.benchmarkProposalId,
-          benchmarkVersionId: resolution.value.benchmarkVersionId,
-          resolverAsOf: input.asOf.toISOString(),
-          requestedGeography: input.requestedGeography,
-          resolvedGeography: resolution.value.geography,
-          usedUaeFallback: input.requestedGeography !== "uae" && resolution.value.geography === "uae",
-          requestedPriceScope: input.priceScope,
-          resolvedPriceScope: resolution.value.priceScope,
-          currency: "AED",
-          unitBasis: resolution.value.unitBasis,
-          priceMin: resolution.value.p25,
-          priceMid: resolution.value.p50,
-          priceMax: resolution.value.p75,
-          weightedMean: resolution.value.weightedMean,
-          provenance: safeProvenance(resolution.value)
-        };
-      }
-      const firstInsufficient = resolutions.find(
-        (row) => row.resolution.status === "insufficient"
-      );
-      if (firstInsufficient?.resolution.status === "insufficient") {
-        lastReason = mapResolverReason(firstInsufficient.resolution.reason);
-      }
-    }
-    return insufficiency({
-      reference: reference2,
-      productId,
-      specificationId: lastSpecificationId,
-      asOf: input.asOf,
-      requestedGeography: input.requestedGeography,
-      priceScope: input.priceScope,
-      reason: lastReason
-    });
-  });
-}
-async function resolveGovernedMaterialPriceSnapshots(input, options = { globalOnly: false }) {
-  const materialLibraryIds = input.references.filter((reference2) => reference2.source === "material_library").map((reference2) => reference2.legacyId);
-  const materialCatalogIds = input.references.filter((reference2) => reference2.source === "materials_catalog").map((reference2) => reference2.legacyId);
-  const identities = await (options.evidenceDataSource ? options.evidenceDataSource.listIdentities({
-    materialLibraryIds,
-    materialCatalogIds
-  }) : options.globalOnly ? listGlobalMaterialResolutionIdentities({
-    materialLibraryIds,
-    materialCatalogIds
-  }) : listMaterialResolutionIdentities({
-    materialLibraryIds,
-    materialCatalogIds
-  }));
-  const mapped = identities.map(mapIdentity);
-  const geographies = Array.from(
-    /* @__PURE__ */ new Set([input.requestedGeography, "uae"])
-  );
-  const specificationInput = {
-    categories: Array.from(new Set(mapped.map((row) => row.canonicalCategory))),
-    finishLevels: Array.from(
-      new Set(
-        mapped.map((row) => row.finishLevel).filter((value) => value !== null)
-      )
-    ),
-    unitBases: Array.from(
-      new Set(
-        mapped.map((row) => row.unitBasis).filter((value) => value !== null)
-      )
-    ),
-    geographies
-  };
-  const specifications2 = await (options.evidenceDataSource ? options.evidenceDataSource.listSpecifications(specificationInput) : listMaterialResolutionSpecifications(specificationInput));
-  const candidates = await (options.evidenceDataSource ? options.evidenceDataSource.listCandidates({
-    specIds: specifications2.map((specification) => specification.id)
-  }) : options.globalOnly ? listGlobalGovernedValueCandidatesForSpecifications({
-    specIds: specifications2.map((specification) => specification.id)
-  }) : listGovernedValueCandidatesForSpecifications({
-    specIds: specifications2.map((specification) => specification.id),
-    organizationId: input.organizationId
-  }));
-  const snapshots = resolveMaterialPriceSnapshotsFromRows({
-    ...input,
-    identities,
-    specifications: specifications2,
-    candidates,
-    allowLegacyUnknownScope: input.allowLegacyUnknownScope === true
-  });
-  const litreSnapshots = snapshots.filter(
-    (snapshot) => snapshot.state === "resolved" && snapshot.unitBasis === "per_litre"
-  );
-  const coverageInput = {
-    productIds: litreSnapshots.map(
-      (snapshot) => snapshot.state === "resolved" ? snapshot.productId : void 0
-    ).filter((productId) => productId !== void 0),
-    asOf: input.asOf
-  };
-  const coverageProfiles = await (options.evidenceDataSource ? options.evidenceDataSource.listCoverageProfiles(coverageInput) : listApprovedPaintCoverageProfiles(coverageInput));
-  return attachPaintCoverageProfiles(snapshots, coverageProfiles);
-}
-function legacyCompatibilitySnapshots(input) {
-  const governedByReference = new Map(
-    input.governed.map((snapshot) => [
-      `${snapshot.reference.source}:${snapshot.reference.legacyId}`,
-      snapshot
-    ])
-  );
-  const legacyById = new Map(input.legacyRows.map((row) => [row.legacyId, row]));
-  return input.requested.map((reference2) => {
-    const governed = governedByReference.get(
-      `${reference2.source}:${reference2.legacyId}`
-    );
-    const legacy = reference2.source === "material_library" ? legacyById.get(reference2.legacyId) : void 0;
-    if (governed?.state === "insufficient" && governed.reason === "identity_not_found" && governed.productId === void 0) {
-      return governed;
-    }
-    if (!legacy) {
-      if (governed) return governed;
-      return insufficiency({
-        reference: reference2,
-        asOf: input.asOf,
-        requestedGeography: input.requestedGeography,
-        priceScope: input.priceScope,
-        reason: "no_governed_value"
-      });
-    }
-    const midpoint = exactDecimalMidpoint(legacy.priceMin, legacy.priceMax);
-    return {
-      state: "resolved",
-      policyVersion: MATERIAL_RESOLUTION_POLICY_VERSION,
-      reference: reference2,
-      productId: legacy.productId,
-      specificationId: legacy.specId,
-      benchmarkProposalId: legacy.benchmarkProposalId,
-      benchmarkVersionId: legacy.benchmarkVersionId,
-      resolverAsOf: input.asOf.toISOString(),
-      requestedGeography: input.requestedGeography,
-      resolvedGeography: legacy.geography,
-      usedUaeFallback: input.requestedGeography !== "uae" && legacy.geography === "uae",
-      requestedPriceScope: input.priceScope,
-      resolvedPriceScope: "legacy_unknown",
-      currency: "AED",
-      unitBasis: legacy.unitBasis,
-      priceMin: legacy.priceMin,
-      priceMid: midpoint,
-      priceMax: legacy.priceMax,
-      weightedMean: midpoint,
-      provenance: {
-        sourceLadderRung: "assumption",
-        sourceLabel: "Legacy scope-unknown assumption",
-        provenancePolicyVersion: legacy.provenancePolicyVersion ?? "ev02-backfill-v1",
-        benchmarkVersion: legacy.benchmarkVersion,
-        compatibilityFallback: true
-      },
-      ...governed?.state === "resolved" && governed.unitBasis === "per_litre" ? {
-        paintCoverageState: governed.paintCoverageState,
-        paintCoverageProfile: governed.paintCoverageProfile
-      } : {}
-    };
-  });
-}
-function assertLegacyServingRowsMatchBaseline(input) {
-  const evidenceByReference = new Map(
-    input.gate.evidence.comparisons.map((comparison) => [
-      `${comparison.reference.source}:${comparison.reference.legacyId}`,
-      comparison
-    ])
-  );
-  for (const row of input.legacyRows) {
-    const evidence = evidenceByReference.get(
-      `material_library:${row.legacyId}`
-    );
-    if (!evidence || evidence.legacy.min !== row.priceMin || evidence.legacy.max !== row.priceMax) {
-      throw new Error(
-        `EV-03 legacy baseline is stale for material_library:${row.legacyId}`
-      );
-    }
-  }
-}
-function recordSanitizedRuntimeComparison(evidence) {
-  console.info(`[ev03-material-pricing-compare] ${JSON.stringify(evidence)}`);
-}
-function selectMaterialPricingRolloutSnapshots(input) {
-  if (input.mode === "governed") return [...input.governed];
-  if (input.mode === "compare") {
-    if (input.gate?.mode !== "compare") {
-      throw new Error("EV-03 compare mode requires comparison evidence");
-    }
-    assertLegacyServingRowsMatchBaseline({
-      legacyRows: input.legacyRows,
-      gate: input.gate
-    });
-    const comparison = buildMaterialPricingRuntimeComparisonEvidence({
-      baselineEvidence: input.gate.evidence,
-      references: input.requested,
-      governedSnapshots: input.governed,
-      requestedPriceScope: input.priceScope,
-      requestedGeography: input.requestedGeography,
-      resolverAsOf: input.asOf
-    });
-    (input.recordComparison ?? recordSanitizedRuntimeComparison)(comparison);
-  }
-  return legacyCompatibilitySnapshots(input);
-}
-async function resolveMaterialPriceSnapshots(input) {
-  const effectiveGate = input.rollout ?? loadMaterialPricingRolloutGate();
-  const mode = assertMaterialPricingRolloutGate(effectiveGate);
-  const liveEligibleRows = mode === "legacy" ? void 0 : await listLegacyCompatibilityPriceRows();
-  if (mode !== "legacy") {
-    if (effectiveGate.mode === "legacy") {
-      throw new Error("EV-03 rollout gate mode changed during validation");
-    }
-    assertMaterialPricingEvidenceMatchesLiveEligibleSet(
-      effectiveGate.evidence,
-      liveEligibleRows.map((row) => ({
-        reference: {
-          source: "material_library",
-          legacyId: row.legacyId
-        },
-        priceMin: row.priceMin,
-        priceMax: row.priceMax
-      }))
-    );
-  }
-  const governed = await resolveGovernedMaterialPriceSnapshots(input);
-  if (mode === "governed") {
-    if (effectiveGate.mode !== "governed") {
-      throw new Error("EV-03 governed gate changed during validation");
-    }
-    assertGovernedSnapshotsMatchApprovedEvidence(
-      effectiveGate.evidence,
-      governed
-    );
-    return governed;
-  }
-  const materialLibraryIds = input.references.filter((reference2) => reference2.source === "material_library").map((reference2) => reference2.legacyId);
-  const legacyRows = liveEligibleRows ?? await listLegacyCompatibilityPriceRows(materialLibraryIds);
-  return selectMaterialPricingRolloutSnapshots({
-    mode,
-    gate: effectiveGate,
-    requested: input.references,
-    governed,
-    legacyRows,
-    requestedGeography: input.requestedGeography,
-    priceScope: input.priceScope,
-    asOf: input.asOf,
-    recordComparison: input.recordComparison
-  });
-}
+// server/routers/project.ts
+init_material_resolution();
+init_project_claim_health_loader();
+init_claim_health2();
+init_claim_health();
+init_claim_health3();
 
 // server/engines/design-brief.ts
 init_area_utils();
@@ -27668,13 +31155,13 @@ async function generateInsights(input, options = {}) {
 init_db();
 init_llm();
 init_schema();
-import { eq as eq4, desc as desc2 } from "drizzle-orm";
+import { eq as eq5, desc as desc3 } from "drizzle-orm";
 async function generateAutonomousDesignBrief(projectId, locale = "en") {
   const db = await getDb();
   if (!db) throw new Error("Database not connected");
-  const [project] = await db.select().from(projects).where(eq4(projects.id, projectId));
+  const [project] = await db.select().from(projects).where(eq5(projects.id, projectId));
   if (!project) throw new Error("Project not found");
-  const scoreRecords = await db.select().from(scoreMatrices).where(eq4(scoreMatrices.projectId, projectId)).orderBy(desc2(scoreMatrices.computedAt)).limit(1);
+  const scoreRecords = await db.select().from(scoreMatrices).where(eq5(scoreMatrices.projectId, projectId)).orderBy(desc3(scoreMatrices.computedAt)).limit(1);
   const scores = scoreRecords[0] || null;
   const systemPrompt = `
 You are an expert real estate development consultant and interior design strategist for MIYAR.
@@ -27756,7 +31243,7 @@ init_ai_operation();
 
 // server/_core/media-validation.ts
 init_ai_operation();
-import { createHash as createHash4 } from "node:crypto";
+import { createHash as createHash6 } from "node:crypto";
 import sharp from "sharp";
 var MAX_MEDIA_BYTES = 50 * 1024 * 1024;
 var MAX_IMAGE_PIXELS = 4e7;
@@ -27849,7 +31336,7 @@ async function validateMediaBuffer(buffer, declaredMimeType, operation) {
     mimeType,
     kind,
     sizeBytes: buffer.length,
-    checksum: createHash4("sha256").update(buffer).digest("hex")
+    checksum: createHash6("sha256").update(buffer).digest("hex")
   };
 }
 function mediaTypeFromMime(mimeType) {
@@ -27986,6 +31473,7 @@ async function requireMatchingDesignScenario(scenarioId, projectId, orgId) {
 
 // server/routers/design-boards.ts
 init_db();
+init_material_resolution();
 init_quantity_policy();
 
 // server/routers/design-router-shared.ts
@@ -28590,9 +32078,7 @@ function isIssuedFullReportMaterialCoverageComplete(reconciliation, rooms = []) 
   const { materialCosts, allocations } = reconciliation;
   const { coverage } = materialCosts;
   const actualGroups = new Set(
-    allocations.groups.filter(
-      (group) => ["floor", "walls", "ceiling"].includes(group.element)
-    ).map((group) => `${group.roomId}\0${group.element}`)
+    allocations.groups.filter((group) => ["floor", "walls", "ceiling"].includes(group.element)).map((group) => `${group.roomId}\0${group.element}`)
   );
   const requiredGroups = rooms.length === 0 ? new Set(actualGroups) : new Set(
     rooms.filter((room) => room.isFitOut).flatMap(
@@ -29706,7 +33192,9 @@ var projectRouter = router({
     const roiResult = computeRoi(roiInputs, coefficients);
     const roi = input.reportType === "full_report" ? computeROI(inputs, scoreResult.compositeScore, 15e4) : void 0;
     let reportData;
-    const reportMaterialAsOf = /* @__PURE__ */ new Date();
+    const reportMaterialAsOf = new Date(
+      Math.trunc(Date.now() / 1e3) * 1e3 - 1e3
+    );
     let reportStoredRooms;
     let reportStoredAllocations;
     let designArtifacts;
@@ -29933,6 +33421,17 @@ var projectRouter = router({
         });
       }
     }
+    const reportClaimHealth = await loadProjectClaimHealth({
+      projectId: input.projectId,
+      organizationId: ctx.orgId,
+      userId: ctx.user.id,
+      requestedGeography: resolveProjectMaterialPriceGeography(
+        project.materialPriceGeography
+      ),
+      evaluatedAt: reportMaterialAsOf,
+      consumer: "stored_project_report",
+      allocations: reportStoredAllocations
+    });
     const pdfInput = {
       projectName: project.name,
       projectId: project.id,
@@ -29949,6 +33448,7 @@ var projectRouter = router({
       evidenceRefs,
       boardAnnex,
       workflowReconciliation,
+      claimHealth: reportClaimHealth.evaluation.safeProjection,
       autonomousContent: input.reportType === "autonomous_design_brief" ? reportData.content : void 0,
       designBrief: input.reportType === "design_brief" || input.reportType === "full_report" ? generateDesignBrief2(
         { name: project.name, description: project.description },
@@ -29975,7 +33475,7 @@ var projectRouter = router({
       persistence = await createReportArtifactsForOrg({
         projectId: input.projectId,
         orgId: ctx.orgId,
-        expectedMaterialPricingRevision: designArtifacts === void 0 ? void 0 : project.materialPricingRevision,
+        expectedMaterialPricingRevision: project.materialPricingRevision,
         report: {
           projectId: input.projectId,
           scoreMatrixId: latest.id,
@@ -29984,12 +33484,33 @@ var projectRouter = router({
           // Legacy URLs and local data URLs remain read-only fallbacks.
           fileUrl: storageKey ? null : fileUrl,
           storageKey,
-          content: storageKey ? { ...reportData, locale: input.locale } : { ...reportData, locale: input.locale, html },
+          content: storageKey ? {
+            ...reportData,
+            locale: input.locale,
+            claimHealth: reportClaimHealth.evaluation.safeProjection
+          } : {
+            ...reportData,
+            locale: input.locale,
+            claimHealth: reportClaimHealth.evaluation.safeProjection,
+            html
+          },
           generatedBy: ctx.user.id,
           benchmarkVersionId: activeBV?.id ?? null,
           modelVersionId: modelVersion.id
         },
-        designArtifacts
+        designArtifacts,
+        claimHealthSnapshot: {
+          evaluationClock: reportMaterialAsOf,
+          evaluationInput: reportClaimHealth.evaluationInput,
+          evaluation: reportClaimHealth.evaluation,
+          authorityBinding: reportClaimHealth.authorityBinding,
+          digests: createClaimHealthDigests(
+            reportClaimHealth.evaluationInput,
+            reportClaimHealth.evaluation
+          ),
+          actorUserId: ctx.user.id,
+          actorSessionIdentity: "project.generateReport"
+        }
       });
     } catch (error) {
       if (storageKey) {
@@ -30038,16 +33559,32 @@ var projectRouter = router({
     return Promise.all(
       reports.map(async (report) => {
         const { storageKey, ...publicReport } = report;
-        if (!storageKey) return publicReport;
+        const content = publicReport.content && typeof publicReport.content === "object" && !Array.isArray(publicReport.content) ? publicReport.content : {};
+        const claimHealth = await getVerifiedReportClaimHealthProjection({
+          reportInstanceId: report.id,
+          organizationId: ctx.orgId
+        }) ?? evaluateClaimHealth({
+          policyVersion: CLAIM_HEALTH_POLICY_VERSION,
+          requiredCellSchemaVersion: CLAIM_HEALTH_REQUIRED_CELL_SCHEMA_VERSION,
+          evaluatedAt: report.generatedAt,
+          artifactSnapshot: "missing",
+          cells: []
+        }).safeProjection;
+        const reportWithHealth = {
+          ...publicReport,
+          canManagePublicShare: ctx.orgRole === "admin",
+          content: { ...content, claimHealth }
+        };
+        if (!storageKey) return reportWithHealth;
         try {
           const signed = await storageGet(storageKey);
-          return { ...publicReport, fileUrl: signed.url };
+          return { ...reportWithHealth, fileUrl: signed.url };
         } catch (error) {
           console.warn("[Report] Failed to refresh stored report URL", {
             reportId: report.id,
             error: error instanceof Error ? error.message : String(error)
           });
-          return publicReport;
+          return reportWithHealth;
         }
       })
     );
@@ -30439,7 +33976,7 @@ function rankScenarios(scenarios2) {
 
 // server/routers/scenario.ts
 init_schema();
-import { eq as eq5, desc as desc3 } from "drizzle-orm";
+import { eq as eq6, desc as desc4 } from "drizzle-orm";
 function projectToInputs3(p) {
   return {
     ctx01Typology: p.ctx01Typology ?? "Residential",
@@ -30586,7 +34123,7 @@ var scenarioRouter = router({
     });
     const drizzle2 = await getDb();
     if (!drizzle2) return [];
-    return drizzle2.select().from(scenarioStressTests).where(eq5(scenarioStressTests.scenarioId, input.scenarioId)).orderBy(desc3(scenarioStressTests.createdAt));
+    return drizzle2.select().from(scenarioStressTests).where(eq6(scenarioStressTests.scenarioId, input.scenarioId)).orderBy(desc4(scenarioStressTests.createdAt));
   }),
   // ─── D2: Economic Model (ROI) ──────────────────────────────────────
   calculateRoi: orgMutationProcedure.input(z7.object({
@@ -30691,7 +34228,7 @@ var scenarioRouter = router({
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const drizzle2 = await getDb();
     if (!drizzle2) return [];
-    return drizzle2.select().from(riskSurfaceMaps).where(eq5(riskSurfaceMaps.projectId, input.projectId)).orderBy(desc3(riskSurfaceMaps.createdAt));
+    return drizzle2.select().from(riskSurfaceMaps).where(eq6(riskSurfaceMaps.projectId, input.projectId)).orderBy(desc4(riskSurfaceMaps.createdAt));
   }),
   // ─── D4: Scenario Ranking ─────────────────────────────────────────
   rank: orgProcedure.input(z7.object({ projectId: z7.number() })).query(async ({ ctx, input }) => {
@@ -30702,11 +34239,11 @@ var scenarioRouter = router({
     if (scenarios2.length === 0) return [];
     const profiles = [];
     for (const s of scenarios2) {
-      const stressTests = await drizzle2.select().from(scenarioStressTests).where(eq5(scenarioStressTests.scenarioId, s.id));
+      const stressTests = await drizzle2.select().from(scenarioStressTests).where(eq6(scenarioStressTests.scenarioId, s.id));
       const avgResilience = stressTests.length > 0 ? Math.round(stressTests.reduce((sum, t2) => sum + t2.resilienceScore, 0) / stressTests.length) : 70;
-      const roiRows = await drizzle2.select().from(projectRoiModels).where(eq5(projectRoiModels.scenarioId, s.id)).orderBy(desc3(projectRoiModels.createdAt)).limit(1);
+      const roiRows = await drizzle2.select().from(projectRoiModels).where(eq6(projectRoiModels.scenarioId, s.id)).orderBy(desc4(projectRoiModels.createdAt)).limit(1);
       const netRoi = roiRows.length > 0 ? Number(roiRows[0].netRoiPercent) : 0;
-      const riskMaps = await drizzle2.select().from(riskSurfaceMaps).where(eq5(riskSurfaceMaps.projectId, input.projectId));
+      const riskMaps = await drizzle2.select().from(riskSurfaceMaps).where(eq6(riskSurfaceMaps.projectId, input.projectId));
       const avgRisk = riskMaps.length > 0 ? Math.round(riskMaps.reduce((sum, r) => sum + r.compositeRiskScore, 0) / riskMaps.length) : 50;
       profiles.push({
         scenarioId: s.id,
@@ -30777,7 +34314,7 @@ var scenarioRouter = router({
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const d = await getDb();
     if (!d) return [];
-    return d.select().from(monteCarloSimulations).where(eq5(monteCarloSimulations.projectId, input.projectId)).orderBy(desc3(monteCarloSimulations.createdAt)).limit(10);
+    return d.select().from(monteCarloSimulations).where(eq6(monteCarloSimulations.projectId, input.projectId)).orderBy(desc4(monteCarloSimulations.createdAt)).limit(10);
   }),
   getSimulation: orgProcedure.input(z7.object({ id: z7.number() })).query(async ({ ctx, input }) => {
     const authorized = await requireProjectResourceForOrg(
@@ -32723,6 +36260,7 @@ import { z as z11 } from "zod";
 init_db();
 init_area_utils();
 init_material_quantity_engine();
+init_material_resolution();
 init_rfq_generator();
 init_space_benchmarking();
 init_space_program();
@@ -32815,7 +36353,28 @@ var DOCX_AR_COPY = {
   "Contractor Coordination Requirements:": "\u0645\u062A\u0637\u0644\u0628\u0627\u062A \u0627\u0644\u062A\u0646\u0633\u064A\u0642 \u0645\u0639 \u0627\u0644\u0645\u0642\u0627\u0648\u0644:",
   "Phase 1 \u2014 Concept & Schematic": "\u0627\u0644\u0645\u0631\u062D\u0644\u0629 1 \u2014 \u0627\u0644\u0645\u0641\u0647\u0648\u0645 \u0648\u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u0627\u0644\u062A\u062E\u0637\u064A\u0637\u064A",
   "Phase 2 \u2014 Detailed Design": "\u0627\u0644\u0645\u0631\u062D\u0644\u0629 2 \u2014 \u0627\u0644\u062A\u0635\u0645\u064A\u0645 \u0627\u0644\u062A\u0641\u0635\u064A\u0644\u064A",
-  "Phase 3 \u2014 IFC & Tender": "\u0627\u0644\u0645\u0631\u062D\u0644\u0629 3 \u2014 \u0645\u062E\u0637\u0637\u0627\u062A \u0627\u0644\u062A\u0646\u0641\u064A\u0630 \u0648\u0627\u0644\u0645\u0646\u0627\u0642\u0635\u0629"
+  "Phase 3 \u2014 IFC & Tender": "\u0627\u0644\u0645\u0631\u062D\u0644\u0629 3 \u2014 \u0645\u062E\u0637\u0637\u0627\u062A \u0627\u0644\u062A\u0646\u0641\u064A\u0630 \u0648\u0627\u0644\u0645\u0646\u0627\u0642\u0635\u0629",
+  "Evidence Health": "\u0635\u062D\u0629 \u0627\u0644\u0623\u062F\u0644\u0629",
+  "Claim state": "\u0627\u0644\u062D\u0627\u0644\u0629",
+  "Eligible coverage": "\u0627\u0644\u062A\u063A\u0637\u064A\u0629 \u0627\u0644\u0645\u0624\u0647\u0644\u0629",
+  "Required cells": "\u0627\u0644\u062E\u0644\u0627\u064A\u0627 \u0627\u0644\u0645\u0637\u0644\u0648\u0628\u0629",
+  "Exact matches": "\u0627\u0644\u0645\u0637\u0627\u0628\u0642\u0627\u062A \u0627\u0644\u062F\u0642\u064A\u0642\u0629",
+  "Approved fallbacks": "\u0627\u0644\u0628\u062F\u0627\u0626\u0644 \u0627\u0644\u0645\u0639\u062A\u0645\u062F\u0629",
+  "Evaluated at": "\u0648\u0642\u062A \u0627\u0644\u062A\u0642\u064A\u064A\u0645",
+  "Policy version": "\u0625\u0635\u062F\u0627\u0631 \u0627\u0644\u0633\u064A\u0627\u0633\u0629",
+  "Policy manifest digest": "\u0628\u0635\u0645\u0629 \u0628\u064A\u0627\u0646 \u0627\u0644\u0633\u064A\u0627\u0633\u0629",
+  "Required-cell schema": "\u0625\u0635\u062F\u0627\u0631 \u0645\u062E\u0637\u0637 \u0627\u0644\u062E\u0644\u0627\u064A\u0627",
+  "Current": "\u062D\u0627\u0644\u064A",
+  "Current with approved fallback": "\u062D\u0627\u0644\u064A \u0645\u0639 \u0628\u062F\u064A\u0644 \u0645\u0639\u062A\u0645\u062F",
+  "Qualified": "\u0645\u0642\u064A\u0651\u062F",
+  "Aging": "\u064A\u0642\u062A\u0631\u0628 \u0645\u0646 \u0627\u0644\u062A\u0642\u0627\u062F\u0645",
+  "Stale": "\u0642\u062F\u064A\u0645",
+  "Incident affected": "\u0645\u062A\u0623\u062B\u0631 \u0628\u062D\u0627\u062F\u062B\u0629",
+  "Insufficient": "\u063A\u064A\u0631 \u0643\u0627\u0641\u064D",
+  "Unknown": "\u063A\u064A\u0631 \u0645\u0639\u0631\u0648\u0641",
+  "Legacy \u2014 health snapshot unavailable": "\u0642\u062F\u064A\u0645 \u2014 \u0644\u0642\u0637\u0629 \u0635\u062D\u0629 \u0627\u0644\u0623\u062F\u0644\u0629 \u063A\u064A\u0631 \u0645\u062A\u0627\u062D\u0629",
+  "No supported frozen evidence-health snapshot is bound to this brief. Evidence health is unavailable and was not recomputed.": "\u0644\u0627 \u062A\u0648\u062C\u062F \u0644\u0642\u0637\u0629 \u0635\u062D\u0629 \u0623\u062F\u0644\u0629 \u0645\u062C\u0645\u0651\u062F\u0629 \u0648\u0645\u062F\u0639\u0648\u0645\u0629 \u0645\u0631\u062A\u0628\u0637\u0629 \u0628\u0647\u0630\u0627 \u0627\u0644\u0645\u0648\u062C\u0632. \u062D\u0627\u0644\u0629 \u0627\u0644\u0623\u062F\u0644\u0629 \u063A\u064A\u0631 \u0645\u062A\u0627\u062D\u0629 \u0648\u0644\u0645 \u062A\u062A\u0645 \u0625\u0639\u0627\u062F\u0629 \u062A\u0642\u064A\u064A\u0645\u0647\u0627.",
+  "This is the frozen evidence-health snapshot bound to this brief, not a live recomputation.": "\u0647\u0630\u0647 \u0644\u0642\u0637\u0629 \u0635\u062D\u0629 \u0627\u0644\u0623\u062F\u0644\u0629 \u0627\u0644\u0645\u062C\u0645\u0651\u062F\u0629 \u0627\u0644\u0645\u0631\u062A\u0628\u0637\u0629 \u0628\u0647\u0630\u0627 \u0627\u0644\u0645\u0648\u062C\u0632 \u0648\u0644\u064A\u0633\u062A \u0625\u0639\u0627\u062F\u0629 \u062A\u0642\u064A\u064A\u0645 \u0645\u0628\u0627\u0634\u0631\u0629."
 };
 function docxFixed(text5, rtl) {
   if (!rtl) return text5;
@@ -32853,6 +36412,56 @@ function labelValue(label, value, rtl = false) {
 }
 function spacer(rtl = false) {
   return new Paragraph({ bidirectional: rtl, spacing: { after: 200 }, children: [] });
+}
+var DOCX_CLAIM_HEALTH_STATE_LABELS = {
+  current: "Current",
+  current_with_fallback: "Current with approved fallback",
+  qualified: "Qualified",
+  aging: "Aging",
+  stale: "Stale",
+  incident: "Incident affected",
+  insufficient: "Insufficient",
+  unknown: "Unknown",
+  legacy: "Legacy \u2014 health snapshot unavailable"
+};
+function renderDocxClaimHealth(health, locale, rtl) {
+  const rows = health ? [
+    [
+      "Claim state",
+      docxFixed(DOCX_CLAIM_HEALTH_STATE_LABELS[health.claimState], rtl)
+    ],
+    [
+      "Eligible coverage",
+      `${health.counts.eligible}/${health.counts.required}`
+    ],
+    ["Required cells", String(health.counts.required)],
+    ["Exact matches", String(health.counts.exact)],
+    ["Approved fallbacks", String(health.counts.fallback)],
+    [
+      "Evaluated at",
+      health.evaluatedAt ? formatReportDate(health.evaluatedAt, locale) : reportCopy(locale, "notAvailable")
+    ],
+    ["Policy version", health.policyVersion],
+    [
+      "Policy manifest digest",
+      health.policyManifestDigest ?? reportCopy(locale, "notAvailable")
+    ],
+    ["Required-cell schema", health.requiredCellSchemaVersion]
+  ] : [
+    [
+      "Claim state",
+      docxFixed(DOCX_CLAIM_HEALTH_STATE_LABELS.legacy, rtl)
+    ]
+  ];
+  return [
+    spacer(rtl),
+    heading("Evidence Health", HeadingLevel.HEADING_1, rtl),
+    twoColumnTable(rows, rtl),
+    bodyText(
+      health ? "This is the frozen evidence-health snapshot bound to this brief, not a live recomputation." : "No supported frozen evidence-health snapshot is bound to this brief. Evidence health is unavailable and was not recomputed.",
+      rtl
+    )
+  ];
 }
 function twoColumnTable(rows, rtl = false) {
   return new Table({
@@ -32988,7 +36597,21 @@ function createDesignBriefDocxRenderContext(data, overrides = {}) {
         circulationPct: data.spaceAllocation.circulationPct,
         rooms: data.spaceAllocation.rooms,
         recommendations: data.spaceAllocation.recommendations
-      } : null
+      } : null,
+      claimHealth: data.claimHealth ? {
+        claimState: data.claimHealth.claimState,
+        evaluatedAt: data.claimHealth.evaluatedAt,
+        policyVersion: data.claimHealth.policyVersion,
+        policyManifestDigest: data.claimHealth.policyManifestDigest,
+        requiredCellSchemaVersion: data.claimHealth.requiredCellSchemaVersion,
+        counts: {
+          required: data.claimHealth.counts.required,
+          eligible: data.claimHealth.counts.eligible,
+          exact: data.claimHealth.counts.exact,
+          fallback: data.claimHealth.counts.fallback,
+          optional: data.claimHealth.counts.optional
+        }
+      } : { claimState: "legacy", snapshot: "unavailable" }
     })
   });
 }
@@ -33212,6 +36835,7 @@ async function generateDesignBriefDocx(data) {
       }
     }
   }
+  sections.push(...renderDocxClaimHealth(data.claimHealth, locale, rtl));
   sections.push(spacer(rtl));
   sections.push(heading(reportCopy(locale, "importantDisclaimer"), HeadingLevel.HEADING_2, rtl));
   sections.push(
@@ -33876,16 +37500,103 @@ import { TRPCError as TRPCError15 } from "@trpc/server";
 import { z as z13 } from "zod";
 init_db();
 init_space_benchmarking();
+init_claim_health2();
 
-// server/engines/ingestion/freshness-health.ts
-function deriveOverallFreshnessHealth(counts) {
-  if (counts.totalSources === 0 || counts.unknownCount === counts.totalSources) return "unknown";
-  if (counts.staleCount > counts.totalSources * 0.3) return "degraded";
-  if (counts.agingCount > counts.totalSources * 0.5) return "aging";
-  return "healthy";
+// server/engines/ingestion/market-claim-health.ts
+init_claim_health();
+init_claim_health2();
+var DLD_INDEXED_SOURCE_IDENTITIES = Object.freeze({
+  transactions: "dld-indexed:transactions",
+  rents: "dld-indexed:rents",
+  projects: "dld-indexed:projects"
+});
+var DLD_DATASET_CONTRACT = Object.freeze({
+  transactions: {
+    catalogueId: "dld-indexed-transactions-v1",
+    domain: "market_transaction"
+  },
+  rents: {
+    catalogueId: "dld-indexed-rents-v1",
+    domain: "market_rent"
+  },
+  projects: {
+    catalogueId: "dld-indexed-projects-v1",
+    domain: "project_pipeline"
+  }
+});
+function dldCell(dataset, input, evaluatedAt) {
+  const contract = DLD_DATASET_CONTRACT[dataset];
+  const countValid = Number.isSafeInteger(input.count) && input.count >= 0;
+  const hasRows = countValid && input.count > 0;
+  const sourceEligible = input.sourceEligibility === "eligible";
+  const observation = hasRows && input.observedThrough === null ? {
+    freshness: "not_applicable",
+    observationDateStatus: "not_applicable",
+    observedThrough: null
+  } : evaluateMarketObservationFreshness({
+    observedAt: input.observedThrough,
+    evaluatedAt,
+    slaConfigured: false
+  });
+  return {
+    cellId: `dld-indexed-${dataset}`,
+    catalogueId: contract.catalogueId,
+    requirement: "required",
+    key: {
+      consumer: "market_evidence",
+      domain: contract.domain,
+      category: "not_applicable",
+      geography: "dubai",
+      finishTier: "not_applicable",
+      unitBasis: "not_applicable",
+      priceScope: "not_applicable",
+      requiredAuthorityClass: "official_observation"
+    },
+    match: !countValid ? "invalid" : hasRows ? "exact" : "missing",
+    authority: "official_observation",
+    eligibility: hasRows && sourceEligible ? "eligible" : "ineligible",
+    freshness: observation.freshness,
+    cadence: "not_applicable",
+    quality: hasRows && sourceEligible ? "pass" : "blocking",
+    confidence: "not_applicable",
+    incident: input.incident ?? "unknown",
+    observationDateStatus: observation.observationDateStatus,
+    quoteValidity: "not_applicable",
+    successfulRun: "not_applicable",
+    // EV-05 must approve source/dataset-specific publication SLAs.
+    slaConfigured: false,
+    provenanceIdentityKnown: true,
+    fallbackCode: null,
+    observedThrough: observation.observedThrough
+  };
+}
+function buildDldMarketClaimHealthEvaluationInput(input) {
+  return {
+    policyVersion: CLAIM_HEALTH_POLICY_VERSION,
+    policyManifestDigest: CLAIM_HEALTH_V1_POLICY_MANIFEST_DIGEST,
+    requiredCellSchemaVersion: CLAIM_HEALTH_REQUIRED_CELL_SCHEMA_VERSION,
+    evaluatedAt: input.evaluatedAt,
+    artifactSnapshot: "not_applicable",
+    cells: ["transactions", "rents", "projects"].map(
+      (dataset) => dldCell(dataset, input[dataset], input.evaluatedAt)
+    )
+  };
+}
+function buildRequiredSourceOperationsClaimHealthEvaluationInput(evaluatedAt) {
+  return {
+    policyVersion: CLAIM_HEALTH_POLICY_VERSION,
+    policyManifestDigest: CLAIM_HEALTH_V1_POLICY_MANIFEST_DIGEST,
+    requiredCellSchemaVersion: CLAIM_HEALTH_REQUIRED_CELL_SCHEMA_VERSION,
+    evaluatedAt,
+    artifactSnapshot: "not_applicable",
+    cells: []
+  };
 }
 
 // server/routers/design-market-context.ts
+init_project_claim_health_loader();
+init_material_resolution();
+init_claim_health3();
 var designMarketContextRouter = router({
   getDesignTrends: orgProcedure.input(
     z13.object({
@@ -33986,70 +37697,68 @@ var designMarketContextRouter = router({
       rentContractCount: benchmark.rentTransactionCount ? Number(benchmark.rentTransactionCount) : 0
     } : null;
   }),
-  getDataFreshness: orgProcedure.query(async () => {
-    const [sources, healthRecords, runs] = await Promise.all([
-      getActiveSourceRegistry(50),
-      getConnectorHealthSummary(),
-      getIngestionRunHistory(5)
+  getDataFreshness: orgProcedure.query(async ({ ctx }) => {
+    const evaluatedAt = /* @__PURE__ */ new Date();
+    const [counts, incidents] = await Promise.all([
+      getPublicMarketEvidenceCounts(),
+      getEffectiveClaimIncidentStates(
+        {
+          evaluationClock: evaluatedAt,
+          organizationId: ctx.orgId,
+          sourceIdentities: Object.values(DLD_INDEXED_SOURCE_IDENTITIES)
+        },
+        {
+          kind: "organization_member",
+          organizationId: ctx.orgId,
+          userId: ctx.user.id,
+          sessionIdentity: "design.getDataFreshness"
+        }
+      )
     ]);
-    const latestRun = runs.length > 0 ? runs[0] : null;
-    const sourceFreshness = (sources ?? []).map((s) => {
-      const healthRec = (healthRecords ?? []).find(
-        (h) => String(h.sourceId) === String(s.id) || h.sourceName === s.name
-      );
-      const lastFetch = s.lastSuccessfulFetch ?? healthRec?.createdAt ?? null;
-      const daysSince = lastFetch ? Math.floor(
-        (Date.now() - new Date(lastFetch).getTime()) / (1e3 * 60 * 60 * 24)
-      ) : null;
-      return {
-        id: s.id,
-        name: s.name,
-        sourceType: s.sourceType,
-        reliabilityGrade: s.reliabilityDefault,
-        lastFetch,
-        daysSince,
-        freshness: daysSince === null ? "unknown" : daysSince <= 7 ? "fresh" : daysSince <= 30 ? "aging" : "stale",
-        latestStatus: healthRec?.status ?? null,
-        recordsExtracted: healthRec?.recordsExtracted ?? 0
-      };
+    const incidentByIdentity = new Map(
+      incidents.map((row) => [row.sourceIdentity, row.aggregate])
+    );
+    const governedDldInput = (dataset) => ({
+      // EV-05 owns approval of the exact DLD dataset/source governance.
+      // Until then the indexed subset remains fail-closed.
+      sourceEligibility: "ineligible",
+      incident: incidentByIdentity.get(DLD_INDEXED_SOURCE_IDENTITIES[dataset]) ?? "none"
     });
-    const freshCount = sourceFreshness.filter(
-      (s) => s.freshness === "fresh"
-    ).length;
-    const agingCount = sourceFreshness.filter(
-      (s) => s.freshness === "aging"
-    ).length;
-    const staleCount = sourceFreshness.filter(
-      (s) => s.freshness === "stale"
-    ).length;
-    const unknownCount = sourceFreshness.filter(
-      (s) => s.freshness === "unknown"
-    ).length;
-    const totalSources = sourceFreshness.length;
-    const overallHealth = deriveOverallFreshnessHealth({
-      totalSources,
-      agingCount,
-      staleCount,
-      unknownCount
+    return evaluateClaimHealth(
+      buildDldMarketClaimHealthEvaluationInput({
+        evaluatedAt,
+        transactions: {
+          count: Number(counts?.transactionCount ?? 0),
+          observedThrough: counts?.transactionObservedThrough ?? null,
+          ...governedDldInput("transactions")
+        },
+        rents: {
+          count: Number(counts?.rentContractCount ?? 0),
+          observedThrough: counts?.rentObservedThrough ?? null,
+          ...governedDldInput("rents")
+        },
+        projects: {
+          count: Number(counts?.projectCount ?? 0),
+          observedThrough: null,
+          ...governedDldInput("projects")
+        }
+      })
+    ).safeProjection;
+  }),
+  getProjectDataFreshness: orgProcedure.input(z13.object({ projectId: z13.number().int().positive() })).query(async ({ ctx, input }) => {
+    const evaluatedAt = /* @__PURE__ */ new Date();
+    const project = await requireDesignProject(input.projectId, ctx.orgId);
+    const result = await loadProjectClaimHealth({
+      projectId: input.projectId,
+      organizationId: ctx.orgId,
+      userId: ctx.user.id,
+      requestedGeography: resolveProjectMaterialPriceGeography(
+        project.materialPriceGeography
+      ),
+      evaluatedAt,
+      consumer: "project_workspace"
     });
-    return {
-      overallHealth,
-      totalSources,
-      freshCount,
-      agingCount,
-      staleCount,
-      unknownCount,
-      latestRun: latestRun ? {
-        runId: latestRun.runId,
-        status: latestRun.status,
-        startedAt: latestRun.startedAt,
-        totalSources: latestRun.totalSources,
-        sourcesSucceeded: latestRun.sourcesSucceeded,
-        sourcesFailed: latestRun.sourcesFailed,
-        recordsExtracted: latestRun.recordsExtracted
-      } : null,
-      sources: sourceFreshness
-    };
+    return result.evaluation.safeProjection;
   }),
   getEvidenceChain: orgProcedure.input(
     z13.object({
@@ -34108,7 +37817,7 @@ init_db();
 // server/engines/procurement/vendor-matching.ts
 init_db();
 init_schema();
-import { and as and3, eq as eq6 } from "drizzle-orm";
+import { and as and4, eq as eq7 } from "drizzle-orm";
 function allowedVendorStatuses(constraints) {
   if (constraints === "Strict Vendor List") return ["preferred_brand"];
   if (constraints === "Moderate Guidelines") return ["approved_vendor", "preferred_brand"];
@@ -34117,14 +37826,14 @@ function allowedVendorStatuses(constraints) {
 async function matchVendorsForProject(options) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const projectRows = await db.select().from(projects).where(and3(
-    eq6(projects.id, options.projectId),
-    eq6(projects.orgId, options.orgId)
+  const projectRows = await db.select().from(projects).where(and4(
+    eq7(projects.id, options.projectId),
+    eq7(projects.orgId, options.orgId)
   )).limit(1);
   if (projectRows.length === 0) throw new Error(`Project ${options.projectId} not found`);
   const project = projectRows[0];
   const allowedStatuses = allowedVendorStatuses(project.brandStandardConstraints);
-  const allMaterials = await db.select().from(materialsCatalog).where(eq6(materialsCatalog.isActive, true));
+  const allMaterials = await db.select().from(materialsCatalog).where(eq7(materialsCatalog.isActive, true));
   let matchedMaterials = allMaterials.filter(
     (m) => allowedStatuses.includes(m.brandStandardApproval || "open_market")
   );
@@ -35254,12 +38963,12 @@ init_db();
 
 // server/engines/geometry/dxf-geometry-boundary.ts
 init_geometry();
-import { createHash as createHash6 } from "node:crypto";
+import { createHash as createHash8 } from "node:crypto";
 import { Worker } from "node:worker_threads";
 
 // server/engines/geometry/canonical-geometry.ts
 init_geometry();
-import { createHash as createHash5 } from "node:crypto";
+import { createHash as createHash7 } from "node:crypto";
 var ZERO = BigInt(0);
 var ONE = BigInt(1);
 var TWO = BigInt(2);
@@ -35506,7 +39215,7 @@ function assertValidHoles(outer, holes, label, deadlineAtMilliseconds) {
   }
 }
 function hash(domain, payload) {
-  return createHash5("sha256").update(domain, "utf8").update("\0", "utf8").update(payload, "utf8").digest("hex");
+  return createHash7("sha256").update(domain, "utf8").update("\0", "utf8").update(payload, "utf8").digest("hex");
 }
 function canonicalPoint(point) {
   return { x: formatInteger(point.x), y: formatInteger(point.y) };
@@ -36116,7 +39825,7 @@ var DxfDeadlineError = class extends Error {
   }
 };
 function checksum(bytes) {
-  return createHash6("sha256").update(bytes).digest("hex");
+  return createHash8("sha256").update(bytes).digest("hex");
 }
 function issue(code, message) {
   return { code, message };
@@ -36174,7 +39883,7 @@ function stableDxfRoomId(sourceLineageId, entityHandle, levelElevation, sourceUn
       sourceUnit
     ).toString()
   });
-  const digest = createHash6("sha256").update(DXF_ROOM_ID_DOMAIN, "utf8").update("\0", "utf8").update(identityPayload, "utf8").digest("hex");
+  const digest = createHash8("sha256").update(DXF_ROOM_ID_DOMAIN, "utf8").update("\0", "utf8").update(identityPayload, "utf8").digest("hex");
   return `cad:${digest.slice(0, 60)}`;
 }
 function asInspection(value) {
@@ -37949,7 +41658,7 @@ async function processCsvUpload(buffer, sourceId, addedByUserId) {
 init_db();
 init_schema();
 init_database_safety();
-import { eq as eq10 } from "drizzle-orm";
+import { eq as eq11 } from "drizzle-orm";
 var UAE_SOURCES = [
   // ── Supplier Catalogs ─────────────────────────────────────────
   {
@@ -38558,10 +42267,10 @@ async function seedUAESources() {
   const errors = [];
   for (const source of UAE_SOURCES) {
     try {
-      const bySlug = await db.select({ id: sourceRegistry.id }).from(sourceRegistry).where(eq10(sourceRegistry.slug, source.slug)).limit(1);
+      const bySlug = await db.select({ id: sourceRegistry.id }).from(sourceRegistry).where(eq11(sourceRegistry.slug, source.slug)).limit(1);
       let targetId = bySlug[0]?.id;
       if (targetId === void 0) {
-        const legacyByUrl = await db.select({ id: sourceRegistry.id, slug: sourceRegistry.slug }).from(sourceRegistry).where(eq10(sourceRegistry.url, source.url)).limit(1);
+        const legacyByUrl = await db.select({ id: sourceRegistry.id, slug: sourceRegistry.slug }).from(sourceRegistry).where(eq11(sourceRegistry.url, source.url)).limit(1);
         if (legacyByUrl[0] && legacyByUrl[0].slug === null) {
           targetId = legacyByUrl[0].id;
         }
@@ -38587,7 +42296,7 @@ async function seedUAESources() {
         priceClass: source.priceClass ?? "unknown"
       };
       if (targetId !== void 0) {
-        await db.update(sourceRegistry).set(seedValues).where(eq10(sourceRegistry.id, targetId));
+        await db.update(sourceRegistry).set(seedValues).where(eq11(sourceRegistry.id, targetId));
         console.log(`[Seeder] \u{1F501} Updated source "${source.name}" (id=${targetId}, slug=${source.slug})`);
         updated++;
       } else {
@@ -38692,6 +42401,7 @@ async function requireTaggedEntitiesForOrg(tagId, orgId) {
 }
 
 // server/routers/market-intelligence.ts
+init_claim_health2();
 var evidenceRecordSchema = z21.object({
   projectId: z21.number().optional(),
   sourceRegistryId: z21.number().optional(),
@@ -38727,7 +42437,15 @@ var evidenceRecordSchema = z21.object({
   notes: z21.string().optional(),
   // V2.2 metadata fields
   title: z21.string().optional(),
-  evidencePhase: z21.enum(["concept", "schematic", "detailed_design", "tender", "procurement", "construction", "handover"]).optional(),
+  evidencePhase: z21.enum([
+    "concept",
+    "schematic",
+    "detailed_design",
+    "tender",
+    "procurement",
+    "construction",
+    "handover"
+  ]).optional(),
   author: z21.string().optional(),
   confidentiality: z21.enum(["public", "internal", "confidential", "restricted"]).default("internal"),
   tags: z21.array(z21.string()).optional(),
@@ -38739,11 +42457,21 @@ var evidenceRecordSchema = z21.object({
   designStyle: z21.string().nullable().optional(),
   brandsMentioned: z21.array(z21.string()).nullable().optional(),
   materialSpec: z21.string().nullable().optional(),
-  intelligenceType: z21.enum(["material_price", "finish_specification", "design_trend", "market_statistic", "competitor_positioning", "regulation"]).nullable().optional()
+  intelligenceType: z21.enum([
+    "material_price",
+    "finish_specification",
+    "design_trend",
+    "market_statistic",
+    "competitor_positioning",
+    "regulation"
+  ]).nullable().optional()
 });
 var MANUAL_ASSERTED_CONFIDENCE_POLICY = "manual-asserted-confidence-v1";
 async function assertedConfidenceAssessment(origin, rawPublicationText, evaluationClock, grade2, score, runId, actorId) {
-  const publication = classifyPublicationDate(rawPublicationText, evaluationClock);
+  const publication = classifyPublicationDate(
+    rawPublicationText,
+    evaluationClock
+  );
   if (publication.status !== "valid" || !publication.parsedAt) {
     const rejectionCode = publication.status === "future" ? "future_publication_date" : "invalid_publication_date";
     await recordRejectedConfidenceAssessment({
@@ -38810,7 +42538,14 @@ var sourceRegistrySchema = z21.object({
   // DFE Fields
   scrapeConfig: z21.any().optional(),
   scrapeSchedule: z21.string().optional(),
-  scrapeMethod: z21.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).default("html_llm"),
+  scrapeMethod: z21.enum([
+    "html_llm",
+    "html_rules",
+    "json_api",
+    "rss_feed",
+    "csv_upload",
+    "email_forward"
+  ]).default("html_llm"),
   scrapeHeaders: z21.any().optional(),
   extractionHints: z21.string().optional(),
   priceFieldMapping: z21.any().optional(),
@@ -38851,40 +42586,49 @@ var marketIntelligenceRouter = router({
       });
       return result;
     }),
-    update: adminProcedure.input(z21.object({
-      id: z21.number(),
-      name: z21.string().optional(),
-      url: z21.string().url().optional(),
-      sourceType: z21.enum([
-        "supplier_catalog",
-        "manufacturer_catalog",
-        "developer_brochure",
-        "industry_report",
-        "government_tender",
-        "procurement_portal",
-        "trade_publication",
-        "retailer_listing",
-        "aggregator",
-        "other"
-      ]).optional(),
-      reliabilityDefault: z21.enum(["A", "B", "C"]).optional(),
-      isWhitelisted: z21.boolean().optional(),
-      region: z21.string().optional(),
-      notes: z21.string().optional(),
-      isActive: z21.boolean().optional(),
-      // DFE Fields
-      scrapeConfig: z21.any().optional(),
-      scrapeSchedule: z21.string().optional(),
-      scrapeMethod: z21.enum(["html_llm", "html_rules", "json_api", "rss_feed", "csv_upload", "email_forward"]).optional(),
-      scrapeHeaders: z21.any().optional(),
-      extractionHints: z21.string().optional(),
-      priceFieldMapping: z21.any().optional(),
-      lastScrapedAt: z21.string().optional(),
-      lastScrapedStatus: z21.enum(["success", "partial", "failed", "never"]).optional(),
-      lastRecordCount: z21.number().optional(),
-      consecutiveFailures: z21.number().optional(),
-      requestDelayMs: z21.number().optional()
-    })).mutation(async ({ input, ctx }) => {
+    update: adminProcedure.input(
+      z21.object({
+        id: z21.number(),
+        name: z21.string().optional(),
+        url: z21.string().url().optional(),
+        sourceType: z21.enum([
+          "supplier_catalog",
+          "manufacturer_catalog",
+          "developer_brochure",
+          "industry_report",
+          "government_tender",
+          "procurement_portal",
+          "trade_publication",
+          "retailer_listing",
+          "aggregator",
+          "other"
+        ]).optional(),
+        reliabilityDefault: z21.enum(["A", "B", "C"]).optional(),
+        isWhitelisted: z21.boolean().optional(),
+        region: z21.string().optional(),
+        notes: z21.string().optional(),
+        isActive: z21.boolean().optional(),
+        // DFE Fields
+        scrapeConfig: z21.any().optional(),
+        scrapeSchedule: z21.string().optional(),
+        scrapeMethod: z21.enum([
+          "html_llm",
+          "html_rules",
+          "json_api",
+          "rss_feed",
+          "csv_upload",
+          "email_forward"
+        ]).optional(),
+        scrapeHeaders: z21.any().optional(),
+        extractionHints: z21.string().optional(),
+        priceFieldMapping: z21.any().optional(),
+        lastScrapedAt: z21.string().optional(),
+        lastScrapedStatus: z21.enum(["success", "partial", "failed", "never"]).optional(),
+        lastRecordCount: z21.number().optional(),
+        consecutiveFailures: z21.number().optional(),
+        requestDelayMs: z21.number().optional()
+      })
+    ).mutation(async ({ input, ctx }) => {
       const { id, lastScrapedAt, ...data } = input;
       await updateSourceRegistryEntry(id, {
         ...data,
@@ -38900,7 +42644,9 @@ var marketIntelligenceRouter = router({
       return { success: true };
     }),
     toggleActive: adminProcedure.input(z21.object({ id: z21.number(), isActive: z21.boolean() })).mutation(async ({ input, ctx }) => {
-      await updateSourceRegistryEntry(input.id, { isActive: input.isActive });
+      await updateSourceRegistryEntry(input.id, {
+        isActive: input.isActive
+      });
       await createAuditLog({
         userId: ctx.user.id,
         action: input.isActive ? "source_registry.enable" : "source_registry.disable",
@@ -38938,9 +42684,15 @@ var marketIntelligenceRouter = router({
     scrapeNow: adminProcedure.input(z21.object({ id: z21.number() })).mutation(async ({ input, ctx }) => {
       const source = await getSourceRegistryById(input.id);
       if (!source) throw new Error("Source not found");
-      await updateSourceRegistryEntry(source.id, { consecutiveFailures: 0 });
+      await updateSourceRegistryEntry(source.id, {
+        consecutiveFailures: 0
+      });
       const connector = createSourceConnector(source);
-      const report = await runSingleConnector(connector, "manual", ctx.user.id);
+      const report = await runSingleConnector(
+        connector,
+        "manual",
+        ctx.user.id
+      );
       const isSuccess = report.sourcesSucceeded > 0;
       await updateSourceRegistryEntry(source.id, {
         lastScrapedAt: /* @__PURE__ */ new Date(),
@@ -38954,12 +42706,18 @@ var marketIntelligenceRouter = router({
       const buffer = generateCsvTemplate();
       return { base64: buffer.toString("base64") };
     }),
-    uploadCsv: adminProcedure.input(z21.object({
-      sourceId: z21.number(),
-      base64File: z21.string()
-    })).mutation(async ({ input, ctx }) => {
+    uploadCsv: adminProcedure.input(
+      z21.object({
+        sourceId: z21.number(),
+        base64File: z21.string()
+      })
+    ).mutation(async ({ input, ctx }) => {
       const buffer = Buffer.from(input.base64File, "base64");
-      const report = await processCsvUpload(buffer, input.sourceId, ctx.user.id);
+      const report = await processCsvUpload(
+        buffer,
+        input.sourceId,
+        ctx.user.id
+      );
       const isSuccess = report.successCount > 0;
       await updateSourceRegistryEntry(input.sourceId, {
         lastScrapedAt: /* @__PURE__ */ new Date(),
@@ -38972,14 +42730,16 @@ var marketIntelligenceRouter = router({
   }),
   // ─── Evidence Records ──────────────────────────────────────────────────────
   evidence: router({
-    list: orgProcedure.input(z21.object({
-      projectId: z21.number().optional(),
-      category: z21.string().optional(),
-      reliabilityGrade: z21.string().optional(),
-      evidencePhase: z21.string().optional(),
-      confidentiality: z21.string().optional(),
-      limit: z21.number().default(100)
-    }).optional()).query(async ({ ctx, input }) => {
+    list: orgProcedure.input(
+      z21.object({
+        projectId: z21.number().optional(),
+        category: z21.string().optional(),
+        reliabilityGrade: z21.string().optional(),
+        evidencePhase: z21.string().optional(),
+        confidentiality: z21.string().optional(),
+        limit: z21.number().default(100)
+      }).optional()
+    ).query(async ({ ctx, input }) => {
       if (!input?.projectId) {
         return listPublicCorpusEvidence({
           category: input?.category,
@@ -38999,10 +42759,18 @@ var marketIntelligenceRouter = router({
       });
     }),
     get: orgProcedure.input(z21.object({ id: z21.number() })).query(async ({ ctx, input }) => {
-      const authorized = await requireEvidenceRecordForOrg(input.id, ctx.orgId);
+      const authorized = await requireEvidenceRecordForOrg(
+        input.id,
+        ctx.orgId
+      );
       return authorized.evidence;
     }),
-    confidenceHistory: orgProcedure.input(z21.object({ id: z21.number(), limit: z21.number().min(1).max(100).default(50) })).query(async ({ ctx, input }) => {
+    confidenceHistory: orgProcedure.input(
+      z21.object({
+        id: z21.number(),
+        limit: z21.number().min(1).max(100).default(50)
+      })
+    ).query(async ({ ctx, input }) => {
       await requireEvidenceRecordForOrg(input.id, ctx.orgId);
       return listConfidenceAssessmentHistory(input.id, input.limit);
     }),
@@ -39025,22 +42793,25 @@ var marketIntelligenceRouter = router({
         ctx.user.id
       );
       const recordId = generateRecordId3();
-      const result = await createEvidenceRecordWithConfidenceAssessment({
-        ...input,
-        projectId: null,
-        orgId: null,
-        corpusScope: "platform_public",
-        corpusPolicyVersion: "public-v1",
-        recordId,
-        priceMin: input.priceMin ? String(input.priceMin) : null,
-        priceTypical: input.priceTypical ? String(input.priceTypical) : null,
-        priceMax: input.priceMax ? String(input.priceMax) : null,
-        currencyAed: input.currencyAed ? String(input.currencyAed) : null,
-        fxRate: input.fxRate ? String(input.fxRate) : null,
-        captureDate: assessment.parsedPublicationDate,
-        runId,
-        createdBy: ctx.user.id
-      }, assessment);
+      const result = await createEvidenceRecordWithConfidenceAssessment(
+        {
+          ...input,
+          projectId: null,
+          orgId: null,
+          corpusScope: "platform_public",
+          corpusPolicyVersion: "public-v1",
+          recordId,
+          priceMin: input.priceMin ? String(input.priceMin) : null,
+          priceTypical: input.priceTypical ? String(input.priceTypical) : null,
+          priceMax: input.priceMax ? String(input.priceMax) : null,
+          currencyAed: input.currencyAed ? String(input.currencyAed) : null,
+          fxRate: input.fxRate ? String(input.fxRate) : null,
+          captureDate: assessment.parsedPublicationDate,
+          runId,
+          createdBy: ctx.user.id
+        },
+        assessment
+      );
       await createIntelligenceAuditEntry({
         runType: "manual_entry",
         runId,
@@ -39055,9 +42826,11 @@ var marketIntelligenceRouter = router({
       });
       return { id: result.id, recordId };
     }),
-    bulkImport: adminProcedure.input(z21.object({
-      records: z21.array(evidenceRecordSchema)
-    })).mutation(async ({ input, ctx }) => {
+    bulkImport: adminProcedure.input(
+      z21.object({
+        records: z21.array(evidenceRecordSchema)
+      })
+    ).mutation(async ({ input, ctx }) => {
       if (input.records.some((record) => record.projectId !== void 0)) {
         throw new TRPCError22({
           code: "BAD_REQUEST",
@@ -39082,22 +42855,25 @@ var marketIntelligenceRouter = router({
             ctx.user.id
           );
           const recordId = generateRecordId3();
-          await createEvidenceRecordWithConfidenceAssessment({
-            ...rec,
-            projectId: null,
-            orgId: null,
-            corpusScope: "platform_public",
-            corpusPolicyVersion: "public-v1",
-            recordId,
-            priceMin: rec.priceMin ? String(rec.priceMin) : null,
-            priceTypical: rec.priceTypical ? String(rec.priceTypical) : null,
-            priceMax: rec.priceMax ? String(rec.priceMax) : null,
-            currencyAed: rec.currencyAed ? String(rec.currencyAed) : null,
-            fxRate: rec.fxRate ? String(rec.fxRate) : null,
-            captureDate: assessment.parsedPublicationDate,
-            runId,
-            createdBy: ctx.user.id
-          }, assessment);
+          await createEvidenceRecordWithConfidenceAssessment(
+            {
+              ...rec,
+              projectId: null,
+              orgId: null,
+              corpusScope: "platform_public",
+              corpusPolicyVersion: "public-v1",
+              recordId,
+              priceMin: rec.priceMin ? String(rec.priceMin) : null,
+              priceTypical: rec.priceTypical ? String(rec.priceTypical) : null,
+              priceMax: rec.priceMax ? String(rec.priceMax) : null,
+              currencyAed: rec.currencyAed ? String(rec.currencyAed) : null,
+              fxRate: rec.fxRate ? String(rec.fxRate) : null,
+              captureDate: assessment.parsedPublicationDate,
+              runId,
+              createdBy: ctx.user.id
+            },
+            assessment
+          );
           imported++;
         } catch (e) {
           errors.push({ index: i, error: e.message });
@@ -39120,7 +42896,10 @@ var marketIntelligenceRouter = router({
     }),
     delete: adminProcedure.input(z21.object({ id: z21.number() })).mutation(async ({ input, ctx }) => {
       if (!await deleteGlobalEvidenceRecord(input.id)) {
-        throw new TRPCError22({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError22({
+          code: "NOT_FOUND",
+          message: "Resource not found"
+        });
       }
       await createAuditLog({
         userId: ctx.user.id,
@@ -39134,14 +42913,16 @@ var marketIntelligenceRouter = router({
       return getPublicEvidenceStats();
     }),
     // V2.2 — Evidence References
-    listReferences: orgProcedure.input(z21.object({
-      evidenceRecordId: z21.number().optional(),
-      targetType: z21.string().optional(),
-      targetId: z21.number().optional()
-    }).refine(
-      (value) => value.evidenceRecordId !== void 0 || value.targetType !== void 0 && value.targetId !== void 0,
-      "Evidence record or complete target is required"
-    )).query(async ({ ctx, input }) => {
+    listReferences: orgProcedure.input(
+      z21.object({
+        evidenceRecordId: z21.number().optional(),
+        targetType: z21.string().optional(),
+        targetId: z21.number().optional()
+      }).refine(
+        (value) => value.evidenceRecordId !== void 0 || value.targetType !== void 0 && value.targetId !== void 0,
+        "Evidence record or complete target is required"
+      )
+    ).query(async ({ ctx, input }) => {
       if (input.evidenceRecordId !== void 0) {
         await requireEvidenceRecordForOrg(input.evidenceRecordId, ctx.orgId);
       }
@@ -39154,28 +42935,33 @@ var marketIntelligenceRouter = router({
       }
       return listEvidenceReferences(input);
     }),
-    addReference: orgMutationProcedure.input(z21.object({
-      evidenceRecordId: z21.number(),
-      targetType: z21.enum([
-        "scenario",
-        "decision_note",
-        "explainability_driver",
-        "design_brief",
-        "report",
-        "material_board",
-        "pack_section"
-      ]),
-      targetId: z21.number(),
-      sectionLabel: z21.string().optional(),
-      citationText: z21.string().optional()
-    })).mutation(async ({ input, ctx }) => {
+    addReference: orgMutationProcedure.input(
+      z21.object({
+        evidenceRecordId: z21.number(),
+        targetType: z21.enum([
+          "scenario",
+          "decision_note",
+          "explainability_driver",
+          "design_brief",
+          "report",
+          "material_board",
+          "pack_section"
+        ]),
+        targetId: z21.number(),
+        sectionLabel: z21.string().optional(),
+        citationText: z21.string().optional()
+      })
+    ).mutation(async ({ input, ctx }) => {
       await requireEvidenceRecordForOrg(input.evidenceRecordId, ctx.orgId);
       await requireEvidenceReferenceTargetForOrg(
         input.targetType,
         input.targetId,
         ctx.orgId
       );
-      const result = await createEvidenceReference({ ...input, addedBy: ctx.user.id });
+      const result = await createEvidenceReference({
+        ...input,
+        addedBy: ctx.user.id
+      });
       await createAuditLog({
         userId: ctx.user.id,
         action: "evidence_reference.create",
@@ -39187,16 +42973,25 @@ var marketIntelligenceRouter = router({
     removeReference: orgMutationProcedure.input(z21.object({ id: z21.number() })).mutation(async ({ input, ctx }) => {
       const reference2 = await getEvidenceReferenceById(input.id);
       if (!reference2) {
-        throw new TRPCError22({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError22({
+          code: "NOT_FOUND",
+          message: "Resource not found"
+        });
       }
-      await requireEvidenceRecordForOrg(reference2.evidenceRecordId, ctx.orgId);
+      await requireEvidenceRecordForOrg(
+        reference2.evidenceRecordId,
+        ctx.orgId
+      );
       await requireEvidenceReferenceTargetForOrg(
         reference2.targetType,
         reference2.targetId,
         ctx.orgId
       );
       if (!await deleteEvidenceReferenceIfMatches(input.id, reference2)) {
-        throw new TRPCError22({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError22({
+          code: "NOT_FOUND",
+          message: "Resource not found"
+        });
       }
       await createAuditLog({
         userId: ctx.user.id,
@@ -39207,10 +43002,12 @@ var marketIntelligenceRouter = router({
       return { success: true };
     }),
     // Get evidence records linked to a specific target (e.g., scenario, design_brief)
-    getForTarget: orgProcedure.input(z21.object({
-      targetType: z21.string(),
-      targetId: z21.number()
-    })).query(async ({ ctx, input }) => {
+    getForTarget: orgProcedure.input(
+      z21.object({
+        targetType: z21.string(),
+        targetId: z21.number()
+      })
+    ).query(async ({ ctx, input }) => {
       await requireEvidenceReferenceTargetForOrg(
         input.targetType,
         input.targetId,
@@ -39221,18 +43018,22 @@ var marketIntelligenceRouter = router({
   }),
   // ─── Benchmark Proposals ──────────────────────────────────────────────────
   proposals: router({
-    list: adminProcedure.input(z21.object({
-      status: z21.enum(["pending", "approved", "rejected"]).optional()
-    }).optional()).query(async ({ input }) => {
+    list: adminProcedure.input(
+      z21.object({
+        status: z21.enum(["pending", "approved", "rejected"]).optional()
+      }).optional()
+    ).query(async ({ input }) => {
       return listBenchmarkProposals(input?.status);
     }),
     get: adminProcedure.input(z21.object({ id: z21.number() })).query(async ({ input }) => {
       return getBenchmarkProposalById(input.id);
     }),
-    generate: adminProcedure.input(z21.object({
-      category: z21.string().optional(),
-      minEvidenceCount: z21.number().default(3)
-    })).mutation(async ({ input, ctx }) => {
+    generate: adminProcedure.input(
+      z21.object({
+        category: z21.string().optional(),
+        minEvidenceCount: z21.number().default(3)
+      })
+    ).mutation(async ({ input, ctx }) => {
       const runId = generateRunId("PROP");
       const startedAt = /* @__PURE__ */ new Date();
       const evidence = await listEvidenceRecords({
@@ -39240,7 +43041,10 @@ var marketIntelligenceRouter = router({
         limit: 1e4
       });
       if (evidence.length === 0) {
-        return { proposals: [], message: "No evidence records found to generate proposals from." };
+        return {
+          proposals: [],
+          message: "No evidence records found to generate proposals from."
+        };
       }
       const groups = /* @__PURE__ */ new Map();
       for (const rec of evidence) {
@@ -39282,7 +43086,9 @@ var marketIntelligenceRouter = router({
           else if (months <= 12) recencyDist.mid++;
           else recencyDist.old++;
         }
-        const uniqueSources = new Set(records.map((r) => r.sourceRegistryId ?? r.sourceUrl));
+        const uniqueSources = new Set(
+          records.map((r) => r.sourceRegistryId ?? r.sourceUrl)
+        );
         const sourceDiversity = uniqueSources.size;
         let confidence = 50;
         if (records.length >= 10) confidence += 15;
@@ -39328,7 +43134,11 @@ var marketIntelligenceRouter = router({
         runType: "benchmark_proposal",
         runId,
         actor: ctx.user.id,
-        inputSummary: { category: input.category, minEvidenceCount: input.minEvidenceCount, totalEvidence: evidence.length },
+        inputSummary: {
+          category: input.category,
+          minEvidenceCount: input.minEvidenceCount,
+          totalEvidence: evidence.length
+        },
         outputSummary: { proposalsCreated, groups: groups.size },
         sourcesProcessed: evidence.length,
         recordsExtracted: proposalsCreated,
@@ -39338,11 +43148,13 @@ var marketIntelligenceRouter = router({
       });
       return { proposals, runId };
     }),
-    review: adminProcedure.input(z21.object({
-      id: z21.number(),
-      status: z21.enum(["approved", "rejected"]),
-      reviewerNotes: z21.string().optional()
-    })).mutation(async ({ input, ctx }) => {
+    review: adminProcedure.input(
+      z21.object({
+        id: z21.number(),
+        status: z21.enum(["approved", "rejected"]),
+        reviewerNotes: z21.string().optional()
+      })
+    ).mutation(async ({ input, ctx }) => {
       const reviewed = await reviewBenchmarkProposal(input.id, {
         status: input.status,
         reviewerNotes: input.reviewerNotes,
@@ -39419,15 +43231,27 @@ var marketIntelligenceRouter = router({
     getEntity: protectedProcedure.input(z21.object({ id: z21.number() })).query(async ({ input }) => {
       return getCompetitorEntityById(input.id);
     }),
-    createEntity: adminProcedure.input(z21.object({
-      name: z21.string().min(1),
-      headquarters: z21.string().optional(),
-      segmentFocus: z21.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury", "mixed"]).default("mixed"),
-      website: z21.string().optional(),
-      logoUrl: z21.string().optional(),
-      notes: z21.string().optional()
-    })).mutation(async ({ input, ctx }) => {
-      const result = await createCompetitorEntity({ ...input, createdBy: ctx.user.id });
+    createEntity: adminProcedure.input(
+      z21.object({
+        name: z21.string().min(1),
+        headquarters: z21.string().optional(),
+        segmentFocus: z21.enum([
+          "affordable",
+          "mid",
+          "premium",
+          "luxury",
+          "ultra_luxury",
+          "mixed"
+        ]).default("mixed"),
+        website: z21.string().optional(),
+        logoUrl: z21.string().optional(),
+        notes: z21.string().optional()
+      })
+    ).mutation(async ({ input, ctx }) => {
+      const result = await createCompetitorEntity({
+        ...input,
+        createdBy: ctx.user.id
+      });
       await createAuditLog({
         userId: ctx.user.id,
         action: "competitor_entity.create",
@@ -39436,15 +43260,24 @@ var marketIntelligenceRouter = router({
       });
       return result;
     }),
-    updateEntity: adminProcedure.input(z21.object({
-      id: z21.number(),
-      name: z21.string().optional(),
-      headquarters: z21.string().optional(),
-      segmentFocus: z21.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury", "mixed"]).optional(),
-      website: z21.string().optional(),
-      logoUrl: z21.string().optional(),
-      notes: z21.string().optional()
-    })).mutation(async ({ input, ctx }) => {
+    updateEntity: adminProcedure.input(
+      z21.object({
+        id: z21.number(),
+        name: z21.string().optional(),
+        headquarters: z21.string().optional(),
+        segmentFocus: z21.enum([
+          "affordable",
+          "mid",
+          "premium",
+          "luxury",
+          "ultra_luxury",
+          "mixed"
+        ]).optional(),
+        website: z21.string().optional(),
+        logoUrl: z21.string().optional(),
+        notes: z21.string().optional()
+      })
+    ).mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
       await updateCompetitorEntity(id, data);
       await createAuditLog({
@@ -39466,39 +43299,43 @@ var marketIntelligenceRouter = router({
       return { success: true };
     }),
     // ─── Projects ─────────────────────────────────────────────────────────
-    listProjects: protectedProcedure.input(z21.object({
-      competitorId: z21.number().optional(),
-      segment: z21.string().optional()
-    }).optional()).query(async ({ input }) => {
+    listProjects: protectedProcedure.input(
+      z21.object({
+        competitorId: z21.number().optional(),
+        segment: z21.string().optional()
+      }).optional()
+    ).query(async ({ input }) => {
       return listCompetitorProjects(input?.competitorId, input?.segment);
     }),
     getProject: protectedProcedure.input(z21.object({ id: z21.number() })).query(async ({ input }) => {
       return getCompetitorProjectById(input.id);
     }),
-    createProject: adminProcedure.input(z21.object({
-      competitorId: z21.number(),
-      projectName: z21.string().min(1),
-      location: z21.string().optional(),
-      segment: z21.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
-      assetType: z21.enum(["residential", "commercial", "hospitality", "mixed_use"]).default("residential"),
-      positioningKeywords: z21.array(z21.string()).optional(),
-      interiorStyleSignals: z21.array(z21.string()).optional(),
-      materialCues: z21.array(z21.string()).optional(),
-      amenityList: z21.array(z21.string()).optional(),
-      unitMix: z21.string().optional(),
-      priceIndicators: z21.any().optional(),
-      salesMessaging: z21.array(z21.string()).optional(),
-      differentiationClaims: z21.array(z21.string()).optional(),
-      completionStatus: z21.enum(["announced", "under_construction", "completed", "sold_out"]).optional(),
-      launchDate: z21.string().optional(),
-      totalUnits: z21.number().optional(),
-      architect: z21.string().optional(),
-      interiorDesigner: z21.string().optional(),
-      sourceUrl: z21.string().optional(),
-      captureDate: z21.string().optional(),
-      evidenceCitations: z21.any().optional(),
-      completenessScore: z21.number().optional()
-    })).mutation(async ({ input, ctx }) => {
+    createProject: adminProcedure.input(
+      z21.object({
+        competitorId: z21.number(),
+        projectName: z21.string().min(1),
+        location: z21.string().optional(),
+        segment: z21.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
+        assetType: z21.enum(["residential", "commercial", "hospitality", "mixed_use"]).default("residential"),
+        positioningKeywords: z21.array(z21.string()).optional(),
+        interiorStyleSignals: z21.array(z21.string()).optional(),
+        materialCues: z21.array(z21.string()).optional(),
+        amenityList: z21.array(z21.string()).optional(),
+        unitMix: z21.string().optional(),
+        priceIndicators: z21.any().optional(),
+        salesMessaging: z21.array(z21.string()).optional(),
+        differentiationClaims: z21.array(z21.string()).optional(),
+        completionStatus: z21.enum(["announced", "under_construction", "completed", "sold_out"]).optional(),
+        launchDate: z21.string().optional(),
+        totalUnits: z21.number().optional(),
+        architect: z21.string().optional(),
+        interiorDesigner: z21.string().optional(),
+        sourceUrl: z21.string().optional(),
+        captureDate: z21.string().optional(),
+        evidenceCitations: z21.any().optional(),
+        completenessScore: z21.number().optional()
+      })
+    ).mutation(async ({ input, ctx }) => {
       const result = await createCompetitorProject({
         ...input,
         captureDate: input.captureDate ? new Date(input.captureDate) : void 0,
@@ -39512,26 +43349,28 @@ var marketIntelligenceRouter = router({
       });
       return result;
     }),
-    updateProject: adminProcedure.input(z21.object({
-      id: z21.number(),
-      projectName: z21.string().optional(),
-      location: z21.string().optional(),
-      segment: z21.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
-      positioningKeywords: z21.array(z21.string()).optional(),
-      interiorStyleSignals: z21.array(z21.string()).optional(),
-      materialCues: z21.array(z21.string()).optional(),
-      amenityList: z21.array(z21.string()).optional(),
-      priceIndicators: z21.any().optional(),
-      salesMessaging: z21.array(z21.string()).optional(),
-      differentiationClaims: z21.array(z21.string()).optional(),
-      completionStatus: z21.enum(["announced", "under_construction", "completed", "sold_out"]).optional(),
-      totalUnits: z21.number().optional(),
-      architect: z21.string().optional(),
-      interiorDesigner: z21.string().optional(),
-      sourceUrl: z21.string().optional(),
-      evidenceCitations: z21.any().optional(),
-      completenessScore: z21.number().optional()
-    })).mutation(async ({ input, ctx }) => {
+    updateProject: adminProcedure.input(
+      z21.object({
+        id: z21.number(),
+        projectName: z21.string().optional(),
+        location: z21.string().optional(),
+        segment: z21.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
+        positioningKeywords: z21.array(z21.string()).optional(),
+        interiorStyleSignals: z21.array(z21.string()).optional(),
+        materialCues: z21.array(z21.string()).optional(),
+        amenityList: z21.array(z21.string()).optional(),
+        priceIndicators: z21.any().optional(),
+        salesMessaging: z21.array(z21.string()).optional(),
+        differentiationClaims: z21.array(z21.string()).optional(),
+        completionStatus: z21.enum(["announced", "under_construction", "completed", "sold_out"]).optional(),
+        totalUnits: z21.number().optional(),
+        architect: z21.string().optional(),
+        interiorDesigner: z21.string().optional(),
+        sourceUrl: z21.string().optional(),
+        evidenceCitations: z21.any().optional(),
+        completenessScore: z21.number().optional()
+      })
+    ).mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
       await updateCompetitorProject(id, data);
       await createAuditLog({
@@ -39570,7 +43409,9 @@ var marketIntelligenceRouter = router({
         "amenityList",
         "differentiationClaims"
       ];
-      const validProjects = projects2.filter((p) => p != null);
+      const validProjects = projects2.filter(
+        (p) => p != null
+      );
       const matrix = dimensions.map((dim) => ({
         dimension: dim,
         values: validProjects.map((p) => ({
@@ -39581,22 +43422,32 @@ var marketIntelligenceRouter = router({
       }));
       return { projects: validProjects, matrix };
     }),
-    bulkImport: adminProcedure.input(z21.object({
-      competitorId: z21.number(),
-      projects: z21.array(z21.object({
-        projectName: z21.string(),
-        location: z21.string().optional(),
-        segment: z21.enum(["affordable", "mid", "premium", "luxury", "ultra_luxury"]).optional(),
-        assetType: z21.enum(["residential", "commercial", "hospitality", "mixed_use"]).default("residential"),
-        positioningKeywords: z21.array(z21.string()).optional(),
-        interiorStyleSignals: z21.array(z21.string()).optional(),
-        materialCues: z21.array(z21.string()).optional(),
-        amenityList: z21.array(z21.string()).optional(),
-        sourceUrl: z21.string().optional(),
-        evidenceCitations: z21.any().optional(),
-        completenessScore: z21.number().optional()
-      }))
-    })).mutation(async ({ input, ctx }) => {
+    bulkImport: adminProcedure.input(
+      z21.object({
+        competitorId: z21.number(),
+        projects: z21.array(
+          z21.object({
+            projectName: z21.string(),
+            location: z21.string().optional(),
+            segment: z21.enum([
+              "affordable",
+              "mid",
+              "premium",
+              "luxury",
+              "ultra_luxury"
+            ]).optional(),
+            assetType: z21.enum(["residential", "commercial", "hospitality", "mixed_use"]).default("residential"),
+            positioningKeywords: z21.array(z21.string()).optional(),
+            interiorStyleSignals: z21.array(z21.string()).optional(),
+            materialCues: z21.array(z21.string()).optional(),
+            amenityList: z21.array(z21.string()).optional(),
+            sourceUrl: z21.string().optional(),
+            evidenceCitations: z21.any().optional(),
+            completenessScore: z21.number().optional()
+          })
+        )
+      })
+    ).mutation(async ({ input, ctx }) => {
       const runId = generateRunId("COMP");
       const startedAt = /* @__PURE__ */ new Date();
       let imported = 0;
@@ -39613,7 +43464,10 @@ var marketIntelligenceRouter = router({
         runType: "competitor_extraction",
         runId,
         actor: ctx.user.id,
-        inputSummary: { competitorId: input.competitorId, projectCount: input.projects.length },
+        inputSummary: {
+          competitorId: input.competitorId,
+          projectCount: input.projects.length
+        },
         outputSummary: { imported },
         sourcesProcessed: input.projects.length,
         recordsExtracted: imported,
@@ -39629,21 +43483,26 @@ var marketIntelligenceRouter = router({
     list: protectedProcedure.input(z21.object({ category: z21.string().optional() }).optional()).query(async ({ input }) => {
       return listTrendTags(input?.category);
     }),
-    create: adminProcedure.input(z21.object({
-      name: z21.string().min(1),
-      category: z21.enum([
-        "material_trend",
-        "design_trend",
-        "market_trend",
-        "buyer_preference",
-        "sustainability",
-        "technology",
-        "pricing",
-        "other"
-      ]),
-      description: z21.string().optional()
-    })).mutation(async ({ input, ctx }) => {
-      const result = await createTrendTag({ ...input, createdBy: ctx.user.id });
+    create: adminProcedure.input(
+      z21.object({
+        name: z21.string().min(1),
+        category: z21.enum([
+          "material_trend",
+          "design_trend",
+          "market_trend",
+          "buyer_preference",
+          "sustainability",
+          "technology",
+          "pricing",
+          "other"
+        ]),
+        description: z21.string().optional()
+      })
+    ).mutation(async ({ input, ctx }) => {
+      const result = await createTrendTag({
+        ...input,
+        createdBy: ctx.user.id
+      });
       return result;
     }),
     delete: adminProcedure.input(z21.object({ id: z21.number() })).mutation(async ({ input }) => {
@@ -39651,23 +43510,36 @@ var marketIntelligenceRouter = router({
       return { success: true };
     }),
     // ─── Entity Tagging ───────────────────────────────────────────────────
-    attach: orgMutationProcedure.input(z21.object({
-      tagId: z21.number(),
-      entityType: z21.enum(["competitor_project", "scenario", "evidence_record", "project"]),
-      entityId: z21.number()
-    })).mutation(async ({ input, ctx }) => {
+    attach: orgMutationProcedure.input(
+      z21.object({
+        tagId: z21.number(),
+        entityType: z21.enum([
+          "competitor_project",
+          "scenario",
+          "evidence_record",
+          "project"
+        ]),
+        entityId: z21.number()
+      })
+    ).mutation(async ({ input, ctx }) => {
       await requireMarketTagTargetForOrg(
         input.entityType,
         input.entityId,
         ctx.orgId
       );
-      const result = await createEntityTag({ ...input, addedBy: ctx.user.id });
+      const result = await createEntityTag({
+        ...input,
+        addedBy: ctx.user.id
+      });
       return result;
     }),
     detach: orgMutationProcedure.input(z21.object({ id: z21.number() })).mutation(async ({ input, ctx }) => {
       const entityTag = await getEntityTagById(input.id);
       if (!entityTag) {
-        throw new TRPCError22({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError22({
+          code: "NOT_FOUND",
+          message: "Resource not found"
+        });
       }
       await requireMarketTagTargetForOrg(
         entityTag.entityType,
@@ -39675,14 +43547,24 @@ var marketIntelligenceRouter = router({
         ctx.orgId
       );
       if (!await deleteEntityTagIfMatches(input.id, entityTag)) {
-        throw new TRPCError22({ code: "NOT_FOUND", message: "Resource not found" });
+        throw new TRPCError22({
+          code: "NOT_FOUND",
+          message: "Resource not found"
+        });
       }
       return { success: true };
     }),
-    getEntityTags: orgProcedure.input(z21.object({
-      entityType: z21.enum(["competitor_project", "scenario", "evidence_record", "project"]),
-      entityId: z21.number()
-    })).query(async ({ ctx, input }) => {
+    getEntityTags: orgProcedure.input(
+      z21.object({
+        entityType: z21.enum([
+          "competitor_project",
+          "scenario",
+          "evidence_record",
+          "project"
+        ]),
+        entityId: z21.number()
+      })
+    ).query(async ({ ctx, input }) => {
       await requireMarketTagTargetForOrg(
         input.entityType,
         input.entityId,
@@ -39696,18 +43578,22 @@ var marketIntelligenceRouter = router({
   }),
   // ─── Intelligence Audit Log ───────────────────────────────────────────────
   auditLog: router({
-    list: adminProcedure.input(z21.object({
-      runType: z21.string().optional(),
-      limit: z21.number().default(50)
-    }).optional()).query(async ({ input }) => {
+    list: adminProcedure.input(
+      z21.object({
+        runType: z21.string().optional(),
+        limit: z21.number().default(50)
+      }).optional()
+    ).query(async ({ input }) => {
       return listIntelligenceAuditLog(input?.runType, input?.limit ?? 50);
     }),
     get: adminProcedure.input(z21.object({ id: z21.number() })).query(async ({ input }) => {
       return getIntelligenceAuditEntryById(input.id);
     })
   }),
-  dataHealth: protectedProcedure.query(async () => {
-    return await getDataHealthStats();
+  dataHealth: orgProcedure.query(() => {
+    return evaluateClaimHealth(
+      buildRequiredSourceOperationsClaimHealthEvaluationInput(/* @__PURE__ */ new Date())
+    ).safeProjection;
   })
 });
 
@@ -39717,7 +43603,7 @@ init_orchestrator();
 init_connectors();
 init_db();
 init_schema();
-import { desc as desc5, eq as eq12, sql as sql4 } from "drizzle-orm";
+import { desc as desc6, eq as eq13, sql as sql5 } from "drizzle-orm";
 
 // server/engines/ingestion/scheduler.ts
 init_orchestrator();
@@ -39727,7 +43613,7 @@ init_dynamic();
 init_freshness();
 init_source_discovery();
 import cron from "node-cron";
-import { eq as eq11 } from "drizzle-orm";
+import { eq as eq12 } from "drizzle-orm";
 var scheduledTasks = [];
 var lastScheduledRunAt = null;
 var isSchedulerRunning = false;
@@ -39795,7 +43681,7 @@ var ingestionRouter = router({
     if (!db) return { runs: [], total: 0 };
     const limit = input?.limit ?? 20;
     const offset = input?.offset ?? 0;
-    const runs = await db.select().from(ingestionRuns).orderBy(desc5(ingestionRuns.createdAt)).limit(limit).offset(offset);
+    const runs = await db.select().from(ingestionRuns).orderBy(desc6(ingestionRuns.createdAt)).limit(limit).offset(offset);
     const allRuns = await db.select({ id: ingestionRuns.id }).from(ingestionRuns);
     const total = allRuns.length;
     return { runs, total };
@@ -39815,7 +43701,7 @@ var ingestionRouter = router({
         nextScheduledRun: null
       };
     }
-    const lastRuns = await db.select().from(ingestionRuns).orderBy(desc5(ingestionRuns.createdAt)).limit(1);
+    const lastRuns = await db.select().from(ingestionRuns).orderBy(desc6(ingestionRuns.createdAt)).limit(1);
     const lastRun = lastRuns.length > 0 ? lastRuns[0] : null;
     const allRuns = await db.select().from(ingestionRuns);
     const totalRuns = allRuns.length;
@@ -39851,7 +43737,7 @@ var ingestionRouter = router({
   getRunDetail: protectedProcedure.input(z22.object({ runId: z22.string() })).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return null;
-    const runs = await db.select().from(ingestionRuns).where(eq12(ingestionRuns.runId, input.runId)).limit(1);
+    const runs = await db.select().from(ingestionRuns).where(eq13(ingestionRuns.runId, input.runId)).limit(1);
     return runs.length > 0 ? runs[0] : null;
   }),
   /**
@@ -39933,8 +43819,8 @@ var ingestionRouter = router({
   }).optional()).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return [];
-    const filter = input?.activeOnly !== false ? eq12(sourceRegistry.isActive, true) : void 0;
-    const sources = filter ? await db.select().from(sourceRegistry).where(filter).orderBy(desc5(sourceRegistry.updatedAt)) : await db.select().from(sourceRegistry).orderBy(desc5(sourceRegistry.updatedAt));
+    const filter = input?.activeOnly !== false ? eq13(sourceRegistry.isActive, true) : void 0;
+    const sources = filter ? await db.select().from(sourceRegistry).where(filter).orderBy(desc6(sourceRegistry.updatedAt)) : await db.select().from(sourceRegistry).orderBy(desc6(sourceRegistry.updatedAt));
     return sources;
   }),
   /**
@@ -39980,7 +43866,7 @@ var ingestionRouter = router({
   toggleSource: adminProcedure.input(z22.object({ id: z22.number(), isActive: z22.boolean() })).mutation(async ({ input }) => {
     const db = await getDb();
     if (!db) throw new Error("DB not available");
-    await db.update(sourceRegistry).set({ isActive: input.isActive }).where(eq12(sourceRegistry.id, input.id));
+    await db.update(sourceRegistry).set({ isActive: input.isActive }).where(eq13(sourceRegistry.id, input.id));
     return { id: input.id, isActive: input.isActive };
   }),
   /**
@@ -39990,7 +43876,7 @@ var ingestionRouter = router({
     assertDatabaseAccess("ingest");
     const db = await getDb();
     if (!db) throw new Error("DB not available");
-    const [source] = await db.select().from(sourceRegistry).where(eq12(sourceRegistry.id, input.id)).limit(1);
+    const [source] = await db.select().from(sourceRegistry).where(eq13(sourceRegistry.id, input.id)).limit(1);
     if (!source) throw new Error("Source not found");
     const connector = createSourceConnector(source);
     const report = await runIngestion([connector], "manual", ctx.user.id);
@@ -39998,8 +43884,8 @@ var ingestionRouter = router({
       lastScrapedAt: /* @__PURE__ */ new Date(),
       lastScrapedStatus: report.sourcesFailed > 0 ? "failed" : "success",
       lastRecordCount: report.evidenceCreated,
-      consecutiveFailures: report.sourcesFailed > 0 ? sql4`${sourceRegistry.consecutiveFailures} + 1` : 0
-    }).where(eq12(sourceRegistry.id, input.id));
+      consecutiveFailures: report.sourcesFailed > 0 ? sql5`${sourceRegistry.consecutiveFailures} + 1` : 0
+    }).where(eq13(sourceRegistry.id, input.id));
     return report;
   }),
   /**
@@ -40018,9 +43904,9 @@ var ingestionRouter = router({
   }).optional()).query(async ({ input }) => {
     const db = await getDb();
     if (!db) return [];
-    let query = db.select().from(designTrends).orderBy(desc5(designTrends.mentionCount)).limit(input?.limit ?? 50);
+    let query = db.select().from(designTrends).orderBy(desc6(designTrends.mentionCount)).limit(input?.limit ?? 50);
     if (input?.category) {
-      query = query.where(eq12(designTrends.trendCategory, input.category));
+      query = query.where(eq13(designTrends.trendCategory, input.category));
     }
     return query;
   }),
@@ -40402,7 +44288,7 @@ async function analyseCompetitorLandscape(projects2, options = {}) {
 
 // server/routers/analytics.ts
 init_schema();
-import { eq as eq13 } from "drizzle-orm";
+import { eq as eq14 } from "drizzle-orm";
 
 // shared/data-corpus.ts
 var ORGANIZATION_CORPUS_POLICY_VERSION = "org-public-v1";
@@ -40483,9 +44369,9 @@ function mapTrendSnapshots(trendSnaps) {
   }));
 }
 async function loadCompetitorLandscape() {
-  const database4 = await getDb();
-  if (!database4) throw new Error("Database not available");
-  const rows = await database4.select({
+  const database5 = await getDb();
+  if (!database5) throw new Error("Database not available");
+  const rows = await database5.select({
     id: competitorProjects.id,
     competitorId: competitorProjects.competitorId,
     projectName: competitorProjects.projectName,
@@ -40493,7 +44379,7 @@ async function loadCompetitorLandscape() {
     entityName: competitorEntities.name
   }).from(competitorProjects).leftJoin(
     competitorEntities,
-    eq13(competitorProjects.competitorId, competitorEntities.id)
+    eq14(competitorProjects.competitorId, competitorEntities.id)
   );
   if (rows.length === 0) return void 0;
   const projects2 = rows.map((row) => ({
@@ -40622,7 +44508,7 @@ var analyticsRouter = router({
       entityName: competitorEntities.name
     }).from(competitorProjects).leftJoin(
       competitorEntities,
-      eq13(competitorProjects.competitorId, competitorEntities.id)
+      eq14(competitorProjects.competitorId, competitorEntities.id)
     );
     const projects2 = dbProjects.map((p) => {
       let pricePerSqft;
@@ -41116,6 +45002,7 @@ function matchScoreMatrixToPatterns(scores, availablePatterns) {
 
 // server/routers/predictive.ts
 init_material_calculations();
+init_material_resolution();
 function unavailableGovernedMaterialCostRange() {
   return insufficientCostRangePrediction({
     reason: "No governed product/specification population is available for this predictive category"
@@ -41742,14 +45629,14 @@ var learningRouter = router({
 import { z as z26 } from "zod";
 init_db();
 init_schema();
-import { eq as eq15, and as and6, desc as desc7, sql as sql6 } from "drizzle-orm";
+import { eq as eq16, and as and7, desc as desc8, sql as sql7 } from "drizzle-orm";
 import { TRPCError as TRPCError24 } from "@trpc/server";
 
 // server/engines/autonomous/nl-engine.ts
 init_llm();
 init_db();
 init_schema();
-import { sql as sql5 } from "drizzle-orm";
+import { sql as sql6 } from "drizzle-orm";
 var SCHEMA_CONTEXT = `
 You are the MIYAR Intelligence Assistant, an expert AI embedded within MIYAR (an autonomous interior design and architectural validation platform). 
 Your primary capability is translating user natural language queries into valid MySQL SELECT queries to fetch data from the platform. 
@@ -41810,7 +45697,7 @@ Generate the MySQL query.` }
     const db = await getDb();
     if (!db) throw new Error("Database not connected");
     try {
-      const result = await db.execute(sql5.raw(generatedSql));
+      const result = await db.execute(sql6.raw(generatedSql));
       if (Array.isArray(result) && result.length > 0 && Array.isArray(result[0])) {
         rawData = result[0];
       } else {
@@ -41877,20 +45764,20 @@ ${JSON.stringify(truncatedData, null, 2)}` }
 init_llm();
 init_db();
 init_schema();
-import { and as and5, eq as eq14, desc as desc6 } from "drizzle-orm";
+import { and as and6, eq as eq15, desc as desc7 } from "drizzle-orm";
 async function generatePortfolioInsightsForOrg(orgId) {
   const db = await getDb();
   if (!db) throw new Error("Database error");
-  const allProjects = await db.select().from(projects).where(and5(
-    eq14(projects.status, "evaluated"),
-    eq14(projects.orgId, orgId)
+  const allProjects = await db.select().from(projects).where(and6(
+    eq15(projects.status, "evaluated"),
+    eq15(projects.orgId, orgId)
   ));
   if (allProjects.length === 0) {
     return "No evaluated projects available for portfolio analysis.";
   }
   const portfolioProjects2 = [];
   for (const p of allProjects) {
-    const scores = await db.select().from(scoreMatrices).where(eq14(scoreMatrices.projectId, p.id)).orderBy(desc6(scoreMatrices.computedAt)).limit(1);
+    const scores = await db.select().from(scoreMatrices).where(eq15(scoreMatrices.projectId, p.id)).orderBy(desc7(scoreMatrices.computedAt)).limit(1);
     if (scores.length > 0) {
       const s = scores[0];
       portfolioProjects2.push({
@@ -41973,14 +45860,14 @@ var autonomousRouter = router({
     if (!db) return [];
     let conditions = [];
     const targetStatus = input?.status || "active";
-    conditions.push(eq15(platformAlerts.status, targetStatus));
+    conditions.push(eq16(platformAlerts.status, targetStatus));
     if (input?.severity) {
-      conditions.push(eq15(platformAlerts.severity, input.severity));
+      conditions.push(eq16(platformAlerts.severity, input.severity));
     }
     if (input?.type) {
-      conditions.push(eq15(platformAlerts.alertType, input.type));
+      conditions.push(eq16(platformAlerts.alertType, input.type));
     }
-    return db.select().from(platformAlerts).where(conditions.length > 0 ? and6(...conditions) : void 0).orderBy(desc7(platformAlerts.createdAt));
+    return db.select().from(platformAlerts).where(conditions.length > 0 ? and7(...conditions) : void 0).orderBy(desc8(platformAlerts.createdAt));
   }),
   acknowledgeAlert: adminProcedure.input(z26.object({ id: z26.number() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
@@ -41989,7 +45876,7 @@ var autonomousRouter = router({
       status: "acknowledged",
       acknowledgedBy: ctx.user.id,
       acknowledgedAt: /* @__PURE__ */ new Date()
-    }).where(eq15(platformAlerts.id, input.id));
+    }).where(eq16(platformAlerts.id, input.id));
     return { success: true };
   }),
   resolveAlert: adminProcedure.input(z26.object({ id: z26.number() })).mutation(async ({ input }) => {
@@ -41997,17 +45884,17 @@ var autonomousRouter = router({
     if (!db) throw new Error("Database error");
     await db.update(platformAlerts).set({
       status: "resolved"
-    }).where(eq15(platformAlerts.id, input.id));
+    }).where(eq16(platformAlerts.id, input.id));
     return { success: true };
   }),
   nlQuery: protectedProcedure.input(z26.object({ query: z26.string() })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError24({ code: "INTERNAL_SERVER_ERROR", message: "Database error" });
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1e3);
-    const recentQueries = await db.select({ count: sql6`count(*)` }).from(nlQueryLog).where(
-      and6(
-        eq15(nlQueryLog.userId, ctx.user.id),
-        sql6`${nlQueryLog.createdAt} > ${oneHourAgo}`
+    const recentQueries = await db.select({ count: sql7`count(*)` }).from(nlQueryLog).where(
+      and7(
+        eq16(nlQueryLog.userId, ctx.user.id),
+        sql7`${nlQueryLog.createdAt} > ${oneHourAgo}`
       )
     );
     const count2 = Number(recentQueries[0]?.count || 0);
@@ -42036,7 +45923,7 @@ init_db();
 import { z as z27 } from "zod";
 init_schema();
 import { TRPCError as TRPCError25 } from "@trpc/server";
-import { eq as eq16, and as and7 } from "drizzle-orm";
+import { eq as eq17, and as and8 } from "drizzle-orm";
 import { nanoid as nanoid9 } from "nanoid";
 var organizationRouter = router({
   createOrg: protectedProcedure.input(z27.object({
@@ -42046,7 +45933,7 @@ var organizationRouter = router({
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError25({ code: "INTERNAL_SERVER_ERROR", message: "DB unconnected" });
-    const existing = await db.select().from(organizations).where(eq16(organizations.slug, input.slug)).limit(1);
+    const existing = await db.select().from(organizations).where(eq17(organizations.slug, input.slug)).limit(1);
     if (existing.length > 0) {
       throw new TRPCError25({ code: "CONFLICT", message: "Slug is already taken" });
     }
@@ -42062,7 +45949,7 @@ var organizationRouter = router({
       userId: ctx.user.id,
       role: "admin"
     });
-    await db.update(users).set({ orgId }).where(eq16(users.id, ctx.user.id));
+    await db.update(users).set({ orgId }).where(eq17(users.id, ctx.user.id));
     return { success: true, orgId };
   }),
   myOrgs: protectedProcedure.query(async ({ ctx }) => {
@@ -42071,7 +45958,7 @@ var organizationRouter = router({
     const result = await db.select({
       org: organizations,
       role: organizationMembers.role
-    }).from(organizationMembers).innerJoin(organizations, eq16(organizations.id, organizationMembers.orgId)).where(eq16(organizationMembers.userId, ctx.user.id));
+    }).from(organizationMembers).innerJoin(organizations, eq17(organizations.id, organizationMembers.orgId)).where(eq17(organizationMembers.userId, ctx.user.id));
     return result;
   }),
   inviteMember: orgAdminProcedure.input(z27.object({
@@ -42080,7 +45967,7 @@ var organizationRouter = router({
   })).mutation(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) throw new TRPCError25({ code: "INTERNAL_SERVER_ERROR" });
-    const myMembership = await db.select().from(organizationMembers).where(and7(eq16(organizationMembers.orgId, ctx.orgId), eq16(organizationMembers.userId, ctx.user.id))).limit(1);
+    const myMembership = await db.select().from(organizationMembers).where(and8(eq17(organizationMembers.orgId, ctx.orgId), eq17(organizationMembers.userId, ctx.user.id))).limit(1);
     if (!myMembership[0] || myMembership[0].role !== "admin") {
       throw new TRPCError25({ code: "FORBIDDEN", message: "Only admins can invite members" });
     }
@@ -42100,13 +45987,13 @@ var organizationRouter = router({
     const db = await getDb();
     if (!db) throw new TRPCError25({ code: "INTERNAL_SERVER_ERROR" });
     return db.transaction(async (tx) => {
-      const inviteResult = await tx.select().from(organizationInvites).where(eq16(organizationInvites.token, input.token)).limit(1).for("update");
+      const inviteResult = await tx.select().from(organizationInvites).where(eq17(organizationInvites.token, input.token)).limit(1).for("update");
       const invite = inviteResult[0];
       if (!invite) throw new TRPCError25({ code: "NOT_FOUND", message: "Invalid invite token" });
       if (invite.expiresAt < /* @__PURE__ */ new Date()) throw new TRPCError25({ code: "BAD_REQUEST", message: "Invite expired" });
-      const memberships = await tx.select().from(organizationMembers).where(and7(
-        eq16(organizationMembers.orgId, invite.orgId),
-        eq16(organizationMembers.userId, ctx.user.id)
+      const memberships = await tx.select().from(organizationMembers).where(and8(
+        eq17(organizationMembers.orgId, invite.orgId),
+        eq17(organizationMembers.userId, ctx.user.id)
       )).limit(2).for("update");
       if (memberships.length > 1) {
         throw new TRPCError25({
@@ -42121,8 +46008,8 @@ var organizationRouter = router({
           role: invite.role
         });
       }
-      await tx.update(users).set({ orgId: invite.orgId }).where(eq16(users.id, ctx.user.id));
-      await tx.delete(organizationInvites).where(eq16(organizationInvites.id, invite.id));
+      await tx.update(users).set({ orgId: invite.orgId }).where(eq17(users.id, ctx.user.id));
+      await tx.delete(organizationInvites).where(eq17(organizationInvites.id, invite.id));
       return { success: true, orgId: invite.orgId };
     });
   })
@@ -43341,25 +47228,25 @@ var designAdvisorRouter = router({
 // server/routers/portfolio.ts
 import { z as z32 } from "zod";
 import { TRPCError as TRPCError26 } from "@trpc/server";
-import { createHash as createHash7 } from "node:crypto";
+import { createHash as createHash9 } from "node:crypto";
 init_db();
 init_schema();
-import { eq as eq17, and as and8, desc as desc8, inArray as inArray4 } from "drizzle-orm";
+import { eq as eq18, and as and9, desc as desc9, inArray as inArray5 } from "drizzle-orm";
 var portfolioRouter = router({
   // ─── List all portfolios for current org ──────────────────────────
   list: orgProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     if (!db) return [];
-    const rows = await db.select().from(portfolios).where(eq17(portfolios.organizationId, ctx.orgId)).orderBy(desc8(portfolios.updatedAt));
+    const rows = await db.select().from(portfolios).where(eq18(portfolios.organizationId, ctx.orgId)).orderBy(desc9(portfolios.updatedAt));
     const result = [];
     for (const p of rows) {
-      const links = await db.select({ projectId: portfolioProjects.projectId }).from(portfolioProjects).where(eq17(portfolioProjects.portfolioId, p.id));
+      const links = await db.select({ projectId: portfolioProjects.projectId }).from(portfolioProjects).where(eq18(portfolioProjects.portfolioId, p.id));
       let avgComposite = 0;
       let avgRisk = 0;
       let scoredCount = 0;
       if (links.length > 0) {
         const projectIds = links.map((l) => l.projectId);
-        const scores = await db.select().from(scoreMatrices).where(inArray4(scoreMatrices.projectId, projectIds)).orderBy(desc8(scoreMatrices.computedAt));
+        const scores = await db.select().from(scoreMatrices).where(inArray5(scoreMatrices.projectId, projectIds)).orderBy(desc9(scoreMatrices.computedAt));
         const latestByProject = /* @__PURE__ */ new Map();
         for (const s of scores) {
           if (!latestByProject.has(s.projectId)) {
@@ -43391,13 +47278,13 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) return null;
     const [portfolio] = await db.select().from(portfolios).where(
-      and8(
-        eq17(portfolios.id, input.id),
-        eq17(portfolios.organizationId, ctx.orgId)
+      and9(
+        eq18(portfolios.id, input.id),
+        eq18(portfolios.organizationId, ctx.orgId)
       )
     );
     if (!portfolio) return null;
-    const links = await db.select().from(portfolioProjects).where(eq17(portfolioProjects.portfolioId, input.id));
+    const links = await db.select().from(portfolioProjects).where(eq18(portfolioProjects.portfolioId, input.id));
     if (links.length === 0) {
       return {
         ...portfolio,
@@ -43406,16 +47293,16 @@ var portfolioRouter = router({
       };
     }
     const projectIds = links.map((l) => l.projectId);
-    const projectList = await db.select().from(projects).where(and8(
-      inArray4(projects.id, projectIds),
-      eq17(projects.orgId, ctx.orgId)
+    const projectList = await db.select().from(projects).where(and9(
+      inArray5(projects.id, projectIds),
+      eq18(projects.orgId, ctx.orgId)
     ));
     if (projectList.length !== new Set(projectIds).size) {
       throw new TRPCError26({ code: "NOT_FOUND", message: "Resource not found" });
     }
     const authorizedProjectIds = projectList.map((project) => project.id);
-    const allScores = await db.select().from(scoreMatrices).where(inArray4(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc8(scoreMatrices.computedAt));
-    const allIntel = await db.select().from(projectIntelligence).where(inArray4(projectIntelligence.projectId, authorizedProjectIds)).orderBy(desc8(projectIntelligence.computedAt));
+    const allScores = await db.select().from(scoreMatrices).where(inArray5(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc9(scoreMatrices.computedAt));
+    const allIntel = await db.select().from(projectIntelligence).where(inArray5(projectIntelligence.projectId, authorizedProjectIds)).orderBy(desc9(projectIntelligence.computedAt));
     const latestScoreByProject = /* @__PURE__ */ new Map();
     for (const s of allScores) {
       if (!latestScoreByProject.has(s.projectId)) {
@@ -43539,9 +47426,9 @@ var portfolioRouter = router({
     if (input.name !== void 0) updates.name = input.name;
     if (input.description !== void 0)
       updates.description = input.description;
-    const [result] = await db.update(portfolios).set(updates).where(and8(
-      eq17(portfolios.id, input.id),
-      eq17(portfolios.organizationId, ctx.orgId)
+    const [result] = await db.update(portfolios).set(updates).where(and9(
+      eq18(portfolios.id, input.id),
+      eq18(portfolios.organizationId, ctx.orgId)
     ));
     if (Number(result.affectedRows) !== 1) {
       throw new TRPCError26({ code: "NOT_FOUND", message: "Resource not found" });
@@ -43553,15 +47440,15 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database error");
     const deleted = await db.transaction(async (tx) => {
-      const rows = await tx.select({ id: portfolios.id }).from(portfolios).where(and8(
-        eq17(portfolios.id, input.id),
-        eq17(portfolios.organizationId, ctx.orgId)
+      const rows = await tx.select({ id: portfolios.id }).from(portfolios).where(and9(
+        eq18(portfolios.id, input.id),
+        eq18(portfolios.organizationId, ctx.orgId)
       )).limit(1).for("update");
       if (rows.length !== 1) return false;
-      await tx.delete(portfolioProjects).where(eq17(portfolioProjects.portfolioId, input.id));
-      const [result] = await tx.delete(portfolios).where(and8(
-        eq17(portfolios.id, input.id),
-        eq17(portfolios.organizationId, ctx.orgId)
+      await tx.delete(portfolioProjects).where(eq18(portfolioProjects.portfolioId, input.id));
+      const [result] = await tx.delete(portfolios).where(and9(
+        eq18(portfolios.id, input.id),
+        eq18(portfolios.organizationId, ctx.orgId)
       ));
       return Number(result.affectedRows) === 1;
     });
@@ -43581,18 +47468,18 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database error");
     const result = await db.transaction(async (tx) => {
-      const [portfolio] = await tx.select({ id: portfolios.id }).from(portfolios).where(and8(
-        eq17(portfolios.id, input.portfolioId),
-        eq17(portfolios.organizationId, ctx.orgId)
+      const [portfolio] = await tx.select({ id: portfolios.id }).from(portfolios).where(and9(
+        eq18(portfolios.id, input.portfolioId),
+        eq18(portfolios.organizationId, ctx.orgId)
       )).limit(1).for("update");
-      const [project] = await tx.select({ id: projects.id }).from(projects).where(and8(
-        eq17(projects.id, input.projectId),
-        eq17(projects.orgId, ctx.orgId)
+      const [project] = await tx.select({ id: projects.id }).from(projects).where(and9(
+        eq18(projects.id, input.projectId),
+        eq18(projects.orgId, ctx.orgId)
       )).limit(1).for("update");
       if (!portfolio || !project) return "not_found";
-      const existing = await tx.select({ portfolioId: portfolioProjects.portfolioId }).from(portfolioProjects).where(and8(
-        eq17(portfolioProjects.portfolioId, input.portfolioId),
-        eq17(portfolioProjects.projectId, input.projectId)
+      const existing = await tx.select({ portfolioId: portfolioProjects.portfolioId }).from(portfolioProjects).where(and9(
+        eq18(portfolioProjects.portfolioId, input.portfolioId),
+        eq18(portfolioProjects.projectId, input.projectId)
       )).limit(1);
       if (existing.length > 0) return "existing";
       await tx.insert(portfolioProjects).values({
@@ -43617,18 +47504,18 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database error");
     const removed = await db.transaction(async (tx) => {
-      const [portfolio] = await tx.select({ id: portfolios.id }).from(portfolios).where(and8(
-        eq17(portfolios.id, input.portfolioId),
-        eq17(portfolios.organizationId, ctx.orgId)
+      const [portfolio] = await tx.select({ id: portfolios.id }).from(portfolios).where(and9(
+        eq18(portfolios.id, input.portfolioId),
+        eq18(portfolios.organizationId, ctx.orgId)
       )).limit(1).for("update");
-      const [project] = await tx.select({ id: projects.id }).from(projects).where(and8(
-        eq17(projects.id, input.projectId),
-        eq17(projects.orgId, ctx.orgId)
+      const [project] = await tx.select({ id: projects.id }).from(projects).where(and9(
+        eq18(projects.id, input.projectId),
+        eq18(projects.orgId, ctx.orgId)
       )).limit(1).for("update");
       if (!portfolio || !project) return false;
-      await tx.delete(portfolioProjects).where(and8(
-        eq17(portfolioProjects.portfolioId, input.portfolioId),
-        eq17(portfolioProjects.projectId, input.projectId)
+      await tx.delete(portfolioProjects).where(and9(
+        eq18(portfolioProjects.portfolioId, input.portfolioId),
+        eq18(portfolioProjects.projectId, input.projectId)
       ));
       return true;
     });
@@ -43641,9 +47528,9 @@ var portfolioRouter = router({
   availableProjects: orgProcedure.input(z32.object({ portfolioId: z32.number() })).query(async ({ ctx, input }) => {
     const db = await getDb();
     if (!db) return [];
-    const [portfolio] = await db.select({ id: portfolios.id }).from(portfolios).where(and8(
-      eq17(portfolios.id, input.portfolioId),
-      eq17(portfolios.organizationId, ctx.orgId)
+    const [portfolio] = await db.select({ id: portfolios.id }).from(portfolios).where(and9(
+      eq18(portfolios.id, input.portfolioId),
+      eq18(portfolios.organizationId, ctx.orgId)
     ));
     if (!portfolio) {
       throw new TRPCError26({
@@ -43651,8 +47538,8 @@ var portfolioRouter = router({
         message: "Portfolio not found"
       });
     }
-    const allProjects = await db.select().from(projects).where(eq17(projects.orgId, ctx.orgId));
-    const linked = await db.select({ projectId: portfolioProjects.projectId }).from(portfolioProjects).where(eq17(portfolioProjects.portfolioId, input.portfolioId));
+    const allProjects = await db.select().from(projects).where(eq18(projects.orgId, ctx.orgId));
+    const linked = await db.select({ projectId: portfolioProjects.projectId }).from(portfolioProjects).where(eq18(portfolioProjects.portfolioId, input.portfolioId));
     const linkedIds = new Set(linked.map((l) => l.projectId));
     return allProjects.filter((p) => !linkedIds.has(p.id)).map((p) => ({
       id: p.id,
@@ -43667,27 +47554,27 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database unavailable");
     const [portfolio] = await db.select().from(portfolios).where(
-      and8(
-        eq17(portfolios.id, input.id),
-        eq17(portfolios.organizationId, ctx.orgId)
+      and9(
+        eq18(portfolios.id, input.id),
+        eq18(portfolios.organizationId, ctx.orgId)
       )
     );
     if (!portfolio) throw new Error("Portfolio not found");
-    const links = await db.select().from(portfolioProjects).where(eq17(portfolioProjects.portfolioId, input.id));
+    const links = await db.select().from(portfolioProjects).where(eq18(portfolioProjects.portfolioId, input.id));
     if (links.length === 0) {
       throw new Error("Portfolio has no projects \u2014 add projects before generating a report.");
     }
     const pIds = links.map((l) => l.projectId);
-    const projectList = await db.select().from(projects).where(and8(
-      inArray4(projects.id, pIds),
-      eq17(projects.orgId, ctx.orgId)
+    const projectList = await db.select().from(projects).where(and9(
+      inArray5(projects.id, pIds),
+      eq18(projects.orgId, ctx.orgId)
     ));
     if (projectList.length !== new Set(pIds).size) {
       throw new TRPCError26({ code: "NOT_FOUND", message: "Resource not found" });
     }
     const authorizedProjectIds = projectList.map((project) => project.id);
-    const allScores = await db.select().from(scoreMatrices).where(inArray4(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc8(scoreMatrices.computedAt));
-    const allIntel = await db.select().from(projectIntelligence).where(inArray4(projectIntelligence.projectId, authorizedProjectIds)).orderBy(desc8(projectIntelligence.computedAt));
+    const allScores = await db.select().from(scoreMatrices).where(inArray5(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc9(scoreMatrices.computedAt));
+    const allIntel = await db.select().from(projectIntelligence).where(inArray5(projectIntelligence.projectId, authorizedProjectIds)).orderBy(desc9(projectIntelligence.computedAt));
     const latestScoreByProject = /* @__PURE__ */ new Map();
     for (const s of allScores) {
       if (!latestScoreByProject.has(s.projectId)) {
@@ -43785,31 +47672,31 @@ var portfolioRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database unavailable");
     const [portfolio] = await db.select().from(portfolios).where(
-      and8(
-        eq17(portfolios.id, input.id),
-        eq17(portfolios.organizationId, ctx.orgId)
+      and9(
+        eq18(portfolios.id, input.id),
+        eq18(portfolios.organizationId, ctx.orgId)
       )
     );
     if (!portfolio) throw new Error("Portfolio not found");
-    const links = await db.select().from(portfolioProjects).where(eq17(portfolioProjects.portfolioId, input.id));
+    const links = await db.select().from(portfolioProjects).where(eq18(portfolioProjects.portfolioId, input.id));
     if (links.length === 0) return { alerts: [], message: "No projects in portfolio" };
     const pIds = links.map((l) => l.projectId);
-    const projectList = await db.select().from(projects).where(and8(
-      inArray4(projects.id, pIds),
-      eq17(projects.orgId, ctx.orgId)
+    const projectList = await db.select().from(projects).where(and9(
+      inArray5(projects.id, pIds),
+      eq18(projects.orgId, ctx.orgId)
     ));
     if (projectList.length !== new Set(pIds).size) {
       throw new TRPCError26({ code: "NOT_FOUND", message: "Resource not found" });
     }
     const authorizedProjectIds = projectList.map((project) => project.id);
-    const allScores = await db.select().from(scoreMatrices).where(inArray4(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc8(scoreMatrices.computedAt));
+    const allScores = await db.select().from(scoreMatrices).where(inArray5(scoreMatrices.projectId, authorizedProjectIds)).orderBy(desc9(scoreMatrices.computedAt));
     const latestScoreByProject = /* @__PURE__ */ new Map();
     for (const s of allScores) {
       if (!latestScoreByProject.has(s.projectId)) {
         latestScoreByProject.set(s.projectId, s);
       }
     }
-    const allIntel = await db.select().from(projectIntelligence).where(inArray4(projectIntelligence.projectId, pIds)).orderBy(desc8(projectIntelligence.computedAt));
+    const allIntel = await db.select().from(projectIntelligence).where(inArray5(projectIntelligence.projectId, pIds)).orderBy(desc9(projectIntelligence.computedAt));
     const intelByProject = /* @__PURE__ */ new Map();
     for (const intel of allIntel) {
       if (!intelByProject.has(intel.projectId)) {
@@ -43907,7 +47794,7 @@ var portfolioRouter = router({
       });
     }
     for (const alert of candidates) {
-      alert.activeDedupKey = createHash7("sha256").update(JSON.stringify({
+      alert.activeDedupKey = createHash9("sha256").update(JSON.stringify({
         organizationId: ctx.orgId,
         portfolioId: portfolio.id,
         alertType: alert.alertType,
@@ -43941,7 +47828,7 @@ import { z as z33 } from "zod";
 init_db();
 init_db();
 init_schema();
-import { eq as eq18, desc as desc9, gte as gte2, and as and9, count } from "drizzle-orm";
+import { eq as eq19, desc as desc10, gte as gte2, and as and10, count } from "drizzle-orm";
 
 // server/engines/customer/health-score.ts
 function clamp2(v, min = 0, max2 = 100) {
@@ -44076,8 +47963,8 @@ var customerSuccessRouter = router({
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1e3);
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const recentLogs = await d.select().from(auditLogs).where(and9(
-      eq18(auditLogs.userId, userId),
+    const recentLogs = await d.select().from(auditLogs).where(and10(
+      eq19(auditLogs.userId, userId),
       gte2(auditLogs.createdAt, thirtyDaysAgo)
     ));
     const totalActions = recentLogs.length;
@@ -44090,7 +47977,7 @@ var customerSuccessRouter = router({
     const totalProjects = projects2?.length || 0;
     const evaluatedProjects = projects2?.filter((p) => p.status === "evaluated").length || 0;
     const scenarioActions = recentLogs.filter((l) => l.entityType === "scenario").length;
-    const simRows = await d.select({ c: count() }).from(monteCarloSimulations).where(eq18(monteCarloSimulations.userId, userId));
+    const simRows = await d.select({ c: count() }).from(monteCarloSimulations).where(eq19(monteCarloSimulations.userId, userId));
     const simulationsRun = simRows[0]?.c || 0;
     const biasScanActions = recentLogs.filter((l) => l.action === "bias.scan").length;
     const portfolioActions = recentLogs.filter((l) => l.entityType === "portfolio").length;
@@ -44099,7 +47986,7 @@ var customerSuccessRouter = router({
     ).length;
     const evaluatedProjScores = [];
     const avgProjectScore = evaluatedProjScores.length > 0 ? evaluatedProjScores.reduce((s, v) => s + v, 0) / evaluatedProjScores.length : 0;
-    const allBiasAlerts = await d.select().from(biasAlerts).where(eq18(biasAlerts.userId, userId));
+    const allBiasAlerts = await d.select().from(biasAlerts).where(eq19(biasAlerts.userId, userId));
     const biasAlertsTotal = allBiasAlerts.length;
     const biasAlertsDismissed = allBiasAlerts.filter((a) => a.dismissed === true).length;
     const thisMonthProjects = projects2?.filter(
@@ -44152,7 +48039,7 @@ var customerSuccessRouter = router({
   getHealth: protectedProcedure.query(async ({ ctx }) => {
     const d = await getDb();
     if (!d) return null;
-    const rows = await d.select().from(customerHealthScores).where(eq18(customerHealthScores.userId, ctx.user.id)).orderBy(desc9(customerHealthScores.createdAt)).limit(1);
+    const rows = await d.select().from(customerHealthScores).where(eq19(customerHealthScores.userId, ctx.user.id)).orderBy(desc10(customerHealthScores.createdAt)).limit(1);
     return rows[0] || null;
   }),
   // Recent activity feed
@@ -44160,7 +48047,7 @@ var customerSuccessRouter = router({
     const d = await getDb();
     if (!d) return [];
     const limit = input?.limit || 20;
-    return d.select().from(auditLogs).where(eq18(auditLogs.userId, ctx.user.id)).orderBy(desc9(auditLogs.createdAt)).limit(limit);
+    return d.select().from(auditLogs).where(eq19(auditLogs.userId, ctx.user.id)).orderBy(desc10(auditLogs.createdAt)).limit(limit);
   })
 });
 
@@ -44169,7 +48056,7 @@ import { z as z34 } from "zod";
 init_db();
 init_db();
 init_schema();
-import { eq as eq19, desc as desc10 } from "drizzle-orm";
+import { eq as eq20, desc as desc11 } from "drizzle-orm";
 
 // server/engines/sustainability/digital-twin.ts
 var MATERIAL_DB = {
@@ -44876,13 +48763,13 @@ var sustainabilityRouter = router({
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const d = await getDb();
     if (!d) return [];
-    return d.select().from(digitalTwinModels).where(eq19(digitalTwinModels.projectId, input.projectId)).orderBy(desc10(digitalTwinModels.createdAt)).limit(10);
+    return d.select().from(digitalTwinModels).where(eq20(digitalTwinModels.projectId, input.projectId)).orderBy(desc11(digitalTwinModels.createdAt)).limit(10);
   }),
   getLatestTwin: orgProcedure.input(z34.object({ projectId: z34.number() })).query(async ({ ctx, input }) => {
     await requireProjectForOrg(input.projectId, ctx.orgId);
     const d = await getDb();
     if (!d) return null;
-    const rows = await d.select().from(digitalTwinModels).where(eq19(digitalTwinModels.projectId, input.projectId)).orderBy(desc10(digitalTwinModels.createdAt)).limit(1);
+    const rows = await d.select().from(digitalTwinModels).where(eq20(digitalTwinModels.projectId, input.projectId)).orderBy(desc11(digitalTwinModels.createdAt)).limit(1);
     return rows[0] || null;
   }),
   evaluateCompliance: orgProcedure.input(z34.object({
@@ -44892,7 +48779,7 @@ var sustainabilityRouter = router({
     const d = await getDb();
     if (!d) throw new Error("Database unavailable");
     const city = project.city || "Dubai";
-    const rows = await d.select().from(digitalTwinModels).where(eq19(digitalTwinModels.projectId, input.projectId)).orderBy(desc10(digitalTwinModels.createdAt)).limit(1);
+    const rows = await d.select().from(digitalTwinModels).where(eq20(digitalTwinModels.projectId, input.projectId)).orderBy(desc11(digitalTwinModels.createdAt)).limit(1);
     const twin = rows[0];
     if (!twin) throw new Error("No digital twin computed yet. Run 'Compute Twin' first.");
     const config = twin.config || {};
@@ -45434,6 +49321,7 @@ import { TRPCError as TRPCError27 } from "@trpc/server";
 init_db();
 init_space_program();
 init_material_quantity_engine();
+init_material_resolution();
 init_quantity_policy();
 var materialQuantityRouter = router({
   /**
@@ -45995,7 +49883,7 @@ ${rawContent.substring(0, 6e3)}`
 // server/routers/spaceProgram.ts
 import { z as z40 } from "zod";
 import { TRPCError as TRPCError29 } from "@trpc/server";
-import { createHash as createHash9 } from "node:crypto";
+import { createHash as createHash11 } from "node:crypto";
 init_db();
 
 // server/engines/design/typology-fitout-rules.ts
@@ -46547,7 +50435,7 @@ function redistributeBudget(rooms) {
 
 // server/routers/spaceProgram-geometry.ts
 import { TRPCError as TRPCError28 } from "@trpc/server";
-import { createHash as createHash8 } from "node:crypto";
+import { createHash as createHash10 } from "node:crypto";
 import { z as z39 } from "zod";
 init_db();
 init_geometry();
@@ -46668,7 +50556,7 @@ async function readAuthorizedDxf(input) {
       message: "Geometry asset is unavailable or oversized."
     });
   }
-  const checksum2 = createHash8("sha256").update(stored.buffer).digest("hex");
+  const checksum2 = createHash10("sha256").update(stored.buffer).digest("hex");
   if (checksum2 !== asset.checksum) {
     throw new TRPCError28({
       code: "CONFLICT",
@@ -46731,7 +50619,7 @@ function importIdempotencyKey(input) {
     sourceChecksum: input.sourceChecksum,
     sourceLineageId: input.sourceLineageId
   };
-  return createHash8("sha256").update(JSON.stringify(payload)).digest("hex");
+  return createHash10("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 var spaceProgramGeometryRouter = router({
   previewManualGeometry: orgHeavyMutationProcedure.input(
@@ -46813,7 +50701,7 @@ var spaceProgramGeometryRouter = router({
         levelId: `elevation:${canonical3.geometry.rooms.find((draftRoom) => draftRoom.spaceId === room.spaceId)?.levelElevationMicrometres ?? "0"}`
       }));
       sourceObservation = { rooms: input.source.rooms };
-      sourceChecksum = createHash8("sha256").update(JSON.stringify(sourceObservation)).digest("hex");
+      sourceChecksum = createHash10("sha256").update(JSON.stringify(sourceObservation)).digest("hex");
       assetChecksum = sourceChecksum;
       adapterVersion = "miyar-manual-v1";
     } else {
@@ -47140,7 +51028,7 @@ var legacySpaceProgramRouter = router({
       asset.storagePath,
       DXF_BOUNDARY_LIMITS.sourceBytes
     );
-    if (stored.sizeBytes <= 0 || stored.sizeBytes > DXF_BOUNDARY_LIMITS.sourceBytes || createHash9("sha256").update(stored.buffer).digest("hex") !== asset.checksum) {
+    if (stored.sizeBytes <= 0 || stored.sizeBytes > DXF_BOUNDARY_LIMITS.sourceBytes || createHash11("sha256").update(stored.buffer).digest("hex") !== asset.checksum) {
       throw new Error("Finalized CAD asset failed integrity validation");
     }
     let fileContent;
@@ -48121,8 +52009,8 @@ function evaluateBriefReadiness(facts) {
 
 // server/db/brief-workflow.ts
 init_db();
-import { createHash as createHash10 } from "node:crypto";
-import { and as and10, asc as asc2, desc as desc11, eq as eq20, inArray as inArray5, sql as sql9 } from "drizzle-orm";
+import { createHash as createHash12 } from "node:crypto";
+import { and as and11, asc as asc3, desc as desc12, eq as eq21, inArray as inArray6, sql as sql10 } from "drizzle-orm";
 init_schema();
 var BRIEF_SECTION_IDS2 = [
   "intent",
@@ -48148,7 +52036,7 @@ function canonical(value) {
   return `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`).join(",")}}`;
 }
 function hashBriefRequest(value) {
-  return createHash10("sha256").update(canonical(value)).digest("hex");
+  return createHash12("sha256").update(canonical(value)).digest("hex");
 }
 function normalizeApplicabilityStage(action) {
   return action === "propose" ? "proposed" : action === "accept_review" ? "reviewed" : action === "approve" ? "approved" : action === "withdraw" ? "withdrawn" : null;
@@ -48169,12 +52057,12 @@ function positive(value, label) {
     );
   return n;
 }
-async function database() {
+async function database2() {
   const db = await getDb();
   if (!db) throw new BriefWorkflowError("UNAVAILABLE", "Database unavailable");
   return db;
 }
-function retryableTransactionError(error) {
+function retryableTransactionError2(error) {
   const value = error;
   return value?.code === "ER_LOCK_DEADLOCK" || value?.code === "ER_LOCK_WAIT_TIMEOUT" || value?.errno === 1213 || value?.errno === 1205;
 }
@@ -48183,7 +52071,7 @@ async function withBriefTransaction(db, work) {
     try {
       return await db.transaction(work);
     } catch (error) {
-      if (!retryableTransactionError(error) || attempt === 3) throw error;
+      if (!retryableTransactionError2(error) || attempt === 3) throw error;
     }
   }
   throw new BriefWorkflowError("UNAVAILABLE", "Brief transaction retry budget exhausted");
@@ -48196,14 +52084,14 @@ async function lockTenant(tx, context3, projectId, requireAdmin = false) {
     memberRole: organizationMembers.role
   }).from(projects).innerJoin(
     organizationMembers,
-    and10(
-      eq20(organizationMembers.orgId, context3.organizationId),
-      eq20(organizationMembers.userId, context3.userId)
+    and11(
+      eq21(organizationMembers.orgId, context3.organizationId),
+      eq21(organizationMembers.userId, context3.userId)
     )
   ).where(
-    and10(
-      eq20(projects.id, projectId),
-      eq20(projects.orgId, context3.organizationId)
+    and11(
+      eq21(projects.id, projectId),
+      eq21(projects.orgId, context3.organizationId)
     )
   ).limit(1).for("update");
   if (!rows[0])
@@ -48227,10 +52115,10 @@ function normalizeBriefProfile(value) {
 async function lockStream(tx, context3, projectId, streamId) {
   await lockTenant(tx, context3, projectId);
   const rows = await tx.select().from(briefStreams).where(
-    and10(
-      eq20(briefStreams.organizationId, context3.organizationId),
-      eq20(briefStreams.projectId, projectId),
-      eq20(briefStreams.id, streamId)
+    and11(
+      eq21(briefStreams.organizationId, context3.organizationId),
+      eq21(briefStreams.projectId, projectId),
+      eq21(briefStreams.id, streamId)
     )
   ).limit(1).for("update");
   if (!rows[0])
@@ -48239,14 +52127,14 @@ async function lockStream(tx, context3, projectId, streamId) {
 }
 async function activeRole(tx, context3, streamId, role, sectionId) {
   const rows = await tx.select().from(briefRoleEvents).where(
-    and10(
-      eq20(briefRoleEvents.organizationId, context3.organizationId),
-      eq20(briefRoleEvents.streamId, streamId),
-      eq20(briefRoleEvents.subjectUserId, context3.userId),
-      sql9`${briefRoleEvents.role}=${role}`,
-      sectionId ? sql9`(${briefRoleEvents.sectionId} is null or ${briefRoleEvents.sectionId}=${sectionId})` : sql9`1=1`
+    and11(
+      eq21(briefRoleEvents.organizationId, context3.organizationId),
+      eq21(briefRoleEvents.streamId, streamId),
+      eq21(briefRoleEvents.subjectUserId, context3.userId),
+      sql10`${briefRoleEvents.role}=${role}`,
+      sectionId ? sql10`(${briefRoleEvents.sectionId} is null or ${briefRoleEvents.sectionId}=${sectionId})` : sql10`1=1`
     )
-  ).orderBy(desc11(briefRoleEvents.streamSequence));
+  ).orderBy(desc12(briefRoleEvents.streamSequence));
   const latest = rows.find(
     (r) => r.action === "granted" && !rows.some(
       (x) => x.action === "revoked" && x.targetGrantEventId === r.id
@@ -48263,11 +52151,11 @@ async function allocateEvents(tx, stream, operationId, actor, versionId, events)
   const first = Number(stream.nextEventSequence);
   const next = first + events.length;
   const allocation = await tx.update(briefStreams).set({ nextEventSequence: next }).where(
-    and10(
-      eq20(briefStreams.organizationId, actor.organizationId),
-      eq20(briefStreams.projectId, stream.projectId),
-      eq20(briefStreams.id, stream.id),
-      eq20(briefStreams.nextEventSequence, first)
+    and11(
+      eq21(briefStreams.organizationId, actor.organizationId),
+      eq21(briefStreams.projectId, stream.projectId),
+      eq21(briefStreams.id, stream.id),
+      eq21(briefStreams.nextEventSequence, first)
     )
   );
   if (Number(allocation[0]?.affectedRows) !== 1)
@@ -48297,24 +52185,24 @@ async function createBriefStream(input, context3) {
     throw new BriefWorkflowError("FORBIDDEN", "A human organization administrator is required");
   const projectId = positive(input.projectId, "projectId");
   const requestHash = hashBriefRequest(input);
-  const db = await database();
+  const db = await database2();
   return withBriefTransaction(db, async (tx) => {
     const tenant = await lockTenant(tx, context3, projectId, true);
     if (input.scope?.type === "scenario") {
       const scenarioId = positive(input.scope.scenarioId, "scenarioId");
       const found = await tx.select({ id: scenarios.id }).from(scenarios).where(
-        and10(eq20(scenarios.id, scenarioId), eq20(scenarios.projectId, projectId))
+        and11(eq21(scenarios.id, scenarioId), eq21(scenarios.projectId, projectId))
       ).limit(1).for("update");
       if (!found[0])
         throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
     }
     const existing = await tx.select().from(briefOperations).where(
-      and10(
-        eq20(briefOperations.organizationId, context3.organizationId),
-        eq20(briefOperations.projectId, projectId),
-        eq20(briefOperations.actorUserId, context3.userId),
-        eq20(briefOperations.operation, "createStream"),
-        eq20(briefOperations.idempotencyKey, input.idempotencyKey)
+      and11(
+        eq21(briefOperations.organizationId, context3.organizationId),
+        eq21(briefOperations.projectId, projectId),
+        eq21(briefOperations.actorUserId, context3.userId),
+        eq21(briefOperations.operation, "createStream"),
+        eq21(briefOperations.idempotencyKey, input.idempotencyKey)
       )
     ).limit(1).for("update");
     if (existing[0]) {
@@ -48378,7 +52266,7 @@ async function createBriefStream(input, context3) {
     );
     if (input.initialAssignments?.length) {
       const assigneeIds = Array.from(new Set(input.initialAssignments.map((a) => positive(a.userId, "assignment userId"))));
-      const members = await tx.select({ userId: organizationMembers.userId }).from(organizationMembers).where(and10(eq20(organizationMembers.orgId, context3.organizationId), inArray5(organizationMembers.userId, assigneeIds))).for("update");
+      const members = await tx.select({ userId: organizationMembers.userId }).from(organizationMembers).where(and11(eq21(organizationMembers.orgId, context3.organizationId), inArray6(organizationMembers.userId, assigneeIds))).for("update");
       if (members.length !== assigneeIds.length)
         throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
       await tx.insert(briefRoleEvents).values(
@@ -48429,7 +52317,7 @@ async function createBriefStream(input, context3) {
       resultRevision: 1,
       result: value,
       completedAt: /* @__PURE__ */ new Date()
-    }).where(eq20(briefOperations.id, operationId));
+    }).where(eq21(briefOperations.id, operationId));
     return value;
   });
 }
@@ -48454,16 +52342,16 @@ async function executeBriefCommand(operation, input, context3) {
       throw new BriefWorkflowError("INVALID", "Section dependencies must be resolved by an authorized server picker");
     }
   }
-  const projectId = positive(input.projectId, "projectId"), streamId = positive(input.briefId ?? input.streamId, "briefId"), db = await database(), requestHash = hashBriefRequest(input);
+  const projectId = positive(input.projectId, "projectId"), streamId = positive(input.briefId ?? input.streamId, "briefId"), db = await database2(), requestHash = hashBriefRequest(input);
   return withBriefTransaction(db, async (tx) => {
     const stream = await lockStream(tx, context3, projectId, streamId);
     const previous = await tx.select().from(briefOperations).where(
-      and10(
-        eq20(briefOperations.organizationId, context3.organizationId),
-        eq20(briefOperations.projectId, projectId),
-        eq20(briefOperations.actorUserId, context3.userId),
-        eq20(briefOperations.operation, operation),
-        eq20(briefOperations.idempotencyKey, input.idempotencyKey)
+      and11(
+        eq21(briefOperations.organizationId, context3.organizationId),
+        eq21(briefOperations.projectId, projectId),
+        eq21(briefOperations.actorUserId, context3.userId),
+        eq21(briefOperations.operation, operation),
+        eq21(briefOperations.idempotencyKey, input.idempotencyKey)
       )
     ).limit(1).for("update");
     if (previous[0]) {
@@ -48496,20 +52384,20 @@ async function executeBriefCommand(operation, input, context3) {
     const operationId = Number(op[0].insertId);
     const versionId = input.versionId ? positive(input.versionId, "versionId") : Number(
       (await tx.select({ id: briefVersions.id }).from(briefVersions).where(
-        and10(
-          eq20(briefVersions.organizationId, context3.organizationId),
-          eq20(briefVersions.streamId, streamId)
+        and11(
+          eq21(briefVersions.organizationId, context3.organizationId),
+          eq21(briefVersions.streamId, streamId)
         )
-      ).orderBy(desc11(briefVersions.versionNumber)).limit(1).for("update"))[0]?.id
+      ).orderBy(desc12(briefVersions.versionNumber)).limit(1).for("update"))[0]?.id
     );
     if (!versionId)
       throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
     const versionRows = await tx.select().from(briefVersions).where(
-      and10(
-        eq20(briefVersions.organizationId, context3.organizationId),
-        eq20(briefVersions.projectId, projectId),
-        eq20(briefVersions.streamId, streamId),
-        eq20(briefVersions.id, versionId)
+      and11(
+        eq21(briefVersions.organizationId, context3.organizationId),
+        eq21(briefVersions.projectId, projectId),
+        eq21(briefVersions.streamId, streamId),
+        eq21(briefVersions.id, versionId)
       )
     ).limit(1).for("update");
     if (!versionRows[0])
@@ -48558,11 +52446,11 @@ async function executeBriefCommand(operation, input, context3) {
       });
       entityId = Number(inserted[0].insertId);
       const currentBinding = (await tx.select().from(briefVersionSections).where(
-        and10(
-          eq20(briefVersionSections.organizationId, context3.organizationId),
-          eq20(briefVersionSections.projectId, projectId),
-          eq20(briefVersionSections.versionId, versionId),
-          eq20(briefVersionSections.sectionId, sectionId)
+        and11(
+          eq21(briefVersionSections.organizationId, context3.organizationId),
+          eq21(briefVersionSections.projectId, projectId),
+          eq21(briefVersionSections.versionId, versionId),
+          eq21(briefVersionSections.sectionId, sectionId)
         )
       ).limit(1).for("update"))[0];
       if (!currentBinding)
@@ -48573,13 +52461,13 @@ async function executeBriefCommand(operation, input, context3) {
         achievedState: "drafted",
         classifications: suppliedClassifications,
         classificationFingerprint: hashBriefRequest(suppliedClassifications),
-        revision: sql9`${briefVersionSections.revision}+1`
+        revision: sql10`${briefVersionSections.revision}+1`
       }).where(
-        and10(
-          eq20(briefVersionSections.organizationId, context3.organizationId),
-          eq20(briefVersionSections.projectId, projectId),
-          eq20(briefVersionSections.versionId, versionId),
-          eq20(briefVersionSections.sectionId, sectionId)
+        and11(
+          eq21(briefVersionSections.organizationId, context3.organizationId),
+          eq21(briefVersionSections.projectId, projectId),
+          eq21(briefVersionSections.versionId, versionId),
+          eq21(briefVersionSections.sectionId, sectionId)
         )
       );
       for (const dependency2 of input.dependencies ?? []) {
@@ -48611,17 +52499,17 @@ async function executeBriefCommand(operation, input, context3) {
       const role = operation.endsWith("submitEvidence") ? "section_owner" : operation.endsWith("acceptReview") ? "reviewer" : "approver";
       await activeRole(tx, context3, streamId, role, sectionId);
       const binding = (await tx.select().from(briefVersionSections).where(
-        and10(
-          eq20(briefVersionSections.organizationId, context3.organizationId),
-          eq20(briefVersionSections.versionId, versionId),
-          eq20(briefVersionSections.sectionId, sectionId)
+        and11(
+          eq21(briefVersionSections.organizationId, context3.organizationId),
+          eq21(briefVersionSections.versionId, versionId),
+          eq21(briefVersionSections.sectionId, sectionId)
         )
       ).limit(1).for("update"))[0];
       if (!binding?.sectionRevisionId)
         throw new BriefWorkflowError("INVALID", "Section has no revision");
       if (positive(input.revisionId, "revisionId") !== binding.sectionRevisionId)
         throw new BriefWorkflowError("CONFLICT", "Command targets a stale section revision");
-      const revision = (await tx.select().from(briefSectionRevisions).where(eq20(briefSectionRevisions.id, binding.sectionRevisionId)).limit(1))[0];
+      const revision = (await tx.select().from(briefSectionRevisions).where(eq21(briefSectionRevisions.id, binding.sectionRevisionId)).limit(1))[0];
       if (revision?.authorUserId === context3.userId && role !== "section_owner")
         throw new BriefWorkflowError(
           "FORBIDDEN",
@@ -48631,31 +52519,31 @@ async function executeBriefCommand(operation, input, context3) {
       if (binding.achievedState !== expected)
         throw new BriefWorkflowError("INVALID", `Section must be ${expected}`);
       if (role === "reviewer") {
-        const blocking = await tx.select({ id: briefFindings.id }).from(briefFindings).where(and10(
-          eq20(briefFindings.organizationId, context3.organizationId),
-          eq20(briefFindings.projectId, projectId),
-          eq20(briefFindings.streamId, streamId),
-          eq20(briefFindings.versionId, versionId),
-          eq20(briefFindings.bindingId, binding.id),
-          eq20(briefFindings.sectionRevisionId, binding.sectionRevisionId),
-          eq20(briefFindings.severity, "blocking")
+        const blocking = await tx.select({ id: briefFindings.id }).from(briefFindings).where(and11(
+          eq21(briefFindings.organizationId, context3.organizationId),
+          eq21(briefFindings.projectId, projectId),
+          eq21(briefFindings.streamId, streamId),
+          eq21(briefFindings.versionId, versionId),
+          eq21(briefFindings.bindingId, binding.id),
+          eq21(briefFindings.sectionRevisionId, binding.sectionRevisionId),
+          eq21(briefFindings.severity, "blocking")
         )).for("update");
-        const resolutionRows = blocking.length ? await tx.select().from(briefFindingResolutions).where(and10(
-          eq20(briefFindingResolutions.organizationId, context3.organizationId),
-          eq20(briefFindingResolutions.projectId, projectId),
-          eq20(briefFindingResolutions.streamId, streamId),
-          inArray5(briefFindingResolutions.findingId, blocking.map((f) => f.id))
+        const resolutionRows = blocking.length ? await tx.select().from(briefFindingResolutions).where(and11(
+          eq21(briefFindingResolutions.organizationId, context3.organizationId),
+          eq21(briefFindingResolutions.projectId, projectId),
+          eq21(briefFindingResolutions.streamId, streamId),
+          inArray6(briefFindingResolutions.findingId, blocking.map((f) => f.id))
         )).for("update") : [];
         if (blocking.some((f) => !resolutionRows.some((r) => r.findingId === f.id && r.stage === "accepted")))
           throw new BriefWorkflowError("INVALID", "Blocking findings must be resolved before review acceptance");
       }
       if (role === "approver") {
-        const conditionRows = await tx.select().from(briefConditionEvents).where(and10(
-          eq20(briefConditionEvents.organizationId, context3.organizationId),
-          eq20(briefConditionEvents.projectId, projectId),
-          eq20(briefConditionEvents.streamId, streamId),
-          eq20(briefConditionEvents.versionId, versionId),
-          eq20(briefConditionEvents.bindingId, binding.id)
+        const conditionRows = await tx.select().from(briefConditionEvents).where(and11(
+          eq21(briefConditionEvents.organizationId, context3.organizationId),
+          eq21(briefConditionEvents.projectId, projectId),
+          eq21(briefConditionEvents.streamId, streamId),
+          eq21(briefConditionEvents.versionId, versionId),
+          eq21(briefConditionEvents.bindingId, binding.id)
         )).for("update");
         const active = conditionRows.filter((c) => c.stage === "raised" && !conditionRows.some((accepted) => accepted.stage === "resolution_accepted" && conditionRows.some((submitted) => submitted.id === accepted.targetEventId && submitted.stage === "resolution_submitted" && submitted.targetEventId === c.id)));
         if (active.length) throw new BriefWorkflowError("INVALID", "Active conditions must be resolved before approval");
@@ -48670,11 +52558,11 @@ async function executeBriefCommand(operation, input, context3) {
             "Evidence requires at least one governed dependency"
           );
         const available = await tx.select({ id: briefDependencies.id }).from(briefDependencies).where(
-          and10(
-            eq20(briefDependencies.organizationId, context3.organizationId),
-            eq20(briefDependencies.projectId, projectId),
-            eq20(briefDependencies.bindingId, binding.id),
-            eq20(briefDependencies.sectionRevisionId, binding.sectionRevisionId)
+          and11(
+            eq21(briefDependencies.organizationId, context3.organizationId),
+            eq21(briefDependencies.projectId, projectId),
+            eq21(briefDependencies.bindingId, binding.id),
+            eq21(briefDependencies.sectionRevisionId, binding.sectionRevisionId)
           )
         );
         if (dependencyIds.some(
@@ -48701,8 +52589,8 @@ async function executeBriefCommand(operation, input, context3) {
       }
       await tx.update(briefVersionSections).set({
         achievedState: next,
-        revision: sql9`${briefVersionSections.revision}+1`
-      }).where(eq20(briefVersionSections.id, binding.id));
+        revision: sql10`${briefVersionSections.revision}+1`
+      }).where(eq21(briefVersionSections.id, binding.id));
     } else if (operation.endsWith("createVersion")) {
       await activeRole(tx, context3, streamId, "author").catch(
         () => activeRole(tx, context3, streamId, "section_owner")
@@ -48712,18 +52600,18 @@ async function executeBriefCommand(operation, input, context3) {
         "predecessorVersionId"
       );
       const predecessor = (await tx.select().from(briefVersions).where(
-        and10(
-          eq20(briefVersions.organizationId, context3.organizationId),
-          eq20(briefVersions.streamId, streamId),
-          eq20(briefVersions.id, predecessorId)
+        and11(
+          eq21(briefVersions.organizationId, context3.organizationId),
+          eq21(briefVersions.streamId, streamId),
+          eq21(briefVersions.id, predecessorId)
         )
       ).limit(1).for("update"))[0];
       if (!predecessor)
         throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
-      const latest = (await tx.select({ n: sql9`max(${briefVersions.versionNumber})` }).from(briefVersions).where(
-        and10(
-          eq20(briefVersions.organizationId, context3.organizationId),
-          eq20(briefVersions.streamId, streamId)
+      const latest = (await tx.select({ n: sql10`max(${briefVersions.versionNumber})` }).from(briefVersions).where(
+        and11(
+          eq21(briefVersions.organizationId, context3.organizationId),
+          eq21(briefVersions.streamId, streamId)
         )
       ))[0];
       const n = Number(latest?.n ?? 0) + 1;
@@ -48741,11 +52629,11 @@ async function executeBriefCommand(operation, input, context3) {
       });
       entityId = Number(ins[0].insertId);
       const old = await tx.select().from(briefVersionSections).where(
-        and10(
-          eq20(briefVersionSections.organizationId, context3.organizationId),
-          eq20(briefVersionSections.versionId, predecessorId)
+        and11(
+          eq21(briefVersionSections.organizationId, context3.organizationId),
+          eq21(briefVersionSections.versionId, predecessorId)
         )
-      ).orderBy(asc2(briefVersionSections.id));
+      ).orderBy(asc3(briefVersionSections.id));
       const carry = new Set(input.carryForwardSections ?? []);
       await tx.insert(briefVersionSections).values(
         old.map((b) => ({
@@ -48769,18 +52657,18 @@ async function executeBriefCommand(operation, input, context3) {
       const revoke = operation.endsWith("revokeRole");
       const requestedSubject = input.userId ?? input.subjectUserId;
       const subject = revoke ? null : positive(requestedSubject, "subjectUserId");
-      const targetGrant = revoke ? (await tx.select().from(briefRoleEvents).where(and10(
-        eq20(briefRoleEvents.organizationId, context3.organizationId),
-        eq20(briefRoleEvents.projectId, projectId),
-        eq20(briefRoleEvents.streamId, streamId),
-        eq20(briefRoleEvents.id, positive(input.grantEventId ?? input.targetGrantEventId, "grantEventId")),
-        eq20(briefRoleEvents.action, "granted")
+      const targetGrant = revoke ? (await tx.select().from(briefRoleEvents).where(and11(
+        eq21(briefRoleEvents.organizationId, context3.organizationId),
+        eq21(briefRoleEvents.projectId, projectId),
+        eq21(briefRoleEvents.streamId, streamId),
+        eq21(briefRoleEvents.id, positive(input.grantEventId ?? input.targetGrantEventId, "grantEventId")),
+        eq21(briefRoleEvents.action, "granted")
       )).limit(1).for("update"))[0] : null;
       if (revoke && !targetGrant) throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
       const member = (await tx.select().from(organizationMembers).where(
-        and10(
-          eq20(organizationMembers.orgId, context3.organizationId),
-          eq20(organizationMembers.userId, revoke ? targetGrant.subjectUserId : subject)
+        and11(
+          eq21(organizationMembers.orgId, context3.organizationId),
+          eq21(organizationMembers.userId, revoke ? targetGrant.subjectUserId : subject)
         )
       ).limit(1).for("update"))[0];
       if (!member)
@@ -48807,10 +52695,10 @@ async function executeBriefCommand(operation, input, context3) {
     } else if (operation.endsWith("recordFinding")) {
       await activeRole(tx, context3, streamId, "reviewer", sectionId);
       const binding = (await tx.select().from(briefVersionSections).where(
-        and10(
-          eq20(briefVersionSections.organizationId, context3.organizationId),
-          eq20(briefVersionSections.versionId, versionId),
-          eq20(briefVersionSections.sectionId, sectionId)
+        and11(
+          eq21(briefVersionSections.organizationId, context3.organizationId),
+          eq21(briefVersionSections.versionId, versionId),
+          eq21(briefVersionSections.sectionId, sectionId)
         )
       ).limit(1).for("update"))[0];
       if (!binding?.sectionRevisionId)
@@ -48820,7 +52708,7 @@ async function executeBriefCommand(operation, input, context3) {
         );
       if (positive(input.revisionId, "revisionId") !== binding.sectionRevisionId)
         throw new BriefWorkflowError("CONFLICT", "Finding targets a stale section revision");
-      const rev = (await tx.select().from(briefSectionRevisions).where(eq20(briefSectionRevisions.id, binding.sectionRevisionId)).limit(1))[0];
+      const rev = (await tx.select().from(briefSectionRevisions).where(eq21(briefSectionRevisions.id, binding.sectionRevisionId)).limit(1))[0];
       if (rev?.authorUserId === context3.userId)
         throw new BriefWorkflowError(
           "FORBIDDEN",
@@ -48844,12 +52732,12 @@ async function executeBriefCommand(operation, input, context3) {
     } else if (operation.endsWith("submitFindingResolution") || operation.endsWith("acceptFindingResolution")) {
       const findingId = positive(input.findingId, "findingId");
       const finding = (await tx.select().from(briefFindings).where(
-        and10(
-          eq20(briefFindings.organizationId, context3.organizationId),
-          eq20(briefFindings.projectId, projectId),
-          eq20(briefFindings.streamId, streamId),
-          eq20(briefFindings.versionId, versionId),
-          eq20(briefFindings.id, findingId)
+        and11(
+          eq21(briefFindings.organizationId, context3.organizationId),
+          eq21(briefFindings.projectId, projectId),
+          eq21(briefFindings.streamId, streamId),
+          eq21(briefFindings.versionId, versionId),
+          eq21(briefFindings.id, findingId)
         )
       ).limit(1).for("update"))[0];
       if (!finding)
@@ -48866,24 +52754,24 @@ async function executeBriefCommand(operation, input, context3) {
       let resolutionRevisionId = finding.sectionRevisionId;
       if (!accept) {
         resolutionRevisionId = positive(input.resolutionRevisionId, "resolutionRevisionId");
-        const resolutionRevision = (await tx.select({ id: briefSectionRevisions.id }).from(briefSectionRevisions).where(and10(
-          eq20(briefSectionRevisions.organizationId, context3.organizationId),
-          eq20(briefSectionRevisions.projectId, projectId),
-          eq20(briefSectionRevisions.id, resolutionRevisionId),
-          eq20(briefSectionRevisions.sectionId, sectionId ?? (await tx.select({ sectionId: briefVersionSections.sectionId }).from(briefVersionSections).where(eq20(briefVersionSections.id, finding.bindingId)).limit(1))[0]?.sectionId)
+        const resolutionRevision = (await tx.select({ id: briefSectionRevisions.id }).from(briefSectionRevisions).where(and11(
+          eq21(briefSectionRevisions.organizationId, context3.organizationId),
+          eq21(briefSectionRevisions.projectId, projectId),
+          eq21(briefSectionRevisions.id, resolutionRevisionId),
+          eq21(briefSectionRevisions.sectionId, sectionId ?? (await tx.select({ sectionId: briefVersionSections.sectionId }).from(briefVersionSections).where(eq21(briefVersionSections.id, finding.bindingId)).limit(1))[0]?.sectionId)
         )).limit(1).for("update"))[0];
         if (!resolutionRevision) throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
       }
       if (accept) {
         const submission = (await tx.select().from(briefFindingResolutions).where(
-          and10(
-            eq20(
+          and11(
+            eq21(
               briefFindingResolutions.organizationId,
               context3.organizationId
             ),
-            eq20(briefFindingResolutions.projectId, projectId),
-            eq20(briefFindingResolutions.streamId, streamId),
-            eq20(briefFindingResolutions.id, target)
+            eq21(briefFindingResolutions.projectId, projectId),
+            eq21(briefFindingResolutions.streamId, streamId),
+            eq21(briefFindingResolutions.id, target)
           )
         ).limit(1).for("update"))[0];
         if (!submission || submission.findingId !== findingId)
@@ -48920,10 +52808,10 @@ async function executeBriefCommand(operation, input, context3) {
       const role = stage === "reviewed" ? "reviewer" : stage === "approved" || stage === "withdrawn" ? "approver" : "section_owner";
       await activeRole(tx, context3, streamId, role, sectionId);
       const binding = (await tx.select().from(briefVersionSections).where(
-        and10(
-          eq20(briefVersionSections.organizationId, context3.organizationId),
-          eq20(briefVersionSections.versionId, versionId),
-          eq20(briefVersionSections.sectionId, sectionId)
+        and11(
+          eq21(briefVersionSections.organizationId, context3.organizationId),
+          eq21(briefVersionSections.versionId, versionId),
+          eq21(briefVersionSections.sectionId, sectionId)
         )
       ).limit(1).for("update"))[0];
       if (!binding)
@@ -48938,17 +52826,17 @@ async function executeBriefCommand(operation, input, context3) {
           "Review and approval require a target event"
         );
       const prior = target ? (await tx.select().from(briefApplicabilityEvents).where(
-        and10(
-          eq20(
+        and11(
+          eq21(
             briefApplicabilityEvents.organizationId,
             context3.organizationId
           ),
-          eq20(briefApplicabilityEvents.projectId, projectId),
-          eq20(briefApplicabilityEvents.streamId, streamId),
-          eq20(briefApplicabilityEvents.versionId, versionId),
-          eq20(briefApplicabilityEvents.bindingId, binding.id),
-          eq20(briefApplicabilityEvents.classificationFingerprint, binding.classificationFingerprint),
-          eq20(briefApplicabilityEvents.id, target)
+          eq21(briefApplicabilityEvents.projectId, projectId),
+          eq21(briefApplicabilityEvents.streamId, streamId),
+          eq21(briefApplicabilityEvents.versionId, versionId),
+          eq21(briefApplicabilityEvents.bindingId, binding.id),
+          eq21(briefApplicabilityEvents.classificationFingerprint, binding.classificationFingerprint),
+          eq21(briefApplicabilityEvents.id, target)
         )
       ).limit(1).for("update"))[0] : null;
       if (stage !== "proposed" && (!prior || prior.actorUserId === context3.userId))
@@ -48964,13 +52852,13 @@ async function executeBriefCommand(operation, input, context3) {
         if (prior?.stage !== "reviewed")
           throw new BriefWorkflowError("INVALID", "Applicability approval must target the review");
         if (!prior.targetEventId) throw new BriefWorkflowError("INVALID", "Applicability review lacks its proposal target");
-        const proposal = (await tx.select().from(briefApplicabilityEvents).where(and10(
-          eq20(briefApplicabilityEvents.organizationId, context3.organizationId),
-          eq20(briefApplicabilityEvents.projectId, projectId),
-          eq20(briefApplicabilityEvents.streamId, streamId),
-          eq20(briefApplicabilityEvents.versionId, versionId),
-          eq20(briefApplicabilityEvents.bindingId, binding.id),
-          eq20(briefApplicabilityEvents.id, prior.targetEventId)
+        const proposal = (await tx.select().from(briefApplicabilityEvents).where(and11(
+          eq21(briefApplicabilityEvents.organizationId, context3.organizationId),
+          eq21(briefApplicabilityEvents.projectId, projectId),
+          eq21(briefApplicabilityEvents.streamId, streamId),
+          eq21(briefApplicabilityEvents.versionId, versionId),
+          eq21(briefApplicabilityEvents.bindingId, binding.id),
+          eq21(briefApplicabilityEvents.id, prior.targetEventId)
         )).limit(1).for("update"))[0];
         if (!proposal || proposal.stage !== "proposed" || proposal.actorUserId === context3.userId || proposal.actorUserId === prior.actorUserId)
           throw new BriefWorkflowError("FORBIDDEN", "Applicability requires three independent actors");
@@ -48991,13 +52879,13 @@ async function executeBriefCommand(operation, input, context3) {
       });
       entityId = Number(ins[0].insertId);
       if (stage === "approved")
-        await tx.update(briefVersionSections).set({ applicability: "not_applicable" }).where(eq20(briefVersionSections.id, binding.id));
+        await tx.update(briefVersionSections).set({ applicability: "not_applicable" }).where(eq21(briefVersionSections.id, binding.id));
       if (stage === "withdrawn")
         await tx.update(briefVersionSections).set({
           applicability: "conditional",
           achievedState: binding.sectionRevisionId ? "drafted" : "missing",
-          revision: sql9`${briefVersionSections.revision}+1`
-        }).where(eq20(briefVersionSections.id, binding.id));
+          revision: sql10`${briefVersionSections.revision}+1`
+        }).where(eq21(briefVersionSections.id, binding.id));
       eventType = `applicability_${stage}`;
     } else if (operation.endsWith("raiseCondition") || operation.endsWith("submitConditionResolution") || operation.endsWith("acceptConditionResolution") || operation.endsWith("markDependencyChanged")) {
       const resolving = !operation.endsWith("raiseCondition") && !operation.endsWith("markDependencyChanged");
@@ -49014,12 +52902,12 @@ async function executeBriefCommand(operation, input, context3) {
       let original = null;
       if (conditionId)
         original = (await tx.select().from(briefConditionEvents).where(
-          and10(
-            eq20(briefConditionEvents.organizationId, context3.organizationId),
-            eq20(briefConditionEvents.projectId, projectId),
-            eq20(briefConditionEvents.streamId, streamId),
-            eq20(briefConditionEvents.versionId, versionId),
-            eq20(briefConditionEvents.id, conditionId)
+          and11(
+            eq21(briefConditionEvents.organizationId, context3.organizationId),
+            eq21(briefConditionEvents.projectId, projectId),
+            eq21(briefConditionEvents.streamId, streamId),
+            eq21(briefConditionEvents.versionId, versionId),
+            eq21(briefConditionEvents.id, conditionId)
           )
         ).limit(1).for("update"))[0];
       if (resolving && !original)
@@ -49027,13 +52915,13 @@ async function executeBriefCommand(operation, input, context3) {
       if (resolving && original.stage !== "raised")
         throw new BriefWorkflowError("INVALID", "Condition resolution must target a raised condition");
       if (accepting) {
-        const submission = (await tx.select().from(briefConditionEvents).where(and10(
-          eq20(briefConditionEvents.organizationId, context3.organizationId),
-          eq20(briefConditionEvents.projectId, projectId),
-          eq20(briefConditionEvents.streamId, streamId),
-          eq20(briefConditionEvents.versionId, versionId),
-          eq20(briefConditionEvents.bindingId, original.bindingId),
-          eq20(briefConditionEvents.id, submissionId)
+        const submission = (await tx.select().from(briefConditionEvents).where(and11(
+          eq21(briefConditionEvents.organizationId, context3.organizationId),
+          eq21(briefConditionEvents.projectId, projectId),
+          eq21(briefConditionEvents.streamId, streamId),
+          eq21(briefConditionEvents.versionId, versionId),
+          eq21(briefConditionEvents.bindingId, original.bindingId),
+          eq21(briefConditionEvents.id, submissionId)
         )).limit(1).for("update"))[0];
         if (!submission || submission.stage !== "resolution_submitted" || submission.targetEventId !== original.id)
           throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
@@ -49053,13 +52941,13 @@ async function executeBriefCommand(operation, input, context3) {
         throw new BriefWorkflowError("FORBIDDEN", "Condition owner required");
       const bindingId = original?.bindingId ?? Number(
         (await tx.select({ id: briefVersionSections.id }).from(briefVersionSections).where(
-          and10(
-            eq20(
+          and11(
+            eq21(
               briefVersionSections.organizationId,
               context3.organizationId
             ),
-            eq20(briefVersionSections.versionId, versionId),
-            eq20(briefVersionSections.sectionId, sectionId)
+            eq21(briefVersionSections.versionId, versionId),
+            eq21(briefVersionSections.sectionId, sectionId)
           )
         ).limit(1).for("update"))[0]?.id
       );
@@ -49092,21 +52980,21 @@ async function executeBriefCommand(operation, input, context3) {
         "approvalEventId"
       );
       const approval = (await tx.select().from(briefApprovals).where(
-        and10(
-          eq20(briefApprovals.organizationId, context3.organizationId),
-          eq20(briefApprovals.streamId, streamId),
-          eq20(briefApprovals.id, approvalId)
+        and11(
+          eq21(briefApprovals.organizationId, context3.organizationId),
+          eq21(briefApprovals.streamId, streamId),
+          eq21(briefApprovals.id, approvalId)
         )
       ).limit(1).for("update"))[0];
       if (!approval)
         throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
-      const priorWithdrawal = (await tx.select({ id: briefApprovals.id }).from(briefApprovals).where(and10(
-        eq20(briefApprovals.organizationId, context3.organizationId),
-        eq20(briefApprovals.projectId, projectId),
-        eq20(briefApprovals.streamId, streamId),
-        eq20(briefApprovals.versionId, versionId),
-        eq20(briefApprovals.targetApprovalId, approvalId),
-        eq20(briefApprovals.decision, "withdrawn")
+      const priorWithdrawal = (await tx.select({ id: briefApprovals.id }).from(briefApprovals).where(and11(
+        eq21(briefApprovals.organizationId, context3.organizationId),
+        eq21(briefApprovals.projectId, projectId),
+        eq21(briefApprovals.streamId, streamId),
+        eq21(briefApprovals.versionId, versionId),
+        eq21(briefApprovals.targetApprovalId, approvalId),
+        eq21(briefApprovals.decision, "withdrawn")
       )).limit(1).for("update"))[0];
       if (approval.decision !== "approved" || priorWithdrawal)
         throw new BriefWorkflowError("CONFLICT", "Approval is already withdrawn");
@@ -49121,18 +53009,18 @@ async function executeBriefCommand(operation, input, context3) {
         streamSequence: Number(stream.nextEventSequence)
       });
       entityId = Number(ins[0].insertId);
-      await tx.update(briefVersionSections).set({ achievedState: "reviewed" }).where(eq20(briefVersionSections.id, approval.bindingId));
+      await tx.update(briefVersionSections).set({ achievedState: "reviewed" }).where(eq21(briefVersionSections.id, approval.bindingId));
       eventType = "approval_withdrawn";
     } else if (operation.endsWith("issue")) {
       await activeRole(tx, context3, streamId, "issuer");
       await activeRole(tx, context3, streamId, "approver");
       const bindings = await tx.select().from(briefVersionSections).where(
-        and10(
-          eq20(briefVersionSections.organizationId, context3.organizationId),
-          eq20(briefVersionSections.streamId, streamId),
-          eq20(briefVersionSections.versionId, versionId)
+        and11(
+          eq21(briefVersionSections.organizationId, context3.organizationId),
+          eq21(briefVersionSections.streamId, streamId),
+          eq21(briefVersionSections.versionId, versionId)
         )
-      ).orderBy(asc2(briefVersionSections.id)).for("update");
+      ).orderBy(asc3(briefVersionSections.id)).for("update");
       if (bindings.length !== 10 || new Set(bindings.map((b) => b.sectionId)).size !== 10)
         throw new BriefWorkflowError(
           "INVALID",
@@ -49144,18 +53032,18 @@ async function executeBriefCommand(operation, input, context3) {
           "Every section must be approved before issue"
         );
       for (const binding of bindings) {
-        const revision = (await tx.select().from(briefSectionRevisions).where(and10(
-          eq20(briefSectionRevisions.organizationId, context3.organizationId),
-          eq20(briefSectionRevisions.projectId, projectId),
-          eq20(briefSectionRevisions.id, binding.sectionRevisionId)
+        const revision = (await tx.select().from(briefSectionRevisions).where(and11(
+          eq21(briefSectionRevisions.organizationId, context3.organizationId),
+          eq21(briefSectionRevisions.projectId, projectId),
+          eq21(briefSectionRevisions.id, binding.sectionRevisionId)
         )).limit(1).for("update"))[0];
-        const approvalRows = await tx.select().from(briefApprovals).where(and10(
-          eq20(briefApprovals.organizationId, context3.organizationId),
-          eq20(briefApprovals.projectId, projectId),
-          eq20(briefApprovals.streamId, streamId),
-          eq20(briefApprovals.versionId, versionId),
-          eq20(briefApprovals.bindingId, binding.id),
-          eq20(briefApprovals.sectionRevisionId, binding.sectionRevisionId)
+        const approvalRows = await tx.select().from(briefApprovals).where(and11(
+          eq21(briefApprovals.organizationId, context3.organizationId),
+          eq21(briefApprovals.projectId, projectId),
+          eq21(briefApprovals.streamId, streamId),
+          eq21(briefApprovals.versionId, versionId),
+          eq21(briefApprovals.bindingId, binding.id),
+          eq21(briefApprovals.sectionRevisionId, binding.sectionRevisionId)
         )).for("update");
         const activeApprovals = approvalRows.filter((a) => a.decision === "approved" && !approvalRows.some((w) => w.decision === "withdrawn" && w.targetApprovalId === a.id));
         if (!revision || !activeApprovals.length || revision.authorUserId === context3.userId && !activeApprovals.some((a) => a.approverUserId !== context3.userId))
@@ -49183,12 +53071,12 @@ async function executeBriefCommand(operation, input, context3) {
           `Brief is not ready to issue: ${readiness.reasons.map((reason4) => reason4.code).join(", ")}`
         );
       const conditions = await tx.select().from(briefConditionEvents).where(
-        and10(
-          eq20(briefConditionEvents.organizationId, context3.organizationId),
-          eq20(briefConditionEvents.streamId, streamId),
-          eq20(briefConditionEvents.versionId, versionId)
+        and11(
+          eq21(briefConditionEvents.organizationId, context3.organizationId),
+          eq21(briefConditionEvents.streamId, streamId),
+          eq21(briefConditionEvents.versionId, versionId)
         )
-      ).orderBy(asc2(briefConditionEvents.id));
+      ).orderBy(asc3(briefConditionEvents.id));
       const active = conditions.filter(
         (c) => c.stage === "raised" && !conditions.some(
           (r) => r.stage === "resolution_accepted" && conditions.some((submitted) => submitted.id === r.targetEventId && submitted.stage === "resolution_submitted" && submitted.targetEventId === c.id)
@@ -49199,10 +53087,10 @@ async function executeBriefCommand(operation, input, context3) {
           "INVALID",
           "Active stale or blocked conditions prevent issue"
         );
-      const maxIssue = (await tx.select({ n: sql9`max(${briefIssues.issueNumber})` }).from(briefIssues).where(
-        and10(
-          eq20(briefIssues.organizationId, context3.organizationId),
-          eq20(briefIssues.streamId, streamId)
+      const maxIssue = (await tx.select({ n: sql10`max(${briefIssues.issueNumber})` }).from(briefIssues).where(
+        and11(
+          eq21(briefIssues.organizationId, context3.organizationId),
+          eq21(briefIssues.streamId, streamId)
         )
       ))[0];
       const issueNumber = Number(maxIssue?.n ?? 0) + 1;
@@ -49249,13 +53137,13 @@ async function executeBriefCommand(operation, input, context3) {
         });
         const issueSectionId = Number(is[0].insertId);
         const approvals = await tx.select().from(briefApprovals).where(
-          and10(
-            eq20(briefApprovals.organizationId, context3.organizationId),
-            eq20(briefApprovals.projectId, projectId),
-            eq20(briefApprovals.streamId, streamId),
-            eq20(briefApprovals.versionId, versionId),
-            eq20(briefApprovals.bindingId, b.id),
-            eq20(briefApprovals.sectionRevisionId, b.sectionRevisionId)
+          and11(
+            eq21(briefApprovals.organizationId, context3.organizationId),
+            eq21(briefApprovals.projectId, projectId),
+            eq21(briefApprovals.streamId, streamId),
+            eq21(briefApprovals.versionId, versionId),
+            eq21(briefApprovals.bindingId, b.id),
+            eq21(briefApprovals.sectionRevisionId, b.sectionRevisionId)
           )
         );
         for (const a of approvals.filter((a2) => a2.decision === "approved" && !approvals.some((w) => w.decision === "withdrawn" && w.targetApprovalId === a2.id)))
@@ -49268,9 +53156,9 @@ async function executeBriefCommand(operation, input, context3) {
             approvalId: a.id
           });
         const deps = await tx.select().from(briefDependencies).where(
-          and10(
-            eq20(briefDependencies.organizationId, context3.organizationId),
-            eq20(briefDependencies.bindingId, b.id)
+          and11(
+            eq21(briefDependencies.organizationId, context3.organizationId),
+            eq21(briefDependencies.bindingId, b.id)
           )
         );
         for (const d of deps)
@@ -49286,15 +53174,15 @@ async function executeBriefCommand(operation, input, context3) {
           });
         if (b.applicability === "not_applicable") {
           const apps = await tx.select().from(briefApplicabilityEvents).where(
-            and10(
-              eq20(
+            and11(
+              eq21(
                 briefApplicabilityEvents.organizationId,
                 context3.organizationId
               ),
-              eq20(briefApplicabilityEvents.bindingId, b.id),
-              eq20(briefApplicabilityEvents.stage, "approved")
+              eq21(briefApplicabilityEvents.bindingId, b.id),
+              eq21(briefApplicabilityEvents.stage, "approved")
             )
-          ).orderBy(desc11(briefApplicabilityEvents.id)).limit(1);
+          ).orderBy(desc12(briefApplicabilityEvents.id)).limit(1);
           if (!apps[0])
             throw new BriefWorkflowError(
               "INVALID",
@@ -49310,11 +53198,11 @@ async function executeBriefCommand(operation, input, context3) {
           });
         }
       }
-      await tx.update(briefVersions).set({ status: "locked" }).where(eq20(briefVersions.id, versionId));
+      await tx.update(briefVersions).set({ status: "locked" }).where(eq21(briefVersions.id, versionId));
       await tx.update(briefVersionSections).set({ achievedState: "issued" }).where(
-        and10(
-          eq20(briefVersionSections.organizationId, context3.organizationId),
-          eq20(briefVersionSections.versionId, versionId)
+        and11(
+          eq21(briefVersionSections.organizationId, context3.organizationId),
+          eq21(briefVersionSections.versionId, versionId)
         )
       );
       eventType = "issue_created";
@@ -49324,10 +53212,10 @@ async function executeBriefCommand(operation, input, context3) {
         operation.endsWith("supersedeIssue") ? "priorIssueId" : "issueId"
       );
       const issue2 = (await tx.select().from(briefIssues).where(
-        and10(
-          eq20(briefIssues.organizationId, context3.organizationId),
-          eq20(briefIssues.streamId, streamId),
-          eq20(briefIssues.id, issueId)
+        and11(
+          eq21(briefIssues.organizationId, context3.organizationId),
+          eq21(briefIssues.streamId, streamId),
+          eq21(briefIssues.id, issueId)
         )
       ).limit(1).for("update"))[0];
       if (!issue2)
@@ -49338,11 +53226,11 @@ async function executeBriefCommand(operation, input, context3) {
           "successorIssueId"
         );
         const successor = (await tx.select().from(briefIssues).where(
-          and10(
-            eq20(briefIssues.organizationId, context3.organizationId),
-            eq20(briefIssues.projectId, projectId),
-            eq20(briefIssues.streamId, streamId),
-            eq20(briefIssues.id, successorId)
+          and11(
+            eq21(briefIssues.organizationId, context3.organizationId),
+            eq21(briefIssues.projectId, projectId),
+            eq21(briefIssues.streamId, streamId),
+            eq21(briefIssues.id, successorId)
           )
         ).limit(1).for("update"))[0];
         if (!successor || successor.issueNumber <= issue2.issueNumber)
@@ -49353,13 +53241,13 @@ async function executeBriefCommand(operation, input, context3) {
       }
       if (operation.endsWith("approveIssueWithdrawal")) {
         await activeRole(tx, context3, streamId, "approver");
-        const requestEvent = (await tx.select().from(briefEvents).where(and10(
-          eq20(briefEvents.organizationId, context3.organizationId),
-          eq20(briefEvents.projectId, projectId),
-          eq20(briefEvents.streamId, streamId),
-          eq20(briefEvents.id, positive(input.withdrawalRequestEventId, "withdrawalRequestEventId")),
-          eq20(briefEvents.eventType, "issue_withdrawal_requested"),
-          eq20(briefEvents.issueId, issueId)
+        const requestEvent = (await tx.select().from(briefEvents).where(and11(
+          eq21(briefEvents.organizationId, context3.organizationId),
+          eq21(briefEvents.projectId, projectId),
+          eq21(briefEvents.streamId, streamId),
+          eq21(briefEvents.id, positive(input.withdrawalRequestEventId, "withdrawalRequestEventId")),
+          eq21(briefEvents.eventType, "issue_withdrawal_requested"),
+          eq21(briefEvents.issueId, issueId)
         )).limit(1).for("update"))[0];
         if (!requestEvent) throw new BriefWorkflowError("CONCEALED", "Brief resource not found");
         if (requestEvent.actorUserId === context3.userId)
@@ -49380,9 +53268,9 @@ async function executeBriefCommand(operation, input, context3) {
       );
     const nextRevision = stream.revision + 1;
     const revisionUpdate = await tx.update(briefStreams).set({ revision: nextRevision }).where(
-      and10(
-        eq20(briefStreams.id, streamId),
-        eq20(briefStreams.revision, stream.revision)
+      and11(
+        eq21(briefStreams.id, streamId),
+        eq21(briefStreams.revision, stream.revision)
       )
     );
     if (Number(revisionUpdate[0]?.affectedRows) !== 1)
@@ -49402,23 +53290,23 @@ async function executeBriefCommand(operation, input, context3) {
       resultRevision: nextRevision,
       result,
       completedAt: /* @__PURE__ */ new Date()
-    }).where(eq20(briefOperations.id, operationId));
+    }).where(eq21(briefOperations.id, operationId));
     return result;
   });
 }
 async function scopedStream(input, context3) {
-  const db = await database(), projectId = positive(input.projectId, "projectId"), streamId = positive(input.briefId ?? input.streamId, "briefId");
+  const db = await database2(), projectId = positive(input.projectId, "projectId"), streamId = positive(input.briefId ?? input.streamId, "briefId");
   const rows = await db.select().from(briefStreams).innerJoin(
     organizationMembers,
-    and10(
-      eq20(organizationMembers.orgId, context3.organizationId),
-      eq20(organizationMembers.userId, context3.userId)
+    and11(
+      eq21(organizationMembers.orgId, context3.organizationId),
+      eq21(organizationMembers.userId, context3.userId)
     )
   ).where(
-    and10(
-      eq20(briefStreams.organizationId, context3.organizationId),
-      eq20(briefStreams.projectId, projectId),
-      eq20(briefStreams.id, streamId)
+    and11(
+      eq21(briefStreams.organizationId, context3.organizationId),
+      eq21(briefStreams.projectId, projectId),
+      eq21(briefStreams.id, streamId)
     )
   ).limit(1);
   if (!rows[0])
@@ -49431,19 +53319,19 @@ async function getBriefSummary(input, context3) {
 }
 async function briefSummaryDto(db, stream) {
   const current = (await db.select({ id: briefVersions.id }).from(briefVersions).where(
-    and10(
-      eq20(briefVersions.organizationId, stream.organizationId),
-      eq20(briefVersions.projectId, stream.projectId),
-      eq20(briefVersions.streamId, stream.id)
+    and11(
+      eq21(briefVersions.organizationId, stream.organizationId),
+      eq21(briefVersions.projectId, stream.projectId),
+      eq21(briefVersions.streamId, stream.id)
     )
-  ).orderBy(desc11(briefVersions.versionNumber)).limit(1))[0];
+  ).orderBy(desc12(briefVersions.versionNumber)).limit(1))[0];
   const issue2 = (await db.select({ id: briefIssues.id }).from(briefIssues).where(
-    and10(
-      eq20(briefIssues.organizationId, stream.organizationId),
-      eq20(briefIssues.projectId, stream.projectId),
-      eq20(briefIssues.streamId, stream.id)
+    and11(
+      eq21(briefIssues.organizationId, stream.organizationId),
+      eq21(briefIssues.projectId, stream.projectId),
+      eq21(briefIssues.streamId, stream.id)
     )
-  ).orderBy(desc11(briefIssues.issueNumber)).limit(1))[0];
+  ).orderBy(desc12(briefIssues.issueNumber)).limit(1))[0];
   return {
     briefId: String(stream.id),
     projectId: stream.projectId,
@@ -49456,17 +53344,17 @@ async function briefSummaryDto(db, stream) {
   };
 }
 async function listBriefStreams(input, context3) {
-  const db = await database();
+  const db = await database2();
   const streams = await db.select().from(briefStreams).where(
-    and10(
-      eq20(briefStreams.organizationId, context3.organizationId),
-      eq20(briefStreams.projectId, positive(input.projectId, "projectId"))
+    and11(
+      eq21(briefStreams.organizationId, context3.organizationId),
+      eq21(briefStreams.projectId, positive(input.projectId, "projectId"))
     )
-  ).orderBy(desc11(briefStreams.id));
+  ).orderBy(desc12(briefStreams.id));
   const membership = (await db.select({ id: organizationMembers.id }).from(organizationMembers).where(
-    and10(
-      eq20(organizationMembers.orgId, context3.organizationId),
-      eq20(organizationMembers.userId, context3.userId)
+    and11(
+      eq21(organizationMembers.orgId, context3.organizationId),
+      eq21(organizationMembers.userId, context3.userId)
     )
   ).limit(1))[0];
   if (!membership)
@@ -49476,19 +53364,19 @@ async function listBriefStreams(input, context3) {
 async function getBriefVersion(input, context3) {
   const { db, stream } = await scopedStream(input, context3);
   const version = (await db.select().from(briefVersions).where(
-    and10(
-      eq20(briefVersions.organizationId, context3.organizationId),
-      eq20(briefVersions.streamId, stream.id),
-      eq20(briefVersions.id, positive(input.versionId, "versionId"))
+    and11(
+      eq21(briefVersions.organizationId, context3.organizationId),
+      eq21(briefVersions.streamId, stream.id),
+      eq21(briefVersions.id, positive(input.versionId, "versionId"))
     )
   ).limit(1))[0] ?? null;
   if (!version) return null;
   const sections = await db.select().from(briefVersionSections).where(
-    and10(
-      eq20(briefVersionSections.organizationId, context3.organizationId),
-      eq20(briefVersionSections.versionId, version.id)
+    and11(
+      eq21(briefVersionSections.organizationId, context3.organizationId),
+      eq21(briefVersionSections.versionId, version.id)
     )
-  ).orderBy(asc2(briefVersionSections.id));
+  ).orderBy(asc3(briefVersionSections.id));
   return {
     ...version,
     id: String(version.id),
@@ -49503,14 +53391,14 @@ async function getBriefVersion(input, context3) {
 async function getBriefSection(input, context3) {
   const { db, stream } = await scopedStream(input, context3);
   const binding = (await db.select().from(briefVersionSections).where(
-    and10(
-      eq20(briefVersionSections.organizationId, context3.organizationId),
-      eq20(briefVersionSections.streamId, stream.id),
-      eq20(
+    and11(
+      eq21(briefVersionSections.organizationId, context3.organizationId),
+      eq21(briefVersionSections.streamId, stream.id),
+      eq21(
         briefVersionSections.versionId,
         positive(input.versionId, "versionId")
       ),
-      eq20(briefVersionSections.sectionId, input.sectionId)
+      eq21(briefVersionSections.sectionId, input.sectionId)
     )
   ).limit(1))[0] ?? null;
   if (!binding) return null;
@@ -49523,10 +53411,10 @@ async function getBriefSection(input, context3) {
   };
   if (!binding.sectionRevisionId) return { ...section2, content: null };
   const revision = (await db.select().from(briefSectionRevisions).where(
-    and10(
-      eq20(briefSectionRevisions.organizationId, context3.organizationId),
-      eq20(briefSectionRevisions.projectId, stream.projectId),
-      eq20(briefSectionRevisions.id, binding.sectionRevisionId)
+    and11(
+      eq21(briefSectionRevisions.organizationId, context3.organizationId),
+      eq21(briefSectionRevisions.projectId, stream.projectId),
+      eq21(briefSectionRevisions.id, binding.sectionRevisionId)
     )
   ).limit(1))[0];
   if (!revision) return { ...section2, content: null };
@@ -49548,48 +53436,48 @@ async function getBriefSection(input, context3) {
 async function listBriefAssignments(input, context3) {
   const { db, stream } = await scopedStream(input, context3);
   return db.select().from(briefRoleEvents).where(
-    and10(
-      eq20(briefRoleEvents.organizationId, context3.organizationId),
-      eq20(briefRoleEvents.streamId, stream.id)
+    and11(
+      eq21(briefRoleEvents.organizationId, context3.organizationId),
+      eq21(briefRoleEvents.streamId, stream.id)
     )
-  ).orderBy(asc2(briefRoleEvents.id));
+  ).orderBy(asc3(briefRoleEvents.id));
 }
 async function listBriefFindings(input, context3) {
   const { db, stream } = await scopedStream(input, context3);
   return db.select().from(briefFindings).where(
-    and10(
-      eq20(briefFindings.organizationId, context3.organizationId),
-      eq20(briefFindings.streamId, stream.id)
+    and11(
+      eq21(briefFindings.organizationId, context3.organizationId),
+      eq21(briefFindings.streamId, stream.id)
     )
-  ).orderBy(asc2(briefFindings.id));
+  ).orderBy(asc3(briefFindings.id));
 }
 async function listBriefFindingResolutions(input, context3) {
   const { db, stream } = await scopedStream(input, context3);
   return db.select().from(briefFindingResolutions).where(
-    and10(
-      eq20(briefFindingResolutions.organizationId, context3.organizationId),
-      eq20(briefFindingResolutions.streamId, stream.id)
+    and11(
+      eq21(briefFindingResolutions.organizationId, context3.organizationId),
+      eq21(briefFindingResolutions.streamId, stream.id)
     )
-  ).orderBy(asc2(briefFindingResolutions.id));
+  ).orderBy(asc3(briefFindingResolutions.id));
 }
 async function listBriefDependencies(input, context3) {
   const { db, stream } = await scopedStream(input, context3);
   return db.select().from(briefDependencies).where(
-    and10(
-      eq20(briefDependencies.organizationId, context3.organizationId),
-      eq20(briefDependencies.streamId, stream.id)
+    and11(
+      eq21(briefDependencies.organizationId, context3.organizationId),
+      eq21(briefDependencies.streamId, stream.id)
     )
-  ).orderBy(asc2(briefDependencies.id));
+  ).orderBy(asc3(briefDependencies.id));
 }
 async function listBriefConditions(input, context3) {
   const { db, stream } = await scopedStream(input, context3);
   return db.select().from(briefConditionEvents).where(
-    and10(
-      eq20(briefConditionEvents.organizationId, context3.organizationId),
-      eq20(briefConditionEvents.streamId, stream.id),
-      eq20(briefConditionEvents.versionId, positive(input.versionId, "versionId"))
+    and11(
+      eq21(briefConditionEvents.organizationId, context3.organizationId),
+      eq21(briefConditionEvents.streamId, stream.id),
+      eq21(briefConditionEvents.versionId, positive(input.versionId, "versionId"))
     )
-  ).orderBy(asc2(briefConditionEvents.streamSequence));
+  ).orderBy(asc3(briefConditionEvents.streamSequence));
 }
 function derivePermittedBriefActions(input) {
   const hasRole = (role) => input.activeAssignments.some(
@@ -49634,8 +53522,8 @@ async function getBriefStudio(input, context3) {
   const activeAssignments = assignments.filter(
     (assignment) => assignment.action === "granted" && !assignments.some((later) => later.action === "revoked" && later.targetGrantEventId === assignment.id)
   );
-  const db = await database();
-  const memberChoices = await db.select({ id: users.id, name: users.name, organizationRole: organizationMembers.role }).from(organizationMembers).innerJoin(users, eq20(users.id, organizationMembers.userId)).where(eq20(organizationMembers.orgId, context3.organizationId)).orderBy(asc2(users.id));
+  const db = await database2();
+  const memberChoices = await db.select({ id: users.id, name: users.name, organizationRole: organizationMembers.role }).from(organizationMembers).innerJoin(users, eq21(users.id, organizationMembers.userId)).where(eq21(organizationMembers.orgId, context3.organizationId)).orderBy(asc3(users.id));
   const readiness = evaluateBriefReadiness(readinessFacts);
   const sections = await Promise.all(BRIEF_SECTION_IDS2.map(
     (sectionId) => getBriefSection({ ...input, sectionId }, context3)
@@ -49732,21 +53620,21 @@ async function getBriefStudio(input, context3) {
 async function listBriefEvents(input, context3) {
   const { db, stream } = await scopedStream(input, context3);
   return db.select().from(briefEvents).where(
-    and10(
-      eq20(briefEvents.organizationId, context3.organizationId),
-      eq20(briefEvents.streamId, stream.id)
+    and11(
+      eq21(briefEvents.organizationId, context3.organizationId),
+      eq21(briefEvents.streamId, stream.id)
     )
-  ).orderBy(asc2(briefEvents.streamSequence));
+  ).orderBy(asc3(briefEvents.streamSequence));
 }
 async function listBriefIssues(input, context3) {
   const { db, stream } = await scopedStream(input, context3);
   const issues = await db.select().from(briefIssues).where(
-    and10(
-      eq20(briefIssues.organizationId, context3.organizationId),
-      eq20(briefIssues.streamId, stream.id)
+    and11(
+      eq21(briefIssues.organizationId, context3.organizationId),
+      eq21(briefIssues.streamId, stream.id)
     )
-  ).orderBy(desc11(briefIssues.issueNumber));
-  const events = await db.select().from(briefEvents).where(and10(eq20(briefEvents.organizationId, context3.organizationId), eq20(briefEvents.streamId, stream.id))).orderBy(asc2(briefEvents.streamSequence));
+  ).orderBy(desc12(briefIssues.issueNumber));
+  const events = await db.select().from(briefEvents).where(and11(eq21(briefEvents.organizationId, context3.organizationId), eq21(briefEvents.streamId, stream.id))).orderBy(asc3(briefEvents.streamSequence));
   return issues.map((issue2) => {
     const statusEvent = events.filter((event) => event.issueId === issue2.id && (event.eventType === "issue_superseded" || event.eventType === "issue_withdrawal_approved")).at(-1);
     return { ...issue2, issueId: String(issue2.id), briefId: String(stream.id), versionId: String(issue2.versionId), purpose: issue2.issuePurpose, status: statusEvent?.eventType === "issue_withdrawal_approved" ? "withdrawn" : statusEvent?.eventType === "issue_superseded" ? "superseded" : "active" };
@@ -49757,10 +53645,10 @@ async function getBriefReadinessFacts(input, context3, transaction, lockedStream
   const { db, stream } = scoped;
   const versionId = positive(input.versionId, "versionId");
   const [queriedVersion] = lockedVersion ? [lockedVersion] : await db.select().from(briefVersions).where(
-    and10(
-      eq20(briefVersions.organizationId, context3.organizationId),
-      eq20(briefVersions.streamId, stream.id),
-      eq20(briefVersions.id, versionId)
+    and11(
+      eq21(briefVersions.organizationId, context3.organizationId),
+      eq21(briefVersions.streamId, stream.id),
+      eq21(briefVersions.id, versionId)
     )
   ).limit(1);
   const version = lockedVersion ?? queriedVersion;
@@ -49778,63 +53666,63 @@ async function getBriefReadinessFacts(input, context3, transaction, lockedStream
     revisions
   ] = await Promise.all([
     db.select().from(briefVersionSections).where(
-      and10(
-        eq20(briefVersionSections.organizationId, context3.organizationId),
-        eq20(briefVersionSections.streamId, stream.id),
-        eq20(briefVersionSections.versionId, versionId)
+      and11(
+        eq21(briefVersionSections.organizationId, context3.organizationId),
+        eq21(briefVersionSections.streamId, stream.id),
+        eq21(briefVersionSections.versionId, versionId)
       )
-    ).orderBy(asc2(briefVersionSections.id)),
+    ).orderBy(asc3(briefVersionSections.id)),
     db.select().from(briefRoleEvents).where(
-      and10(
-        eq20(briefRoleEvents.organizationId, context3.organizationId),
-        eq20(briefRoleEvents.streamId, stream.id)
+      and11(
+        eq21(briefRoleEvents.organizationId, context3.organizationId),
+        eq21(briefRoleEvents.streamId, stream.id)
       )
-    ).orderBy(asc2(briefRoleEvents.id)),
+    ).orderBy(asc3(briefRoleEvents.id)),
     db.select().from(briefConditionEvents).where(
-      and10(
-        eq20(briefConditionEvents.organizationId, context3.organizationId),
-        eq20(briefConditionEvents.streamId, stream.id),
-        eq20(briefConditionEvents.versionId, versionId)
+      and11(
+        eq21(briefConditionEvents.organizationId, context3.organizationId),
+        eq21(briefConditionEvents.streamId, stream.id),
+        eq21(briefConditionEvents.versionId, versionId)
       )
-    ).orderBy(asc2(briefConditionEvents.id)),
+    ).orderBy(asc3(briefConditionEvents.id)),
     db.select().from(briefFindings).where(
-      and10(
-        eq20(briefFindings.organizationId, context3.organizationId),
-        eq20(briefFindings.streamId, stream.id),
-        eq20(briefFindings.versionId, versionId)
+      and11(
+        eq21(briefFindings.organizationId, context3.organizationId),
+        eq21(briefFindings.streamId, stream.id),
+        eq21(briefFindings.versionId, versionId)
       )
     ),
     db.select().from(briefFindingResolutions).where(
-      and10(
-        eq20(briefFindingResolutions.organizationId, context3.organizationId),
-        eq20(briefFindingResolutions.streamId, stream.id)
+      and11(
+        eq21(briefFindingResolutions.organizationId, context3.organizationId),
+        eq21(briefFindingResolutions.streamId, stream.id)
       )
     ),
     db.select().from(briefApprovals).where(
-      and10(
-        eq20(briefApprovals.organizationId, context3.organizationId),
-        eq20(briefApprovals.streamId, stream.id),
-        eq20(briefApprovals.versionId, versionId)
+      and11(
+        eq21(briefApprovals.organizationId, context3.organizationId),
+        eq21(briefApprovals.streamId, stream.id),
+        eq21(briefApprovals.versionId, versionId)
       )
-    ).orderBy(asc2(briefApprovals.streamSequence)),
+    ).orderBy(asc3(briefApprovals.streamSequence)),
     db.select().from(briefApplicabilityEvents).where(
-      and10(
-        eq20(briefApplicabilityEvents.organizationId, context3.organizationId),
-        eq20(briefApplicabilityEvents.streamId, stream.id),
-        eq20(briefApplicabilityEvents.versionId, versionId)
+      and11(
+        eq21(briefApplicabilityEvents.organizationId, context3.organizationId),
+        eq21(briefApplicabilityEvents.streamId, stream.id),
+        eq21(briefApplicabilityEvents.versionId, versionId)
       )
-    ).orderBy(asc2(briefApplicabilityEvents.streamSequence)),
+    ).orderBy(asc3(briefApplicabilityEvents.streamSequence)),
     db.select().from(briefDependencies).where(
-      and10(
-        eq20(briefDependencies.organizationId, context3.organizationId),
-        eq20(briefDependencies.streamId, stream.id),
-        eq20(briefDependencies.versionId, versionId)
+      and11(
+        eq21(briefDependencies.organizationId, context3.organizationId),
+        eq21(briefDependencies.streamId, stream.id),
+        eq21(briefDependencies.versionId, versionId)
       )
     ),
     db.select().from(briefSectionRevisions).where(
-      and10(
-        eq20(briefSectionRevisions.organizationId, context3.organizationId),
-        eq20(briefSectionRevisions.projectId, stream.projectId)
+      and11(
+        eq21(briefSectionRevisions.organizationId, context3.organizationId),
+        eq21(briefSectionRevisions.projectId, stream.projectId)
       )
     )
   ]);
@@ -50219,7 +54107,7 @@ var briefRouter = router({
 
 // server/routers/typology-packs.ts
 import { TRPCError as TRPCError31 } from "@trpc/server";
-import { createHash as createHash13 } from "node:crypto";
+import { createHash as createHash15 } from "node:crypto";
 import { z as z46 } from "zod";
 
 // shared/typology-pack.ts
@@ -50401,7 +54289,7 @@ var NEUTRAL_SYNTHETIC_TYPOLOGY_PACK = validateTypologyPack({
 });
 
 // server/engines/typology-pack.ts
-import { createHash as createHash11 } from "node:crypto";
+import { createHash as createHash13 } from "node:crypto";
 import { z as z45 } from "zod";
 var TypologyPackResolutionError = class extends Error {
   constructor(message) {
@@ -50429,7 +54317,7 @@ function canonicalizeTypologyPack(input) {
   return JSON.stringify(normalize(input));
 }
 function fingerprintTypologyPack(input) {
-  return createHash11("sha256").update(canonicalizeTypologyPack(input), "utf8").digest("hex");
+  return createHash13("sha256").update(canonicalizeTypologyPack(input), "utf8").digest("hex");
 }
 var BUILT_IN_TYPOLOGY_PACK_FINGERPRINT_MANIFEST = Object.freeze({
   "neutral-example@0.1.0": "6ad359c44b59dd982223519c819be2a2e176f4f1a854b707ab191d8bccf4c2e7"
@@ -50510,8 +54398,8 @@ function validateTypologyPackOverride(args) {
 }
 
 // server/db/typology-packs.ts
-import { and as and11, desc as desc12, eq as eq21, max } from "drizzle-orm";
-import { createHash as createHash12 } from "node:crypto";
+import { and as and12, desc as desc13, eq as eq22, max } from "drizzle-orm";
+import { createHash as createHash14 } from "node:crypto";
 init_db();
 init_schema();
 var TypologyPackStoreError = class extends Error {
@@ -50520,16 +54408,16 @@ var TypologyPackStoreError = class extends Error {
     this.code = code;
   }
 };
-var requestFingerprint = (value) => createHash12("sha256").update(canonicalizeTypologyPack(value), "utf8").digest("hex");
-async function database2() {
+var requestFingerprint = (value) => createHash14("sha256").update(canonicalizeTypologyPack(value), "utf8").digest("hex");
+async function database3() {
   const db = await getDb();
   if (!db) throw new TypologyPackStoreError("UNAVAILABLE", "Database unavailable");
   return db;
 }
 async function assertLiveMember(tx, context3) {
-  const memberships = await tx.select().from(organizationMembers).where(and11(
-    eq21(organizationMembers.orgId, context3.organizationId),
-    eq21(organizationMembers.userId, context3.userId)
+  const memberships = await tx.select().from(organizationMembers).where(and12(
+    eq22(organizationMembers.orgId, context3.organizationId),
+    eq22(organizationMembers.userId, context3.userId)
   )).limit(2).for("update");
   if (memberships.length !== 1) throw new TypologyPackStoreError("CONCEALED", "Typology pack not found");
   if (context3.requireAdmin && memberships[0].role !== "admin") {
@@ -50537,17 +54425,17 @@ async function assertLiveMember(tx, context3) {
   }
 }
 async function createTypologyPackRevision(input, context3) {
-  const db = await database2();
+  const db = await database3();
   return db.transaction(async (tx) => {
     await assertLiveMember(tx, context3);
-    const replay = await tx.select().from(typologyPackEvents).where(and11(
-      eq21(typologyPackEvents.organizationId, context3.organizationId),
-      eq21(typologyPackEvents.idempotencyKey, input.idempotencyKey)
+    const replay = await tx.select().from(typologyPackEvents).where(and12(
+      eq22(typologyPackEvents.organizationId, context3.organizationId),
+      eq22(typologyPackEvents.idempotencyKey, input.idempotencyKey)
     )).limit(1).for("update");
     const fingerprint = requestFingerprint({ action: "create", actorUserId: context3.userId, ...input });
     if (replay[0]) {
       if (replay[0].eventType !== "created" || replay[0].requestFingerprint !== fingerprint) throw new TypologyPackStoreError("CONFLICT", "Idempotency key was used for a different request");
-      const revisions = await tx.select().from(typologyPackRevisions).where(and11(eq21(typologyPackRevisions.organizationId, context3.organizationId), eq21(typologyPackRevisions.id, replay[0].revisionId))).limit(1);
+      const revisions = await tx.select().from(typologyPackRevisions).where(and12(eq22(typologyPackRevisions.organizationId, context3.organizationId), eq22(typologyPackRevisions.id, replay[0].revisionId))).limit(1);
       if (revisions[0]) return revisions[0];
       throw new TypologyPackStoreError("CONFLICT", "Idempotency record is inconsistent");
     }
@@ -50568,9 +54456,9 @@ async function createTypologyPackRevision(input, context3) {
       }
       throw error;
     }
-    const latest = await tx.select({ revisionNumber: max(typologyPackRevisions.revisionNumber) }).from(typologyPackRevisions).where(and11(
-      eq21(typologyPackRevisions.organizationId, context3.organizationId),
-      eq21(typologyPackRevisions.packKey, input.packKey)
+    const latest = await tx.select({ revisionNumber: max(typologyPackRevisions.revisionNumber) }).from(typologyPackRevisions).where(and12(
+      eq22(typologyPackRevisions.organizationId, context3.organizationId),
+      eq22(typologyPackRevisions.packKey, input.packKey)
     )).for("update");
     const revisionNumber = Number(latest[0]?.revisionNumber ?? 0) + 1;
     const result = await tx.insert(typologyPackRevisions).values({
@@ -50588,44 +54476,44 @@ async function createTypologyPackRevision(input, context3) {
     });
     const id = Number(result[0].insertId);
     await tx.insert(typologyPackEvents).values({ organizationId: context3.organizationId, revisionId: id, eventType: "created", actorUserId: context3.userId, reason: input.reason, idempotencyKey: input.idempotencyKey, requestFingerprint: fingerprint });
-    return (await tx.select().from(typologyPackRevisions).where(and11(eq21(typologyPackRevisions.organizationId, context3.organizationId), eq21(typologyPackRevisions.id, id))).limit(1))[0];
+    return (await tx.select().from(typologyPackRevisions).where(and12(eq22(typologyPackRevisions.organizationId, context3.organizationId), eq22(typologyPackRevisions.id, id))).limit(1))[0];
   });
 }
 async function transitionTypologyPackRevision(input, context3) {
-  const db = await database2();
+  const db = await database3();
   return db.transaction(async (tx) => {
     await assertLiveMember(tx, { ...context3, requireAdmin: true });
-    const replay = await tx.select().from(typologyPackEvents).where(and11(eq21(typologyPackEvents.organizationId, context3.organizationId), eq21(typologyPackEvents.idempotencyKey, input.idempotencyKey))).limit(1).for("update");
+    const replay = await tx.select().from(typologyPackEvents).where(and12(eq22(typologyPackEvents.organizationId, context3.organizationId), eq22(typologyPackEvents.idempotencyKey, input.idempotencyKey))).limit(1).for("update");
     const fingerprint = requestFingerprint({ actorUserId: context3.userId, ...input });
     if (replay[0]) {
       if (replay[0].revisionId !== input.revisionId || replay[0].requestFingerprint !== fingerprint) throw new TypologyPackStoreError("CONFLICT", "Idempotency key was used for a different request");
-      return (await tx.select().from(typologyPackRevisions).where(and11(eq21(typologyPackRevisions.organizationId, context3.organizationId), eq21(typologyPackRevisions.id, replay[0].revisionId))).limit(1))[0];
+      return (await tx.select().from(typologyPackRevisions).where(and12(eq22(typologyPackRevisions.organizationId, context3.organizationId), eq22(typologyPackRevisions.id, replay[0].revisionId))).limit(1))[0];
     }
-    const revision = (await tx.select().from(typologyPackRevisions).where(and11(eq21(typologyPackRevisions.organizationId, context3.organizationId), eq21(typologyPackRevisions.id, input.revisionId))).limit(1).for("update"))[0];
+    const revision = (await tx.select().from(typologyPackRevisions).where(and12(eq22(typologyPackRevisions.organizationId, context3.organizationId), eq22(typologyPackRevisions.id, input.revisionId))).limit(1).for("update"))[0];
     if (!revision) throw new TypologyPackStoreError("CONCEALED", "Typology pack not found");
     if (input.action === "review" && (revision.status !== "draft" || revision.createdBy === context3.userId)) throw new TypologyPackStoreError("CONFLICT", "Only another administrator may review a draft revision");
     if (input.action === "approve" && (revision.status !== "reviewed" || revision.createdBy === context3.userId || revision.reviewedBy === context3.userId || revision.reviewDueAt <= /* @__PURE__ */ new Date())) throw new TypologyPackStoreError("CONFLICT", "Revision cannot be approved");
     if (input.action === "approve") {
-      const reviewers = await tx.select().from(organizationMembers).where(and11(eq21(organizationMembers.orgId, context3.organizationId), eq21(organizationMembers.userId, revision.reviewedBy))).limit(2).for("update");
+      const reviewers = await tx.select().from(organizationMembers).where(and12(eq22(organizationMembers.orgId, context3.organizationId), eq22(organizationMembers.userId, revision.reviewedBy))).limit(2).for("update");
       if (reviewers.length !== 1 || reviewers[0].role !== "admin") throw new TypologyPackStoreError("CONFLICT", "Revision reviewer is no longer an active administrator");
     }
     if (input.action === "withdraw" && revision.status === "withdrawn") throw new TypologyPackStoreError("CONFLICT", "Revision is already withdrawn");
     const now = /* @__PURE__ */ new Date();
     const fields = input.action === "review" ? { status: "reviewed", reviewedBy: context3.userId, reviewedAt: now } : input.action === "approve" ? { status: "approved", approvedBy: context3.userId, approvedAt: now } : { status: "withdrawn", withdrawnBy: context3.userId, withdrawnAt: now };
-    await tx.update(typologyPackRevisions).set(fields).where(and11(eq21(typologyPackRevisions.organizationId, context3.organizationId), eq21(typologyPackRevisions.id, input.revisionId)));
+    await tx.update(typologyPackRevisions).set(fields).where(and12(eq22(typologyPackRevisions.organizationId, context3.organizationId), eq22(typologyPackRevisions.id, input.revisionId)));
     await tx.insert(typologyPackEvents).values({ organizationId: context3.organizationId, revisionId: input.revisionId, eventType: input.action === "review" ? "reviewed" : input.action === "approve" ? "approved" : "withdrawn", actorUserId: context3.userId, reason: input.reason, idempotencyKey: input.idempotencyKey, requestFingerprint: fingerprint });
-    return (await tx.select().from(typologyPackRevisions).where(and11(eq21(typologyPackRevisions.organizationId, context3.organizationId), eq21(typologyPackRevisions.id, input.revisionId))).limit(1))[0];
+    return (await tx.select().from(typologyPackRevisions).where(and12(eq22(typologyPackRevisions.organizationId, context3.organizationId), eq22(typologyPackRevisions.id, input.revisionId))).limit(1))[0];
   });
 }
 async function listTypologyPackRevisions(context3) {
-  const db = await database2();
+  const db = await database3();
   await assertLiveMember(db, context3);
-  return db.select().from(typologyPackRevisions).where(eq21(typologyPackRevisions.organizationId, context3.organizationId)).orderBy(desc12(typologyPackRevisions.createdAt));
+  return db.select().from(typologyPackRevisions).where(eq22(typologyPackRevisions.organizationId, context3.organizationId)).orderBy(desc13(typologyPackRevisions.createdAt));
 }
 async function getTypologyPackRevision(revisionId, context3) {
-  const db = await database2();
+  const db = await database3();
   await assertLiveMember(db, context3);
-  return (await db.select().from(typologyPackRevisions).where(and11(eq21(typologyPackRevisions.organizationId, context3.organizationId), eq21(typologyPackRevisions.id, revisionId))).limit(1))[0] ?? null;
+  return (await db.select().from(typologyPackRevisions).where(and12(eq22(typologyPackRevisions.organizationId, context3.organizationId), eq22(typologyPackRevisions.id, revisionId))).limit(1))[0] ?? null;
 }
 
 // server/routers/typology-packs.ts
@@ -50677,7 +54565,7 @@ var typologyPackRouter = router({
         basePackFingerprint: input.base.fingerprint,
         payloadSchemaVersion: TYPOLOGY_PACK_SCHEMA_VERSION,
         payload: input.payload,
-        payloadFingerprint: createHash13("sha256").update(canonicalizeTypologyPack(input.payload), "utf8").digest("hex"),
+        payloadFingerprint: createHash15("sha256").update(canonicalizeTypologyPack(input.payload), "utf8").digest("hex"),
         reviewDueAt: new Date(input.reviewDueAt),
         reason: input.reason,
         idempotencyKey: input.idempotencyKey
@@ -50712,7 +54600,7 @@ var typologyPackRouter = router({
       if (!input.revisionId) return resolveTypologyPack({ reference: input.base, builtIns });
       const revision = await getTypologyPackRevision(input.revisionId, context2(ctx));
       if (!revision || revision.status !== "approved" || revision.reviewDueAt <= /* @__PURE__ */ new Date() || revision.basePackKey !== input.base.packId || revision.basePackVersion !== input.base.version || revision.basePackFingerprint !== input.base.fingerprint || !revision.approvedAt) throw new TRPCError31({ code: "NOT_FOUND", message: "Typology pack not found" });
-      if (revision.payloadFingerprint !== createHash13("sha256").update(canonicalizeTypologyPack(revision.payload), "utf8").digest("hex")) throw new TRPCError31({ code: "NOT_FOUND", message: "Typology pack not found" });
+      if (revision.payloadFingerprint !== createHash15("sha256").update(canonicalizeTypologyPack(revision.payload), "utf8").digest("hex")) throw new TRPCError31({ code: "NOT_FOUND", message: "Typology pack not found" });
       const payload = typologyPackOverridePayloadSchema.parse(revision.payload);
       return resolveTypologyPack({ reference: input.base, builtIns, organizationId: String(ctx.orgId), override: { organizationId: String(ctx.orgId), ...payload, status: "approved", approvedAt: revision.approvedAt.toISOString() } });
     } catch (error) {
@@ -50857,15 +54745,15 @@ var regulatoryPublicCitationSchema = z47.object({
 // server/db/regulatory-sources.ts
 init_db();
 init_schema();
-import { and as and12, asc as asc3, desc as desc13, eq as eq22, inArray as inArray6, or as or3 } from "drizzle-orm";
-import { createHash as createHash14 } from "node:crypto";
+import { and as and13, asc as asc4, desc as desc14, eq as eq23, inArray as inArray7, or as or4 } from "drizzle-orm";
+import { createHash as createHash16 } from "node:crypto";
 var RegulatorySourceStoreError = class extends Error {
   constructor(code, message) {
     super(message);
     this.code = code;
   }
 };
-async function database3() {
+async function database4() {
   const db = await getDb();
   if (!db) throw new RegulatorySourceStoreError("UNAVAILABLE", "Regulatory source database unavailable");
   return db;
@@ -50876,13 +54764,13 @@ var canonical2 = (value) => {
   return JSON.stringify(value);
 };
 async function listRegulatorySources() {
-  const db = await database3();
-  return db.select().from(regulatorySources).orderBy(asc3(regulatorySources.sourceKey));
+  const db = await database4();
+  return db.select().from(regulatorySources).orderBy(asc4(regulatorySources.sourceKey));
 }
 async function registerRegulatorySource(registration) {
-  const db = await database3();
+  const db = await database4();
   return db.transaction(async (tx) => {
-    const existing = (await tx.select().from(regulatorySources).where(eq22(regulatorySources.sourceKey, registration.sourceKey)).limit(1).for("update"))[0];
+    const existing = (await tx.select().from(regulatorySources).where(eq23(regulatorySources.sourceKey, registration.sourceKey)).limit(1).for("update"))[0];
     const values = {
       sourceKey: registration.sourceKey,
       issuingAuthority: registration.issuingAuthority,
@@ -50901,13 +54789,13 @@ async function registerRegulatorySource(registration) {
       return existing;
     }
     const inserted = await tx.insert(regulatorySources).values(values);
-    return (await tx.select().from(regulatorySources).where(eq22(regulatorySources.id, Number(inserted[0].insertId))).limit(1))[0];
+    return (await tx.select().from(regulatorySources).where(eq23(regulatorySources.id, Number(inserted[0].insertId))).limit(1))[0];
   });
 }
 async function createRegulatorySourceRelation(input) {
   if (input.sourceVersionId === input.targetSourceVersionId) throw new RegulatorySourceStoreError("CONFLICT", "A source version cannot relate to itself");
-  const db = await database3();
-  const relationFingerprint = createHash14("sha256").update(canonical2({
+  const db = await database4();
+  const relationFingerprint = createHash16("sha256").update(canonical2({
     ...input,
     clauseScope: [...input.clauseScope].sort(),
     effectiveFrom: input.effectiveFrom?.toISOString(),
@@ -50917,13 +54805,13 @@ async function createRegulatorySourceRelation(input) {
   return { id: Number(result[0].insertId), relationFingerprint };
 }
 async function createRegulatorySourceAssertion(input, options = {}) {
-  const db = await database3();
+  const db = await database4();
   return db.transaction(async (tx) => {
-    const version = (await tx.select().from(regulatorySourceVersions).where(eq22(regulatorySourceVersions.id, input.sourceVersionId)).limit(1).for("update"))[0];
+    const version = (await tx.select().from(regulatorySourceVersions).where(eq23(regulatorySourceVersions.id, input.sourceVersionId)).limit(1).for("update"))[0];
     if (!version) throw new RegulatorySourceStoreError("NOT_FOUND", "Regulatory source version not found");
-    const assertionFingerprint = createHash14("sha256").update(canonical2({ ...input, validFrom: input.validFrom.toISOString(), validTo: input.validTo?.toISOString() }), "utf8").digest("hex");
+    const assertionFingerprint = createHash16("sha256").update(canonical2({ ...input, validFrom: input.validFrom.toISOString(), validTo: input.validTo?.toISOString() }), "utf8").digest("hex");
     const result = await tx.insert(regulatorySourceAssertions).values({ ...input, assertionFingerprint });
-    const assertions = await tx.select().from(regulatorySourceAssertions).where(eq22(regulatorySourceAssertions.sourceVersionId, input.sourceVersionId)).orderBy(asc3(regulatorySourceAssertions.id));
+    const assertions = await tx.select().from(regulatorySourceAssertions).where(eq23(regulatorySourceAssertions.sourceVersionId, input.sourceVersionId)).orderBy(asc4(regulatorySourceAssertions.id));
     const latest = new Map(assertions.map((assertion) => [assertion.assertionType, assertion]));
     const required = ["document_identity", "authenticity", "temporal_status", "jurisdiction", "permitted_use"];
     const now = options.now ?? /* @__PURE__ */ new Date();
@@ -50933,13 +54821,13 @@ async function createRegulatorySourceAssertion(input, options = {}) {
     });
     await tx.update(regulatorySourceVersions).set({
       status: complete ? "asserted" : version.status === "asserted" ? "stale" : version.status
-    }).where(eq22(regulatorySourceVersions.id, input.sourceVersionId));
+    }).where(eq23(regulatorySourceVersions.id, input.sourceVersionId));
     return { id: Number(result[0].insertId), assertionFingerprint, versionStatus: complete ? "asserted" : version.status === "asserted" ? "stale" : version.status };
   });
 }
 async function listRegulatorySourceVersions(sourceKey) {
-  const db = await database3();
-  return db.select({ source: regulatorySources, version: regulatorySourceVersions }).from(regulatorySources).innerJoin(regulatorySourceVersions, eq22(regulatorySourceVersions.sourceId, regulatorySources.id)).where(eq22(regulatorySources.sourceKey, sourceKey)).orderBy(desc13(regulatorySourceVersions.createdAt));
+  const db = await database4();
+  return db.select({ source: regulatorySources, version: regulatorySourceVersions }).from(regulatorySources).innerJoin(regulatorySourceVersions, eq23(regulatorySourceVersions.sourceId, regulatorySources.id)).where(eq23(regulatorySources.sourceKey, sourceKey)).orderBy(desc14(regulatorySourceVersions.createdAt));
 }
 
 // server/routers/regulatory-sources.ts
@@ -51008,6 +54896,142 @@ var regulatorySourceRouter = router({
   })
 });
 
+// server/routers/report-share.ts
+init_claim_health3();
+import { TRPCError as TRPCError33 } from "@trpc/server";
+import { z as z49 } from "zod";
+function adminContext(ctx) {
+  return {
+    kind: "organization_admin",
+    organizationId: ctx.orgId,
+    userId: ctx.user.id,
+    sessionIdentity: "report-share-router-v1"
+  };
+}
+function concealedShareError() {
+  return new TRPCError33({
+    code: "NOT_FOUND",
+    message: "Report share not found or expired"
+  });
+}
+function translateAuthenticatedError(error, operation) {
+  if (error instanceof ClaimHealthStoreError) {
+    if (error.code === "CONCEALED") throw concealedShareError();
+    if (error.code === "FORBIDDEN") {
+      throw new TRPCError33({
+        code: "FORBIDDEN",
+        message: "Organization administrator access is required"
+      });
+    }
+    if (error.code === "CONFLICT") {
+      throw new TRPCError33({
+        code: "CONFLICT",
+        message: `Unable to ${operation} because the resource changed`
+      });
+    }
+    if (error.code === "INVALID") {
+      throw new TRPCError33({
+        code: "BAD_REQUEST",
+        message: `Unable to ${operation} report share`
+      });
+    }
+  }
+  throw new TRPCError33({
+    code: "INTERNAL_SERVER_ERROR",
+    message: `Unable to ${operation} report share`
+  });
+}
+var reportShareRouter = router({
+  list: orgAdminProcedure.input(z49.object({ reportInstanceId: z49.number().int().positive() }).strict()).query(async ({ ctx, input }) => {
+    try {
+      const shares = await listActiveReportPublicShares(
+        {
+          organizationId: ctx.orgId,
+          reportInstanceId: input.reportInstanceId
+        },
+        adminContext(ctx)
+      );
+      return shares.map((share) => ({
+        shareId: share.shareId,
+        createdAt: share.createdAt,
+        expiresAt: share.expiresAt,
+        revokedAt: share.revokedAt,
+        active: share.active
+      }));
+    } catch (error) {
+      translateAuthenticatedError(error, "list");
+    }
+  }),
+  create: orgAdminProcedure.input(
+    z49.object({
+      reportInstanceId: z49.number().int().positive(),
+      expiryDays: z49.number().int().min(1).max(90).default(7)
+    }).strict()
+  ).mutation(async ({ ctx, input }) => {
+    const expiresAt = /* @__PURE__ */ new Date();
+    expiresAt.setUTCDate(expiresAt.getUTCDate() + input.expiryDays);
+    try {
+      const share = await createReportPublicShare(
+        {
+          organizationId: ctx.orgId,
+          reportInstanceId: input.reportInstanceId,
+          expiresAt
+        },
+        adminContext(ctx)
+      );
+      return {
+        shareId: share.shareId,
+        token: share.token,
+        shareUrl: `/report-share/${share.token}`,
+        expiresAt: share.expiresAt
+      };
+    } catch (error) {
+      translateAuthenticatedError(error, "create");
+    }
+  }),
+  revoke: orgAdminProcedure.input(z49.object({ shareId: z49.number().int().positive() }).strict()).mutation(async ({ ctx, input }) => {
+    try {
+      const revoked = await revokeReportPublicShare(
+        { organizationId: ctx.orgId, shareId: input.shareId },
+        adminContext(ctx)
+      );
+      if (!revoked) throw concealedShareError();
+      return { revoked: true };
+    } catch (error) {
+      if (error instanceof TRPCError33) throw error;
+      translateAuthenticatedError(error, "revoke");
+    }
+  }),
+  resolve: publicRateLimitedProcedure.input(
+    z49.object({
+      // Shape is validated here; the persistence boundary applies the
+      // exact token format so malformed strings remain indistinguishable
+      // from missing, expired, revoked, and tampered shares.
+      token: z49.string()
+    }).strict()
+  ).query(async ({ input }) => {
+    try {
+      const resolved2 = await resolveReportPublicShare({
+        token: input.token,
+        asOf: /* @__PURE__ */ new Date()
+      });
+      if (!resolved2) throw concealedShareError();
+      return {
+        report: {
+          reportType: resolved2.report.reportType,
+          locale: resolved2.report.locale,
+          generatedAt: resolved2.report.generatedAt
+        },
+        claimHealth: resolved2.claimHealth,
+        expiresAt: resolved2.expiresAt
+      };
+    } catch (error) {
+      if (error instanceof TRPCError33) throw error;
+      throw concealedShareError();
+    }
+  })
+});
+
 // server/routers.ts
 var appRouter = router({
   system: systemRouter,
@@ -51037,7 +55061,8 @@ var appRouter = router({
   spaceProgram: spaceProgramRouter,
   brief: briefRouter,
   typologyPack: typologyPackRouter,
-  regulatorySources: regulatorySourceRouter
+  regulatorySources: regulatorySourceRouter,
+  reportShare: reportShareRouter
 });
 
 // server/_core/context.ts
@@ -51101,7 +55126,7 @@ function registerIngestionCronRoute(app) {
 // server/_core/public-share-headers.ts
 var PUBLIC_SHARE_HEADERS = {
   "Cache-Control": "private, no-store",
-  "Pragma": "no-cache",
+  Pragma: "no-cache",
   "X-Robots-Tag": "noindex, nofollow, noarchive"
 };
 function isPublicShareTrpcRequest(path) {
@@ -51116,7 +55141,9 @@ function isPublicShareTrpcRequest(path) {
   } catch {
   }
   const procedures = decodedSuffix.split(",");
-  return procedures.includes("design.resolveShareLink");
+  return procedures.some(
+    (procedure) => procedure === "design.resolveShareLink" || procedure === "reportShare.resolve"
+  );
 }
 var publicShareHeaders = (req, res, next) => {
   if (isPublicShareTrpcRequest(req.originalUrl || req.url)) {

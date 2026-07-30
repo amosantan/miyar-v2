@@ -1,213 +1,256 @@
-/**
- * DataFreshnessBanner — Phase A.4: Data Freshness Indicators
- *
- * A compact, inline banner showing how current the market data is.
- * Collapses into a single line showing overall status + expandable detail.
- *
- * Usage:
- *   <DataFreshnessBanner />               // default: compact strip
- *   <DataFreshnessBanner expanded />       // show per-source detail
- */
-import { useState } from "react";
-import { trpc } from "@/lib/trpc";
-import { Badge } from "@/components/ui/badge";
+import { useId, useState } from "react";
 import {
-    Activity,
-    ChevronDown,
-    ChevronUp,
-    CheckCircle2,
-    AlertTriangle,
-    XCircle,
-    Clock,
-    Globe,
-    Loader2,
-    RefreshCw,
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Info,
+  Loader2,
+  XCircle,
 } from "lucide-react";
+import { trpc } from "@/lib/trpc";
+import { useTranslation } from "@/lib/i18n";
+import {
+  claimHealthCopy,
+  claimHealthCellLabel,
+  formatClaimHealthDate,
+  normalizeCustomerClaimHealthProjection,
+  safeClaimHealthReason,
+  type ClaimHealthState,
+} from "./claim-health-view-model";
+import type { ClaimHealthSafeProjection } from "@shared/claim-health";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
 interface Props {
-    expanded?: boolean;
-    className?: string;
+  expanded?: boolean;
+  className?: string;
+  /** A project-scoped health claim. Omit for the fixed public-market evidence view. */
+  projectId?: number;
+  /** A verified artifact-bound projection. Suppresses all live health queries. */
+  frozenProjection?: ClaimHealthSafeProjection | unknown;
 }
 
-type HealthLevel = "healthy" | "aging" | "degraded" | "unknown";
-type FreshnessLevel = "fresh" | "aging" | "stale" | "unknown";
-
-const HEALTH_CONFIG: Record<HealthLevel, { label: string; color: string; icon: typeof CheckCircle2 }> = {
-    healthy: { label: "Data Fresh", color: "text-emerald-400", icon: CheckCircle2 },
-    aging: { label: "Data Aging", color: "text-amber-400", icon: AlertTriangle },
-    degraded: { label: "Data Stale", color: "text-red-400", icon: XCircle },
-    unknown: { label: "Freshness Unknown", color: "text-muted-foreground", icon: Clock },
+const STATE_STYLE: Record<
+  ClaimHealthState,
+  { text: string; border: string; Icon: typeof CheckCircle2 }
+> = {
+  current: {
+    text: "text-emerald-600 dark:text-emerald-400",
+    border: "border-emerald-500/30",
+    Icon: CheckCircle2,
+  },
+  current_with_fallback: {
+    text: "text-amber-600 dark:text-amber-400",
+    border: "border-amber-500/30",
+    Icon: AlertTriangle,
+  },
+  qualified: {
+    text: "text-amber-600 dark:text-amber-400",
+    border: "border-amber-500/30",
+    Icon: AlertTriangle,
+  },
+  aging: {
+    text: "text-amber-600 dark:text-amber-400",
+    border: "border-amber-500/30",
+    Icon: Clock,
+  },
+  stale: {
+    text: "text-red-600 dark:text-red-400",
+    border: "border-red-500/30",
+    Icon: XCircle,
+  },
+  incident: {
+    text: "text-red-600 dark:text-red-400",
+    border: "border-red-500/30",
+    Icon: XCircle,
+  },
+  insufficient: {
+    text: "text-red-600 dark:text-red-400",
+    border: "border-red-500/30",
+    Icon: AlertTriangle,
+  },
+  unknown: {
+    text: "text-muted-foreground",
+    border: "border-border/50",
+    Icon: Info,
+  },
+  legacy: {
+    text: "text-muted-foreground",
+    border: "border-border/50",
+    Icon: Info,
+  },
 };
 
-const FRESHNESS_DOT: Record<FreshnessLevel, string> = {
-    fresh: "bg-emerald-400",
-    aging: "bg-amber-400",
-    stale: "bg-red-400",
-    unknown: "bg-muted-foreground/40",
-};
-
-const FRESHNESS_LABEL: Record<FreshnessLevel, string> = {
-    fresh: "Fresh",
-    aging: "Aging",
-    stale: "Stale",
-    unknown: "No data",
-};
-
-function formatRelative(date: string | Date | null): string {
-    if (!date) return "Never";
-    const d = new Date(date);
-    const days = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
-    if (days === 0) return "Today";
-    if (days === 1) return "Yesterday";
-    if (days < 7) return `${days}d ago`;
-    if (days < 30) return `${Math.floor(days / 7)}w ago`;
-    return `${Math.floor(days / 30)}mo ago`;
-}
-
-// ─── Component ───────────────────────────────────────────────────────────────
-export default function DataFreshnessBanner({ expanded: defaultExpanded = false, className = "" }: Props) {
-    const [expanded, setExpanded] = useState(defaultExpanded);
-
-    const { data, isLoading } = trpc.design.getDataFreshness.useQuery(undefined, {
-        staleTime: 5 * 60 * 1000, // cache for 5 min
-        refetchOnWindowFocus: false,
-    });
-
-    if (isLoading) {
-        return (
-            <div className={`flex items-center gap-2 text-xs text-muted-foreground ${className}`}>
-                <Loader2 className="h-3 w-3 animate-spin" />
-                <span>Checking data freshness…</span>
-            </div>
-        );
+export default function DataFreshnessBanner({
+  expanded: defaultExpanded = false,
+  className = "",
+  projectId,
+  frozenProjection,
+}: Props) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const detailId = useId();
+  const { locale } = useTranslation();
+  const queryOptions = {
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  };
+  const marketQuery = trpc.design.getDataFreshness.useQuery(undefined, {
+    ...queryOptions,
+    enabled: frozenProjection === undefined && projectId === undefined,
+  });
+  const projectQuery = trpc.design.getProjectDataFreshness.useQuery(
+    { projectId: projectId ?? 0 },
+    {
+      ...queryOptions,
+      enabled: frozenProjection === undefined && projectId !== undefined,
     }
+  );
+  const query = projectId === undefined ? marketQuery : projectQuery;
 
-    if (!data) return null;
-
-    const health = (data.overallHealth as HealthLevel) ?? "unknown";
-    const conf = HEALTH_CONFIG[health];
-    const HealthIcon = conf.icon;
-
+  if (frozenProjection === undefined && query.isLoading) {
     return (
-        <div className={`rounded-lg border border-border/50 bg-secondary/20 ${className}`}>
-            {/* Compact strip */}
-            <button
-                onClick={() => setExpanded((v) => !v)}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-secondary/40 transition-colors rounded-lg"
-            >
-                <HealthIcon className={`h-3.5 w-3.5 ${conf.color} shrink-0`} />
-                <span className={`font-medium ${conf.color}`}>{conf.label}</span>
-                <span className="text-muted-foreground">·</span>
-
-                {/* Mini dots summary */}
-                <div className="flex items-center gap-1">
-                    {data.freshCount > 0 && (
-                        <span className="flex items-center gap-0.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                            <span className="text-muted-foreground">{data.freshCount}</span>
-                        </span>
-                    )}
-                    {data.agingCount > 0 && (
-                        <span className="flex items-center gap-0.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                            <span className="text-muted-foreground">{data.agingCount}</span>
-                        </span>
-                    )}
-                    {data.staleCount > 0 && (
-                        <span className="flex items-center gap-0.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                            <span className="text-muted-foreground">{data.staleCount}</span>
-                        </span>
-                    )}
-                </div>
-
-                <span className="text-muted-foreground ml-auto">
-                    {data.totalSources} source{data.totalSources !== 1 ? "s" : ""}
-                </span>
-
-                {/* Latest run info */}
-                {data.latestRun && (
-                    <>
-                        <span className="text-muted-foreground">·</span>
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-muted-foreground">
-                            Last run {formatRelative(data.latestRun.startedAt)}
-                        </span>
-                    </>
-                )}
-
-                {expanded ? (
-                    <ChevronUp className="h-3 w-3 text-muted-foreground shrink-0" />
-                ) : (
-                    <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
-                )}
-            </button>
-
-            {/* Expanded detail */}
-            {expanded && (
-                <div className="px-3 pb-3 space-y-1.5 border-t border-border/30">
-                    {/* Latest run summary */}
-                    {data.latestRun && (
-                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground pt-2 pb-1">
-                            <RefreshCw className="h-3 w-3" />
-                            <span>
-                                Run {data.latestRun.runId?.slice(0, 8)}… —
-                                {" "}{data.latestRun.sourcesSucceeded}/{data.latestRun.totalSources} sources OK,
-                                {" "}{data.latestRun.recordsExtracted} records extracted
-                            </span>
-                            <Badge
-                                variant="outline"
-                                className={`text-[9px] px-1 py-0 ${data.latestRun.status === "completed" ? "text-emerald-400 border-emerald-500/30"
-                                        : data.latestRun.status === "failed" ? "text-red-400 border-red-500/30"
-                                            : "text-amber-400 border-amber-500/30"
-                                    }`}
-                            >
-                                {data.latestRun.status}
-                            </Badge>
-                        </div>
-                    )}
-
-                    {/* Per-source rows */}
-                    {(data.sources ?? []).map((s: any) => {
-                        const freshness = (s.freshness as FreshnessLevel) ?? "unknown";
-                        return (
-                            <div key={s.id} className="flex items-center gap-2 text-[11px] py-1 border-b border-border/20 last:border-0">
-                                <span className={`w-2 h-2 rounded-full shrink-0 ${FRESHNESS_DOT[freshness]}`} />
-                                <Globe className="h-3 w-3 text-muted-foreground shrink-0" />
-                                <span className="text-foreground truncate flex-1">{s.name}</span>
-                                <span className="text-muted-foreground text-[10px]">
-                                    {s.sourceType?.replace(/_/g, " ")}
-                                </span>
-                                <Badge
-                                    variant="outline"
-                                    className={`text-[9px] px-1 py-0 ${s.reliabilityGrade === "A" ? "text-emerald-400 border-emerald-500/30"
-                                            : s.reliabilityGrade === "B" ? "text-amber-400 border-amber-500/30"
-                                                : "text-red-400 border-red-500/30"
-                                        }`}
-                                >
-                                    {s.reliabilityGrade}
-                                </Badge>
-                                <span className={`text-[10px] w-12 text-right ${freshness === "fresh" ? "text-emerald-400"
-                                        : freshness === "aging" ? "text-amber-400"
-                                            : freshness === "stale" ? "text-red-400"
-                                                : "text-muted-foreground"
-                                    }`}>
-                                    {s.daysSince !== null ? `${s.daysSince}d` : "—"}
-                                </span>
-                            </div>
-                        );
-                    })}
-
-                    {/* Legend */}
-                    <div className="flex items-center gap-3 text-[9px] text-muted-foreground/50 pt-1">
-                        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> ≤7d</span>
-                        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> 8–30d</span>
-                        <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-400" /> &gt;30d</span>
-                        <span className="flex items-center gap-1"><Activity className="h-2.5 w-2.5" /> MIYAR Data Authority Engine</span>
-                    </div>
-                </div>
-            )}
-        </div>
+      <div
+        className={`flex items-center gap-2 text-xs text-muted-foreground ${className}`}
+        role="status"
+        aria-live="polite"
+      >
+        <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+        <span>
+          {locale === "ar"
+            ? "جارٍ التحقق من صحة الأدلة…"
+            : "Checking evidence health…"}
+        </span>
+      </div>
     );
+  }
+
+  if (frozenProjection === undefined && query.isError) {
+    return (
+      <div
+        className={`rounded-lg border border-border/50 px-3 py-2 text-xs text-muted-foreground ${className}`}
+        role="status"
+      >
+        {locale === "ar"
+          ? "حالة صحة الأدلة غير متاحة حالياً."
+          : "Evidence health is currently unavailable."}
+      </div>
+    );
+  }
+
+  const health = normalizeCustomerClaimHealthProjection(
+    frozenProjection === undefined ? query.data : frozenProjection
+  );
+  const copy = claimHealthCopy(health.claimState, locale);
+  const style = STATE_STYLE[health.claimState];
+  const HealthIcon = style.Icon;
+
+  return (
+    <section
+      className={`rounded-lg border bg-secondary/20 ${style.border} ${className}`}
+      aria-label={locale === "ar" ? "صحة الأدلة" : "Evidence health"}
+    >
+      <button
+        type="button"
+        onClick={() => setExpanded(value => !value)}
+        aria-expanded={expanded}
+        aria-controls={detailId}
+        className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-3 py-2 text-start text-xs transition-colors hover:bg-secondary/40"
+      >
+        <HealthIcon
+          className={`h-3.5 w-3.5 shrink-0 ${style.text}`}
+          aria-hidden="true"
+        />
+        <span className={`font-medium ${style.text}`}>{copy.label}</span>
+        <span className="text-muted-foreground">·</span>
+        <span className="text-muted-foreground">
+          {health.counts.eligible}/{health.counts.required}{" "}
+          {locale === "ar" ? "خلية مطلوبة مؤهلة" : "eligible required cells"}
+        </span>
+        {health.counts.fallback > 0 && (
+          <span className="text-muted-foreground">
+            · {health.counts.fallback} {locale === "ar" ? "بديل" : "fallback"}
+          </span>
+        )}
+        <span className="ms-auto flex items-center gap-1 text-muted-foreground">
+          <span className="hidden sm:inline">
+            {formatClaimHealthDate(health.evaluatedAt, locale)}
+          </span>
+          {expanded ? (
+            <ChevronUp className="h-3 w-3" aria-hidden="true" />
+          ) : (
+            <ChevronDown className="h-3 w-3" aria-hidden="true" />
+          )}
+        </span>
+      </button>
+
+      {expanded && (
+        <div
+          id={detailId}
+          className="space-y-3 border-t border-border/30 px-3 pb-3 pt-2"
+          role="status"
+          aria-live="polite"
+        >
+          <p className="text-xs text-muted-foreground">{copy.description}</p>
+          <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground sm:grid-cols-4">
+            <div>
+              <dt>{locale === "ar" ? "مطابقة دقيقة" : "Exact"}</dt>
+              <dd className="font-medium text-foreground">
+                {health.counts.exact}
+              </dd>
+            </div>
+            <div>
+              <dt>{locale === "ar" ? "بدائل" : "Fallbacks"}</dt>
+              <dd className="font-medium text-foreground">
+                {health.counts.fallback}
+              </dd>
+            </div>
+            <div>
+              <dt>{locale === "ar" ? "السياسة" : "Policy"}</dt>
+              <dd className="truncate font-medium text-foreground">
+                {health.policyVersion ??
+                  (locale === "ar" ? "غير متاح" : "Unavailable")}
+              </dd>
+            </div>
+            <div>
+              <dt>{locale === "ar" ? "تم التقييم" : "Evaluated"}</dt>
+              <dd className="font-medium text-foreground">
+                {formatClaimHealthDate(health.evaluatedAt, locale)}
+              </dd>
+            </div>
+          </dl>
+          {health.cells.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground">
+              {locale === "ar"
+                ? "لا توجد خلايا أدلة مطلوبة في هذا التقييم."
+                : "No required evidence cells were returned for this evaluation."}
+            </p>
+          ) : (
+            <ul
+              className="space-y-1"
+              aria-label={
+                locale === "ar" ? "نتائج خلايا الأدلة" : "Evidence cell results"
+              }
+            >
+              {health.cells.slice(0, 6).map(cell => (
+                <li
+                  key={cell.cellRef}
+                  className="flex flex-col gap-0.5 border-b border-border/20 py-1 last:border-0 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <span className="truncate text-[11px] font-medium">
+                    {claimHealthCellLabel(cell.catalogueId, locale)}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {safeClaimHealthReason(
+                      cell.reasonCodes[0] ?? "unknown_incident",
+                      locale
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </section>
+  );
 }

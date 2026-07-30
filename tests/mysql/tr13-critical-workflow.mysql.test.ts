@@ -7,6 +7,7 @@ import type { TrpcContext } from "../../server/_core/context";
 import { initializeDatabaseSafety } from "../../server/_core/database-safety";
 import { requireActivePublicShare } from "../../server/_core/public-share-access";
 import { resetPublicRateLimitForTests } from "../../server/_core/rate-limit";
+import { cleanupEv04ClaimHealthForDisposableTest } from "../../server/db/claim-health";
 import { designRouter } from "../../server/routers/design";
 import { designAdvisorRouter } from "../../server/routers/design-advisor";
 import { materialQuantityRouter } from "../../server/routers/materialQuantity";
@@ -103,6 +104,15 @@ const foreign = () => context(ID.foreign, ID.foreignOrg, FIXTURE.users.foreign);
 
 async function clearOwnedFixture(): Promise<void> {
   const projectIds = [ID.project, ID.foreignProject];
+  for (const [organizationId, projectId] of [
+    [ID.primaryOrg, ID.project],
+    [ID.foreignOrg, ID.foreignProject],
+  ] as const) {
+    await cleanupEv04ClaimHealthForDisposableTest({
+      organizationId,
+      projectId,
+    });
+  }
   await pool.query(
     "delete from audit_logs where entityId in (?, ?)",
     projectIds

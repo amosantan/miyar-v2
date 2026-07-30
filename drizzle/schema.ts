@@ -1,6 +1,7 @@
 import {
   int,
   bigint,
+  check,
   mysqlEnum,
   mysqlTable,
   text,
@@ -15,6 +16,7 @@ import {
   uniqueIndex,
   foreignKey,
 } from "drizzle-orm/mysql-core";
+import { sql } from "drizzle-orm";
 
 // ─── Users ───────────────────────────────────────────────────────────────────
 export const users = mysqlTable("users", {
@@ -172,260 +174,264 @@ export type BenchmarkCategory = typeof benchmarkCategories.$inferSelect;
 export type InsertBenchmarkCategory = typeof benchmarkCategories.$inferInsert;
 
 // ─── Projects ────────────────────────────────────────────────────────────────
-export const projects = mysqlTable("projects", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  orgId: int("orgId"),
-  name: varchar("name", { length: 255 }).notNull(),
-  description: text("description"),
-  status: mysqlEnum("status", [
-    "draft",
-    "draft_area_verification",
-    "ready",
-    "processing",
-    "evaluated",
-    "locked",
-  ])
-    .default("draft")
-    .notNull(),
+export const projects = mysqlTable(
+  "projects",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    orgId: int("orgId"),
+    name: varchar("name", { length: 255 }).notNull(),
+    description: text("description"),
+    status: mysqlEnum("status", [
+      "draft",
+      "draft_area_verification",
+      "ready",
+      "processing",
+      "evaluated",
+      "locked",
+    ])
+      .default("draft")
+      .notNull(),
 
-  // Approval gate (V2.8)
-  approvalState: mysqlEnum("approvalState", [
-    "draft",
-    "review",
-    "approved_rfq",
-    "approved_marketing",
-  ]).default("draft"),
+    // Approval gate (V2.8)
+    approvalState: mysqlEnum("approvalState", [
+      "draft",
+      "review",
+      "approved_rfq",
+      "approved_marketing",
+    ]).default("draft"),
 
-  // Context variables
-  ctx01Typology: mysqlEnum("ctx01Typology", [
-    "Residential",
-    "Mixed-use",
-    "Hospitality",
-    "Office",
-    "Villa",
-    "Gated Community",
-    "Villa Development",
-  ]).default("Residential"),
-  ctx02Scale: mysqlEnum("ctx02Scale", ["Small", "Medium", "Large"]).default(
-    "Medium"
-  ),
-  ctx03Gfa: decimal("ctx03Gfa", { precision: 12, scale: 2 }),
+    // Context variables
+    ctx01Typology: mysqlEnum("ctx01Typology", [
+      "Residential",
+      "Mixed-use",
+      "Hospitality",
+      "Office",
+      "Villa",
+      "Gated Community",
+      "Villa Development",
+    ]).default("Residential"),
+    ctx02Scale: mysqlEnum("ctx02Scale", ["Small", "Medium", "Large"]).default(
+      "Medium"
+    ),
+    ctx03Gfa: decimal("ctx03Gfa", { precision: 12, scale: 2 }),
 
-  // V4 — Fit-out Oracle: area-based pricing
-  totalFitoutArea: decimal("totalFitoutArea", { precision: 12, scale: 2 }),
-  totalNonFinishArea: decimal("totalNonFinishArea", {
-    precision: 12,
-    scale: 2,
-  }),
-  fitoutAreaVerified: boolean("fitoutAreaVerified").default(false),
-  projectArchetype: mysqlEnum("projectArchetype", [
-    "residential_multi",
-    "office",
-    "single_villa",
-    "hospitality",
-    "community",
-  ]),
-  officeFitoutCategory: mysqlEnum("officeFitoutCategory", ["catA", "catB"]),
-  officeCustomRatio: decimal("officeCustomRatio", { precision: 5, scale: 2 }),
-  ctx04Location: mysqlEnum("ctx04Location", [
-    "Prime",
-    "Secondary",
-    "Emerging",
-  ]).default("Secondary"),
-  ctx05Horizon: mysqlEnum("ctx05Horizon", [
-    "0-12m",
-    "12-24m",
-    "24-36m",
-    "36m+",
-  ]).default("12-24m"),
+    // V4 — Fit-out Oracle: area-based pricing
+    totalFitoutArea: decimal("totalFitoutArea", { precision: 12, scale: 2 }),
+    totalNonFinishArea: decimal("totalNonFinishArea", {
+      precision: 12,
+      scale: 2,
+    }),
+    fitoutAreaVerified: boolean("fitoutAreaVerified").default(false),
+    projectArchetype: mysqlEnum("projectArchetype", [
+      "residential_multi",
+      "office",
+      "single_villa",
+      "hospitality",
+      "community",
+    ]),
+    officeFitoutCategory: mysqlEnum("officeFitoutCategory", ["catA", "catB"]),
+    officeCustomRatio: decimal("officeCustomRatio", { precision: 5, scale: 2 }),
+    ctx04Location: mysqlEnum("ctx04Location", [
+      "Prime",
+      "Secondary",
+      "Emerging",
+    ]).default("Secondary"),
+    ctx05Horizon: mysqlEnum("ctx05Horizon", [
+      "0-12m",
+      "12-24m",
+      "24-36m",
+      "36m+",
+    ]).default("12-24m"),
 
-  // DLD Area reference (Phase B.3 — links to DLD open data areas)
-  dldAreaId: int("dld_area_id"),
-  dldAreaName: varchar("dld_area_name", { length: 200 }),
+    // DLD Area reference (Phase B.3 — links to DLD open data areas)
+    dldAreaId: int("dld_area_id"),
+    dldAreaName: varchar("dld_area_name", { length: 200 }),
 
-  // City & Sustainability Certification (Phase D — affects pricing, scoring, compliance)
-  city: mysqlEnum("city", ["Dubai", "Abu Dhabi"]).default("Dubai"),
-  materialPriceGeography: mysqlEnum("materialPriceGeography", [
-    "dubai",
-    "abu_dhabi",
-    "sharjah",
-    "ajman",
-    "umm_al_quwain",
-    "ras_al_khaimah",
-    "fujairah",
-    "uae",
-  ]),
-  materialPricingRevision: int("material_pricing_revision")
-    .default(1)
-    .notNull(),
-  sustainCertTarget: varchar("sustain_cert_target", { length: 50 }).default(
-    "silver"
-  ),
+    // City & Sustainability Certification (Phase D — affects pricing, scoring, compliance)
+    city: mysqlEnum("city", ["Dubai", "Abu Dhabi"]).default("Dubai"),
+    materialPriceGeography: mysqlEnum("materialPriceGeography", [
+      "dubai",
+      "abu_dhabi",
+      "sharjah",
+      "ajman",
+      "umm_al_quwain",
+      "ras_al_khaimah",
+      "fujairah",
+      "uae",
+    ]),
+    materialPricingRevision: int("material_pricing_revision")
+      .default(1)
+      .notNull(),
+    sustainCertTarget: varchar("sustain_cert_target", { length: 50 }).default(
+      "silver"
+    ),
 
-  // Project purpose — drives fitout quality and benchmark selection
-  projectPurpose: mysqlEnum("project_purpose", [
-    "sell_offplan", // New off-plan development — showroom-quality finishes, premium specs
-    "sell_ready", // Ready property sale — durable premium finishes, market-competitive
-    "rent", // Rental yield focus — durability over luxury, cost-efficient materials
-    "mixed", // Mixed use — balanced approach
-  ]).default("sell_ready"),
+    // Project purpose — drives fitout quality and benchmark selection
+    projectPurpose: mysqlEnum("project_purpose", [
+      "sell_offplan", // New off-plan development — showroom-quality finishes, premium specs
+      "sell_ready", // Ready property sale — durable premium finishes, market-competitive
+      "rent", // Rental yield focus — durability over luxury, cost-efficient materials
+      "mixed", // Mixed use — balanced approach
+    ]).default("sell_ready"),
 
-  // Strategy variables (1-5)
-  str01BrandClarity: int("str01BrandClarity").default(3),
-  str02Differentiation: int("str02Differentiation").default(3),
-  str03BuyerMaturity: int("str03BuyerMaturity").default(3),
+    // Strategy variables (1-5)
+    str01BrandClarity: int("str01BrandClarity").default(3),
+    str02Differentiation: int("str02Differentiation").default(3),
+    str03BuyerMaturity: int("str03BuyerMaturity").default(3),
 
-  // Market variables
-  mkt01Tier: mysqlEnum("mkt01Tier", [
-    "Mid",
-    "Upper-mid",
-    "Luxury",
-    "Ultra-luxury",
-  ]).default("Upper-mid"),
-  mkt02Competitor: int("mkt02Competitor").default(3),
-  mkt03Trend: int("mkt03Trend").default(3),
+    // Market variables
+    mkt01Tier: mysqlEnum("mkt01Tier", [
+      "Mid",
+      "Upper-mid",
+      "Luxury",
+      "Ultra-luxury",
+    ]).default("Upper-mid"),
+    mkt02Competitor: int("mkt02Competitor").default(3),
+    mkt03Trend: int("mkt03Trend").default(3),
 
-  // Financial variables
-  fin01BudgetCap: decimal("fin01BudgetCap", { precision: 10, scale: 2 }),
-  fin02Flexibility: int("fin02Flexibility").default(3),
-  fin03ShockTolerance: int("fin03ShockTolerance").default(3),
-  fin04SalesPremium: int("fin04SalesPremium").default(3),
+    // Financial variables
+    fin01BudgetCap: decimal("fin01BudgetCap", { precision: 10, scale: 2 }),
+    fin02Flexibility: int("fin02Flexibility").default(3),
+    fin03ShockTolerance: int("fin03ShockTolerance").default(3),
+    fin04SalesPremium: int("fin04SalesPremium").default(3),
 
-  // Design variables
-  des01Style: mysqlEnum("des01Style", [
-    "Modern",
-    "Contemporary",
-    "Minimal",
-    "Classic",
-    "Fusion",
-    "Other",
-  ]).default("Modern"),
-  des02MaterialLevel: int("des02MaterialLevel").default(3),
-  des03Complexity: int("des03Complexity").default(3),
-  des04Experience: int("des04Experience").default(3),
-  des05Sustainability: int("des05Sustainability").default(2),
+    // Design variables
+    des01Style: mysqlEnum("des01Style", [
+      "Modern",
+      "Contemporary",
+      "Minimal",
+      "Classic",
+      "Fusion",
+      "Other",
+    ]).default("Modern"),
+    des02MaterialLevel: int("des02MaterialLevel").default(3),
+    des03Complexity: int("des03Complexity").default(3),
+    des04Experience: int("des04Experience").default(3),
+    des05Sustainability: int("des05Sustainability").default(2),
 
-  // Execution variables
-  exe01SupplyChain: int("exe01SupplyChain").default(3),
-  exe02Contractor: int("exe02Contractor").default(3),
-  exe03Approvals: int("exe03Approvals").default(2),
-  exe04QaMaturity: int("exe04QaMaturity").default(3),
+    // Execution variables
+    exe01SupplyChain: int("exe01SupplyChain").default(3),
+    exe02Contractor: int("exe02Contractor").default(3),
+    exe03Approvals: int("exe03Approvals").default(2),
+    exe04QaMaturity: int("exe04QaMaturity").default(3),
 
-  // Add-on variables
-  add01SampleKit: boolean("add01SampleKit").default(false),
-  add02PortfolioMode: boolean("add02PortfolioMode").default(false),
-  add03DashboardExport: boolean("add03DashboardExport").default(true),
+    // Add-on variables
+    add01SampleKit: boolean("add01SampleKit").default(false),
+    add02PortfolioMode: boolean("add02PortfolioMode").default(false),
+    add03DashboardExport: boolean("add03DashboardExport").default(true),
 
-  // --- V5: Concrete Analytics Inputs ---
-  developerType: mysqlEnum("developerType", [
-    "Master Developer",
-    "Private/Boutique",
-    "Institutional Investor",
-  ]),
-  targetDemographic: mysqlEnum("targetDemographic", [
-    "HNWI",
-    "Families",
-    "Young Professionals",
-    "Investors",
-  ]),
-  salesStrategy: mysqlEnum("salesStrategy", [
-    "Sell Off-Plan",
-    "Sell on Completion",
-    "Build-to-Rent",
-  ]),
-  competitiveDensity: mysqlEnum("competitiveDensity", [
-    "Low",
-    "Moderate",
-    "Saturated",
-  ]),
-  projectUsp: mysqlEnum("projectUsp", [
-    "Location/Views",
-    "Amenities/Facilities",
-    "Price/Value",
-    "Design/Architecture",
-  ]),
-  targetYield: mysqlEnum("targetYield", ["< 5%", "5-7%", "7-9%", "> 9%"]),
-  procurementStrategy: mysqlEnum("procurementStrategy", [
-    "Turnkey",
-    "Traditional",
-    "Construction Management",
-  ]),
-  amenityFocus: mysqlEnum("amenityFocus", [
-    "Wellness/Spa",
-    "F&B/Social",
-    "Minimal/Essential",
-    "Business/Co-working",
-  ]),
-  techIntegration: mysqlEnum("techIntegration", [
-    "Basic",
-    "Smart Home Ready",
-    "Fully Integrated",
-  ]),
-  materialSourcing: mysqlEnum("materialSourcing", [
-    "Local",
-    "European",
-    "Asian",
-    "Global Mix",
-  ]),
-  handoverCondition: mysqlEnum("handoverCondition", [
-    "Shell & Core",
-    "Category A",
-    "Category B",
-    "Fully Furnished",
-  ]),
-  brandedStatus: mysqlEnum("brandedStatus", [
-    "Unbranded",
-    "Hospitality Branded",
-    "Fashion/Automotive Branded",
-  ]),
-  salesChannel: mysqlEnum("salesChannel", [
-    "Local Brokerage",
-    "International Roadshows",
-    "Direct to VIP",
-  ]),
-  lifecycleFocus: mysqlEnum("lifecycleFocus", [
-    "Short-term Resale",
-    "Medium-term Hold",
-    "Long-term Retention",
-  ]),
-  brandStandardConstraints: mysqlEnum("brandStandardConstraints", [
-    "High Flexibility",
-    "Moderate Guidelines",
-    "Strict Vendor List",
-  ]),
-  timelineFlexibility: mysqlEnum("timelineFlexibility", [
-    "Highly Flexible",
-    "Moderate Contingency",
-    "Fixed / Zero Tolerance",
-  ]),
-  targetValueAdd: mysqlEnum("targetValueAdd", [
-    "Max Capital Appreciation",
-    "Max Rental Yield",
-    "Balanced Return",
-    "Brand Flagship / Trophy",
-  ]),
+    // --- V5: Concrete Analytics Inputs ---
+    developerType: mysqlEnum("developerType", [
+      "Master Developer",
+      "Private/Boutique",
+      "Institutional Investor",
+    ]),
+    targetDemographic: mysqlEnum("targetDemographic", [
+      "HNWI",
+      "Families",
+      "Young Professionals",
+      "Investors",
+    ]),
+    salesStrategy: mysqlEnum("salesStrategy", [
+      "Sell Off-Plan",
+      "Sell on Completion",
+      "Build-to-Rent",
+    ]),
+    competitiveDensity: mysqlEnum("competitiveDensity", [
+      "Low",
+      "Moderate",
+      "Saturated",
+    ]),
+    projectUsp: mysqlEnum("projectUsp", [
+      "Location/Views",
+      "Amenities/Facilities",
+      "Price/Value",
+      "Design/Architecture",
+    ]),
+    targetYield: mysqlEnum("targetYield", ["< 5%", "5-7%", "7-9%", "> 9%"]),
+    procurementStrategy: mysqlEnum("procurementStrategy", [
+      "Turnkey",
+      "Traditional",
+      "Construction Management",
+    ]),
+    amenityFocus: mysqlEnum("amenityFocus", [
+      "Wellness/Spa",
+      "F&B/Social",
+      "Minimal/Essential",
+      "Business/Co-working",
+    ]),
+    techIntegration: mysqlEnum("techIntegration", [
+      "Basic",
+      "Smart Home Ready",
+      "Fully Integrated",
+    ]),
+    materialSourcing: mysqlEnum("materialSourcing", [
+      "Local",
+      "European",
+      "Asian",
+      "Global Mix",
+    ]),
+    handoverCondition: mysqlEnum("handoverCondition", [
+      "Shell & Core",
+      "Category A",
+      "Category B",
+      "Fully Furnished",
+    ]),
+    brandedStatus: mysqlEnum("brandedStatus", [
+      "Unbranded",
+      "Hospitality Branded",
+      "Fashion/Automotive Branded",
+    ]),
+    salesChannel: mysqlEnum("salesChannel", [
+      "Local Brokerage",
+      "International Roadshows",
+      "Direct to VIP",
+    ]),
+    lifecycleFocus: mysqlEnum("lifecycleFocus", [
+      "Short-term Resale",
+      "Medium-term Hold",
+      "Long-term Retention",
+    ]),
+    brandStandardConstraints: mysqlEnum("brandStandardConstraints", [
+      "High Flexibility",
+      "Moderate Guidelines",
+      "Strict Vendor List",
+    ]),
+    timelineFlexibility: mysqlEnum("timelineFlexibility", [
+      "Highly Flexible",
+      "Moderate Contingency",
+      "Fixed / Zero Tolerance",
+    ]),
+    targetValueAdd: mysqlEnum("targetValueAdd", [
+      "Max Capital Appreciation",
+      "Max Rental Yield",
+      "Balanced Return",
+      "Brand Flagship / Trophy",
+    ]),
 
-  // Expanded Inputs
-  unitMix: json("unitMix"),
-  villaSpaces: json("villaSpaces"),
-  developerGuidelines: json("developerGuidelines"),
+    // Expanded Inputs
+    unitMix: json("unitMix"),
+    villaSpaces: json("villaSpaces"),
+    developerGuidelines: json("developerGuidelines"),
 
-  // Phase 9: Floor Plan Intelligence
-  floorPlanAssetId: int("floorPlanAssetId"), // FK to project_assets
-  floorPlanAnalysis: json("floorPlanAnalysis"), // AI-extracted room breakdown
+    // Phase 9: Floor Plan Intelligence
+    floorPlanAssetId: int("floorPlanAssetId"), // FK to project_assets
+    floorPlanAnalysis: json("floorPlanAnalysis"), // AI-extracted room breakdown
 
-  // UX-01: records whether authoritative evaluation inputs were explicitly
-  // supplied, assumed by defaults, suggested by AI, or confirmed by a user.
-  // Null is reserved for legacy projects created before this contract.
-  inputProvenance: json("inputProvenance"),
+    // UX-01: records whether authoritative evaluation inputs were explicitly
+    // supplied, assumed by defaults, suggested by AI, or confirmed by a user.
+    // Null is reserved for legacy projects created before this contract.
+    inputProvenance: json("inputProvenance"),
 
-  modelVersionId: int("modelVersionId"),
-  benchmarkVersionId: int("benchmarkVersionId"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  lockedAt: timestamp("lockedAt"),
-});
+    modelVersionId: int("modelVersionId"),
+    benchmarkVersionId: int("benchmarkVersionId"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    lockedAt: timestamp("lockedAt"),
+  },
+  table => [uniqueIndex("projects_org_id_unique").on(table.orgId, table.id)]
+);
 
 export type Project = typeof projects.$inferSelect;
 export type InsertProject = typeof projects.$inferInsert;
@@ -591,33 +597,42 @@ export type ProjectIntelligence = typeof projectIntelligence.$inferSelect;
 export type InsertProjectIntelligence = typeof projectIntelligence.$inferInsert;
 
 // ─── Report Instances ────────────────────────────────────────────────────────
-export const reportInstances = mysqlTable("report_instances", {
-  id: int("id").autoincrement().primaryKey(),
-  projectId: int("projectId").notNull(),
-  scoreMatrixId: int("scoreMatrixId").notNull(),
-  reportType: mysqlEnum("reportType", [
-    "executive_pack",
-    "full_technical",
-    "tender_brief",
-    "executive_decision_pack",
-    "design_brief_rfq",
-    "marketing_starter",
-    "validation_summary",
-    "design_brief",
-    "rfq_pack",
-    "full_report",
-    "marketing_prelaunch",
-    "autonomous_design_brief",
-  ]).notNull(),
-  fileUrl: text("fileUrl"),
-  storageKey: text("storageKey"),
-  bundleUrl: text("bundleUrl"),
-  content: json("content"),
-  benchmarkVersionId: int("benchmarkVersionId"),
-  modelVersionId: int("modelVersionId"),
-  generatedAt: timestamp("generatedAt").defaultNow().notNull(),
-  generatedBy: int("generatedBy"),
-});
+export const reportInstances = mysqlTable(
+  "report_instances",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    projectId: int("projectId").notNull(),
+    scoreMatrixId: int("scoreMatrixId").notNull(),
+    reportType: mysqlEnum("reportType", [
+      "executive_pack",
+      "full_technical",
+      "tender_brief",
+      "executive_decision_pack",
+      "design_brief_rfq",
+      "marketing_starter",
+      "validation_summary",
+      "design_brief",
+      "rfq_pack",
+      "full_report",
+      "marketing_prelaunch",
+      "autonomous_design_brief",
+    ]).notNull(),
+    fileUrl: text("fileUrl"),
+    storageKey: text("storageKey"),
+    bundleUrl: text("bundleUrl"),
+    content: json("content"),
+    benchmarkVersionId: int("benchmarkVersionId"),
+    modelVersionId: int("modelVersionId"),
+    generatedAt: timestamp("generatedAt").defaultNow().notNull(),
+    generatedBy: int("generatedBy"),
+  },
+  table => [
+    uniqueIndex("report_instances_project_id_unique").on(
+      table.projectId,
+      table.id
+    ),
+  ]
+);
 
 export type ReportInstance = typeof reportInstances.$inferSelect;
 export type InsertReportInstance = typeof reportInstances.$inferInsert;
@@ -1075,6 +1090,7 @@ export const supplierQuotes = mysqlTable(
       table.quoteRef
     ),
     uniqueIndex("supplier_quote_supersedes_unique").on(table.supersedesId),
+    uniqueIndex("supplier_quote_org_id_unique").on(table.orgId, table.id),
     index("supplier_quote_org_validity_idx").on(table.orgId, table.validUntil),
   ]
 );
@@ -5614,3 +5630,449 @@ export type BriefStream = typeof briefStreams.$inferSelect;
 export type BriefVersion = typeof briefVersions.$inferSelect;
 export type BriefVersionSection = typeof briefVersionSections.$inferSelect;
 export type BriefEvent = typeof briefEvents.$inferSelect;
+
+// ─── EV-04 Claim Health and Source Incidents ────────────────────────────────
+// These structures are additive. Existing evidence freshness, benchmark
+// weighting, resolver, and report contracts remain unchanged.
+export const claimHealthPolicyVersions = mysqlTable(
+  "claim_health_policy_version",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    version: varchar("version", { length: 96 }).notNull(),
+    requiredCellSchemaVersion: varchar("requiredCellSchemaVersion", {
+      length: 96,
+    }).notNull(),
+    status: mysqlEnum("status", ["draft", "approved", "superseded"]).notNull(),
+    effectiveFrom: timestamp("effectiveFrom"),
+    effectiveTo: timestamp("effectiveTo"),
+    policyDocument: json("policyDocument").notNull(),
+    policyDigest: varchar("policyDigest", { length: 71 }).notNull(),
+    approvedBy: int("approvedBy"),
+    approvedByIdentity: varchar("approvedByIdentity", { length: 160 }),
+    approvedAt: timestamp("approvedAt"),
+    supersedesId: int("supersedesId"),
+    createdBy: int("createdBy"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("claim_health_policy_version_version_unique").on(t.version),
+    uniqueIndex("claim_health_policy_version_supersedes_unique").on(
+      t.supersedesId
+    ),
+    uniqueIndex("claim_health_policy_version_identity_unique").on(
+      t.id,
+      t.version,
+      t.requiredCellSchemaVersion
+    ),
+    index("claim_health_policy_version_effective_idx").on(
+      t.status,
+      t.effectiveFrom,
+      t.effectiveTo
+    ),
+    check(
+      "claim_health_policy_version_approval_check",
+      sql`(
+        (
+          ${t.status} = 'approved'
+          and ${t.approvedAt} is not null
+          and (
+            (${t.approvedBy} is not null and ${t.approvedByIdentity} is null)
+            or (${t.approvedBy} is null and ${t.approvedByIdentity} is not null)
+          )
+        )
+        or (
+          ${t.status} <> 'approved'
+          and ${t.approvedBy} is null
+          and ${t.approvedByIdentity} is null
+          and ${t.approvedAt} is null
+        )
+      )`
+    ),
+    check(
+      "claim_health_policy_version_interval_check",
+      sql`(${t.effectiveTo} is null or ${t.effectiveFrom} is not null) and (${t.effectiveTo} is null or ${t.effectiveTo} > ${t.effectiveFrom})`
+    ),
+    check(
+      "claim_health_policy_version_digest_check",
+      sql`${t.policyDigest} regexp '^sha256:[0-9a-f]{64}$'`
+    ),
+    check(
+      "claim_health_policy_version_document_identity_check",
+      sql`json_unquote(json_extract(${t.policyDocument}, '$.policyVersion')) = ${t.version}
+        and json_unquote(json_extract(${t.policyDocument}, '$.requiredCellSchemaVersion')) = ${t.requiredCellSchemaVersion}`
+    ),
+  ]
+);
+
+export const claimHealthSnapshots = mysqlTable(
+  "claim_health_snapshot",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    scope: mysqlEnum("scope", [
+      "platform",
+      "organization",
+      "project",
+      "supplier_quote",
+    ]).notNull(),
+    organizationId: int("organizationId"),
+    projectId: int("projectId"),
+    supplierQuoteId: int("supplierQuoteId"),
+    reportInstanceId: int("reportInstanceId"),
+    consumer: mysqlEnum("consumer", [
+      "project_workspace",
+      "material_cost",
+      "design_brief",
+      "investor_summary",
+      "stored_project_report",
+      "public_share",
+      "market_evidence",
+      "admin_operations",
+    ]).notNull(),
+    evaluationClock: timestamp("evaluationClock").notNull(),
+    policyVersionId: int("policyVersionId").notNull(),
+    policyVersion: varchar("policyVersion", { length: 96 }).notNull(),
+    requiredCellSchemaVersion: varchar("requiredCellSchemaVersion", {
+      length: 96,
+    }).notNull(),
+    requiredCellInputs: json("requiredCellInputs").notNull(),
+    evaluatedResults: json("evaluatedResults").notNull(),
+    safeProjection: json("safeProjection").notNull(),
+    inputDigest: varchar("inputDigest", { length: 71 }).notNull(),
+    contentDigest: varchar("contentDigest", { length: 71 }).notNull(),
+    createdByUserId: int("createdByUserId"),
+    createdBySystemIdentity: varchar("createdBySystemIdentity", {
+      length: 128,
+    }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("claim_health_snapshot_report_unique").on(t.reportInstanceId),
+    uniqueIndex("claim_health_snapshot_scope_id_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.id
+    ),
+    uniqueIndex("claim_health_snapshot_share_binding_unique").on(
+      t.id,
+      t.organizationId,
+      t.reportInstanceId
+    ),
+    index("claim_health_snapshot_scope_clock_idx").on(
+      t.organizationId,
+      t.projectId,
+      t.consumer,
+      t.evaluationClock
+    ),
+    index("claim_health_snapshot_policy_idx").on(
+      t.policyVersionId,
+      t.evaluationClock
+    ),
+    foreignKey({
+      name: "claim_health_snapshot_policy_identity_fk",
+      columns: [
+        t.policyVersionId,
+        t.policyVersion,
+        t.requiredCellSchemaVersion,
+      ],
+      foreignColumns: [
+        claimHealthPolicyVersions.id,
+        claimHealthPolicyVersions.version,
+        claimHealthPolicyVersions.requiredCellSchemaVersion,
+      ],
+    }),
+    foreignKey({
+      name: "claim_health_snapshot_organization_fk",
+      columns: [t.organizationId],
+      foreignColumns: [organizations.id],
+    }),
+    foreignKey({
+      name: "claim_health_snapshot_project_org_fk",
+      columns: [t.organizationId, t.projectId],
+      foreignColumns: [projects.orgId, projects.id],
+    }),
+    foreignKey({
+      name: "claim_health_snapshot_supplier_quote_org_fk",
+      columns: [t.organizationId, t.supplierQuoteId],
+      foreignColumns: [supplierQuotes.orgId, supplierQuotes.id],
+    }),
+    foreignKey({
+      name: "claim_health_snapshot_report_project_fk",
+      columns: [t.projectId, t.reportInstanceId],
+      foreignColumns: [reportInstances.projectId, reportInstances.id],
+    }),
+    foreignKey({
+      name: "claim_health_snapshot_member_actor_fk",
+      columns: [t.organizationId, t.createdByUserId],
+      foreignColumns: [organizationMembers.orgId, organizationMembers.userId],
+    }),
+    check(
+      "claim_health_snapshot_scope_check",
+      sql`(
+        (${t.scope} = 'platform' and ${t.organizationId} is null and ${t.projectId} is null and ${t.supplierQuoteId} is null)
+        or (${t.scope} = 'organization' and ${t.organizationId} is not null and ${t.projectId} is null and ${t.supplierQuoteId} is null)
+        or (${t.scope} = 'project' and ${t.organizationId} is not null and ${t.projectId} is not null and ${t.supplierQuoteId} is null)
+        or (${t.scope} = 'supplier_quote' and ${t.organizationId} is not null and ${t.projectId} is null and ${t.supplierQuoteId} is not null)
+      )`
+    ),
+    check(
+      "claim_health_snapshot_report_scope_check",
+      sql`${t.reportInstanceId} is null or (${t.scope} = 'project' and ${t.projectId} is not null)`
+    ),
+    check(
+      "claim_health_snapshot_actor_check",
+      sql`(
+        (${t.createdByUserId} is not null and ${t.createdBySystemIdentity} is null)
+        or (${t.createdByUserId} is null and ${t.createdBySystemIdentity} is not null)
+      )`
+    ),
+    check(
+      "claim_health_snapshot_digest_check",
+      sql`${t.inputDigest} regexp '^sha256:[0-9a-f]{64}$' and ${t.contentDigest} regexp '^sha256:[0-9a-f]{64}$'`
+    ),
+  ]
+);
+
+export const reportPublicShares = mysqlTable(
+  "report_public_share",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    organizationId: int("organizationId").notNull(),
+    reportInstanceId: int("reportInstanceId").notNull(),
+    snapshotId: int("snapshotId").notNull(),
+    tokenHash: varchar("tokenHash", { length: 64 }).notNull(),
+    expiresAt: timestamp("expiresAt").notNull(),
+    revokedAt: timestamp("revokedAt"),
+    revokedByUserId: int("revokedByUserId"),
+    createdByUserId: int("createdByUserId").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("report_public_share_token_hash_unique").on(t.tokenHash),
+    index("report_public_share_report_idx").on(
+      t.organizationId,
+      t.reportInstanceId,
+      t.createdAt
+    ),
+    foreignKey({
+      name: "report_public_share_organization_fk",
+      columns: [t.organizationId],
+      foreignColumns: [organizations.id],
+    }),
+    foreignKey({
+      name: "report_public_share_snapshot_binding_fk",
+      columns: [t.snapshotId, t.organizationId, t.reportInstanceId],
+      foreignColumns: [
+        claimHealthSnapshots.id,
+        claimHealthSnapshots.organizationId,
+        claimHealthSnapshots.reportInstanceId,
+      ],
+    }),
+    foreignKey({
+      name: "report_public_share_creator_fk",
+      columns: [t.organizationId, t.createdByUserId],
+      foreignColumns: [organizationMembers.orgId, organizationMembers.userId],
+    }),
+    foreignKey({
+      name: "report_public_share_revoker_fk",
+      columns: [t.organizationId, t.revokedByUserId],
+      foreignColumns: [organizationMembers.orgId, organizationMembers.userId],
+    }),
+    check(
+      "report_public_share_token_hash_check",
+      sql`${t.tokenHash} regexp '^[0-9a-f]{64}$'`
+    ),
+    check(
+      "report_public_share_expiry_check",
+      sql`${t.expiresAt} > ${t.createdAt}`
+    ),
+    check(
+      "report_public_share_revocation_check",
+      sql`(${t.revokedAt} is null and ${t.revokedByUserId} is null) or (${t.revokedAt} is not null and ${t.revokedByUserId} is not null)`
+    ),
+  ]
+);
+
+export const sourceIncidents = mysqlTable(
+  "source_incident",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    incidentKey: varchar("incidentKey", { length: 128 }).notNull(),
+    scope: mysqlEnum("scope", [
+      "platform",
+      "organization",
+      "project",
+      "supplier_quote",
+    ]).notNull(),
+    organizationId: int("organizationId"),
+    projectId: int("projectId"),
+    supplierQuoteId: int("supplierQuoteId"),
+    sourceRegistryId: int("sourceRegistryId"),
+    sourceIdentity: varchar("sourceIdentity", { length: 255 }).notNull(),
+    incidentType: mysqlEnum("incidentType", [
+      "required_run_missed",
+      "repeated_source_failure",
+      "source_authorization_revoked",
+      "unexpected_zero",
+      "anomalous_extraction",
+      "corrupted_source_content",
+      "provenance_digest_mismatch",
+      "quality_quarantine_backlog",
+      "confidentiality_concern",
+      "tenant_boundary_concern",
+      "stale_mandatory_evidence",
+    ]).notNull(),
+    openedAt: timestamp("openedAt").notNull(),
+    openedUnderPolicyVersionId: int("openedUnderPolicyVersionId").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("source_incident_key_unique").on(t.incidentKey),
+    uniqueIndex("source_incident_scope_id_unique").on(
+      t.id,
+      t.scope,
+      t.organizationId,
+      t.projectId,
+      t.supplierQuoteId,
+      t.sourceIdentity
+    ),
+    index("source_incident_scope_source_idx").on(
+      t.scope,
+      t.organizationId,
+      t.projectId,
+      t.supplierQuoteId,
+      t.sourceIdentity
+    ),
+    foreignKey({
+      name: "source_incident_organization_fk",
+      columns: [t.organizationId],
+      foreignColumns: [organizations.id],
+    }),
+    foreignKey({
+      name: "source_incident_project_org_fk",
+      columns: [t.organizationId, t.projectId],
+      foreignColumns: [projects.orgId, projects.id],
+    }),
+    foreignKey({
+      name: "source_incident_supplier_quote_org_fk",
+      columns: [t.organizationId, t.supplierQuoteId],
+      foreignColumns: [supplierQuotes.orgId, supplierQuotes.id],
+    }),
+    foreignKey({
+      name: "source_incident_source_registry_fk",
+      columns: [t.sourceRegistryId],
+      foreignColumns: [sourceRegistry.id],
+    }),
+    foreignKey({
+      name: "source_incident_open_policy_fk",
+      columns: [t.openedUnderPolicyVersionId],
+      foreignColumns: [claimHealthPolicyVersions.id],
+    }),
+    check(
+      "source_incident_scope_check",
+      sql`(
+        (${t.scope} = 'platform' and ${t.organizationId} is null and ${t.projectId} is null and ${t.supplierQuoteId} is null)
+        or (${t.scope} = 'organization' and ${t.organizationId} is not null and ${t.projectId} is null and ${t.supplierQuoteId} is null)
+        or (${t.scope} = 'project' and ${t.organizationId} is not null and ${t.projectId} is not null and ${t.supplierQuoteId} is null)
+        or (${t.scope} = 'supplier_quote' and ${t.organizationId} is not null and ${t.projectId} is null and ${t.supplierQuoteId} is not null)
+      )`
+    ),
+  ]
+);
+
+export const sourceIncidentEvents = mysqlTable(
+  "source_incident_event",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    incidentId: int("incidentId").notNull(),
+    eventSequence: int("eventSequence").notNull(),
+    eventType: mysqlEnum("eventType", [
+      "opened",
+      "acknowledged",
+      "resolved",
+      "reopened",
+    ]).notNull(),
+    resultingState: mysqlEnum("resultingState", [
+      "open",
+      "acknowledged",
+      "resolved",
+    ]).notNull(),
+    severity: mysqlEnum("severity", ["advisory", "blocking"]).notNull(),
+    blockingEffect: boolean("blockingEffect").notNull(),
+    actorType: mysqlEnum("actorType", [
+      "platform_admin",
+      "organization_admin",
+      "system_detector",
+    ]).notNull(),
+    actorUserId: int("actorUserId"),
+    actorIdentity: varchar("actorIdentity", { length: 160 }).notNull(),
+    actorSessionIdentity: varchar("actorSessionIdentity", { length: 160 }),
+    detectorPolicyVersion: varchar("detectorPolicyVersion", { length: 96 }),
+    reason: text("reason").notNull(),
+    effectiveAt: timestamp("effectiveAt").notNull(),
+    policyVersionId: int("policyVersionId").notNull(),
+    ingestionRunId: varchar("ingestionRunId", { length: 64 }),
+    evidenceRecordId: int("evidenceRecordId"),
+    snapshotId: int("snapshotId"),
+    idempotencyKey: varchar("idempotencyKey", { length: 128 }).notNull(),
+    requestDigest: varchar("requestDigest", { length: 71 }).notNull(),
+    auditIdentity: varchar("auditIdentity", { length: 160 }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  t => [
+    uniqueIndex("source_incident_event_sequence_unique").on(
+      t.incidentId,
+      t.eventSequence
+    ),
+    uniqueIndex("source_incident_event_idempotency_unique").on(
+      t.incidentId,
+      t.actorIdentity,
+      t.idempotencyKey
+    ),
+    index("source_incident_event_effective_idx").on(
+      t.incidentId,
+      t.effectiveAt,
+      t.eventSequence
+    ),
+    foreignKey({
+      name: "source_incident_event_incident_fk",
+      columns: [t.incidentId],
+      foreignColumns: [sourceIncidents.id],
+    }),
+    foreignKey({
+      name: "source_incident_event_policy_fk",
+      columns: [t.policyVersionId],
+      foreignColumns: [claimHealthPolicyVersions.id],
+    }),
+    foreignKey({
+      name: "source_incident_event_snapshot_fk",
+      columns: [t.snapshotId],
+      foreignColumns: [claimHealthSnapshots.id],
+    }),
+    check(
+      "source_incident_event_actor_check",
+      sql`(
+        (${t.actorType} = 'system_detector' and ${t.actorUserId} is null and ${t.actorSessionIdentity} is null and ${t.detectorPolicyVersion} is not null)
+        or (${t.actorType} in ('platform_admin', 'organization_admin') and ${t.actorUserId} is not null and ${t.actorSessionIdentity} is not null and ${t.detectorPolicyVersion} is null)
+      )`
+    ),
+    check(
+      "source_incident_event_blocking_check",
+      sql`(
+        (${t.severity} = 'blocking' and ${t.blockingEffect} = true)
+        or (${t.severity} = 'advisory' and ${t.blockingEffect} = false)
+      )`
+    ),
+    check(
+      "source_incident_event_digest_check",
+      sql`${t.requestDigest} regexp '^sha256:[0-9a-f]{64}$'`
+    ),
+    check("source_incident_event_sequence_check", sql`${t.eventSequence} > 0`),
+  ]
+);
+
+export type ClaimHealthPolicyVersion =
+  typeof claimHealthPolicyVersions.$inferSelect;
+export type ClaimHealthSnapshot = typeof claimHealthSnapshots.$inferSelect;
+export type ReportPublicShare = typeof reportPublicShares.$inferSelect;
+export type SourceIncident = typeof sourceIncidents.$inferSelect;
+export type SourceIncidentEvent = typeof sourceIncidentEvents.$inferSelect;
