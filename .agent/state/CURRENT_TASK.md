@@ -89,7 +89,9 @@ frozen safe snapshot rather than recomputing mutable health.
    logic, resolver ranking, or scheduler triggers is excluded and requires a
    separate owner decision.
 3. **Shared data and release:** migration application, production writes,
-   deployment, smoke, Git publication, PR, and merge remain separately gated.
+   deployment, smoke, Git publication, PR, and merge were separately
+   authorized by Amro Saleh on 2026-07-30 and completed with the evidence
+   below.
 
 ## Execution Controls
 
@@ -115,16 +117,24 @@ frozen safe snapshot rather than recomputing mutable health.
   pass.
 - Definitive independent MIYAR review and Claude Opus delta review both return
   `PASS` with no blocker.
-- No shared/production migration, database write, deployment, Git publication,
-  pull request, merge, or external communication was performed.
+- Production backup `1dffws7qv282` completed before mutation. Additive
+  migration 0063 was applied through dependency-ordered PlanetScale deploy
+  requests #23–#27; failed request #22 changed no production schema.
+- The production seed created exactly one approved `ev04-claim-health-v1` row
+  with the canonical digest. Snapshots, report shares, incidents, and incident
+  events remained at zero.
+- PR #62 merged implementation commit `a1f0447` as canonical main
+  `c122d8fe7dec5410b75634562b5429ef52635f01`. Canonical-main CI and production
+  deployment `5681507320` succeeded for that exact SHA.
+- Production smoke passed: root/login and health return 200, anonymous project
+  access returns 401, and an invalid report-share token returns concealed 404
+  with `private, no-store` and `noindex, nofollow, noarchive`.
 
 ## Next Action
 
 Begin `EV-05` in a fresh worktree as the single next executable roadmap step.
-Before any EV-04 release, separately authorize an exact PlanetScale branch
-apply, the `seed` database operation, migration/deployment, Git publication,
-and production smoke. Incident-event retention remains a separate SC-06/PDPL
-gate, and production incident-history writes remain fail-closed.
+Incident-event retention remains a separate SC-06/PDPL gate, and production
+incident-history writes remain fail-closed.
 
 ## Handover Evidence
 
