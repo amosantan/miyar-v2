@@ -14,10 +14,10 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Completion history: `.agent/state/WORKLOG.md` and Git
 - Active/next executable step: `EV-05` is `READY` as the single
   dependency-valid next step after verified closure of `EV-04` on 2026-07-30.
-  EV-04's shared migration, canonical `seed` operation, deployment, and
-  incident-event retention remain separately gated. `EV-02R` is `CLOSED`: Amro
-  Saleh approved the terminal disposition of 24 non-material rejections and
-  19 residual `needs_evidence` rows; zero governed mappings, values, or
+  EV-04's shared migration, canonical seed, and deployment are complete;
+  incident-event retention remains separately gated. `EV-02R` is `CLOSED`:
+  Amro Saleh approved the terminal disposition of 24 non-material rejections
+  and 19 residual `needs_evidence` rows; zero governed mappings, values, or
   production writes were approved or applied. In parallel and still
   `NEEDS_HUMAN`: EV-00's residual cost-consultant tier-mapping sign-off,
   EV-01b's per-source BR-06 terms decisions, and `BR-06` professional pack
@@ -913,10 +913,12 @@ Rules:
   84/84 with 112 current pins, TypeScript, build/budgets, authorization 395/0,
   database safety 144/2/0, report certification 23/23, TR-13
   workflow/browser, diff hygiene, MIYAR review, and Claude Opus review pass.
-- Residual risk: Exact PlanetScale branch application, canonical production
-  seed authorization, shared migration, deployment, and production smoke
-  remain release gates. SC-06/PDPL must approve incident-history retention
-  before any non-disposable persistence.
+- Release evidence: Backup `1dffws7qv282` preceded additive deploy requests
+  #23–#27; the canonical policy row is exact and all runtime EV-04 tables began
+  empty. PR #62 merged as `c122d8fe`, production deployment `5681507320`
+  succeeded, and privacy/authorization smoke passed.
+- Residual risk: SC-06/PDPL must approve incident-history retention before any
+  non-disposable persistence.
 - Lessons: `LES-064`, `LES-065`, `LES-066`, `LES-067`
 
 ### EV-05 — Govern the DLD market-data pipeline

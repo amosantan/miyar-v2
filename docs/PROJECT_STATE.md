@@ -4,10 +4,10 @@ This is the canonical location for current observed repository facts. It is not 
 
 ## Observation Metadata
 
-- Observed: 2026-07-30 after verified local EV-04 implementation from
-  canonical base `f0405344a218529a28f15a8198ac4aac244ee99c`. No EV-04
-  shared/production action or Git publication was performed. See the dated
-  release sections below for prior deployments.
+- Observed: 2026-07-30 after the verified EV-04 production release. PR #62
+  merged implementation commit `a1f0447` as canonical main
+  `c122d8fe7dec5410b75634562b5429ef52635f01`; canonical-main CI and production
+  deployment `5681507320` succeeded for that exact SHA.
 - Production source lineage includes application authority `7621f28bcd9687e571c69bff6df1c6db7d67e048`, the independently reviewed EV-03 comparison-safety merge, plus EV-02R tooling/state merge `09cc94452b25e8404fe485ad7eb9ce13c24563f5`.
 - Branch identity: canonical main contains EV-02R tooling merge
   `09cc94452b25e8404fe485ad7eb9ce13c24563f5` and its state-only release record
@@ -19,9 +19,9 @@ This is the canonical location for current observed repository facts. It is not 
 - Production: digest-bound EV-03 governed deployment `dpl_Dz49pMxpGZGGHmqVNK1PYBcnk3tY` is `READY` from exact canonical source `7621f28b`; root/login and authenticated material-cost/browser-console smoke pass.
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
 - Roadmap state: `EV-02`, `EV-03`, `EV-02R`, and `EV-04` are closed; `EV-05`
-  is the single next dependency-valid step and is `READY`. EV-04's shared
-  migration, exact PlanetScale branch apply, canonical seed, release, and
-  incident-retention decision remain separately gated. EV-02R closed with
+  is the single next dependency-valid step and is `READY`. EV-04's migration,
+  canonical seed, application release, and production smoke are complete;
+  only incident retention remains separately gated. EV-02R closed with
   24 authorized non-material rejections and 19 residual `needs_evidence` rows;
   zero governed mappings, values, or production writes were approved or
   applied. `BR-05` is closed, while `BR-06`, EV-00's residual cost-policy
@@ -32,8 +32,31 @@ This is the canonical location for current observed repository facts. It is not 
   authenticated-production recheck remain `NEEDS_HUMAN`; `KF-018` remains a
   separate pre-existing legacy-report compatibility defect.
 
-## EV-04 Local Implementation Observation
+## EV-04 Implementation and Production Release
 
+- Restorable production backup `1dffws7qv282`
+  (`ev04-pre-0063-20260730`, 251,491,675 bytes, expires 2026-08-30) completed
+  before schema mutation. PlanetScale rejected deploy request #22 before any
+  production change because its 11 dependent operations exceeded the
+  provider's per-request limit.
+- The same reviewed migration was then applied in dependency order through
+  additive deploy requests #23–#27. Every branch lint was clean and every diff
+  had zero removals. Production schema verification confirms five EV-04
+  tables, 18 foreign keys, 16 checks, all required indexes, and the three
+  supporting composite unique keys.
+- The separately authorized seed ran exactly once against
+  `aws.connect.psdb.cloud:3306/miyar-v2`. Production contains exactly one
+  approved `ev04-claim-health-v1` / `ev04-required-cell-v1` policy row with
+  digest
+  `sha256:6da6e3982c97b8ce645945fc3af3cdc2b22d02ccf4ae6140fc0eaac63adb1c9b`;
+  snapshots, report shares, incidents, and incident events were all zero after
+  seeding and deployment.
+- PR #62 passed hosted lint/test, guarded MySQL authorization, and Vercel
+  preview gates, then merged as `c122d8fe`. Canonical-main CI passed and
+  GitHub/Vercel production deployment `5681507320` succeeded for the exact
+  merge SHA. Root/login and health returned 200, anonymous project access
+  returned 401, and invalid report-share resolution returned concealed 404
+  with `private, no-store` and `noindex, nofollow, noarchive`.
 - Fresh worktree `/Users/amrosaleh/Maiyar/miyar-v2-ev04-plan` on
   `codex/ev04-plan` implemented the owner-approved source coverage, freshness,
   incident, insufficiency, stored-report, and report-share SLA from exact
@@ -55,8 +78,6 @@ This is the canonical location for current observed repository facts. It is not 
   authority 16 paths; authorization 395/0; database safety 144/2/0; report
   certification 23/23; TR-13 workflow/browser certification; diff hygiene;
   definitive MIYAR review; and Claude Opus delta review.
-- No shared/production migration, database write, policy seed, deployment,
-  Git publication, pull request, merge, or external communication occurred.
 
 ## EV-02R Release Observation
 
