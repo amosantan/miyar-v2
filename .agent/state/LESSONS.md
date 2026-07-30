@@ -754,3 +754,22 @@ This is the append-only learning register shared by Codex, Claude Code, and huma
 - Reuse rule: A producer must never receive the trusted final evidence path.
   Promotion is a separate acceptance act after process, structure, permission,
   and cryptographic binding checks.
+
+### LES-063 — Prove domain membership before remediating an unresolved unit
+
+- Date / step: 2026-07-30 / EV-02R
+- Symptom: Twenty-four legacy rows classified as unresolved material prices
+  were actually payment-plan, property-count, corporate, tourism, or market
+  metrics whose numbers had been stored in AED price columns.
+- Cause: The historical import accepted evidence-shaped records into
+  `material_library` before proving that each record represented a purchasable
+  material and a material price.
+- Fix: Inventory the complete original row and downstream use first; reject
+  non-material records through a digest-bound human decision instead of
+  coercing their descriptive units into canonical price units.
+- Proof: The exact production inventory reproduced all 43 rows and found 24
+  non-material metrics plus zero links across allocations, finish schedules,
+  RFQs, and boards for every row.
+- Reuse rule: An unknown unit is not automatically a unit-mapping problem.
+  Establish that the row belongs to the domain before researching or
+  normalizing its unit, and never convert a business KPI into a material price.

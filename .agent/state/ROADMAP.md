@@ -12,7 +12,7 @@ This is the canonical, persistent execution ledger derived from `docs/audits/MIY
 - Active task: `.agent/state/CURRENT_TASK.md`
 - Durable lessons: `.agent/state/LESSONS.md`
 - Completion history: `.agent/state/WORKLOG.md` and Git
-- Active/next executable step: `EV-04` is the single next executable roadmap step. `EV-03` is `CLOSED`: migration 0062 and the exact identity backfill completed, the independently reviewed comparison produced 242/242 equality, and digest-bound governed pricing is live on production. In parallel and still `NEEDS_HUMAN`: EV-00's residual cost-consultant tier-mapping sign-off, EV-01b's per-source BR-06 terms decisions, and `BR-06` professional pack approvals.
+- Active/next executable step: `EV-04` is the single next dependency-valid step. `EV-02R` is `CLOSED`: Amro Saleh approved the terminal disposition of 24 non-material rejections and 19 residual `needs_evidence` rows; zero governed mappings, values, or production writes were approved or applied. In parallel and still `NEEDS_HUMAN`: EV-00's residual cost-consultant tier-mapping sign-off, EV-01b's per-source BR-06 terms decisions, and `BR-06` professional pack approvals.
 
 Repository state is the durable memory. Conversation history and agent auto-memory are conveniences only. These files persist across Codex and Claude Code sessions; Git commits make the history durable across machines and checkouts.
 
@@ -816,6 +816,54 @@ Rules:
 - Residual risk: 43 unresolved EV-02 rows remain explicitly ineligible; no
   ambiguous mapping was approved. Legacy schema contraction remains a later
   contract phase.
+
+### EV-02R — Remediate unresolved legacy material evidence
+
+- Status: `CLOSED`
+- Class / priority: Data/evidence / P1
+- Dependencies: `EV-02`, `EV-03`
+- Human gate: Explicit row-level approval for every proposed unit,
+  specification, scope, geography, effective date, and governed value.
+- Evidence: EV-02 retained 43 unresolved `material_library` rows: 37 have
+  unknown unit basis and six have incomplete price ranges.
+- Change set:
+  - Freeze the exact production row set and downstream impact.
+  - Retrieve authoritative supplier/manufacturer evidence or classify the row
+    `needs_evidence`.
+  - Produce a digest-bound approval packet and guarded append-only backfill.
+  - Preserve unapproved rows as explicit insufficiencies.
+- Done when: every row has an evidence-backed decision; only explicitly
+  approved rows are represented by governed facts; comparison,
+  reconciliation, recovery, and production verification pass.
+- Verification: deterministic packet/fingerprint tests, hostile approval and
+  drift tests, disposable-MySQL apply/idempotency/recovery, full material
+  reconciliation, independent review, and production post-write checks.
+- Expected artifacts: owner-safe inventory, approval packet, dry-run/apply
+  script, recovery manifest, and durable decision evidence.
+- Owner prioritization: approved to start on 2026-07-30. This does not approve
+  unseen mappings or permit guessed evidence.
+- Human decision: on 2026-07-30 Amro Saleh accepted the Data and
+  Decision-model/Product roles and approved the recommended rejection of 24
+  non-material rows. The remaining 19 stay `needs_evidence`; the governed
+  backfill set is empty. Decision packet SHA-256
+  `662c3933f10d651e77ac9b233bf8c021311feee25d49b560bd258c80c9f84160`.
+- Closure: owner-approved `PASS` on 2026-07-30. The 24 rejections are
+  ineligible rather than deleted; the remaining 19 are deliberately
+  insufficient. Because the governed-write set is empty, production
+  apply/recovery and application deployment are not applicable.
+- Handover evidence: One independently reviewed reader-only production
+  inventory reproduced the exact 43 rows and froze packet SHA-256
+  `6c2e244d3fb5f6d8d53e253c3b7a767ed9f8d0cc1a18d4db22c79240a50271ce`.
+  The approval packet recommends 24 non-material rejections, six tile rows
+  requiring exact quotes/benchmarks, nine official-statistic mappings still
+  missing a raw source digest and human approval, and four proven units the
+  canonical contract cannot represent. All four inventoried consumer-link
+  classes are zero for every row. Focused 28/28; DB-free 1,819/22;
+  TypeScript; strict scripts; material-price authority 16 paths;
+  authorization 390/0; database safety 142/2/0; build/budgets; diff hygiene;
+  and independent MIYAR final review pass. Claude was invoked three bounded
+  times but provider/tool-schema failures yielded no verdict. No production
+  backfill or application deployment occurred.
 
 ### EV-04 — Source coverage, freshness, and insufficiency SLA
 
