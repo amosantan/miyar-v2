@@ -6,7 +6,11 @@ This is the canonical location for current observed repository facts. It is not 
 
 - Observed: 2026-07-30 after EV-02R merge, canonical-main CI, and automatic production deployment. See the dated release sections below for prior deployments.
 - Production source lineage includes application authority `7621f28bcd9687e571c69bff6df1c6db7d67e048`, the independently reviewed EV-03 comparison-safety merge, plus EV-02R tooling/state merge `09cc94452b25e8404fe485ad7eb9ce13c24563f5`.
-- Branch identity: canonical `origin/main` is `09cc94452b25e8404fe485ad7eb9ce13c24563f5`; the EV-02R release-close record is isolated on `codex/ev02r-close`.
+- Branch identity: canonical main contains EV-02R tooling merge
+  `09cc94452b25e8404fe485ad7eb9ce13c24563f5` and its state-only release record
+  `6d07b5e8608616cfd40e554bdb89d9c1d45d0092`. Later state-only descendants do
+  not supersede either release identity; live Git remains authoritative for the
+  current branch tip.
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
 - Production: digest-bound EV-03 governed deployment `dpl_Dz49pMxpGZGGHmqVNK1PYBcnk3tY` is `READY` from exact canonical source `7621f28b`; root/login and authenticated material-cost/browser-console smoke pass.
@@ -27,6 +31,10 @@ This is the canonical location for current observed repository facts. It is not 
   application release identity.
 - No migration, production backfill, governed mapping, governed value, or
   material-price runtime behavior changed.
+- State-only PR #60 merged as `6d07b5e8608616cfd40e554bdb89d9c1d45d0092`;
+  canonical-main CI passed and automatic deployment `5673702712` completed
+  successfully with root/login HTTP 200. Per the release identity policy, this
+  documentation descendant does not supersede EV-02R tooling merge `09cc9445`.
 
 ## EV-03 Local Implementation Observation
 
