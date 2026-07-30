@@ -4,14 +4,14 @@ This is the canonical location for current observed repository facts. It is not 
 
 ## Observation Metadata
 
-- Observed: 2026-07-29 after the EV-03 governed production cutover. See the dated release sections below for prior deployments.
+- Observed: 2026-07-30 after the EV-02R human decision was recorded. See the dated release sections below for prior deployments.
 - Production source lineage includes canonical `main` `7621f28bcd9687e571c69bff6df1c6db7d67e048`, the independently reviewed EV-03 comparison-safety merge.
-- Branch identity: canonical `origin/main` is `7621f28bcd9687e571c69bff6df1c6db7d67e048`; the EV-03 closure record is isolated on `codex/ev03-close`.
+- Branch identity: canonical `origin/main` is `52d02b649795a3862cc4b4da505a2aced7742f8e`; the EV-02R decision work is isolated on `codex/ev02-unresolved-remediation`.
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
 - Production: digest-bound EV-03 governed deployment `dpl_Dz49pMxpGZGGHmqVNK1PYBcnk3tY` is `READY` from exact canonical source `7621f28b`; root/login and authenticated material-cost/browser-console smoke pass.
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
-- Roadmap state: `EV-02` and `EV-03` are closed with production migration/backfill and governed cutover `PASS`; `EV-04` is the single next executable step. The 43 unresolved EV-02 rows and all ambiguous mappings remain unapproved and ineligible. `BR-05` is closed, while `BR-06`, EV-00's residual cost-policy decisions, and EV-01b's per-source terms decisions remain `NEEDS_HUMAN`. `BR-04B`–`BR-04E` remain dependency-gated successors. `DI-01` remains merged and closed through canonical commit `ce5e44a`; its shared migration and production release remain separately gated. `SC-05` and UX-01's independent authenticated-production recheck remain `NEEDS_HUMAN`; `KF-018` remains a separate pre-existing legacy-report compatibility defect.
+- Roadmap state: `EV-02`, `EV-03`, and `EV-02R` are closed; `EV-04` is the single next executable step. EV-02R closed with 24 authorized non-material rejections and 19 residual `needs_evidence` rows; zero governed mappings, values, or production writes were approved or applied. `BR-05` is closed, while `BR-06`, EV-00's residual cost-policy decisions, and EV-01b's per-source terms decisions remain `NEEDS_HUMAN`. `BR-04B`–`BR-04E` remain dependency-gated successors. `DI-01` remains merged and closed through canonical commit `ce5e44a`; its shared migration and production release remain separately gated. `SC-05` and UX-01's independent authenticated-production recheck remain `NEEDS_HUMAN`; `KF-018` remains a separate pre-existing legacy-report compatibility defect.
 
 ## EV-03 Local Implementation Observation
 
