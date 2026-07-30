@@ -121,3 +121,8 @@ unit-contract decision for four per-m³/per-tonne rows.
   responses).
 - Owner approval on 2026-07-30 closes EV-02R with 24 rejected, 19 residual
   `needs_evidence`, zero approved mappings, and zero production writes.
+- PR #59 merged as canonical `09cc94452b25e8404fe485ad7eb9ce13c24563f5`.
+  PR and canonical-main CI, guarded MySQL authorization, Vercel preview, and
+  automated review passed. Automatic production deployment `5673588845`
+  succeeded and root/login returned 200. No material-price runtime or database
+  state changed.
