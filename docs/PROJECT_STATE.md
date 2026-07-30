@@ -4,14 +4,29 @@ This is the canonical location for current observed repository facts. It is not 
 
 ## Observation Metadata
 
-- Observed: 2026-07-30 after the EV-02R human decision was recorded. See the dated release sections below for prior deployments.
-- Production source lineage includes canonical `main` `7621f28bcd9687e571c69bff6df1c6db7d67e048`, the independently reviewed EV-03 comparison-safety merge.
-- Branch identity: canonical `origin/main` is `52d02b649795a3862cc4b4da505a2aced7742f8e`; the EV-02R decision work is isolated on `codex/ev02-unresolved-remediation`.
+- Observed: 2026-07-30 after EV-02R merge, canonical-main CI, and automatic production deployment. See the dated release sections below for prior deployments.
+- Production source lineage includes application authority `7621f28bcd9687e571c69bff6df1c6db7d67e048`, the independently reviewed EV-03 comparison-safety merge, plus EV-02R tooling/state merge `09cc94452b25e8404fe485ad7eb9ce13c24563f5`.
+- Branch identity: canonical `origin/main` is `09cc94452b25e8404fe485ad7eb9ce13c24563f5`; the EV-02R release-close record is isolated on `codex/ev02r-close`.
 - Remote: `https://github.com/amosantan/miyar-v2`
 - Package manager declared by repository: `pnpm`
 - Production: digest-bound EV-03 governed deployment `dpl_Dz49pMxpGZGGHmqVNK1PYBcnk3tY` is `READY` from exact canonical source `7621f28b`; root/login and authenticated material-cost/browser-console smoke pass.
 - Release identity policy: later documentation/state-only commits do not supersede the application release SHA
 - Roadmap state: `EV-02`, `EV-03`, and `EV-02R` are closed; `EV-04` is the single next executable step. EV-02R closed with 24 authorized non-material rejections and 19 residual `needs_evidence` rows; zero governed mappings, values, or production writes were approved or applied. `BR-05` is closed, while `BR-06`, EV-00's residual cost-policy decisions, and EV-01b's per-source terms decisions remain `NEEDS_HUMAN`. `BR-04B`–`BR-04E` remain dependency-gated successors. `DI-01` remains merged and closed through canonical commit `ce5e44a`; its shared migration and production release remain separately gated. `SC-05` and UX-01's independent authenticated-production recheck remain `NEEDS_HUMAN`; `KF-018` remains a separate pre-existing legacy-report compatibility defect.
+
+## EV-02R Release Observation
+
+- PR #59 merged the owner-approved EV-02R tooling and decision record as
+  canonical `09cc94452b25e8404fe485ad7eb9ce13c24563f5`.
+- PR and canonical-main lint/test, guarded disposable-MySQL authorization,
+  Vercel preview, and Vercel Agent Review passed. The first hosted lint/test
+  attempt exposed a macOS-only test assertion; portable Node filesystem mode
+  inspection fixed it without weakening the exact `0600` contract.
+- Automatic production deployment `5673588845` completed successfully for
+  exact merge SHA `09cc9445`; `www.miyar.dev` root and login returned HTTP 200.
+  This tooling/state-only release does not supersede EV-03's governed
+  application release identity.
+- No migration, production backfill, governed mapping, governed value, or
+  material-price runtime behavior changed.
 
 ## EV-03 Local Implementation Observation
 

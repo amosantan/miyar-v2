@@ -862,8 +862,10 @@ Rules:
   TypeScript; strict scripts; material-price authority 16 paths;
   authorization 390/0; database safety 142/2/0; build/budgets; diff hygiene;
   and independent MIYAR final review pass. Claude was invoked three bounded
-  times but provider/tool-schema failures yielded no verdict. No production
-  backfill or application deployment occurred.
+  times but provider/tool-schema failures yielded no verdict. PR #59 merged as
+  canonical `09cc9445`; PR and canonical-main hosted gates passed, and
+  automatic production deployment `5673588845` completed with root/login 200.
+  No production backfill or material-price runtime behavior changed.
 
 ### EV-04 — Source coverage, freshness, and insufficiency SLA
 
