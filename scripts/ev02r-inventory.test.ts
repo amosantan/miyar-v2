@@ -8,6 +8,7 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -354,12 +355,7 @@ describe("EV-02R production inventory source contract", () => {
           decisionPacket: run.packet.packet,
         })}`
       );
-      const mode = Number(
-        spawnSync("stat", ["-f", "%Lp", run.output], {
-          encoding: "utf8",
-        }).stdout.trim()
-      );
-      expect(mode).toBe(600);
+      expect(statSync(run.output).mode & 0o777).toBe(0o600);
     } finally {
       rmSync(run.root, { recursive: true, force: true });
     }
